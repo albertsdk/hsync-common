@@ -223,13 +223,17 @@ def should_compress(
 
     if size < threshold:
         log.debug(
-            f"Skip compression ({context}): {filepath} below threshold ({size} < {threshold} bytes)"
+            "Skip compression ({}): {} below threshold ({} < {} bytes)",
+            context,
+            filepath,
+            size,
+            threshold,
         )
         return False
 
     ext = splitext(filepath)[1].lower()
     if ext in PRECOMPRESSED_EXTENSIONS:
-        log.debug(f"Skip compression: {filepath} already compressed ({ext})")
+        log.debug("Skip compression: {} already compressed ({})", filepath, ext)
         return False
 
     return True
