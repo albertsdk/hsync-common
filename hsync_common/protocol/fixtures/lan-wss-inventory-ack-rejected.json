@@ -1,0 +1,7 @@
+{
+  "gen": 1,
+  "reason": "quota",
+  "seq": 1,
+  "status": "rejected",
+  "type": "inventory_ack"
+}

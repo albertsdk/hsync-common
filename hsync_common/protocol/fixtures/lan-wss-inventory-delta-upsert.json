@@ -1,0 +1,14 @@
+{
+  "entries": [
+    {
+      "path": "media/video.bin",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 1048576
+    }
+  ],
+  "gen": 1,
+  "mode": "delta",
+  "more": false,
+  "seq": 1,
+  "type": "inventory"
+}

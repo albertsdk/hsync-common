@@ -9,11 +9,13 @@ the same golden fixtures.
 | Concern | Single source of truth |
 |---|---|
 | TXT record keys / schema | `hsync_common.protocol.schemas` (`LAN_TXT_KEYS`, `build_lan_txt_schema`) |
-| WSS handshake frames / schema | `hsync_common.protocol.handshake` (`build_lan_*`), `hsync_common.protocol.schemas` (`build_lan_wss_schema`) |
+| WSS handshake + inventory frames / schema | `hsync_common.protocol.handshake` (`build_lan_*`), `hsync_common.protocol.peer_download` (`build_lan_inventory_*`), `hsync_common.protocol.schemas` (`build_lan_wss_schema`) |
+| Peer-source REST payloads / schema | `hsync_common.protocol.peer_download` (`build_lan_sources_*`, strict validators), `hsync_common.protocol.schemas` (`build_lan_sources_schema`) |
+| Full-download checksum header | `hsync_common.constants.HEADER_CHECKSUM_SHA256` (`X-Checksum-SHA256`) |
 | Election algorithm | `hsync_common.protocol.lan` (`rank_election_candidates`, `elect_master`, `election_sort_key`) |
 | Pairing / trust policy | `hsync_common.protocol.pairing` (`evaluate_pin`, `lan_write_requires_key`, `requires_pairing_confirmation`) |
 | Kotlin mirror | `com.hsync.android.p2p.Election`, `com.hsync.android.p2p.Pairing`, `com.hsync.android.data.api.Protocol` |
-| Cross-language scenarios | `protocol/fixtures/lan-election-scenarios.json`, `protocol/fixtures/lan-pairing-scenarios.json`, `protocol/fixtures/lan-wss-*.json` |
+| Cross-language scenarios | `protocol/fixtures/lan-election-scenarios.json`, `protocol/fixtures/lan-pairing-scenarios.json`, `protocol/fixtures/lan-sources-*.json`, `protocol/fixtures/lan-wss-*.json` |
 
 ## mDNS / TXT record
 
@@ -34,7 +36,7 @@ lives in `LAN_TXT_KEYS`; do not introduce keys outside it.
 
 **Optional keys** (present only when meaningful/true): `group`, `https`,
 `cert_fp`, `compression`, `delta`, `server_ready`, `force_master`,
-`never_master`, `connected`, `heartbeat`.
+`never_master`, `connected`, `heartbeat`, `peer_download`, `seed`.
 
 `compression` and `delta` are advertised only when the feature is enabled on
 that node. Per the canonical rule, a boolean flag is advertised only when
@@ -43,12 +45,20 @@ deletion gossip (ADR-0003) are hard dependencies of the sync/conflict model and
 are negotiated over the authenticated WSS handshake (ADR-0024), never the TXT
 record.
 
-These keys are optional at the record level because a node only advertises them
-once it is **serving as master**. A master, however, **must** advertise both
-`https` (`"true"`) and `cert_fp` (the SHA-256 fingerprint clients pin): the LAN
-transport is HTTPS-only, so a peer that does not is **not a valid master** and a
-slave refuses to connect to it (it logs `[INSECURE MASTER]` and stays in
-discovery).
+`peer_download` means the node implements the ADR-0028 inventory, batch source
+lookup, and read-only seeder semantics. A serving master publishes it when its
+`POST .../files/sources` endpoint is available; this TXT flag gates initial and
+one-shot lookup before WSS. The WSS capability is authoritative after an
+authenticated handshake. `seed` is narrower runtime state: it is present only
+while a slave's read-only HTTPS seeder has successfully bound. A stale or
+spoofed hint can at worst cause a failed source lookup or peer attempt, followed
+by the mandatory master fallback.
+
+Endpoint-material keys are optional at the record level because a node advertises
+them only while it serves an endpoint. A master or seeder, however, **must**
+advertise both `https` (`"true"`) and `cert_fp` (the lowercase SHA-256
+fingerprint clients pin). A peer that advertises a serving role without them is
+invalid and must not be contacted. Non-serving slaves need not advertise either.
 
 ## Presence counters
 
@@ -101,8 +111,211 @@ Semantics:
   the capabilities are authenticated: the values are logged, never trusted for
   gating decisions on the master side; the slave keeps using the TXT values
   unless it later authenticates.
+- `peer_download` follows the same intersection rule. A slave publishes
+  inventory only when its implementation is enabled and the master's WSS
+  handshake advertises the capability. On a no-key hello it is an availability
+  hint rather than authenticated authorization; every failure remains a safe
+  master fallback.
 - A `protocol_version` mismatch anywhere in the handshake is a **hard failure**
   (auth refused / peer treated as invalid), exactly like the WS channel.
+
+## Peer-assisted full-file download (ADR-0028)
+
+Peer assistance is an optimization for **full regular-file downloads only**.
+The master remains tracker, causal arbiter, event relay, and guaranteed source.
+Uploads, deletes, renames, permission changes, tombstones, symlinks and delta
+transfer remain master-coordinated. When delta applies, the requester tries the
+existing delta-to-master path first; only its full-transfer fallback may use a
+peer.
+
+Continuous, non-dry-run slaves may seed. One-shot clients may request peer
+sources but never bind a seeder or publish inventory. A requester performs a
+source lookup only for a file at or above its configured peer-download size
+threshold (default 1 MiB; zero means every size). Missing capability, an empty
+source list, or any peer failure selects the master without changing sync
+correctness.
+
+### Batch source lookup
+
+The master-only endpoint is:
+
+```http
+POST /api/v1/buckets/{bucket}/files/sources
+Content-Type: application/json
+```
+
+Request:
+
+```json
+{
+  "cid": "RequesterCid123456789",
+  "files": [
+    {
+      "path": "dir/a.bin",
+      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    }
+  ]
+}
+```
+
+Response:
+
+```json
+{
+  "files": [
+    {
+      "path": "dir/a.bin",
+      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "sources": [
+        {
+          "cid": "SeederPeerX1234567890",
+          "download_url": "https://192.0.2.10:8443/api/v1/buckets/bucket-1/files/download",
+          "cert_fp": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+          "compression": true
+        }
+      ]
+    }
+  ]
+}
+```
+
+The machine-readable contract is `protocol/lan/sources-schema.json`; strict
+builders and validators live in `hsync_common.protocol.peer_download`.
+
+- Request and response objects reject unknown properties. A body is at most
+  2 MiB and must use `application/json`.
+- `cid` is required and must match `[A-Za-z0-9]{21}`. If that CID already has a
+  live WSS owner, the master rejects a claim from another address with 403;
+  one-shot requesters without a WSS binding remain valid.
+- `files` contains 1–500 entries. `path` is canonical bucket-relative output of
+  `validate_remote_relpath`; every normalized path appears exactly once. Hashes
+  are exactly 64 lowercase hex characters. Identical hashes at different paths
+  are valid. Bad shape/CID/path/hash/duplicate or content type returns 400; an
+  encoded body over 2 MiB returns 413.
+- The route bucket must exactly match the serving bucket. A response is a list,
+  preserving identity as `(path, sha256)` rather than collapsing it into a
+  path-keyed map.
+- Each `sources` list has 0–8 unique CIDs. The requester and master are omitted.
+  A candidate is included only for exact indexed hash membership, the current
+  WSS session owner, and a currently alive peer.
+- `download_url` is the complete HTTPS `.../files/download` endpoint with an
+  explicit port in `1..65535`. Hosts are current peer IP literals; IPv6 literals
+  are bracketed and zone identifiers are rejected. `cert_fp` is canonical
+  lowercase 64-hex. Clients append query parameters only.
+- Candidate ranking partitions same-subnet peers first (IPv4 `/24`, IPv6 `/64`)
+  and uses injectable randomness inside each partition. This is a proximity
+  bias, never proof of identity or authority.
+- A seeder does not expose this POST; unsupported methods return 405. Lookup
+  failure, 404/405, malformed candidates, or an empty list is master-only
+  fallback, not a sync failure.
+
+The exact seeder request is:
+
+```http
+GET {download_url}?filename=<percent-encoded-normalized-path>&sha256=<lowercase-hex>&cid=<requester-cid>
+```
+
+Missing or repeated parameters, an invalid path/hash/CID, or a hash that no
+longer matches the opened regular file is rejected (400 for malformed input,
+409 for current-content mismatch). Seeders expose only `GET /health`,
+`GET /time`, and this file download; list, write, delta, tombstone and source
+routes return 405. Their active response-body concurrency is capped (default 2,
+valid range 1–32); saturation returns 503 before opening the file.
+
+The seeder hashes and streams the same no-follow opened regular-file descriptor,
+rejecting identity/size mutation. Its response uses the canonical
+`X-Checksum-SHA256` header. The requester still treats every source header as
+untrusted and commits only after the complete decoded body matches the listing
+hash. Peer candidates are tried before the master; partial bytes survive only
+an interrupted body, never a completed hash/range/size failure.
+
+### Inventory frames
+
+Inventory extends `lan/1` additively. Slave to master snapshot:
+
+```json
+{
+  "type": "inventory",
+  "gen": 1,
+  "seq": 0,
+  "mode": "snapshot",
+  "more": true,
+  "entries": [
+    {
+      "path": "a.bin",
+      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "size": 123
+    }
+  ]
+}
+```
+
+Complete delta upsert and delete frames are independent transactions:
+
+```json
+{"type":"inventory","gen":1,"seq":8,"mode":"delta","more":false,"entries":[{"path":"b.bin","sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","size":456}]}
+```
+
+```json
+{"type":"inventory","gen":1,"seq":9,"mode":"delta","more":false,"entries":[{"path":"a.bin","deleted":true}]}
+```
+
+Master to slave acknowledgement:
+
+```json
+{"type":"inventory_ack","gen":1,"seq":7,"status":"ok"}
+```
+
+`status` is exactly `ok`, `resync`, or `rejected`. A rejected ACK also carries a
+required lowercase machine reason matching `[a-z][a-z0-9_]{0,63}`, for example
+`quota` or `invalid`; other statuses must not carry `reason`.
+
+Wire and state-machine rules:
+
+1. All objects are strict. Paths and hashes use the same canonical rules as the
+   source endpoint. `gen`, `seq`, and `size` are non-boolean integers in
+   `0..2^63-1`. Every frame is at most 2 MiB and has at most 500 entries.
+2. A snapshot has one generation and contiguous `seq=0..N`. Snapshot entries
+   have exactly `path`, `sha256`, and `size`; deletion entries are delta-only.
+   The master stages chunks and exposes the previous committed snapshot until
+   terminal `more=false` atomically replaces it. Empty inventory is one terminal
+   `seq=0` snapshot with an empty `entries` list.
+3. Missing or out-of-order snapshot sequence discards that session's staging
+   and returns `(gen, expected_seq, resync)`. A terminal commit returns cumulative
+   `(gen, N, ok)`. A retransmitted terminal frame after a lost ACK is ACKed
+   idempotently for the same owning session.
+4. Deltas begin only after the terminal snapshot ACK. Each delta is non-empty,
+   has `more=false`, and commits independently. Upserts have exactly
+   `path,sha256,size`; deletes exactly `path,deleted=true`. Larger queues are
+   split into consecutive independently ACKed frames. A duplicate
+   `seq <= last_applied` is ACKed without reapplying; a gap returns `resync`.
+5. Duplicate normalized paths inside one frame are invalid. Structural errors
+   reject/close publication; individual bad entries are never silently dropped
+   into an otherwise committed frame.
+6. Final-snapshot/delta ACK timeout is 15 seconds: resend the same frame once,
+   then reconnect and start a new generation/snapshot. One existing WSS receive
+   loop demultiplexes ACKs from file events; a second `recv()` is forbidden.
+7. Every admitted WSS connection owns an opaque server session token. Only the
+   current token may mutate or purge that CID. Disconnect purges holders only
+   when the disconnecting connection still owns the CID; replacement
+   connections are unaffected.
+8. Per-CID quota is committed plus staged rows, at most 2,000,000. The global
+   quota counts both tables, at most 20,000,000. At most 64 publisher sessions
+   exist and snapshot staging expires after five minutes. Expired staging is
+   reclaimed before frame admission; quota check and mutation share one
+   transaction.
+9. `rejected` drops only that session's staging and disables further publication
+   for it. The previous committed snapshot stays visible until the owner
+   disconnects, and ordinary master sync continues.
+10. A live resnapshot resolves/cancels an outstanding delta, increments `gen`,
+    resets `seq=0`, and leaves prior committed rows visible until terminal
+    commit. Local mutations during scanning/staging queue as post-ACK deltas;
+    ACKs from older generations are ignored.
+
+Successful existing `transfer` UI events may include `source_cid` only for a
+peer-served, fully verified full transfer. Master downloads, delta downloads,
+and failed peer attempts followed by master success omit it. URLs and
+fingerprints never appear in structured events; no new event names are added.
 
 ## Group partitioning
 
@@ -378,8 +591,9 @@ Wi-Fi):
   *writes* to the master, travels only over the (mandatory) encrypted transport,
   and is shared, not per-peer.
 
-Identity is therefore established by **Trust On First Use (TOFU)** pinning, and
-writes by an unattended client are gated on the shared key.
+Identity is therefore established by **Trust On First Use (TOFU)** pinning.
+Mutation authorization uses the shared key, or an explicit dangerous keyless
+write opt-in on both the writing client and the master.
 
 ### Master identity (persistent)
 
@@ -429,19 +643,31 @@ carries the data, with no separate probe (which would leave a TOCTOU window):
   `verify_peer_cert_fingerprint` checks the live connection's peer certificate
   (`getpeercert(binary_form=True)`) against the pin before any data is exchanged.
 
-### LAN-key write policy
+### LAN mutation authorization (ADR-0029)
 
-Because a self-signed transport does not prove identity, an **unattended**
-(non-interactive, `--yes`) client must authenticate write-capable sync with the
-shared key. `lan_write_requires_key(sync_direction, interactive=...)` is the
-canonical rule: a key is required when the run is **non-interactive** *and* the
-direction writes to the master (`bidirectional` or `upload-only`). `download-only`
-never writes and is always allowed.
+Because a self-signed transport does not authorize mutation, LAN writes fail
+closed independently of whether the invocation is interactive:
 
-The client enforces this before sync (`_check_lan_write_policy`): when an
-unattended write lacks an effective `HSYNC_LAN_KEY` it logs `[AUTH REQUIRED]`,
-emits the `auth_required` event, and exits. Interactive runs keep the key
-recommended, not required: the operator can vouch for the peer out of band.
+- When a LAN key is configured, every mutation requires its matching Bearer
+  token. The keyless-write setting is ignored and cannot bypass the key.
+- With no configured key, mutation is rejected by default. Read endpoints,
+  health/time, source lookup, inventory publication, and seeder downloads remain
+  available.
+- With no configured key, mutation is allowed only when the master explicitly
+  enables unauthenticated writes. A write-capable client must independently opt
+  in before emitting such a request; its setting cannot override the master.
+
+`lan_write_requires_key(sync_direction, interactive=...,
+allow_unauthenticated_writes=...)` is the canonical client-side rule. It returns
+true for `bidirectional` and `upload-only` unless the explicit opt-in is set;
+`interactive` is retained as invocation context but grants no authorization.
+`download-only` never writes and therefore does not require the key.
+
+When a write would have neither a key nor the explicit opt-in, the client logs
+`[AUTH REQUIRED]`, emits the `auth_required` event, and exits before sync. The
+master independently returns 403 for no-key mutation unless its own dangerous
+opt-in is enabled. Upload, delete, rename, permission update, delta apply, and
+tombstone mutation all use this same matrix.
 
 ### Explicit pairing (strict mode)
 
@@ -463,8 +689,9 @@ which the normal TOFU table applies.
 
 Security state is surfaced on the structured channel rather than by
 scraping log wording: `fingerprint_changed` (pin mismatch, connection refused),
-`auth_required` (unattended write without an effective key), and `pairing_needed`
-(strict pairing: a first-seen certificate awaiting out-of-band confirmation).
+`auth_required` (write lacks a key and the explicit keyless-write opt-in), and
+`pairing_needed` (strict pairing: a first-seen certificate awaiting out-of-band
+confirmation).
 
 ### CID format enforcement
 

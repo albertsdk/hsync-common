@@ -83,12 +83,30 @@ class TestWritePolicy:
     def test_download_only_is_not_a_write(self):
         assert is_write_direction(SYNC_DIRECTION_DOWNLOAD_ONLY) is False
 
-    def test_key_required_only_when_non_interactive_and_writing(self):
+    def test_key_required_by_default_when_writing(self):
         assert lan_write_requires_key("bidirectional", interactive=False) is True
         assert lan_write_requires_key(SYNC_DIRECTION_UPLOAD_ONLY, interactive=False) is True
 
-    def test_interactive_never_requires_key(self):
-        assert lan_write_requires_key("bidirectional", interactive=True) is False
+    def test_interactive_write_still_requires_key(self):
+        assert lan_write_requires_key("bidirectional", interactive=True) is True
+
+    def test_explicit_opt_in_allows_no_key_write(self):
+        assert (
+            lan_write_requires_key(
+                "bidirectional",
+                interactive=False,
+                allow_unauthenticated_writes=True,
+            )
+            is False
+        )
+        assert (
+            lan_write_requires_key(
+                SYNC_DIRECTION_UPLOAD_ONLY,
+                interactive=True,
+                allow_unauthenticated_writes=True,
+            )
+            is False
+        )
 
     def test_download_only_never_requires_key(self):
         assert lan_write_requires_key(SYNC_DIRECTION_DOWNLOAD_ONLY, interactive=False) is False

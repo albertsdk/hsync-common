@@ -1,0 +1,157 @@
+{
+  "$defs": {
+    "request": {
+      "additionalProperties": false,
+      "properties": {
+        "cid": {
+          "maxLength": 21,
+          "minLength": 21,
+          "pattern": "^[A-Za-z0-9]{21}$",
+          "type": "string"
+        },
+        "files": {
+          "description": "Each normalized path occurs exactly once.",
+          "items": {
+            "$ref": "#/$defs/requestFile"
+          },
+          "maxItems": 500,
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "cid",
+        "files"
+      ],
+      "title": "LanSourcesRequest",
+      "type": "object"
+    },
+    "requestFile": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "description": "Canonical bucket-relative path. Implementations additionally apply validate_remote_relpath, including its UTF-8 byte and component limits.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string",
+          "x-maxUtf8Bytes": 4096
+        },
+        "sha256": {
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "title": "LanSourceFile",
+      "type": "object"
+    },
+    "response": {
+      "additionalProperties": false,
+      "properties": {
+        "files": {
+          "description": "Each normalized path occurs exactly once.",
+          "items": {
+            "$ref": "#/$defs/responseFile"
+          },
+          "maxItems": 500,
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "files"
+      ],
+      "title": "LanSourcesResponse",
+      "type": "object"
+    },
+    "responseFile": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "description": "Canonical bucket-relative path. Implementations additionally apply validate_remote_relpath, including its UTF-8 byte and component limits.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string",
+          "x-maxUtf8Bytes": 4096
+        },
+        "sha256": {
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "sources": {
+          "description": "At most one candidate per normalized CID.",
+          "items": {
+            "$ref": "#/$defs/sourceCandidate"
+          },
+          "maxItems": 8,
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "path",
+        "sha256",
+        "sources"
+      ],
+      "title": "LanSourcesResponseFile",
+      "type": "object"
+    },
+    "sourceCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "cert_fp": {
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "cid": {
+          "maxLength": 21,
+          "minLength": 21,
+          "pattern": "^[A-Za-z0-9]{21}$",
+          "type": "string"
+        },
+        "compression": {
+          "type": "boolean"
+        },
+        "download_url": {
+          "description": "Complete HTTPS /api/v1/buckets/{bucket}/files/download endpoint with an explicit port and bracketed IPv6 literal.",
+          "format": "uri",
+          "pattern": "^https://",
+          "type": "string",
+          "x-explicitPort": true,
+          "x-host": "ip-literal"
+        }
+      },
+      "required": [
+        "cid",
+        "download_url",
+        "cert_fp",
+        "compression"
+      ],
+      "title": "LanSourceCandidate",
+      "type": "object"
+    }
+  },
+  "$id": "https://hsync.dev/protocol/lan/1/files/sources",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Request/response contract for POST /api/v1/buckets/{bucket}/files/sources (ADR-0028). Generated from hsync_common.protocol.schemas; do not hand-edit.",
+  "request": {
+    "$ref": "#/$defs/request"
+  },
+  "response": {
+    "$ref": "#/$defs/response"
+  },
+  "title": "HSYNC LAN peer sources (lan/1)",
+  "x-contentType": "application/json",
+  "x-maxBodyBytes": 2097152
+}

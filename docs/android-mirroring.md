@@ -130,6 +130,7 @@ HEADER_CLIENT_NAME = "X-Client-Name"
 HEADER_CLIENT_VERSION = "X-Client-Version"
 HEADER_SERVER_VERSION = "X-Server-Version"
 HEADER_PROTOCOL_VERSION = "X-Protocol-Version"
+HEADER_CHECKSUM_SHA256 = "X-Checksum-SHA256"
 CLIENT_NAME_PATTERN = "^[a-z][a-z0-9-]*[a-z0-9]$"  # is_valid_client_name()
 CONTENT_TYPE_OCTET_STREAM = "application/octet-stream"
 CONTENT_TYPE_JSON = "application/json"
@@ -149,7 +150,7 @@ distributed across the Kotlin files that mirror their Python counterparts:
 | Constant | Kotlin location |
 |----------|-----------------|
 | `HSYNC_VERSION` | `BuildConfig.VERSION_NAME` (Gradle `versionName`; sent as the WS `app_version` and the REST `X-Client-Version` header) |
-| `HEADER_*` | `com.hsync.android.data.api.Protocol` (`HEADER_PROTOCOL_VERSION`; `HEADER_CLIENT_NAME`/`HEADER_CLIENT_VERSION` added by `ProtocolHeaderInterceptor`) |
+| `HEADER_*` | `com.hsync.android.data.api.Protocol` (`HEADER_PROTOCOL_VERSION` and `HEADER_CHECKSUM_SHA256`; client identity/version added by `ProtocolHeaderInterceptor`) |
 | `CLIENT_NAME_PATTERN` | `Protocol.CLIENT_NAME` slug + the server-side `is_valid_client_name` middleware check (Android sends a compliant slug) |
 | `CONTENT_TYPE_*` | literals in `LanServer.kt` (`CONTENT_TYPE_OCTET`), `SafHelper.kt`, `SyncRepository.kt`, `DeltaTransfer.kt` |
 | `HSYNCKEEP_FILENAME`, `HSYNCIGNORE_FILENAME` | `com.hsync.android.util.IgnoreMatcher` (companion object) |

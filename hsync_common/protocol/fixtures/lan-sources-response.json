@@ -1,0 +1,16 @@
+{
+  "files": [
+    {
+      "path": "docs/report.bin",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sources": [
+        {
+          "cert_fp": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+          "cid": "TestClientA1234567890",
+          "compression": true,
+          "download_url": "https://192.0.2.10:8443/api/v1/buckets/bucket-1/files/download"
+        }
+      ]
+    }
+  ]
+}

@@ -7,12 +7,12 @@ formatting/hashing/parsing helper (DRY rule in `CLAUDE.md`).
 
 - `HSYNC_VERSION = "1.0.0"` (`constants.py:24`) — ecosystem version SSOT.
 - Wire headers `HEADER_CLIENT_NAME/CLIENT_VERSION/SERVER_VERSION/PROTOCOL_VERSION`
-  (`constants.py:33`) — REST header names shared by client, server and the
-  Android mirror; `CLIENT_NAME_PATTERN` (`:43`) + `is_valid_client_name`
-  (`:48`) validate the slug shape and are the same rule the server middleware
-  applies to `X-Client-Name`.
+  plus `HEADER_CHECKSUM_SHA256` (`constants.py:33`) — REST header names shared
+  by client, server and the Android mirror; the checksum header is canonical for
+  full-file server/master/seeder responses. `CLIENT_NAME_PATTERN` (`:46`) +
+  `is_valid_client_name` (`:51`) validate the slug shape used by server middleware.
 - Wire content types `CONTENT_TYPE_OCTET_STREAM` / `CONTENT_TYPE_JSON`
-  (`constants.py:63`) — media types shared by the Python client/server and the
+  (`constants.py:66`) — media types shared by the Python client/server and the
   Kotlin mirrors.
 - Sentinel / engine filenames: `.hsynckeep` (`:43`), `.hsyncignore` (`:48`),
   `.hsyncfolder` (`:106`), `syncstate.db` (`:111`), `HSYNC_STATE_DIR` (`:115`);

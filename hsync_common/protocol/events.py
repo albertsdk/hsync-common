@@ -113,6 +113,7 @@ class UiEventDict(TypedDict):
     fingerprint: NotRequired[str]
     conflict_copy: NotRequired[str]  # path of the preserved local copy (conflict_resolved)
     winner: NotRequired[str]  # which side won: "remote" (master) or "local"
+    source_cid: NotRequired[str]  # verified peer source for a successful full-file transfer
 
 
 def build_event(

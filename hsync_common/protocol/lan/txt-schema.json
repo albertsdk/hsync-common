@@ -57,8 +57,22 @@
       ],
       "type": "string"
     },
+    "peer_download": {
+      "description": "This node implements LAN inventory, batch source lookup and read-only seeder semantics (ADR-0028).",
+      "enum": [
+        "true"
+      ],
+      "type": "string"
+    },
     "protocol": {
       "const": "lan/1"
+    },
+    "seed": {
+      "description": "A read-only peer-download seeder is currently bound.",
+      "enum": [
+        "true"
+      ],
+      "type": "string"
     },
     "server_ready": {
       "enum": [

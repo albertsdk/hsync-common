@@ -7,10 +7,11 @@
 """
 JSON Schema contracts for the WebSocket and LAN/mDNS channels.
 
-Companion to the REST OpenAPI snapshot: this module builds the WS and LAN/TXT
-schemas *from the Python source of truth* — the handshake constants/capabilities
-and the shared event/file models — so the committed snapshots under ``ws/`` and
-``lan/`` can never silently drift from the code.
+Companion to the REST OpenAPI snapshot: this module builds the WS, LAN TXT/WSS,
+and LAN peer-source payload schemas *from the Python source of truth* — the
+handshake constants/capabilities, peer-download bounds, and shared event/file
+models — so the committed snapshots under ``ws/`` and ``lan/`` cannot silently
+drift from the code.
 Regenerate them with ``scripts/export_protocol_schemas.py`` and guard them
 with the matching drift-check test.
 
@@ -23,8 +24,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from hsync_common.models.event import EventName
+from hsync_common.constants import CONTENT_TYPE_JSON
+from hsync_common.models.event import CID_PATTERN, EventName
 from hsync_common.models.file import FileDict
+from hsync_common.path_validation import MAX_REMOTE_RELPATH_BYTES
 
 from .handshake import (
     PROTOCOL_VERSION_LAN,
@@ -32,12 +35,22 @@ from .handshake import (
     Capability,
     encode_capabilities,
 )
+from .peer_download import (
+    LAN_INVENTORY_ACK_REASON_MAX_LENGTH,
+    LAN_INVENTORY_MAX_ENTRIES,
+    LAN_INVENTORY_MAX_FRAME_BYTES,
+    LAN_SOURCES_MAX_BODY_BYTES,
+    LAN_SOURCES_MAX_CANDIDATES,
+    LAN_SOURCES_MAX_FILES,
+    LAN_WIRE_INT_MAX,
+)
 
 __all__ = [
     "JSON_SCHEMA_DIALECT",
     "LAN_TXT_KEYS",
     "LAN_TXT_OPTIONAL_KEYS",
     "LAN_TXT_REQUIRED_KEYS",
+    "build_lan_sources_schema",
     "build_lan_txt_schema",
     "build_lan_wss_schema",
     "build_ws_schema",
@@ -66,6 +79,8 @@ LAN_TXT_OPTIONAL_KEYS: tuple[str, ...] = (
     "never_master",
     "connected",
     "heartbeat",
+    "peer_download",
+    "seed",
 )
 LAN_TXT_KEYS: tuple[str, ...] = LAN_TXT_REQUIRED_KEYS + LAN_TXT_OPTIONAL_KEYS
 
@@ -90,6 +105,155 @@ def _capabilities_array() -> dict[str, Any]:
         "type": "array",
         "items": {"enum": _capability_tokens()},
         "uniqueItems": True,
+    }
+
+
+def _lan_cid() -> dict[str, Any]:
+    """Strict schema for the canonical 21-character LAN client ID."""
+    return {
+        "type": "string",
+        "pattern": CID_PATTERN,
+        "minLength": 21,
+        "maxLength": 21,
+    }
+
+
+def _lan_relpath() -> dict[str, Any]:
+    """Schema-level bounds for a path also checked by validate_remote_relpath."""
+    return {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": MAX_REMOTE_RELPATH_BYTES,
+        "x-maxUtf8Bytes": MAX_REMOTE_RELPATH_BYTES,
+        "description": (
+            "Canonical bucket-relative path. Implementations additionally apply "
+            "validate_remote_relpath, including its UTF-8 byte and component limits."
+        ),
+    }
+
+
+def _lan_sha256() -> dict[str, Any]:
+    """Canonical lowercase SHA-256 digest schema."""
+    return {"type": "string", "pattern": r"^[0-9a-f]{64}$", "minLength": 64, "maxLength": 64}
+
+
+def _lan_wire_int() -> dict[str, Any]:
+    """Non-negative signed 64-bit integer used by inventory frames."""
+    return {"type": "integer", "minimum": 0, "maximum": LAN_WIRE_INT_MAX}
+
+
+def _lan_sources_request_file() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "title": "LanSourceFile",
+        "properties": {"path": _lan_relpath(), "sha256": _lan_sha256()},
+        "required": ["path", "sha256"],
+        "additionalProperties": False,
+    }
+
+
+def _lan_source_candidate() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "title": "LanSourceCandidate",
+        "properties": {
+            "cid": _lan_cid(),
+            "download_url": {
+                "type": "string",
+                "format": "uri",
+                "pattern": r"^https://",
+                "x-host": "ip-literal",
+                "x-explicitPort": True,
+                "description": (
+                    "Complete HTTPS /api/v1/buckets/{bucket}/files/download endpoint "
+                    "with an explicit port and bracketed IPv6 literal."
+                ),
+            },
+            "cert_fp": _lan_sha256(),
+            "compression": {"type": "boolean"},
+        },
+        "required": ["cid", "download_url", "cert_fp", "compression"],
+        "additionalProperties": False,
+    }
+
+
+def build_lan_sources_schema() -> dict[str, Any]:
+    """Build the batch LAN peer-source REST payload schema (ADR-0028).
+
+    Consumers: hsync-client source lookup, the Android protocol mirror, the
+    schema exporter, and protocol drift tests.
+    """
+    request_file = _lan_sources_request_file()
+    response_file = {
+        "type": "object",
+        "title": "LanSourcesResponseFile",
+        "properties": {
+            "path": _lan_relpath(),
+            "sha256": _lan_sha256(),
+            "sources": {
+                "type": "array",
+                "items": {"$ref": "#/$defs/sourceCandidate"},
+                "maxItems": LAN_SOURCES_MAX_CANDIDATES,
+                "uniqueItems": True,
+                "description": "At most one candidate per normalized CID.",
+            },
+        },
+        "required": ["path", "sha256", "sources"],
+        "additionalProperties": False,
+    }
+    request = {
+        "type": "object",
+        "title": "LanSourcesRequest",
+        "properties": {
+            "cid": _lan_cid(),
+            "files": {
+                "type": "array",
+                "items": {"$ref": "#/$defs/requestFile"},
+                "minItems": 1,
+                "maxItems": LAN_SOURCES_MAX_FILES,
+                "uniqueItems": True,
+                "description": "Each normalized path occurs exactly once.",
+            },
+        },
+        "required": ["cid", "files"],
+        "additionalProperties": False,
+    }
+    response = {
+        "type": "object",
+        "title": "LanSourcesResponse",
+        "properties": {
+            "files": {
+                "type": "array",
+                "items": {"$ref": "#/$defs/responseFile"},
+                "minItems": 1,
+                "maxItems": LAN_SOURCES_MAX_FILES,
+                "uniqueItems": True,
+                "description": "Each normalized path occurs exactly once.",
+            }
+        },
+        "required": ["files"],
+        "additionalProperties": False,
+    }
+    return {
+        "$schema": JSON_SCHEMA_DIALECT,
+        "$id": f"https://hsync.dev/protocol/{PROTOCOL_VERSION_LAN}/files/sources",
+        "title": f"HSYNC LAN peer sources ({PROTOCOL_VERSION_LAN})",
+        "description": (
+            "Request/response contract for POST "
+            "/api/v1/buckets/{bucket}/files/sources (ADR-0028). Generated from "
+            "hsync_common.protocol.schemas; do not hand-edit."
+        ),
+        "x-contentType": CONTENT_TYPE_JSON,
+        "x-maxBodyBytes": LAN_SOURCES_MAX_BODY_BYTES,
+        "$defs": {
+            "requestFile": request_file,
+            "sourceCandidate": _lan_source_candidate(),
+            "responseFile": response_file,
+            "request": request,
+            "response": response,
+        },
+        "request": {"$ref": "#/$defs/request"},
+        "response": {"$ref": "#/$defs/response"},
     }
 
 
@@ -407,22 +571,117 @@ def _lan_hello() -> dict[str, Any]:
     }
 
 
+def _lan_inventory_upsert() -> dict[str, Any]:
+    """LAN seeder inventory upsert entry."""
+    return {
+        "type": "object",
+        "title": "LanInventoryUpsertEntry",
+        "properties": {
+            "path": _lan_relpath(),
+            "sha256": _lan_sha256(),
+            "size": _lan_wire_int(),
+        },
+        "required": ["path", "sha256", "size"],
+        "additionalProperties": False,
+    }
+
+
+def _lan_inventory_delete() -> dict[str, Any]:
+    """LAN seeder inventory delta deletion entry."""
+    return {
+        "type": "object",
+        "title": "LanInventoryDeleteEntry",
+        "properties": {"path": _lan_relpath(), "deleted": {"const": True}},
+        "required": ["path", "deleted"],
+        "additionalProperties": False,
+    }
+
+
+def _lan_inventory_frame(mode: str) -> dict[str, Any]:
+    """LAN inventory snapshot/delta frame with mode-specific entry rules."""
+    snapshot = mode == "snapshot"
+    entries: dict[str, Any] = {
+        "type": "array",
+        "items": {"$ref": "#/$defs/inventoryUpsert" if snapshot else "#/$defs/inventoryEntry"},
+        "maxItems": LAN_INVENTORY_MAX_ENTRIES,
+        "uniqueItems": True,
+        "description": "Each normalized path occurs exactly once in the frame.",
+    }
+    if not snapshot:
+        entries["minItems"] = 1
+    frame = {
+        "type": "object",
+        "title": f"LanInventory{'Snapshot' if snapshot else 'Delta'}",
+        "properties": {
+            "type": {"const": "inventory"},
+            "gen": _lan_wire_int(),
+            "seq": _lan_wire_int(),
+            "mode": {"const": mode},
+            "more": {"type": "boolean"} if snapshot else {"const": False},
+            "entries": entries,
+        },
+        "required": ["type", "gen", "seq", "mode", "more", "entries"],
+        "additionalProperties": False,
+    }
+    if snapshot:
+        frame["allOf"] = [
+            {
+                "if": {"properties": {"entries": {"maxItems": 0}}, "required": ["entries"]},
+                "then": {
+                    "properties": {
+                        "seq": {"const": 0},
+                        "more": {"const": False},
+                    }
+                },
+            }
+        ]
+    return frame
+
+
+def _lan_inventory_ack(status: str) -> dict[str, Any]:
+    """LAN inventory acknowledgement for one exact status."""
+    rejected = status == "rejected"
+    properties: dict[str, Any] = {
+        "type": {"const": "inventory_ack"},
+        "gen": _lan_wire_int(),
+        "seq": _lan_wire_int(),
+        "status": {"const": status},
+    }
+    required = ["type", "gen", "seq", "status"]
+    if rejected:
+        properties["reason"] = {
+            "type": "string",
+            "pattern": r"^[a-z][a-z0-9_]{0,63}$",
+            "maxLength": LAN_INVENTORY_ACK_REASON_MAX_LENGTH,
+        }
+        required.append("reason")
+    return {
+        "type": "object",
+        "title": f"LanInventoryAck{status.capitalize()}",
+        "properties": properties,
+        "required": required,
+        "additionalProperties": False,
+    }
+
+
 def build_lan_wss_schema() -> dict[str, Any]:
-    """Build the LAN WebSocket handshake JSON Schema from the Python SSOT.
+    """Build the additive LAN WebSocket JSON Schema from the Python SSOT.
 
     Codifies the master⇄slave handshake frames (ADR-0024): they exchange the
     capability registry over the authenticated channel, so the mDNS/TXT record
-    is not the only capability source on the LAN.
+    is not the only capability source on the LAN. Inventory publication and its
+    acknowledgements extend ``lan/1`` additively under ADR-0028.
     """
     return {
         "$schema": JSON_SCHEMA_DIALECT,
         "$id": f"https://hsync.dev/protocol/{PROTOCOL_VERSION_LAN}/wss",
-        "title": f"HSYNC LAN WebSocket handshake ({PROTOCOL_VERSION_LAN})",
+        "title": f"HSYNC LAN WebSocket protocol ({PROTOCOL_VERSION_LAN})",
         "description": (
-            "Wire contract for the LAN master⇄slave WebSocket handshake "
-            "(ADR-0024). Generated from hsync_common.protocol.schemas; "
-            "do not hand-edit."
+            "Wire contract for the LAN master⇄slave WebSocket handshake and "
+            "peer inventory channel (ADR-0024, ADR-0028). Generated from "
+            "hsync_common.protocol.schemas; do not hand-edit."
         ),
+        "x-maxMessageBytes": LAN_INVENTORY_MAX_FRAME_BYTES,
         "$defs": {
             **_entity_defs(),
             "authRequired": _lan_auth_required(),
@@ -430,6 +689,32 @@ def build_lan_wss_schema() -> dict[str, Any]:
             "authOk": _lan_auth_result("ok"),
             "authFailed": _lan_auth_result("failed"),
             "hello": _lan_hello(),
+            "inventoryUpsert": _lan_inventory_upsert(),
+            "inventoryDelete": _lan_inventory_delete(),
+            "inventoryEntry": {
+                "oneOf": [
+                    {"$ref": "#/$defs/inventoryUpsert"},
+                    {"$ref": "#/$defs/inventoryDelete"},
+                ]
+            },
+            "inventorySnapshot": _lan_inventory_frame("snapshot"),
+            "inventoryDelta": _lan_inventory_frame("delta"),
+            "inventory": {
+                "oneOf": [
+                    {"$ref": "#/$defs/inventorySnapshot"},
+                    {"$ref": "#/$defs/inventoryDelta"},
+                ]
+            },
+            "inventoryAckOk": _lan_inventory_ack("ok"),
+            "inventoryAckResync": _lan_inventory_ack("resync"),
+            "inventoryAckRejected": _lan_inventory_ack("rejected"),
+            "inventoryAck": {
+                "oneOf": [
+                    {"$ref": "#/$defs/inventoryAckOk"},
+                    {"$ref": "#/$defs/inventoryAckResync"},
+                    {"$ref": "#/$defs/inventoryAckRejected"},
+                ]
+            },
         },
         "masterToSlave": {
             "oneOf": [
@@ -438,6 +723,7 @@ def build_lan_wss_schema() -> dict[str, Any]:
                 {"$ref": "#/$defs/authFailed"},
                 {"$ref": "#/$defs/hello"},
                 {"$ref": "#/$defs/fileEvent"},
+                {"$ref": "#/$defs/inventoryAck"},
             ]
         },
         "slaveToMaster": {
@@ -445,6 +731,7 @@ def build_lan_wss_schema() -> dict[str, Any]:
                 {"$ref": "#/$defs/auth"},
                 {"$ref": "#/$defs/hello"},
                 {"$ref": "#/$defs/fileEvent"},
+                {"$ref": "#/$defs/inventory"},
             ]
         },
     }
@@ -471,6 +758,17 @@ def build_lan_txt_schema() -> dict[str, Any]:
         "server_ready": _TXT_BOOL_FLAG,
         "force_master": _TXT_BOOL_FLAG,
         "never_master": _TXT_BOOL_FLAG,
+        "peer_download": {
+            **_TXT_BOOL_FLAG,
+            "description": (
+                "This node implements LAN inventory, batch source lookup and "
+                "read-only seeder semantics (ADR-0028)."
+            ),
+        },
+        "seed": {
+            **_TXT_BOOL_FLAG,
+            "description": "A read-only peer-download seeder is currently bound.",
+        },
         "connected": {
             "type": "string",
             "pattern": r"^[0-9]+$",

@@ -24,13 +24,13 @@ android).
 - Package root: `hsync_common/` (`hsync_common/__init__.py:1`).
 - Version SSOT: `HSYNC_VERSION = "1.0.0"` (`hsync_common/constants.py:24`).
 - REST header names SSOT: `HEADER_CLIENT_NAME/CLIENT_VERSION/SERVER_VERSION/PROTOCOL_VERSION`
-  (`hsync_common/constants.py:33`); slug validator `is_valid_client_name`
-  (`:48`) shared with the server middleware.
+  plus full-download `HEADER_CHECKSUM_SHA256` (`hsync_common/constants.py:33`);
+  slug validator `is_valid_client_name` (`:51`) is shared with the server middleware.
 - Wire content types SSOT: `CONTENT_TYPE_OCTET_STREAM` / `CONTENT_TYPE_JSON`
-  (`hsync_common/constants.py:63`) shared by client, server and Android.
-- Protocol versions SSOT: `hsync_common/protocol/handshake.py:53` (REST `api/1`, WS `ws/1`, LAN `lan/1`).
+  (`hsync_common/constants.py:66`) shared by client, server and Android.
+- Protocol versions SSOT: `hsync_common/protocol/handshake.py:60` (REST `api/1`, WS `ws/1`, LAN `lan/1`).
 - Consumed as a Poetry path dependency (`hsync-common = {path = "../hsync-common", develop = true}`) by client, server, desktop; mirrored in Kotlin by android.
-- Contract artifacts (committed snapshots, generated from Python SSOT and drift-tested): `protocol/rest/openapi.json`, `protocol/ws/ws-schema.json`, `protocol/lan/txt-schema.json`, `protocol/lan/wss-schema.json`, `protocol/fixtures/`.
+- Contract artifacts (committed snapshots, generated from Python SSOT and drift-tested): `protocol/rest/openapi.json`, `protocol/ws/ws-schema.json`, `protocol/lan/txt-schema.json`, `protocol/lan/wss-schema.json`, `protocol/lan/sources-schema.json`, `protocol/fixtures/`.
 
 ## Conventions used in this wiki
 

@@ -9,8 +9,9 @@
 Export the WebSocket/LAN JSON Schemas and golden fixtures to the protocol contract.
 
 This is the only supported way to update the committed snapshots
-(``hsync_common.protocol.WS_SCHEMA_PATH``, ``LAN_TXT_SCHEMA_PATH`` and the
-``FIXTURES_DIR`` golden fixtures). The matching drift-check tests
+(``hsync_common.protocol.WS_SCHEMA_PATH``, ``LAN_TXT_SCHEMA_PATH``,
+``LAN_WSS_SCHEMA_PATH``, ``LAN_SOURCES_SCHEMA_PATH`` and the ``FIXTURES_DIR``
+golden fixtures). The matching drift-check tests
 (`tests/test_protocol_schemas.py`, `tests/test_protocol_fixtures.py`) fail
 whenever what is rebuilt from the Python source of truth diverges from the
 committed files, so run this script after any handshake/model change.
@@ -25,6 +26,7 @@ from pathlib import Path
 
 from hsync_common.protocol import (
     FIXTURES_DIR,
+    LAN_SOURCES_SCHEMA_PATH,
     LAN_TXT_SCHEMA_PATH,
     LAN_WSS_SCHEMA_PATH,
     WS_SCHEMA_PATH,
@@ -32,6 +34,7 @@ from hsync_common.protocol import (
 )
 from hsync_common.protocol.fixtures import build_fixtures
 from hsync_common.protocol.schemas import (
+    build_lan_sources_schema,
     build_lan_txt_schema,
     build_lan_wss_schema,
     build_ws_schema,
@@ -45,6 +48,7 @@ def export_schemas() -> list[Path]:
         (WS_SCHEMA_PATH, build_ws_schema()),
         (LAN_TXT_SCHEMA_PATH, build_lan_txt_schema()),
         (LAN_WSS_SCHEMA_PATH, build_lan_wss_schema()),
+        (LAN_SOURCES_SCHEMA_PATH, build_lan_sources_schema()),
     ):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(dump_contract(schema), encoding="utf-8")
