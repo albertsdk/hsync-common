@@ -58,13 +58,11 @@ representative at an online or offline event.
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the community leaders responsible for enforcement at
-`conduct [at] albertobasso [dot] dev`.
-All complaints will be reviewed and investigated promptly and fairly.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported using GitHub's native reporting features.
 
-All community leaders are obligated to respect the privacy and security of the
-reporter of any incident.
+If you experience or witness a violation of this Code of Conduct, please use the "Report content" option (the three dots ... menu) available on any issue, pull request, or comment. This will securely and privately notify the repository maintainers.
+
+All complaints will be reviewed and investigated promptly and fairly. All community leaders are obligated to respect the privacy and security of the reporter.
 
 ## Enforcement Guidelines
 
