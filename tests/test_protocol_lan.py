@@ -18,6 +18,7 @@ from hsync_common.protocol.lan import (
     ElectionCandidate,
     elect_master,
     election_sort_key,
+    rank_election_candidates,
 )
 
 
@@ -82,6 +83,55 @@ class TestNeverMaster:
 
     def test_empty_candidate_set_yields_no_master(self):
         assert elect_master([]) is None
+
+
+class TestRankElectionCandidates:
+    """``rank_election_candidates`` is the SSOT ranking every consumer shares."""
+
+    def test_full_ranking_order(self):
+        # server_ready > force_master > bidirectional > earliest startup > cid
+        candidates = [
+            ElectionCandidate(cid="plain-late", startup_time=500.0),
+            ElectionCandidate(cid="forced", force_master=True, startup_time=300.0),
+            ElectionCandidate(cid="incumbent", startup_time=200.0, server_ready=True),
+            ElectionCandidate(cid="plain-early", startup_time=100.0),
+        ]
+        ranked = rank_election_candidates(candidates)
+        assert [c.cid for c in ranked] == [
+            "incumbent",
+            "forced",
+            "plain-early",
+            "plain-late",
+        ]
+
+    def test_never_master_filtered_out(self):
+        candidates = [
+            ElectionCandidate(cid="never", never_master=True),
+            ElectionCandidate(cid="eligible", startup_time=100.0),
+        ]
+        assert [c.cid for c in rank_election_candidates(candidates)] == ["eligible"]
+
+    def test_empty_and_all_excluded_yield_empty_list(self):
+        assert rank_election_candidates([]) == []
+        assert rank_election_candidates([ElectionCandidate(cid="a", never_master=True)]) == []
+
+    def test_winner_matches_elect_master(self):
+        # elect_master must be the winner-only projection of the shared ranking.
+        candidates = [
+            ElectionCandidate(cid="zzz", startup_time=100.0),
+            ElectionCandidate(cid="aaa", startup_time=100.0),
+            ElectionCandidate(cid="mmm", never_master=True),
+        ]
+        ranked = rank_election_candidates(candidates)
+        assert elect_master(candidates) == ranked[0].cid
+
+    def test_input_order_does_not_affect_ranking(self):
+        base = [
+            ElectionCandidate(cid="a", startup_time=100.0),
+            ElectionCandidate(cid="b", startup_time=50.0),
+            ElectionCandidate(cid="c", startup_time=75.0),
+        ]
+        assert rank_election_candidates(base) == rank_election_candidates(list(reversed(base)))
 
 
 class TestSortKey:

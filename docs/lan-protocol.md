@@ -10,7 +10,7 @@ the same golden fixtures.
 |---|---|
 | TXT record keys / schema | `hsync_common.protocol.schemas` (`LAN_TXT_KEYS`, `build_lan_txt_schema`) |
 | WSS handshake frames / schema | `hsync_common.protocol.handshake` (`build_lan_*`), `hsync_common.protocol.schemas` (`build_lan_wss_schema`) |
-| Election algorithm | `hsync_common.protocol.lan` (`elect_master`, `election_sort_key`) |
+| Election algorithm | `hsync_common.protocol.lan` (`rank_election_candidates`, `elect_master`, `election_sort_key`) |
 | Pairing / trust policy | `hsync_common.protocol.pairing` (`evaluate_pin`, `lan_write_requires_key`, `requires_pairing_confirmation`) |
 | Kotlin mirror | `com.hsync.android.p2p.Election`, `com.hsync.android.p2p.Pairing`, `com.hsync.android.data.api.Protocol` |
 | Cross-language scenarios | `protocol/fixtures/lan-election-scenarios.json`, `protocol/fixtures/lan-pairing-scenarios.json`, `protocol/fixtures/lan-wss-*.json` |
@@ -151,8 +151,10 @@ announce to cancel the removal. A live WSS link is still an immediate ignore.
 A peer that truly left is removed after the grace window (or by the staleness
 sweep if it crashed hard).
 
-The winner is the candidate with the smallest sort key
-(`election_sort_key`), i.e. highest priority first:
+The eligible candidates are ranked once by the shared helper
+`rank_election_candidates` (smallest sort key first, `never_master` filtered
+out); `elect_master` is its winner-only projection and consumers needing more
+than the winner (successor, conflict reports) use the same ranked list:
 
 1. **`server_ready`** — an already-serving incumbent wins, so a newcomer never
    triggers a needless takeover/split-brain for the same bucket.
