@@ -34,6 +34,8 @@ _SCRIPTS = (
     "bench_delta",
     "bench_ignore",
     "bench_models",
+    "bench_path_validation",
+    "bench_stores",
 )
 _DEFAULT_OUT = _BENCH_DIR.parent / "bench_result.txt"
 
