@@ -40,6 +40,11 @@
     "group": {
       "type": "string"
     },
+    "heartbeat": {
+      "description": "Monotonic liveness counter, incremented on every periodic re-announce. Opaque: receivers only rely on it changing so their staleness sweep sees fresh records for otherwise quiescent peers. Never part of the election.",
+      "pattern": "^[0-9]+$",
+      "type": "string"
+    },
     "https": {
       "enum": [
         "true"
