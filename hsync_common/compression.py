@@ -22,8 +22,14 @@ from typing import BinaryIO
 import zstandard as zstd
 from loguru import logger as log
 
-# Compression level (1-22, default 3 is a good balance of speed/ratio)
+# Compression level (1-22, default 3 is a good balance of speed/ratio).
 COMPRESSION_LEVEL = 3
+
+# "Fast" level for the directions where the *client* pays the compression CPU
+# (upload to the server, LAN master/seeder serving peers): on semi-compressible
+# input it is ~5x cheaper in CPU for ±2% output size (L1 compression benchmark,
+# `bench/bench_compression.py`). Pick it through `compression_level()`.
+COMPRESSION_LEVEL_FAST = 1
 
 # Content-Encoding header value for zstd compression.
 # Consumed by hsync-server (api/files/download.py) for the HTTP Content-Encoding
@@ -164,9 +170,22 @@ PRECOMPRESSED_EXTENSIONS = frozenset(
     }
 )
 
-# Create reusable compressor/decompressor for efficiency
-_compressor = zstd.ZstdCompressor(level=COMPRESSION_LEVEL)
+# Reusable compressors/decompressor for efficiency. ZstdCompressor one-shot and
+# streaming operations are stateless with respect to the instance (each creates
+# its own frame state), so one instance per level is shared safely across
+# threads; construction is the expensive part (tables + context), hence the
+# per-level cache.
+_compressors: dict[int, zstd.ZstdCompressor] = {}
 _decompressor = zstd.ZstdDecompressor()
+
+
+def _compressor_for(level: int) -> zstd.ZstdCompressor:
+    """Return the process-wide compressor for *level*, built on first use."""
+    compressor = _compressors.get(level)
+    if compressor is None:
+        compressor = zstd.ZstdCompressor(level=level)
+        _compressors[level] = compressor
+    return compressor
 
 
 def should_compress(
@@ -216,9 +235,33 @@ def should_compress(
     return True
 
 
-def compress_data(data: bytes) -> bytes:
-    """Compress data using Zstandard."""
-    return _compressor.compress(data)
+def compression_level(transfer_type: str = "download", is_lan: bool = False) -> int:
+    """Return the direction-aware zstd level (SSOT alongside :func:`should_compress`).
+
+    ``download`` keeps :data:`COMPRESSION_LEVEL`: the server compresses and can
+    afford the ratio. ``upload`` and LAN return :data:`COMPRESSION_LEVEL_FAST`:
+    a client pays the CPU there, which is the same rationale as the higher size
+    thresholds in :func:`should_compress`.
+
+    Args:
+        transfer_type: ``"download"`` or ``"upload"`` (default ``"download"``).
+        is_lan: True when operating in LAN P2P mode (default False).
+    """
+    if is_lan or transfer_type == "upload":
+        return COMPRESSION_LEVEL_FAST
+    return COMPRESSION_LEVEL
+
+
+def compress_data(data: bytes, *, level: int = COMPRESSION_LEVEL) -> bytes:
+    """Compress data using Zstandard.
+
+    Args:
+        data: Payload to compress.
+        level: zstd level. Pass the result of :func:`compression_level` for the
+            direction being served; the default (:data:`COMPRESSION_LEVEL`) is
+            the download/server side.
+    """
+    return _compressor_for(level).compress(data)
 
 
 def decompress_data(data: bytes, max_output_size: int = 100 * 1024 * 1024) -> bytes:
@@ -309,7 +352,9 @@ def compress_file(filepath: str) -> bytes:
         return compress_data(f.read())
 
 
-def compress_file_to_file(src: str, dst: str, read_size: int = 1024 * 1024) -> int:
+def compress_file_to_file(
+    src: str, dst: str, read_size: int = 1024 * 1024, *, level: int = COMPRESSION_LEVEL
+) -> int:
     """Stream-compress *src* into *dst*, returning the compressed size.
 
     Streaming counterpart of :func:`compress_file` for production upload
@@ -324,6 +369,8 @@ def compress_file_to_file(src: str, dst: str, read_size: int = 1024 * 1024) -> i
         dst: Path of the compressed output. Overwritten if it exists; the
             caller owns the file and must delete it when done.
         read_size: Source read chunk size.
+        level: zstd level (see :func:`compression_level` for the
+            direction-aware value).
 
     Returns:
         The compressed size in bytes (size of *dst* after the frame is
@@ -337,7 +384,7 @@ def compress_file_to_file(src: str, dst: str, read_size: int = 1024 * 1024) -> i
         # closefd=False: exiting the context finalizes (flushes) the zstd
         # frame into *fout* without closing it, so the enclosing with-block
         # stays the single owner of the output handle.
-        with _compressor.stream_writer(fout, closefd=False) as writer:
+        with _compressor_for(level).stream_writer(fout, closefd=False) as writer:
             while chunk := fin.read(read_size):
                 writer.write(chunk)
     return getsize(dst)

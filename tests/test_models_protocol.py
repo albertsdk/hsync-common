@@ -537,12 +537,33 @@ class TestRelpathInBucket:
         assert relpath_in_bucket("/bucket/a/b.txt", "/bucket/") == "a/b.txt"
 
     def test_bucket_root_yields_empty(self):
-        # Path.relative_to of the bucket itself returns ".", normalised to "".
+        # The bucket itself maps to the empty (root) relative path.
         assert relpath_in_bucket("/bucket", "/bucket") == ""
 
+    def test_component_aware_normalisation(self):
+        # Duplicate separators, "." components and a trailing separator are
+        # collapsed/dropped, exactly as the previous Path.relative_to
+        # implementation behaved.
+        assert relpath_in_bucket("/bucket//a/./b.txt", "/bucket") == "a/b.txt"
+        assert relpath_in_bucket("/bucket/a/b.txt/", "/bucket") == "a/b.txt"
+
+    def test_dotdot_is_preserved_not_resolved(self):
+        # ".." is never resolved: boundary checks live in path_validation, and
+        # resolving here would silently relocate the identity of a path
+        # (Path.relative_to kept ".." verbatim too).
+        assert relpath_in_bucket("/bucket/a/../b.txt", "/bucket") == "a/../b.txt"
+
+    def test_sibling_prefix_is_not_stripped(self):
+        assert relpath_in_bucket("/bucket2/a.txt", "/bucket") is None
+
+    def test_empty_bucket_means_nothing_inside(self):
+        # ``lan_server`` reads LOCAL_BUCKET with a "" default: an empty bucket
+        # must never turn an absolute path into a valid relative identity.
+        assert relpath_in_bucket("/bucket/a.txt", "") is None
+        assert relpath_in_bucket("", "") is None
+
     def test_path_outside_bucket_returns_none(self):
-        # A path outside the bucket must never be confused with an
-        # in-bucket path. relative_to raises ValueError -> None (never the
-        # bucket-root identity "" nor the raw input, which could be
-        # smuggled into a tombstone key and corrupt the root's state).
+        # A path outside the bucket must never be confused with an in-bucket
+        # path (never the bucket-root identity "" nor the raw input, which could
+        # be smuggled into a tombstone key and corrupt the root's state).
         assert relpath_in_bucket("/other/a.txt", "/bucket") is None

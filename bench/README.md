@@ -19,18 +19,28 @@ operation really took the intended branch.
 
 | Script | Measures |
 |---|---|
-| `bench_hashing.py` | `compute_sha256` / `compute_sha256_async` at 64 KB/1 MB/16 MB, plus the `is_sha256_hex` and `adaptive_chunk_size` helpers |
-| `bench_compression.py` | `should_compress`, `compress_data` / `decompress_data` (text / binary / incompressible at 100 KB–10 MB), `compress_file_to_file`, `decompress_stream` |
-| `bench_delta.py` | `compute_signatures`, `signatures_for_data`, `build_signature_index`, `find_matches_file` (0/10/50 % changed blocks), `apply_delta`, decision helpers |
+| `bench_hashing.py` | `compute_sha256` at 64 KB/1 MB/16 MB; `compute_sha256_async` variants (production 8 KB chunk, explicit 1 MB chunk, candidate `asyncio.to_thread`); `is_sha256_hex`, `adaptive_chunk_size` |
+| `bench_compression.py` | `should_compress`, `compress_data` / `decompress_data` (text / binary / incompressible at 100 KB–10 MB), `compress_file_to_file`, `decompress_stream`, plus a compression-level A/B (current level vs candidate level 1) with the resulting output sizes |
+| `bench_delta.py` | `compute_signatures`, `signatures_for_data`, `build_signature_index`, `find_matches_file` (0/10/50 % changed blocks **and** front-insertion cases that force the window to re-synchronise), `apply_delta`, decision helpers |
 | `bench_ignore.py` | `IgnoreMatcher` construction (default + extra patterns), per-path `matches` / `should_skip`, full-scan sweeps (bucket rules vs. default-only fallback) |
-| `bench_models.py` | `File` / `Dir` / `Symlink` / `Event` encode/decode round-trips, `is_valid_cid`, `is_partial_file`, `File` construction |
+| `bench_models.py` | `File` / `Dir` / `Symlink` / `Event` encode/decode round-trips, `relpath_in_bucket` (the per-path call of a scan), `is_valid_cid`, `is_partial_file`, `File` construction |
+| `run_all.py` | Chained runner: runs every script above and writes `bench_result.txt` at the repo root (committed baseline, diff-friendly) |
+| `bench_result.txt` | **Committed after-fix baseline** (default `--count 2000`, this machine): compare revisions with `git diff bench_result.txt` |
+
+`bench.log` (the ad-hoc raw output you produced during analysis) is
+deliberately **not** committed: the versioned comparison artefact is
+`bench_result.txt`.
 
 ## Running
 
 ```bash
 cd hsync-common
 
-# the whole suite (one script per concern)
+# the whole suite in one go, writing the versioned baseline file
+.venv/bin/python bench/run_all.py --count 2000            # -> ../bench_result.txt
+.venv/bin/python bench/run_all.py --count 2000 --out /tmp/bench-after.txt
+
+# or one script at a time
 .venv/bin/python bench/bench_hashing.py  --count 2000
 .venv/bin/python bench/bench_compression.py --count 2000
 .venv/bin/python bench/bench_delta.py    --count 2000
@@ -45,6 +55,9 @@ cd hsync-common
 operations are capped per scenario (a 16 MB hash, a 50 %-changed match) so a
 default run stays in the tens of seconds; the reported `n` column shows the
 effective sample count.
+
+> `bench_compression.py` prints the compressed size for each level of the A/B
+> after the table (fixture metadata, so it is intentionally not in the JSON).
 
 ## Methodology
 

@@ -83,6 +83,11 @@ class IgnoreMatcher:
         Called automatically by :meth:`__init__` and intended to be
         invoked by client code (or a file watcher) whenever the ignore
         file changes on disk.
+
+        The newly built spec is swapped in with a single attribute
+        assignment so concurrent :meth:`matches` readers (which load the
+        reference without holding the lock) always see either the old or
+        the new immutable spec, never a half-built one.
         """
         patterns: list[str] = []
 
@@ -118,26 +123,42 @@ class IgnoreMatcher:
             patterns = patterns[:_MAX_IGNORE_PATTERNS]
 
         with self._lock:
-            self._spec = PathSpec.from_lines(GitIgnoreSpecPattern, patterns)
+            new_spec = PathSpec.from_lines(GitIgnoreSpecPattern, patterns)
+        # Swap executed outside the lock: assignment is atomic under the GIL
+        # and PathSpec objects are treated as immutable once published, so
+        # concurrent matches() readers never observe a half-built spec.
+        self._spec = new_spec
 
     # ------------------------------------------------------------------
     # Matching
     # ------------------------------------------------------------------
 
     def _to_relative(self, path: str) -> str:
-        """Normalise *path* to a POSIX bucket-root-relative form."""
+        """Normalise *path* to a POSIX bucket-root-relative form.
+
+        When *path* is rooted under :attr:`bucket_root` the prefix is
+        stripped with a plain string operation; ``os.path.relpath`` is
+        kept as the fallback for ``..``-style or cross-drive paths.
+        """
         if not path:
             return ""
-        # Str-level absolute-path test: cheaper than constructing a Path object
-        # per scanned entry (called once per file during every scan).
+        root = self.bucket_root
+        # Str-level absolute-path test: cheaper than constructing a Path
+        # object per scanned entry (called once per file during every scan).
         if (
             path.startswith("/") or path.startswith("\\") or (len(path) > 2 and path[1] == ":")
-        ) and self.bucket_root:
-            try:
-                rel = relpath(path, self.bucket_root)
-            except ValueError:
-                # Different drives on Windows, etc.
-                rel = path
+        ) and root:
+            # Fast path: absolute path directly under the bucket root -
+            # avoids the ~1.3us os.path.relpath() call on the hot path.
+            prefix = root if root.endswith("/") else root + "/"
+            if path.startswith(prefix):
+                rel = path[len(prefix) :]
+            else:
+                try:
+                    rel = relpath(path, root)
+                except ValueError:
+                    # Different drives on Windows, etc.
+                    rel = path
         else:
             rel = path
         rel = rel.replace("\\", "/")
@@ -177,8 +198,10 @@ class IgnoreMatcher:
         # gitignore directory patterns need a trailing slash to fire
         candidate = rel + ("/" if is_dir and not rel.endswith("/") else "")
 
-        with self._lock:
-            return self._spec.match_file(candidate)
+        # Local (lock-free) reference load: reload() swaps the whole spec
+        # atomically, so readers always observe a consistent immutable spec.
+        spec = self._spec
+        return spec.match_file(candidate)
 
 
 # ----------------------------------------------------------------------

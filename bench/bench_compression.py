@@ -25,6 +25,9 @@ Methodology specifics:
   ``max_output_size`` (remote payloads must cap the output).
 * The stream-cap guard is asserted once during setup (a cap below the payload
   size must raise ``zstd.ZstdError``), which keeps the measured rows honest.
+* The compression-level A/B measures the direction-aware SSOT levels
+  (``COMPRESSION_LEVEL`` vs ``COMPRESSION_LEVEL_FAST``, as
+  ``compression_level()`` picks them for download vs upload/LAN).
 * The library's DEBUG trace lines are suppressed (``logger.remove()``) so a
   sample reflects the production log level (INFO): loguru still builds the
   message, but no sink I/O can inflate the measured gate.
@@ -54,6 +57,8 @@ from common import (
 from loguru import logger
 
 from hsync_common.compression import (
+    COMPRESSION_LEVEL,
+    COMPRESSION_LEVEL_FAST,
     compress_data,
     compress_file_to_file,
     decompress_data,
@@ -62,6 +67,14 @@ from hsync_common.compression import (
 )
 
 _MB = 1024 * 1024
+
+# (label, payload kind, size, sample cap) for the compression-level A/B: the
+# direction-aware SSOT levels, exactly as `compression_level()` picks them for
+# download vs upload/LAN.
+_LEVEL_AB_SCENARIOS: tuple[tuple[str, str, int, int], ...] = (
+    ("text-1MB", "text", _MB, 200),
+    ("binary-1MB", "binary", _MB, 200),
+)
 
 # label → (payload kind, size, sample cap). The 10MB text case is the heaviest
 # realistic upload, so it gets a hard sample cap.
@@ -125,6 +138,36 @@ def _bench_data(label: str, kind: str, size: int, count: int) -> list[BenchResul
     ]
 
 
+def _bench_level_ab(label: str, kind: str, size: int, count: int) -> tuple[list[BenchResult], str]:
+    """A/B the direction-aware levels: CPU cost vs output size on one payload.
+
+    Returns the two measured rows plus the one-line size comparison (printed
+    after the table, not stored in the JSON: it describes the fixture, not a
+    measured latency).
+    """
+    data = make_payload(size, kind, seed=size)
+    default_frame = compress_data(data, level=COMPRESSION_LEVEL)
+    fast_frame = compress_data(data, level=COMPRESSION_LEVEL_FAST)
+    assert decompress_data(fast_frame, max_output_size=size) == data
+
+    def op_default() -> None:
+        compress_data(data, level=COMPRESSION_LEVEL)
+
+    def op_fast() -> None:
+        compress_data(data, level=COMPRESSION_LEVEL_FAST)
+
+    rows = [
+        measure(f"compress_lvl{COMPRESSION_LEVEL}({label})", op_default, count=count),
+        measure(f"compress_lvl{COMPRESSION_LEVEL_FAST}({label})", op_fast, count=count),
+    ]
+    ratio = 100.0 * len(fast_frame) / len(default_frame)
+    note = (
+        f"  compressed size {label}: lvl{COMPRESSION_LEVEL}={len(default_frame)}B "
+        f"lvl{COMPRESSION_LEVEL_FAST}={len(fast_frame)}B ({ratio:.2f}% of lvl{COMPRESSION_LEVEL})"
+    )
+    return rows, note
+
+
 def _bench_file(workdir: str, label: str, size: int, count: int) -> BenchResult:
     """Time the streaming src→dst compressor (production upload path)."""
     src = write_bytes(workdir, f"src-{label}.bin", make_payload(size, "binary", seed=size))
@@ -173,15 +216,22 @@ def main() -> None:
 
     count = args.count
     results = [_bench_should_compress(count)]
+    level_notes: list[str] = []
     with tempfile.TemporaryDirectory(prefix="hsync-common-bench-") as tmp:
         for label, kind, size, cap in _DATA_SCENARIOS:
             results.extend(_bench_data(label, kind, size, min(count, cap)))
+        for label, kind, size, cap in _LEVEL_AB_SCENARIOS:
+            rows, note = _bench_level_ab(label, kind, size, min(count, cap))
+            results.extend(rows)
+            level_notes.append(note)
         for label, size, cap in _FILE_SCENARIOS:
             results.append(_bench_file(tmp, label, size, min(count, cap)))
         results.append(_bench_decompress_stream("binary-1MB", _MB, min(count, 200)))
 
     print(f"compression micro-benchmark (ops={count}, in-memory + temp files)")
     print_table(results)
+    for note in level_notes:
+        print(note)
     maybe_write_json(args.json_out, results)
 
 

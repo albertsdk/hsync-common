@@ -283,8 +283,8 @@ class TestFileFromDict:
 
     def test_from_dict_sibling_prefix_is_not_mangled(self):
         """Regression: a path sharing only the string prefix of the bucket is
-        NOT inside it. Component-aware stripping (Path.relative_to) keeps it
-        verbatim instead of producing a bogus relative path ("2/x")."""
+        NOT inside it. Component-aware stripping keeps it verbatim instead of
+        producing a bogus relative path ("2/x")."""
         f = File.from_dict(
             {"filepath": "/base2/x.txt", "size": 1}, dir_prefix="/base", strip_dir_prefix=True
         )

@@ -10,6 +10,8 @@ Measures the checksum path every consumer uses on every scanned file:
 
 * ``compute_sha256`` / ``compute_sha256_async`` at the 64KB/1MB/16MB sizes that
   bracket the ``adaptive_chunk_size`` tiers used in production scans;
+* ``compute_sha256_async`` at the same sizes (one executor hop onto the sync
+  C-level digest);
 * ``is_sha256_hex`` — the wire-facing digest-shape gate run before every
   ``hmac.compare_digest`` on a peer-supplied checksum;
 * ``adaptive_chunk_size`` — the per-file tier dispatch.
