@@ -67,8 +67,9 @@ boundaries:
    replace a CID only at the terminal frame. Deltas are independent
    `more=false` transactions. ACK status is `ok|resync|rejected` and identifies
    both generation and sequence; rejected ACKs carry a bounded machine reason.
-   Connection ownership, contiguous sequencing, idempotent retries, quotas, and
-   staging expiry prevent stale sessions and unbounded publication. The bounds
+   Connection ownership, contiguous sequencing, canonical terminal-frame digests
+   for idempotent retry, quotas, and staging expiry prevent stale sessions and
+   unbounded publication. The bounds
    are 2,000,000 committed-plus-staged rows per CID, 20,000,000 rows globally,
    64 publisher sessions, and five minutes for staged snapshot expiry.
 9. Every peer fetch is content-addressed by the requested `(path, sha256)`.

@@ -34,10 +34,9 @@ We will use this LAN mutation policy:
    not authentication of that CID.
 4. A write-capable client must also enable its own local opt-in before emitting
    no-key mutations. A client opt-in cannot override a restrictive master.
-5. Interactive execution is not an authorization exception. The shared
+5. Invocation interactivity is not part of authorization. The shared
    `lan_write_requires_key` decision is true for a write direction unless the
-   explicit opt-in is set; its existing `interactive` context no longer changes
-   the result.
+   explicit opt-in is set.
 6. Mutations include upload, delete, rename, permission update, delta apply, and
    tombstone mutation. Source lookup, inventory publication, file download,
    health, and time are read/control operations and do not become bucket writes.

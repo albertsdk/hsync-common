@@ -293,15 +293,13 @@ _PIN_SCENARIOS: tuple[tuple[str, str | None, str], ...] = (
 
 # Cross-language LAN write-policy scenarios. ``expected_requires_key`` is computed
 # from the shared ``lan_write_requires_key`` so Python and Android agree that
-# no-key mutation requires an explicit opt-in, regardless of interactivity.
-_WRITE_POLICY_SCENARIOS: tuple[tuple[str, str, bool, bool], ...] = (
-    ("non-interactive-bidirectional-requires-key", "bidirectional", False, False),
-    ("non-interactive-upload-only-requires-key", "upload-only", False, False),
-    ("non-interactive-download-only-no-key", "download-only", False, False),
-    ("interactive-bidirectional-requires-key", "bidirectional", True, False),
-    ("interactive-upload-only-requires-key", "upload-only", True, False),
-    ("explicit-opt-in-bidirectional-no-key", "bidirectional", False, True),
-    ("explicit-opt-in-upload-only-no-key", "upload-only", True, True),
+# no-key mutation requires an explicit opt-in.
+_WRITE_POLICY_SCENARIOS: tuple[tuple[str, str, bool], ...] = (
+    ("bidirectional-requires-key", "bidirectional", False),
+    ("upload-only-requires-key", "upload-only", False),
+    ("download-only-no-key", "download-only", False),
+    ("explicit-opt-in-bidirectional-no-key", "bidirectional", True),
+    ("explicit-opt-in-upload-only-no-key", "upload-only", True),
 )
 
 # Cross-language explicit-pairing scenarios. Each lists the stored/observed
@@ -333,15 +331,13 @@ def _pairing_scenarios() -> dict[str, Any]:
             {
                 "name": name,
                 "sync_direction": direction,
-                "interactive": interactive,
                 "allow_unauthenticated_writes": allow_unauthenticated_writes,
                 "expected_requires_key": lan_write_requires_key(
                     direction,
-                    interactive=interactive,
                     allow_unauthenticated_writes=allow_unauthenticated_writes,
                 ),
             }
-            for name, direction, interactive, allow_unauthenticated_writes in _WRITE_POLICY_SCENARIOS
+            for name, direction, allow_unauthenticated_writes in _WRITE_POLICY_SCENARIOS
         ],
         "pairing_scenarios": [
             {
