@@ -65,7 +65,7 @@ Alternatives rejected:
 
 ## See also
 
-- [hsync_server/api/files/upload.py](https://github.com/albertobasso/hsync-server/blob/main/hsync_server/api/files/upload.py) —
+- [hsync_server/api/files/upload.py](https://github.com/albertosdk/hsync-server/blob/main/hsync_server/api/files/upload.py) —
   implementation.
 - [ADR-0007](0007-content-addressed-storage.md) — SHA-256 hashing for
   deduplication.

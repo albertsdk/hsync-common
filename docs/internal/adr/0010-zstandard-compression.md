@@ -77,5 +77,5 @@ Alternatives rejected:
 
 - [ADR-0005](0005-protocol-versioning.md) — capability negotiation includes
   `compression`.
-- [hsync_common/compression.py](https://github.com/albertobasso/hsync-common/blob/main/hsync_common/compression.py) —
+- [hsync_common/compression.py](https://github.com/albertosdk/hsync-common/blob/main/hsync_common/compression.py) —
   the canonical implementation.
