@@ -77,7 +77,7 @@ anomaly needs a cost breakdown.
    incompressible (raw PRNG bytes).
 7. Numbers are **comparative** (this machine, warm page cache), never SLAs.
 
-## Findings worth knowing (default run, `--count 2000`, after A1–A5 + B1–B3)
+## Findings worth knowing (default run, `--count 2000`, current committed baseline)
 
 * `compute_sha256` runs at ~1.5 GB/s (`sha256_async(16MB)` now matches the
   sync 16 MB rate: A3 replaced the 8 KB-chunk `aiofiles` loop with a single
@@ -86,35 +86,41 @@ anomaly needs a cost breakdown.
   than level 3 (1146 vs 208 ops/s) and even 3 % smaller
   (524461 B vs 540956 B); on `text-1MB` it is 1.2x faster for 13 % larger
   output — the upload/LAN tradeoff the `compression_level()` SSOT encodes.
+* Compression gate (C1): `should_compress` at ~0.0005 ms (~1.9M ops/s) — the
+  skip-path `log.debug` calls switched to lazy loguru args (the f-string was
+  formatted even at INFO level), a ~9 % win on the per-file gate
+  (`hsync_common/compression.py:224`).
 * Delta `find_matches` (A2 + B1): identical-file 1 MB at ~1.01 ms; 10 %
-  changed at ~25.98 ms (was ~27.53 ms, −5.6 %: B1 replaced the two per-byte
+  changed at ~25.90 ms (was ~27.53 ms, −5.9 %: B1 replaced the two per-byte
   `%` divisions with conditional corrections + a 256-entry `(n*byte)%MOD`
-  table, `delta/rolling_checksum.py:66`); 50 % changed at ~115.13 ms
-  (was ~122.62 ms, −6.1 %); 4 MB 10 % at ~97.04 ms (was ~102.07 ms, −4.9 %);
-  the front-insertion case (`10%+4KB`, ~26.84 ms) costs no more than plain
+  table, `delta/rolling_checksum.py:66`); 50 % changed at ~114.29 ms
+  (was ~122.62 ms, −6.8 %); 4 MB 10 % at ~97.52 ms (was ~102.07 ms, −4.5 %);
+  the front-insertion case (`10%+4KB`, ~27.12 ms) costs no more than plain
   10 % because the window re-synchronises after the shift.
-* Ignore (A5 + B2): `matches` single-path at ~0.009 ms (~111k ops/s) with the
-  prefix-strip fast path; a 5000-path bucket sweep costs ~43.60 ms with a
-  realistic `.hsyncignore` (~24.09 ms with the default-only fallback). B2
+* Ignore (A5 + B2): `matches` single-path at ~0.009 ms (~108k ops/s) with the
+  prefix-strip fast path; a 5000-path bucket sweep costs ~43.76 ms with a
+  realistic `.hsyncignore` (~23.90 ms with the default-only fallback). B2
   cached the `root + "/"` prefix at construction (`ignore.py`), made
   `should_skip` lock-free (direct `_active_matcher` read) and skipped the
   `\\`→`/` rewrite when absent — sweep noise dominates, single-path is
   unchanged.
-* Path prepend (B3): `file_from_dict(prepend)` at ~1.1 µs (was ~4.0 µs, **3.6x**),
-  `dir_from_dict(prepend)` at ~0.5 µs (was ~3.1 µs, **~6x**),
+* Path prepend (B3): `file_from_dict(prepend)` at ~1.0 µs (was ~4.0 µs, **~4x**),
+  `dir_from_dict(prepend)` at ~0.6 µs (was ~3.1 µs, **~5x**),
   `symlink_from_dict` at ~0.8 µs (was ~3.3 µs, **~4x**) —
   `_resolve_prefixed_path` (`models/_util.py:124`)
   now uses string concat instead of `Path(prefix) / rel` on the prepend
   branch (pinned by `test_prepend_matches_pathlib_join` in
-  `tests/test_models_file.py`). `file_from_dict(strip)` unchanged at ~2.1 µs.
+  `tests/test_models_file.py`). `file_from_dict(strip)` unchanged at ~2.1 µs
+  (C5, direct dict access in the same decode, was a semantic cleanup with no
+  measurable gain).
 * Path stripping (A1): `relpath_in_bucket` at ~1.1 µs and
   `file_from_dict(strip)` at ~2.1 µs — up from 12.8 µs/14 µs
   (~9x/6.5x), so model decode is no longer path-normalisation dominated.
   (`Event` construction at ~1.8 µs still costs ~2x its own serialization
   (~0.9 µs) because it re-normalises the src/dst paths.)
-* Unchanged areas (same machine, B1–B3 touched only delta/ignore/models):
-  hashing (`sha256(1MB)` ~0.63 ms, ~1.5 GB/s), compression
-  (`compress_data(binary-1MB)` ~4.68 ms, `text-1MB` ~0.38 ms) and
+* Unchanged areas (same machine, each hot-path edit touched only its target):
+  hashing (`sha256(1MB)` ~0.63 ms, ~1.5 GB/s), compression payloads
+  (`compress_data(binary-1MB)` ~4.81 ms, `text-1MB` ~0.38 ms) and
   `signatures`/`apply_delta` are within run-to-run noise of the A1–A5
   baseline.
 * New coverage (C6): `resolve_within(valid)` at ~0.028 ms is ~15x the pure-lex
