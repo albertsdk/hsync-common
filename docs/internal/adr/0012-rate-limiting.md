@@ -75,5 +75,5 @@ Alternatives rejected:
 
 - [ADR-0008](0008-client-accounts.md) — account tokens are opaque, so limiting
   stays per-IP; admin endpoints get a stricter limit.
-- [hsync_server/rate_limiter.py](https://github.com/albertosdk/hsync-server/blob/main/hsync_server/rate_limiter.py) —
+- [hsync_server/rate_limiter.py](https://github.com/albertsdk/hsync-server/blob/main/hsync_server/rate_limiter.py) —
   implementation.
