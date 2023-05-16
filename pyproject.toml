@@ -11,6 +11,7 @@ packages = [{include = "hsync_common"}]
 python = ">=3.12,<3.14"
 zstandard = "^0.25.0"
 loguru = "^0.7.3"
+python-dotenv = "^1.2.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0.2"
