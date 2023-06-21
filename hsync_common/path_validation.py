@@ -290,8 +290,8 @@ def sanitize_filename(filename: str) -> str:
         max_name_len = 255 - len(ext) - 1  # -1 for the dot
         filename = name[:max_name_len] + "." + ext if ext else name[:255]
 
-    # Handle empty or reserved names
-    if not filename or filename.lower() in RESERVED_FILENAMES:
+    # Handle empty or reserved names (RESERVED_FILENAMES uses uppercase)
+    if not filename or filename.upper() in RESERVED_FILENAMES:
         filename = "unnamed"
 
     return filename
