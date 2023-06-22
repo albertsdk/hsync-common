@@ -37,31 +37,40 @@ MIN_SIZE_FOR_COMPRESSION = 10 * 1024  # 10 KB
 # Alias for clarity in context-aware code
 MIN_SIZE_FOR_DOWNLOAD = MIN_SIZE_FOR_COMPRESSION
 
-# File extensions that are already compressed (compression won't help)
+# File extensions that are already compressed (compression won't help).
+#
+# NOTE: only the *last* extension is extracted by os.path.splitext, so compound
+# suffixes like ".tar.gz" or ".tgz" must appear here as their final component
+# (i.e. ".gz", ".bz2", ".xz" — which are already present).  Compound strings
+# such as ".tar.gz" would never be matched and have been removed to avoid
+# confusion.
 PRECOMPRESSED_EXTENSIONS = frozenset(
     {
-        # Archives
+        # ── Archives / compressed streams ────────────────────────────────────
         ".zip", ".gz", ".gzip", ".bz2", ".xz", ".7z", ".rar",
-        ".tar.gz", ".tgz", ".tar.bz2", ".tbz2", ".tar.xz", ".txz",
-        ".zst", ".zstd", ".lz4", ".lzma",
+        ".zst", ".zstd", ".lz4", ".lzma", ".lz",   # lz = lzip
+        ".br",                                        # Brotli
         ".cab", ".dmg", ".pkg", ".msi", ".deb", ".rpm",
+        # ── Application packages (zip/apk/jar-based, already compressed) ─────
         ".apk", ".ipa", ".jar", ".war", ".ear", ".nupkg",
-        # Images
+        ".whl",                                       # Python wheel (zip)
+        ".snap",                                      # Linux Snap (squashfs)
+        # ── Images ───────────────────────────────────────────────────────────
         ".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif",
         ".heic", ".heif", ".jp2", ".j2k", ".jpf", ".jpm", ".jpx",
         ".tiff", ".tif", ".psd", ".ico", ".icns",
         ".raw", ".cr2", ".nef", ".arw", ".dng", ".orf", ".rw2",
-        # Audio
+        # ── Audio ────────────────────────────────────────────────────────────
         ".mp3", ".aac", ".ogg", ".opus", ".flac", ".m4a", ".wma", ".alac",
-        # Video
+        # ── Video ────────────────────────────────────────────────────────────
         ".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm",
         ".m4v", ".mpeg", ".mpg", ".3gp", ".m2ts", ".mts", ".vob", ".ogv",
-        # Documents (already compressed internally)
+        # ── Documents (compressed internally by their container format) ───────
         ".pdf", ".docx", ".xlsx", ".pptx", ".odt", ".ods", ".odp",
         ".epub", ".pages", ".numbers", ".keynote", ".xps", ".cbz", ".cbr",
-        # Fonts
+        # ── Fonts ────────────────────────────────────────────────────────────
         ".woff", ".woff2", ".eot", ".ttc",
-        # Other
+        # ── Other ────────────────────────────────────────────────────────────
         ".sqlite", ".db",
     }
 )
