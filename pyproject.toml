@@ -13,6 +13,7 @@ zstandard = "^0.25.0"
 loguru = "^0.7.3"
 python-dotenv = "^1.2.1"
 cryptography = ">=43.0.3,<44.0.0"
+pathspec = ">=0.12,<1.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0.2"
