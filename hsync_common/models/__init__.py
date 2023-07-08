@@ -16,8 +16,8 @@ from hsync_common.models.event import Event, EventDict, EventName
 from hsync_common.models.file import (
     File,
     FileDict,
-    clear_md5_cache,
-    invalidate_md5_cache,
+    clear_sha256_cache,
+    invalidate_sha256_cache,
     is_hidden_file,
 )
 from hsync_common.models.symlink import Symlink
@@ -33,8 +33,8 @@ __all__ = [
     "SyncAction",
     "SyncActionName",
     "Symlink",
-    "clear_md5_cache",
-    "invalidate_md5_cache",
+    "clear_sha256_cache",
+    "invalidate_sha256_cache",
     "is_hidden_dir",
     "is_hidden_file",
 ]

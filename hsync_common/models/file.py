@@ -8,7 +8,7 @@ This module defines the File class representing a file with its metadata
 import stat
 from collections import OrderedDict
 from datetime import UTC, datetime
-from hashlib import md5
+from hashlib import sha256
 from os import stat as os_stat
 from os.path import basename, exists, getctime, getmtime, getsize, join
 from re import match
@@ -24,32 +24,32 @@ from hsync_common.constants import (
 )
 
 # =============================================================================
-# MD5 Cache
+# SHA-256 Cache
 # =============================================================================
 
-# Maximum number of entries kept in the MD5 LRU cache.
-# At ~200 bytes/entry (path + md5 hex + mtime int) this caps RAM usage at
+# Maximum number of entries kept in the SHA-256 LRU cache.
+# At ~200 bytes/entry (path + sha256 hex + mtime int) this caps RAM usage at
 # roughly 2 MB even on a client with hundreds of thousands of files.
-MD5_CACHE_MAX_SIZE: int = 10_000
+SHA256_CACHE_MAX_SIZE: int = 10_000
 
-# In-memory LRU cache for MD5 checksums to avoid redundant computation
-# during a single sync operation. Key: filepath, Value: tuple[md5sum, mtime].
+# In-memory LRU cache for SHA-256 checksums to avoid redundant computation
+# during a single sync operation. Key: filepath, Value: tuple[sha256sum, mtime].
 # OrderedDict is used so we can evict the least-recently-used entry when the
 # cache is full (move-to-end on hit, pop-first on overflow).
-_md5_cache: OrderedDict[str, tuple[str, int]] = OrderedDict()
+_sha256_cache: OrderedDict[str, tuple[str, int]] = OrderedDict()
 
 
-def clear_md5_cache() -> None:
-    """Clear the entire MD5 cache.
+def clear_sha256_cache() -> None:
+    """Clear the entire SHA-256 cache.
 
     Should be called at the start of each sync cycle to ensure
     fresh checksums are computed for all files.
     """
-    _md5_cache.clear()
+    _sha256_cache.clear()
 
 
-def invalidate_md5_cache(file_path: str) -> None:
-    """Remove a single entry from the MD5 cache.
+def invalidate_sha256_cache(file_path: str) -> None:
+    """Remove a single entry from the SHA-256 cache.
 
     Should be called when a file is known to have been modified
     (e.g. after a download, upload, or watchdog event) so that
@@ -58,26 +58,26 @@ def invalidate_md5_cache(file_path: str) -> None:
     Args:
         file_path: Path of the file to invalidate.
     """
-    _md5_cache.pop(file_path, None)
+    _sha256_cache.pop(file_path, None)
 
 
-def _get_cached_md5(file_path: str, current_mtime: int) -> str | None:
-    """Get cached MD5 if file hasn't been modified (LRU: move to end on hit)."""
-    if file_path in _md5_cache:
-        cached_md5, cached_mtime = _md5_cache[file_path]
+def _get_cached_sha256(file_path: str, current_mtime: int) -> str | None:
+    """Get cached SHA-256 if file hasn't been modified (LRU: move to end on hit)."""
+    if file_path in _sha256_cache:
+        cached_sha256, cached_mtime = _sha256_cache[file_path]
         if cached_mtime == current_mtime:
-            _md5_cache.move_to_end(file_path)
-            return cached_md5
-        del _md5_cache[file_path]
+            _sha256_cache.move_to_end(file_path)
+            return cached_sha256
+        del _sha256_cache[file_path]
     return None
 
 
-def _set_cached_md5(file_path: str, md5sum: str, mtime: int) -> None:
-    """Store MD5 in cache with its mtime; evict LRU entry when at capacity."""
-    _md5_cache[file_path] = (md5sum, mtime)
-    _md5_cache.move_to_end(file_path)
-    if len(_md5_cache) > MD5_CACHE_MAX_SIZE:
-        _md5_cache.popitem(last=False)  # evict oldest (least recently used)
+def _set_cached_sha256(file_path: str, sha256sum: str, mtime: int) -> None:
+    """Store SHA-256 in cache with its mtime; evict LRU entry when at capacity."""
+    _sha256_cache[file_path] = (sha256sum, mtime)
+    _sha256_cache.move_to_end(file_path)
+    if len(_sha256_cache) > SHA256_CACHE_MAX_SIZE:
+        _sha256_cache.popitem(last=False)  # evict oldest (least recently used)
 
 
 # =============================================================================
@@ -93,7 +93,7 @@ class FileDict(TypedDict):
     ctime: int | None
     mtime: int | None
     size: int
-    md5sum: str | None
+    sha256sum: str | None
     permissions: str | None
 
 
@@ -145,7 +145,7 @@ class File:
         ctime: Creation time as Unix timestamp.
         mtime: Modification time as Unix timestamp.
         size: File size in bytes.
-        md5sum: MD5 checksum of file content.
+        sha256sum: SHA-256 checksum of file content.
         permissions: Symbolic permission string (e.g., '-rw-r--r--').
     """
 
@@ -155,13 +155,13 @@ class File:
         ctime: str | int | float | datetime | None = None,
         mtime: str | int | float | datetime | None = None,
         size: int = 0,
-        md5sum: str | None = None,
+        sha256sum: str | None = None,
         permissions: str | None = None,
     ):
         self.filepath = filepath
         self.name = basename(filepath) if filepath else None
         self.size = size
-        self.md5sum = md5sum
+        self.sha256sum = sha256sum
         self.permissions = permissions
         self.ctime = self._parse_time(ctime)
         self.mtime = self._parse_time(mtime)
@@ -174,7 +174,7 @@ class File:
             f"ctime={self.ctime}, "
             f"mtime={self.mtime}, "
             f"size={self.size}, "
-            f"md5sum={self.md5sum}, "
+            f"sha256sum={self.sha256sum}, "
             f"permissions={self.permissions})"
         )
 
@@ -189,8 +189,8 @@ class File:
         return None
 
     @staticmethod
-    def _compute_md5(filepath: str, file_size: int | None = None) -> str:
-        """Compute the MD5 checksum of a file with adaptive chunk size."""
+    def _compute_sha256(filepath: str, file_size: int | None = None) -> str:
+        """Compute the SHA-256 checksum of a file with adaptive chunk size."""
         if file_size is not None:
             if file_size >= FILE_SIZE_MEDIUM:
                 chunk_size = CHUNK_SIZE_LARGE
@@ -201,11 +201,11 @@ class File:
         else:
             chunk_size = CHUNK_SIZE_SMALL
 
-        hash_md5 = md5()
+        hash_sha256 = sha256()
         with open(filepath, "rb") as f:
             for chunk in iter(lambda: f.read(chunk_size), b""):
-                hash_md5.update(chunk)
-        return hash_md5.hexdigest()
+                hash_sha256.update(chunk)
+        return hash_sha256.hexdigest()
 
     @staticmethod
     def _get_permissions(obj_path: str) -> str:
@@ -221,7 +221,7 @@ class File:
             ctime=self.ctime,
             mtime=self.mtime,
             size=self.size,
-            md5sum=self.md5sum,
+            sha256sum=self.sha256sum,
             permissions=self.permissions,
         )
 
@@ -233,17 +233,17 @@ class File:
             file_size = getsize(file_path)
             file_mtime = int(getmtime(file_path))
 
-            md5sum = _get_cached_md5(file_path, file_mtime)
-            if md5sum is None:
-                md5sum = cls._compute_md5(file_path, file_size)
-                _set_cached_md5(file_path, md5sum, file_mtime)
+            sha256sum = _get_cached_sha256(file_path, file_mtime)
+            if sha256sum is None:
+                sha256sum = cls._compute_sha256(file_path, file_size)
+                _set_cached_sha256(file_path, sha256sum, file_mtime)
 
             return cls(
                 filepath=file_path,
                 ctime=int(getctime(file_path)),
                 mtime=file_mtime,
                 size=file_size,
-                md5sum=md5sum,
+                sha256sum=sha256sum,
                 permissions=cls._get_permissions(file_path),
             )
         else:
@@ -273,6 +273,6 @@ class File:
             ctime=data.get("ctime"),
             mtime=data.get("mtime"),
             size=data.get("size", 0),
-            md5sum=data.get("md5sum"),
+            sha256sum=data.get("sha256sum"),
             permissions=data.get("permissions"),
         )
