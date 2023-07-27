@@ -10,7 +10,7 @@ from collections import OrderedDict
 from datetime import UTC, datetime
 from hashlib import sha256
 from os import stat as os_stat
-from os.path import basename, exists, getctime, getmtime, getsize, join
+from pathlib import Path
 from re import match
 from typing import Optional, TypedDict
 
@@ -120,7 +120,7 @@ def is_hidden_file(file_path: str) -> bool:
     Returns:
         True if the file matches any hidden file pattern, False otherwise.
     """
-    name = basename(file_path)
+    name = Path(file_path).name
 
     # Sentinel file for empty-directory sync — never hidden
     if name == HSYNCKEEP_FILENAME:
@@ -132,7 +132,6 @@ def is_hidden_file(file_path: str) -> bool:
         r".*-\d{4}-\d{2}-\d{2}-\d{6}$)"
     )
     return bool(match(hidden_file_regex, name))
-
 
 
 class File:
@@ -159,7 +158,7 @@ class File:
         permissions: str | None = None,
     ):
         self.filepath = filepath
-        self.name = basename(filepath) if filepath else None
+        self.name = Path(filepath).name if filepath else None
         self.size = size
         self.sha256sum = sha256sum
         self.permissions = permissions
@@ -228,10 +227,12 @@ class File:
     @classmethod
     def get(cls, file_path: str, buckets_dir: str | None = None) -> Optional["File"]:
         """Get a File instance for an existing file."""
-        file_path = join(buckets_dir, file_path.lstrip("/")) if buckets_dir else file_path
-        if exists(file_path):
-            file_size = getsize(file_path)
-            file_mtime = int(getmtime(file_path))
+        file_path = str(Path(buckets_dir) / file_path.lstrip("/")) if buckets_dir else file_path
+        file = Path(file_path)
+        if file.exists():
+            file_stat = file.stat()
+            file_size = file_stat.st_size
+            file_mtime = int(file_stat.st_mtime)
 
             sha256sum = _get_cached_sha256(file_path, file_mtime)
             if sha256sum is None:
@@ -240,7 +241,7 @@ class File:
 
             return cls(
                 filepath=file_path,
-                ctime=int(getctime(file_path)),
+                ctime=int(file_stat.st_ctime),
                 mtime=file_mtime,
                 size=file_size,
                 sha256sum=sha256sum,
@@ -264,7 +265,7 @@ class File:
         if strip_dir_prefix and dir_prefix:
             filepath = str(data_filepath).removeprefix(dir_prefix).lstrip("/")
         elif dir_prefix:
-            filepath = join(dir_prefix, str(data_filepath).lstrip("/"))
+            filepath = str(Path(dir_prefix) / str(data_filepath).lstrip("/"))
         else:
             filepath = str(data_filepath)
 

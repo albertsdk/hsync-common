@@ -7,7 +7,7 @@ path and permissions, used for directory synchronization events.
 
 import stat
 from os import stat as os_stat
-from os.path import basename, dirname, exists, join
+from pathlib import Path
 from typing import Optional
 
 
@@ -25,15 +25,11 @@ def is_hidden_dir(directory: str) -> bool:
     Returns:
         True if the directory is hidden, False otherwise.
     """
-    dir_name = basename(directory.rstrip("/"))
-    if dir_name.startswith("."):
+    path = Path(directory.rstrip("/"))
+    if path.name.startswith("."):
         return True
-    parent = dirname(directory)
-    if parent and parent != directory:
-        parent_name = basename(parent)
-        if parent_name.startswith("."):
-            return True
-    return False
+    parent = path.parent
+    return parent != path and parent.name.startswith(".")
 
 
 class Dir:
@@ -94,7 +90,7 @@ class Dir:
         path = (
             str(data_path).removeprefix(localpath).lstrip("/")
             if strip_localpath
-            else join(localpath, str(data_path).lstrip("/"))
+            else str(Path(localpath) / str(data_path).lstrip("/"))
         )
         return cls(
             path=path,
@@ -113,8 +109,8 @@ class Dir:
         Returns:
             Dir instance if directory exists, None otherwise.
         """
-        path = join(buckets_dir, path.lstrip("/")) if buckets_dir else path
-        if exists(path):
+        path = str(Path(buckets_dir) / path.lstrip("/")) if buckets_dir else path
+        if Path(path).exists():
             return cls(
                 path=path,
                 permissions=cls._get_permissions(path),

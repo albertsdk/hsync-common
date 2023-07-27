@@ -7,7 +7,7 @@ between client and server via WebSocket.
 """
 
 from enum import StrEnum
-from os.path import join
+from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict
 
 from .dir import Dir
@@ -86,7 +86,7 @@ class Event:
             if strip_localpath:
                 path = path.removeprefix(localpath).lstrip("/")
             else:
-                path = join(localpath, path.lstrip("/"))
+                path = str(Path(localpath) / path.lstrip("/"))
 
             if isinstance(entity, Dir):
                 entity.path = path
