@@ -36,6 +36,9 @@ class SyncAction:
         file: The File object this action applies to.
         name: The type of action (download, upload, delete, nothing).
         timedelta: Human-readable time difference string.
+        conflict: True when the action overwrites a locally-modified file that
+            could not be reconciled automatically (same mtime, different
+            content); signals that the local copy should be preserved first.
     """
 
     def __init__(
@@ -43,17 +46,20 @@ class SyncAction:
         file: File,
         name: SyncActionName | None = None,
         timedelta: int = 0,
+        conflict: bool = False,
     ):
         self.file = file
         self.name = name
         self.timedelta = self._format_timedelta(timedelta)
+        self.conflict = conflict
 
     def __repr__(self) -> str:
         return (
             f"{self.__class__.__name__}("
             f"file={self.file}, "
             f"name={self.name}, "
-            f"timedelta={self.timedelta})"
+            f"timedelta={self.timedelta}, "
+            f"conflict={self.conflict})"
         )
 
     def to_dict(self) -> dict:
