@@ -35,6 +35,13 @@ HSYNCKEEP_FILENAME = ".hsynckeep"
 # the default hidden-file detection.
 HSYNCIGNORE_FILENAME = ".hsyncignore"
 
+# Per-bucket deletion-marker (tombstone) side-car file.  Maps a hashed
+# bucket-relative path to the deletion timestamp and the content hash of the
+# removed file, so that a peer that was offline at deletion time does not
+# resurrect the file during a full reconciliation.  Starts with a dot, so it
+# is treated as hidden and never exchanged across peers.
+HSYNCTOMBSTONES_FILENAME = ".hsynctombstones"
+
 # =============================================================================
 # File Transfer Settings
 # =============================================================================
