@@ -19,6 +19,7 @@ from hsync_common.models.symlink import Symlink
 from hsync_common.models.sync_action import SyncAction, SyncActionName
 from hsync_common.models.tombstone import (
     TombstoneStore,
+    relpath_in_bucket,
     tombstone_key,
 )
 
@@ -439,3 +440,17 @@ class TestTombstoneStore:
         store = TombstoneStore(path=str(path))
         store.load()
         assert len(store) == 0
+
+
+class TestRelpathInBucket:
+    def test_strips_bucket_prefix_and_leading_slash(self):
+        assert relpath_in_bucket("/bucket/a/b.txt", "/bucket") == "a/b.txt"
+
+    def test_handles_trailing_slash_on_bucket(self):
+        assert relpath_in_bucket("/bucket/a/b.txt", "/bucket/") == "a/b.txt"
+
+    def test_bucket_root_yields_empty(self):
+        assert relpath_in_bucket("/bucket", "/bucket") == ""
+
+    def test_path_outside_bucket_is_unchanged(self):
+        assert relpath_in_bucket("/other/a.txt", "/bucket") == "other/a.txt"
