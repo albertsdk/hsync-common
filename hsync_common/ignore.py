@@ -34,8 +34,8 @@ from pathspec import PathSpec
 from pathspec.patterns import GitWildMatchPattern
 
 from hsync_common.constants import HSYNCIGNORE_FILENAME, HSYNCKEEP_FILENAME
-from hsync_common.models.dir import is_hidden_dir
-from hsync_common.models.file import is_hidden_file
+from hsync_common.models.dir import _is_hidden_dir_basic
+from hsync_common.models.file import _is_hidden_file_basic
 
 
 class IgnoreMatcher:
@@ -139,7 +139,7 @@ class IgnoreMatcher:
         if self.include_hidden:
             return False
 
-        return is_hidden_dir(path) if is_dir else is_hidden_file(path)
+        return _is_hidden_dir_basic(path) if is_dir else _is_hidden_file_basic(path)
 
 
 # ----------------------------------------------------------------------
@@ -183,4 +183,4 @@ def should_skip(path: str, is_dir: bool = False) -> bool:
     name = Path(path.rstrip("/")).name
     if name == HSYNCKEEP_FILENAME:
         return False
-    return is_hidden_dir(path) if is_dir else is_hidden_file(path)
+    return _is_hidden_dir_basic(path) if is_dir else _is_hidden_file_basic(path)

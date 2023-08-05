@@ -11,25 +11,44 @@ from pathlib import Path
 from typing import Optional
 
 
-def is_hidden_dir(directory: str) -> bool:
-    """
-    Check if a directory is hidden.
+def _is_hidden_dir_basic(directory: str) -> bool:
+    """Pure dot-prefix hidden-directory check (no ignore rules).
 
-    A directory is considered hidden if:
-    - Its name starts with a dot (.)
-    - Any parent directory in its path starts with a dot
-
-    Args:
-        directory: Path to the directory.
-
-    Returns:
-        True if the directory is hidden, False otherwise.
+    A directory is considered hidden if its name, or its immediate parent's
+    name, starts with a dot. This is the legacy detection used as the
+    fallback inside :class:`hsync_common.ignore.IgnoreMatcher`; keeping it
+    separate from :func:`is_hidden_dir` avoids infinite recursion when a
+    matcher is active.
     """
     path = Path(directory.rstrip("/"))
     if path.name.startswith("."):
         return True
     parent = path.parent
     return parent != path and parent.name.startswith(".")
+
+
+def is_hidden_dir(directory: str) -> bool:
+    """
+    Check if a directory must be excluded from synchronisation.
+
+    When a process-wide :class:`hsync_common.ignore.IgnoreMatcher` is active
+    (installed by the client at startup) it is consulted so that
+    ``.hsyncignore`` rules and extra patterns are honoured. When no matcher
+    is installed (e.g. on the server) the legacy dot-prefix detection is used,
+    preserving the previous behaviour.
+
+    Args:
+        directory: Path to the directory.
+
+    Returns:
+        True if the directory is hidden/ignored, False otherwise.
+    """
+    from hsync_common.ignore import get_active_matcher
+
+    matcher = get_active_matcher()
+    if matcher is not None:
+        return matcher.matches(directory, is_dir=True)
+    return _is_hidden_dir_basic(directory)
 
 
 class Dir:
