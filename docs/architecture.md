@@ -15,11 +15,19 @@ graph TB
             SYMLINK[Symlink]
             EVENT[Event]
             SYNC[SyncAction]
+            TOMB[TombstoneStore]
         end
 
         subgraph "Utilities"
             COMP[Compression]
             CONST[Constants]
+            IGN[Ignore matcher]
+            PATH[Path validation]
+            SSL[SSL utils]
+            LOG[Logger]
+            ENV[Env]
+            TXT[Text]
+            EXC[Exceptions]
         end
     end
 
@@ -59,15 +67,23 @@ hsync-common/
 │   └── architecture.md         # This file
 └── hsync_common/
     ├── __init__.py
-    ├── constants.py             # VERSION, HSYNCKEEP_FILENAME, chunk sizes
+    ├── constants.py             # VERSION, sentinel/ignore/tombstone filenames, chunk sizes
     ├── compression.py           # Zstandard compress/decompress utilities
+    ├── ignore.py                # .hsyncignore (gitignore-style) matcher
+    ├── path_validation.py       # Filename/path traversal validation
+    ├── ssl_utils.py             # Self-signed cert generation + fingerprinting
+    ├── logger.py                # Shared loguru configuration
+    ├── env.py                   # Environment-file loading helpers
+    ├── text.py                  # Text utilities (e.g. loguru brace escaping)
+    ├── exceptions.py            # Shared exception types
     └── models/
         ├── __init__.py          # Re-exports all models
         ├── file.py              # File model with SHA-256 caching
         ├── dir.py               # Dir model
         ├── symlink.py           # Symlink model
         ├── event.py             # Event + EventName enum
-        └── sync_action.py       # SyncAction + SyncActionName enum
+        ├── sync_action.py       # SyncAction + SyncActionName enum
+        └── tombstone.py         # TombstoneStore (deletion markers, LWW merge)
 ```
 
 ## Models
@@ -112,6 +128,35 @@ values: `added`, `modified`, `renamed`, `deleted`, `symlink`.
 Represents a synchronization decision. `SyncActionName` is a `StrEnum` with
 values: `download`, `upload`, `delete`, `nothing`.
 
+### TombstoneStore
+
+Records deletion markers so that a peer which was offline at deletion time does
+not resurrect a file during a full reconciliation. Each entry maps a hashed
+bucket-relative path to a `TombstoneEntry` (`ts`: deletion unix timestamp,
+`sha256`: content hash of the removed file, or `None`).
+
+Key features:
+- **Last-writer-wins merge** — `merge()` and `record()` keep the newest `ts`,
+  so server, LAN master and clients stay consistent.
+- **Privacy-preserving keys** — paths are hashed (SHA-256) before storage.
+- **TTL pruning** — `prune()` garbage-collects markers older than
+  `TOMBSTONE_TTL_DAYS_DEFAULT` (30 days) so the store stays bounded.
+- **JSON persistence** — atomic `save()`/`load()` to the `.hsynctombstones`
+  side-car file, with a wire shape (`to_payload()`) reused by the REST endpoints
+  and the Android client.
+
+## Utilities
+
+| Module             | Responsibility                                                  |
+|--------------------|----------------------------------------------------------------|
+| `ignore`           | `.hsyncignore` (gitignore-style) pattern matching              |
+| `path_validation`  | Filename/path validation and traversal protection             |
+| `ssl_utils`        | Self-signed certificate generation and fingerprint helpers     |
+| `logger`           | Shared loguru configuration                                    |
+| `env`              | Environment-file loading helpers                               |
+| `text`             | Text helpers (e.g. escaping loguru braces)                     |
+| `exceptions`       | Shared exception base types                                    |
+
 ## Compression
 
 The `compression` module provides Zstandard (zstd) compression with level 3
@@ -133,15 +178,18 @@ extensions that are already compressed (archives, images, audio, video, etc.).
 
 ## Constants
 
-| Constant             | Value         | Description                              |
-|----------------------|---------------|------------------------------------------|
-| `VERSION`            | `"1.0.0"`     | HSYNC protocol version (single source)   |
-| `HSYNCKEEP_FILENAME` | `".hsynckeep"`| Sentinel file for empty-directory sync   |
-| `CHUNK_SIZE_SMALL`   | 8 KB          | SHA-256 chunk size for files < 1 MB      |
-| `CHUNK_SIZE_MEDIUM`  | 64 KB         | SHA-256 chunk size for files < 100 MB    |
-| `CHUNK_SIZE_LARGE`   | 256 KB        | SHA-256 chunk size for files ≥ 100 MB    |
-| `FILE_SIZE_SMALL`    | 1 MB          | Threshold for medium chunk size          |
-| `FILE_SIZE_MEDIUM`   | 100 MB        | Threshold for large chunk size           |
+| Constant                     | Value                | Description                              |
+|------------------------------|----------------------|------------------------------------------|
+| `VERSION`                    | `"1.0.0"`            | HSYNC protocol version (single source)   |
+| `HSYNCKEEP_FILENAME`         | `".hsynckeep"`       | Sentinel file for empty-directory sync   |
+| `HSYNCIGNORE_FILENAME`       | `".hsyncignore"`     | Per-bucket gitignore-style ignore file   |
+| `HSYNCTOMBSTONES_FILENAME`   | `".hsynctombstones"` | Per-bucket deletion-marker side-car file |
+| `TOMBSTONE_TTL_DAYS_DEFAULT` | `30`                 | Retention window before tombstone GC     |
+| `CHUNK_SIZE_SMALL`           | 8 KB                 | SHA-256 chunk size for files < 1 MB      |
+| `CHUNK_SIZE_MEDIUM`          | 64 KB                | SHA-256 chunk size for files < 100 MB    |
+| `CHUNK_SIZE_LARGE`           | 256 KB               | SHA-256 chunk size for files ≥ 100 MB    |
+| `FILE_SIZE_SMALL`            | 1 MB                 | Threshold for medium chunk size          |
+| `FILE_SIZE_MEDIUM`           | 100 MB               | Threshold for large chunk size           |
 
 ## Integration
 
