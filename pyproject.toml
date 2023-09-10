@@ -1,19 +1,21 @@
-[tool.poetry]
+[project]
 name = "hsync-common"
 version = "1.0.0"
 description = "HSYNC Common - shared models, constants, and compression utilities"
-authors = ["Alberto Basso <17047798+albertobasso@users.noreply.github.com>"]
+authors = [{name = "Alberto Basso", email = "17047798+albertobasso@users.noreply.github.com"}]
 license = "MPL-2.0"
 readme = "README.md"
-packages = [{include = "hsync_common"}]
+requires-python = ">=3.12,<3.15"
+dependencies = [
+    "cryptography>=48.0.1,<50.0.0",
+    "loguru>=0.7.3,<0.8.0",
+    "pathspec>=1.0,<2.0",
+    "python-dotenv>=1.2.1,<2.0.0",
+    "zstandard>=0.25.0,<0.26.0",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.12,<3.15"
-zstandard = "^0.25.0"
-loguru = "^0.7.3"
-python-dotenv = "^1.2.1"
-cryptography = ">=48.0.1,<50.0.0"
-pathspec = "^1.0"
+[tool.poetry]
+packages = [{include = "hsync_common"}]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0.2"
