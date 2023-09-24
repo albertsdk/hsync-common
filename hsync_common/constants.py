@@ -42,6 +42,14 @@ HSYNCIGNORE_FILENAME = ".hsyncignore"
 # is treated as hidden and never exchanged across peers.
 HSYNCTOMBSTONES_FILENAME = ".hsynctombstones"
 
+# Per-peer sync-state (version) side-car file.  Maps a hashed bucket-relative
+# path to the last-synced common ancestor (base_hash) plus version lineage
+# (change_id, origin_cid), enabling a clock-independent three-way merge: a peer
+# can tell whether only the local side, only the remote side, or both sides
+# changed since the last successful sync.  Local and private to each peer (never
+# exchanged); starts with a dot, so it is treated as hidden.
+HSYNCSTATE_FILENAME = ".hsyncstate"
+
 # =============================================================================
 # File Transfer Settings
 # =============================================================================
