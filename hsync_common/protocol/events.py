@@ -93,6 +93,7 @@ class UiEventDict(TypedDict):
     peer_cid: NotRequired[str]
     peer_address: NotRequired[str]
     state: NotRequired[str]
+    elapsed: NotRequired[int]
 
 
 def _utc_now_iso() -> str:
