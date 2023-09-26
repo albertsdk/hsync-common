@@ -1,0 +1,698 @@
+{
+  "components": {
+    "schemas": {
+      "Body_delete_file_api_v1_buckets__bucket__files_delete": {
+        "properties": {
+          "cid": {
+            "title": "Cid",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cid",
+          "filename"
+        ],
+        "title": "Body_delete_file_api_v1_buckets__bucket__files_delete",
+        "type": "object"
+      },
+      "Body_upload_file_api_v1_buckets__bucket__files_post": {
+        "properties": {
+          "cid": {
+            "title": "Cid",
+            "type": "string"
+          },
+          "compressed": {
+            "default": "false",
+            "title": "Compressed",
+            "type": "string"
+          },
+          "compressed_size": {
+            "default": 0,
+            "title": "Compressed Size",
+            "type": "integer"
+          },
+          "ctime": {
+            "default": "",
+            "title": "Ctime",
+            "type": "string"
+          },
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          },
+          "mtime": {
+            "default": "",
+            "title": "Mtime",
+            "type": "string"
+          },
+          "offset": {
+            "default": 0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "path": {
+            "default": "",
+            "title": "Path",
+            "type": "string"
+          },
+          "permissions": {
+            "default": "-rw-rw-r--",
+            "title": "Permissions",
+            "type": "string"
+          },
+          "sha256sum": {
+            "default": "",
+            "title": "Sha256Sum",
+            "type": "string"
+          },
+          "size": {
+            "default": 0,
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cid",
+          "file"
+        ],
+        "title": "Body_upload_file_api_v1_buckets__bucket__files_post",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "title": "HSYNC - HTTP Sync file server",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/buckets": {
+      "post": {
+        "description": "Create a new storage bucket.\n\nCreates a directory in the buckets storage area with the specified name.\nBucket names must be alphanumeric (hyphens and underscores allowed,\nbut not at the beginning or end).\n\nArgs:\n    bucket: Name for the new bucket.\n\nReturns:\n    JSON response confirming creation or conflict if exists.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.",
+        "operationId": "create_bucket_api_v1_buckets_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "bucket",
+            "required": true,
+            "schema": {
+              "title": "Bucket",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Bucket",
+        "tags": [
+          "Authenticated Router"
+        ]
+      }
+    },
+    "/api/v1/buckets/{bucket}": {
+      "delete": {
+        "description": "Delete a bucket and all its contents.\n\nPermanently removes the bucket directory and all files/subdirectories.\nThis operation cannot be undone.\n\nArgs:\n    bucket: Name of the bucket to delete.\n\nReturns:\n    JSON response confirming deletion.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    BucketNotFoundError: If bucket does not exist.\n    DeleteError: If deletion fails.",
+        "operationId": "delete_bucket_api_v1_buckets__bucket__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bucket",
+            "required": true,
+            "schema": {
+              "title": "Bucket",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Bucket",
+        "tags": [
+          "Authenticated Router"
+        ]
+      },
+      "get": {
+        "description": "Get bucket information including timestamps.",
+        "operationId": "Get_bucket_information_api_v1_buckets__bucket__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bucket",
+            "required": true,
+            "schema": {
+              "title": "Bucket",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get bucket information",
+        "tags": [
+          "Authenticated Router"
+        ]
+      }
+    },
+    "/api/v1/buckets/{bucket}/files": {
+      "delete": {
+        "description": "Delete a file from a bucket.\n\nRemoves the file and broadcasts a \"deleted\" event to all\nconnected WebSocket clients.\n\nArgs:\n    bucket: Name of the bucket containing the file.\n    cid: Client ID for event broadcasting.\n    filename: Path to the file within the bucket.\n\nReturns:\n    JSON response confirming deletion.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    BucketNotFoundError: If bucket does not exist.\n    InvalidPathError: If path is invalid.\n    HSyncFileNotFoundError: If file does not exist.\n    DeleteError: If deletion fails.",
+        "operationId": "delete_file_api_v1_buckets__bucket__files_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bucket",
+            "required": true,
+            "schema": {
+              "title": "Bucket",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_delete_file_api_v1_buckets__bucket__files_delete"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete File",
+        "tags": [
+          "Authenticated Router"
+        ]
+      },
+      "get": {
+        "description": "List all files in a bucket or subdirectory.\n\nRecursively walks the directory tree and returns metadata for\nall non-hidden files, sorted by mtime ascending (oldest first)\nto prioritize updating older files.\n\nArgs:\n    bucket: Name of the bucket to list files from.\n    path: Optional subdirectory path within the bucket.\n\nReturns:\n    JSON response with list of file metadata dictionaries.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    InvalidPathError: If path is invalid.\n    BucketNotFoundError: If bucket does not exist.",
+        "operationId": "get_files_api_v1_buckets__bucket__files_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bucket",
+            "required": true,
+            "schema": {
+              "title": "Bucket",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Path"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Files",
+        "tags": [
+          "Authenticated Router"
+        ]
+      },
+      "post": {
+        "description": "Upload a file to a bucket with resumable upload support.\n\nHandles file upload with integrity verification (SHA-256), timestamp\npreservation, and permission setting. Broadcasts an \"added\" event\nto all connected WebSocket clients.\n\nSupports resumable uploads: if offset > 0, the incoming data is\nappended to an existing partial file (.part extension).\n\nArgs:\n    bucket: Target bucket name.\n    cid: Client ID for event broadcasting.\n    file: The file to upload.\n    path: Subdirectory path within the bucket.\n    ctime: Creation time (Unix timestamp or ISO string).\n    mtime: Modification time (Unix timestamp or ISO string).\n    sha256sum: Expected SHA-256 checksum for integrity verification.\n    permissions: File permissions in symbolic format.\n    offset: Byte offset for resumable uploads (0 for new uploads).\n    size: Total file size (required for resumable uploads).\n\nReturns:\n    JSON response confirming upload or conflict if identical file exists.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    InvalidPathError: If path is invalid.\n    InvalidPermissionFormatError: If permission format is invalid.\n    InvalidFilenameError: If filename contains forbidden characters or is reserved.\n    ChecksumMismatchError: If SHA-256 checksum verification fails.\n    UploadError: If upload operation fails.",
+        "operationId": "upload_file_api_v1_buckets__bucket__files_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bucket",
+            "required": true,
+            "schema": {
+              "title": "Bucket",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_file_api_v1_buckets__bucket__files_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Upload File",
+        "tags": [
+          "Authenticated Router"
+        ]
+      }
+    },
+    "/api/v1/buckets/{bucket}/files/download": {
+      "get": {
+        "description": "Download a file from a bucket with optional zstd compression.\n\nStreams the file content as a response with appropriate headers.\nIf compression is enabled and beneficial, compresses the file before sending.\n\nArgs:\n    request: The incoming FastAPI request.\n    bucket: Name of the bucket containing the file.\n    filename: Path to the file within the bucket.\n\nReturns:\n    FileResponse or Response with the file content for download.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    InvalidPathError: If path is invalid.\n    HSyncFileNotFoundError: If file does not exist.",
+        "operationId": "download_file_api_v1_buckets__bucket__files_download_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bucket",
+            "required": true,
+            "schema": {
+              "title": "Bucket",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filename",
+            "required": true,
+            "schema": {
+              "title": "Filename",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Download File",
+        "tags": [
+          "Authenticated Router"
+        ]
+      }
+    },
+    "/api/v1/buckets/{bucket}/files/upload-status": {
+      "get": {
+        "description": "Get upload status for resumable uploads.\n\nChecks if a partial file exists from a previous interrupted upload\nand returns the current offset from which the client can resume.\n\nArgs:\n    request: The incoming FastAPI request.\n    bucket: Target bucket name.\n    filename: Path to the file within the bucket.\n    sha256sum: Expected SHA-256 checksum of the complete file.\n    size: Expected size of the complete file.\n\nReturns:\n    JSON response with upload status:\n    - offset: Number of bytes already uploaded (0 if no partial file)\n    - status: \"resumable\" if partial file exists, \"new\" otherwise\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    InvalidPathError: If path is invalid.",
+        "operationId": "get_upload_status_api_v1_buckets__bucket__files_upload_status_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bucket",
+            "required": true,
+            "schema": {
+              "title": "Bucket",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filename",
+            "required": true,
+            "schema": {
+              "title": "Filename",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sha256sum",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Sha256Sum",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Upload Status",
+        "tags": [
+          "Authenticated Router"
+        ]
+      }
+    },
+    "/api/v1/buckets/{bucket}/tombstones": {
+      "get": {
+        "description": "List deletion markers (tombstones) for a bucket.\n\nReturns a mapping of hashed bucket-relative path to the deletion\ntimestamp and the content hash of the removed file. Clients use these\nmarkers to avoid resurrecting files that were deleted while they were\noffline.\n\nArgs:\n    request: The incoming FastAPI request.\n    bucket: Name of the bucket to list tombstones from.\n\nReturns:\n    JSON response with the tombstone payload.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    BucketNotFoundError: If bucket does not exist.",
+        "operationId": "get_tombstones_api_v1_buckets__bucket__tombstones_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bucket",
+            "required": true,
+            "schema": {
+              "title": "Bucket",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Tombstones",
+        "tags": [
+          "Authenticated Router"
+        ]
+      }
+    },
+    "/api/v1/time": {
+      "get": {
+        "description": "Return the server's current timestamp for clock synchronization.\n\nClients use this endpoint to calculate clock offset via round-trip\nmeasurement (NTP-like): the client records T1 before the request,\nthe server returns T2, and the client records T3 after the response.\nOffset = T2 - (T1 + RTT/2), where RTT = T3 - T1.\n\nReturns:\n    JSON with ``{\"timestamp\": <float>}`` (Unix epoch seconds).",
+        "operationId": "Clock_synchronization_endpoint_api_v1_time_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Clock Synchronization Endpoint",
+        "tags": [
+          "Public Router"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "Health check endpoint.\n\nReturns an empty response with 200 OK status to indicate\nthe server is healthy and accepting requests.\n\nReturns:\n    Empty string (200 OK response).",
+        "operationId": "Monitoring___Health_check_endpoint_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Monitoring - Health Check Endpoint",
+        "tags": [
+          "Public Router"
+        ]
+      }
+    },
+    "/metrics": {
+      "get": {
+        "description": "Endpoint that serves Prometheus metrics.",
+        "operationId": "metrics_metrics_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Metrics",
+        "tags": [
+          "Public Router"
+        ]
+      }
+    }
+  }
+}

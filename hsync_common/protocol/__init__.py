@@ -1,0 +1,45 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+#
+# Copyright (C) 2025 Alberto Basso
+
+"""
+Versioned wire-protocol contract, shared across every HSYNC component.
+
+This package is the single source of truth for the on-the-wire contract
+(DESIGN_REVIEW §1). The REST surface is captured as a committed OpenAPI
+snapshot exported from the FastAPI server; both the server (drift check)
+and any client tooling read it from here instead of re-deriving payload
+shapes by hand.
+
+The snapshot is serialized through :func:`dump_openapi` so the exporter and
+the drift-check test always agree byte-for-byte; never hand-edit the JSON.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+# Root of the protocol contract directory (this package), resolved from the
+# installed/editable location so consumers locate it without relative guessing.
+PROTOCOL_DIR = Path(__file__).resolve().parent
+
+# Canonical location of the committed REST OpenAPI snapshot.
+REST_OPENAPI_PATH = PROTOCOL_DIR / "rest" / "openapi.json"
+
+
+def dump_openapi(schema: dict[str, Any]) -> str:
+    """Serialize an OpenAPI schema to its canonical on-disk representation.
+
+    Keys are sorted and the output is indented so the committed snapshot is
+    diff-friendly and the exporter/drift-check produce identical bytes.
+    """
+    return json.dumps(schema, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+
+
+def load_openapi() -> dict[str, Any]:
+    """Load the committed REST OpenAPI contract snapshot."""
+    return json.loads(REST_OPENAPI_PATH.read_text(encoding="utf-8"))
