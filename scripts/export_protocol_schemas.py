@@ -6,13 +6,14 @@
 # Copyright (C) 2025 Alberto Basso
 
 """
-Export the WebSocket and LAN/TXT JSON Schemas to the shared protocol contract.
+Export the WebSocket/LAN JSON Schemas and golden fixtures to the protocol contract.
 
 This is the only supported way to update the committed snapshots
-(``hsync_common.protocol.WS_SCHEMA_PATH`` and ``LAN_TXT_SCHEMA_PATH``). The
-matching drift-check test (`tests/test_protocol_schemas.py`) fails whenever the
-schemas rebuilt from the Python source of truth diverge from the committed
-files, so run this script after any handshake/model change.
+(``hsync_common.protocol.WS_SCHEMA_PATH``, ``LAN_TXT_SCHEMA_PATH`` and the
+``FIXTURES_DIR`` golden fixtures). The matching drift-check tests
+(`tests/test_protocol_schemas.py`, `tests/test_protocol_fixtures.py`) fail
+whenever what is rebuilt from the Python source of truth diverges from the
+committed files, so run this script after any handshake/model change.
 
 Usage:
     poetry run python scripts/export_protocol_schemas.py
@@ -21,21 +22,29 @@ Usage:
 from __future__ import annotations
 
 from hsync_common.protocol import (
+    FIXTURES_DIR,
     LAN_TXT_SCHEMA_PATH,
     WS_SCHEMA_PATH,
     dump_contract,
 )
+from hsync_common.protocol.fixtures import build_fixtures
 from hsync_common.protocol.schemas import build_lan_txt_schema, build_ws_schema
 
 
 def main() -> None:
-    """Regenerate and write the canonical WS and LAN/TXT schema snapshots."""
+    """Regenerate and write the canonical WS/LAN schemas and golden fixtures."""
     for path, schema in (
         (WS_SCHEMA_PATH, build_ws_schema()),
         (LAN_TXT_SCHEMA_PATH, build_lan_txt_schema()),
     ):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(dump_contract(schema), encoding="utf-8")
+        print(f"Wrote {path}")
+
+    FIXTURES_DIR.mkdir(parents=True, exist_ok=True)
+    for name, fixture in build_fixtures().items():
+        path = FIXTURES_DIR / f"{name}.json"
+        path.write_text(dump_contract(fixture), encoding="utf-8")
         print(f"Wrote {path}")
 
 
