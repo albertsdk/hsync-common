@@ -1,0 +1,84 @@
+"""
+Sync action model for HSYNC.
+
+This module defines the SyncAction class and SyncActionName enum
+for representing synchronization decisions (upload, download, delete, or no action).
+"""
+
+from datetime import timedelta as td
+from enum import StrEnum
+
+from .file import File
+
+
+class SyncActionName(StrEnum):
+    """
+    Enumeration of possible synchronization actions.
+
+    Values:
+        download: File should be downloaded from server (remote is newer).
+        upload: File should be uploaded to server (local is newer).
+        delete: File should be deleted locally (not present on server in LAN mode).
+        nothing: No action needed (files are in sync).
+    """
+
+    download = "download"
+    upload = "upload"
+    delete = "delete"
+    nothing = "nothing"
+
+
+class SyncAction:
+    """
+    Represents a synchronization action for a file.
+
+    Attributes:
+        file: The File object this action applies to.
+        name: The type of action (download, upload, delete, nothing).
+        timedelta: Human-readable time difference string.
+    """
+
+    def __init__(
+        self,
+        file: File,
+        name: SyncActionName | None = None,
+        timedelta: int = 0,
+    ):
+        self.file = file
+        self.name = name
+        self.timedelta = self._format_timedelta(timedelta)
+
+    def __repr__(self) -> str:
+        return (
+            f"{self.__class__.__name__}("
+            f"file={self.file}, "
+            f"name={self.name}, "
+            f"timedelta={self.timedelta})"
+        )
+
+    def to_dict(self) -> dict:
+        """Convert the SyncAction instance to a dictionary."""
+        return {
+            "file": self.file.to_dict(),
+            "name": self.name,
+            "timedelta": self.timedelta,
+        }
+
+    def _format_timedelta(self, delta_seconds: int) -> str:
+        """Format a time delta in seconds to a human-readable string."""
+        delta = td(seconds=delta_seconds)
+        days = delta.days
+        hours, remainder = divmod(delta.seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        parts = []
+        if days > 0:
+            parts.append(f"{days}d")
+        if hours > 0:
+            parts.append(f"{hours}h")
+        if minutes > 0:
+            parts.append(f"{minutes}m")
+        if seconds > 0:
+            parts.append(f"{seconds}s")
+
+        return " ".join(parts) if parts else "0s"
