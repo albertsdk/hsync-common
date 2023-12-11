@@ -19,17 +19,24 @@ PROJECTS=(
 
 DRY_RUN=false
 NEW_VERSION=""
+BUMP_ANDROID=true
+ANDROID_BUILD_GRADLE="${ROOT_DIR}/hsync-android/app/build.gradle.kts"
 
 show_help() {
     cat <<'EOF'
 HSYNC Python Version Bump
 
 Usage:
-    hsync-common/scripts/dev/bump-python-version.sh [--dry-run] <new_version>
+    hsync-common/scripts/dev/bump-python-version.sh [--dry-run] [--no-android] <new_version>
 
 Examples:
     hsync-common/scripts/dev/bump-python-version.sh --dry-run 1.1.0
     hsync-common/scripts/dev/bump-python-version.sh 1.1.0
+    hsync-common/scripts/dev/bump-python-version.sh --no-android 1.1.0
+
+Options:
+    --dry-run     Preview changes without touching files.
+    --no-android  Skip the Android versionName/versionCode bump.
 
 Updates:
     - hsync-common/pyproject.toml
@@ -37,11 +44,14 @@ Updates:
     - hsync-server/pyproject.toml
     - hsync-desktop/pyproject.toml
     - hsync-common/hsync_common/constants.py (VERSION)
+    - hsync-android/app/build.gradle.kts (versionName + versionCode), unless
+      --no-android is passed.
 
 Notes:
     hsync-common.constants.VERSION is the runtime/protocol version consumed by
     client, server and desktop. Per-project constants modules re-export it, so
-    they must not be edited independently.
+    they must not be edited independently. Android shares the same semantic
+    versionName and gets a monotonically incremented versionCode.
 EOF
 }
 
@@ -52,6 +62,10 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --dry-run)
             DRY_RUN=true
+            shift
+            ;;
+        --no-android)
+            BUMP_ANDROID=false
             shift
             ;;
         -h|--help)
@@ -153,16 +167,47 @@ update_runtime_version() {
     fi
 }
 
+update_android_version() {
+    local file="${ANDROID_BUILD_GRADLE}"
+    [[ -f "${file}" ]] || { err "missing file: ${file}"; exit 1; }
+
+    local current_name current_code next_code
+    current_name="$(sed -nE 's/.*versionName[[:space:]]*=[[:space:]]*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/p' "${file}" | head -n 1)"
+    current_code="$(sed -nE 's/.*versionCode[[:space:]]*=[[:space:]]*([0-9]+).*/\1/p' "${file}" | head -n 1)"
+    [[ -n "${current_name}" ]] || { err "cannot read versionName from ${file}"; exit 1; }
+    [[ -n "${current_code}" ]] || { err "cannot read versionCode from ${file}"; exit 1; }
+    next_code=$((current_code + 1))
+
+    log "hsync-android/app/build.gradle.kts versionName: ${current_name} -> ${NEW_VERSION}"
+    log "hsync-android/app/build.gradle.kts versionCode: ${current_code} -> ${next_code}"
+    if [[ "${DRY_RUN}" == false ]]; then
+        sed_in_place "${file}" \
+            'versionName[[:space:]]*=[[:space:]]*"[0-9]+\.[0-9]+\.[0-9]+"' \
+            "versionName = \"${NEW_VERSION}\""
+        sed_in_place "${file}" \
+            'versionCode[[:space:]]*=[[:space:]]*[0-9]+' \
+            "versionCode = ${next_code}"
+    fi
+}
+
 main() {
     local mode=""
     [[ "${DRY_RUN}" == true ]] && mode=" (dry-run)"
-    log "Bumping HSYNC Python projects to ${NEW_VERSION}${mode}"
+    local scope="Python projects"
+    [[ "${BUMP_ANDROID}" == true ]] && scope="Python projects + Android"
+    log "Bumping HSYNC ${scope} to ${NEW_VERSION}${mode}"
     log ""
 
     for project in "${PROJECTS[@]}"; do
         update_pyproject "${project}"
     done
     update_runtime_version
+
+    if [[ "${BUMP_ANDROID}" == true ]]; then
+        update_android_version
+    else
+        log "Skipping Android version bump (--no-android)."
+    fi
 
     log ""
     if [[ "${DRY_RUN}" == true ]]; then
