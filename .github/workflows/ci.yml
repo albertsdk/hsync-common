@@ -29,6 +29,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      # Gate the markdown docs (README, architecture, ADRs) on valid relative
+      # links. Pure stdlib, so it runs before the heavier Poetry install.
+      - name: Docs link-check
+        run: python scripts/dev/check_doc_links.py
+
       - name: Install Poetry
         run: pipx install poetry
 

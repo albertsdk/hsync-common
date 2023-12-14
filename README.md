@@ -55,6 +55,7 @@ back to the legacy hidden-file check when no matcher is active.
 ## Documentation
 
 - [Architecture](docs/architecture.md) - Shared models, utilities, and how they fit the HSYNC ecosystem
+- [Architecture Decision Records](docs/adr/README.md) - Why the stable, cross-project decisions were made
 - [Contributing](CONTRIBUTING.md) - Development setup and contribution guidelines
 - [Security Policy](SECURITY.md) - Supported versions and how to report vulnerabilities
 

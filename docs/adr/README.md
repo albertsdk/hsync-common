@@ -1,0 +1,36 @@
+# Architecture Decision Records (ADR)
+
+This directory records the **stable architectural decisions** of the HSYNC
+ecosystem so they cannot drift silently across the separate repositories
+(`hsync-common`, `hsync-server`, `hsync-client`, `hsync-desktop`,
+`hsync-android`). The records live in `hsync-common` because that is the shared
+single source of truth every other project depends on.
+
+An ADR captures *why* a decision was made, not just *what* the code does: the
+context that forced it, the option chosen over the alternatives, and the
+consequences accepted. Code answers "how"; these records answer "why".
+
+## Conventions
+
+- One decision per file, named `NNNN-kebab-title.md` (zero-padded, monotonic).
+- Use [`template.md`](template.md): **Context / Decision / Consequences** plus a
+  status header.
+- ADRs are **append-only**: never rewrite an accepted decision. To change one,
+  add a new ADR and mark the old one *Superseded by* it.
+- Status values: `Proposed`, `Accepted`, `Superseded`.
+
+## Index
+
+| ADR | Title | Status |
+|---|---|---|
+| [0001](0001-server-vs-lan-modes.md) | Two sync modes: central server vs LAN P2P | Accepted |
+| [0002](0002-lan-master-election.md) | Deterministic LAN master election | Accepted |
+| [0003](0003-tombstone-gossip.md) | Tombstone gossip for deletions | Accepted |
+| [0004](0004-desktop-subprocess-contract.md) | Desktop ↔ client subprocess contract | Accepted |
+| [0005](0005-protocol-versioning.md) | Protocol versioning & capability negotiation | Accepted |
+| [0006](0006-master-authoritative-conflict-model.md) | Master-authoritative conflict model | Accepted |
+
+## Related documents
+
+- [HSYNC Common Architecture](../architecture.md)
+- [LAN Discovery & Master Election](../LAN_PROTOCOL.md)
