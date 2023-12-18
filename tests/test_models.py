@@ -9,7 +9,15 @@ import pytest
 
 from hsync_common.models.dir import Dir, is_hidden_dir
 from hsync_common.models.event import Event, EventName
-from hsync_common.models.file import File, clear_md5_cache, invalidate_md5_cache, is_hidden_file
+from hsync_common.models.file import (
+    MD5_CACHE_MAX_SIZE,
+    File,
+    _md5_cache,
+    _set_cached_md5,
+    clear_md5_cache,
+    invalidate_md5_cache,
+    is_hidden_file,
+)
 from hsync_common.models.symlink import Symlink
 from hsync_common.models.sync_action import SyncAction, SyncActionName
 
@@ -90,6 +98,27 @@ class TestFileMd5Cache:
 
     def test_invalidate_nonexistent_does_not_raise(self):
         invalidate_md5_cache("/nonexistent/path.txt")
+
+    def test_md5_cache_max_size_constant(self):
+        """O2: MD5_CACHE_MAX_SIZE must be a positive integer."""
+        assert isinstance(MD5_CACHE_MAX_SIZE, int)
+        assert MD5_CACHE_MAX_SIZE > 0
+
+    def test_cache_evicts_oldest_when_full(self):
+        """O2: inserting beyond MD5_CACHE_MAX_SIZE evicts the LRU entry."""
+        clear_md5_cache()
+        # Fill the cache to the limit using fake paths
+        for i in range(MD5_CACHE_MAX_SIZE):
+            _set_cached_md5(f"/fake/path/{i}.txt", "a" * 32, i)
+        assert len(_md5_cache) == MD5_CACHE_MAX_SIZE
+
+        # Adding one more entry should evict the oldest (/fake/path/0.txt)
+        _set_cached_md5("/fake/path/overflow.txt", "b" * 32, 9999)
+        assert len(_md5_cache) == MD5_CACHE_MAX_SIZE
+        assert "/fake/path/0.txt" not in _md5_cache
+        assert "/fake/path/overflow.txt" in _md5_cache
+
+        clear_md5_cache()  # clean up for subsequent tests
 
 
 class TestFileGet:

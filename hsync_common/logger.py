@@ -52,8 +52,11 @@ DEFAULT_LOG_ROTATION: Final[str] = "10 MB"
 # Default retention: keep logs for 7 days
 DEFAULT_LOG_RETENTION: Final[str] = "7 days"
 
-# Default compression: gzip for space efficiency
-DEFAULT_LOG_COMPRESSION: Final[str] = "gz"
+# Default compression: xz (LZMA2) for better space efficiency than gz.
+# xz achieves ~30-40 % better compression ratio at the cost of slightly more
+# CPU during rotation — acceptable since rotation is infrequent.
+# Both "xz" and "gz" are natively supported by loguru and Python's stdlib.
+DEFAULT_LOG_COMPRESSION: Final[str] = "xz"
 
 
 def get_rotation_config() -> dict[str, str | None]:

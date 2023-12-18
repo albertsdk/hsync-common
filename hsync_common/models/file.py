@@ -6,6 +6,7 @@ This module defines the File class representing a file with its metadata
 """
 
 import stat
+from collections import OrderedDict
 from datetime import UTC, datetime
 from hashlib import md5
 from os import stat as os_stat
@@ -26,9 +27,16 @@ from hsync_common.constants import (
 # MD5 Cache
 # =============================================================================
 
-# In-memory cache for MD5 checksums to avoid redundant computation
-# during a single sync operation. Key: filepath, Value: tuple[md5sum, mtime]
-_md5_cache: dict[str, tuple[str, int]] = {}
+# Maximum number of entries kept in the MD5 LRU cache.
+# At ~200 bytes/entry (path + md5 hex + mtime int) this caps RAM usage at
+# roughly 2 MB even on a client with hundreds of thousands of files.
+MD5_CACHE_MAX_SIZE: int = 10_000
+
+# In-memory LRU cache for MD5 checksums to avoid redundant computation
+# during a single sync operation. Key: filepath, Value: tuple[md5sum, mtime].
+# OrderedDict is used so we can evict the least-recently-used entry when the
+# cache is full (move-to-end on hit, pop-first on overflow).
+_md5_cache: OrderedDict[str, tuple[str, int]] = OrderedDict()
 
 
 def clear_md5_cache() -> None:
@@ -54,18 +62,22 @@ def invalidate_md5_cache(file_path: str) -> None:
 
 
 def _get_cached_md5(file_path: str, current_mtime: int) -> str | None:
-    """Get cached MD5 if file hasn't been modified."""
+    """Get cached MD5 if file hasn't been modified (LRU: move to end on hit)."""
     if file_path in _md5_cache:
         cached_md5, cached_mtime = _md5_cache[file_path]
         if cached_mtime == current_mtime:
+            _md5_cache.move_to_end(file_path)
             return cached_md5
         del _md5_cache[file_path]
     return None
 
 
 def _set_cached_md5(file_path: str, md5sum: str, mtime: int) -> None:
-    """Store MD5 in cache with its mtime for invalidation."""
+    """Store MD5 in cache with its mtime; evict LRU entry when at capacity."""
     _md5_cache[file_path] = (md5sum, mtime)
+    _md5_cache.move_to_end(file_path)
+    if len(_md5_cache) > MD5_CACHE_MAX_SIZE:
+        _md5_cache.popitem(last=False)  # evict oldest (least recently used)
 
 
 # =============================================================================
