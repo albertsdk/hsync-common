@@ -29,6 +29,12 @@ VERSION = "1.0.0"
 # through the sync engine, but it is filtered from the desktop UI.
 HSYNCKEEP_FILENAME = ".hsynckeep"
 
+# Per-bucket ignore file with gitignore-style patterns.  When present at
+# the bucket root it is parsed by hsync_common.ignore.IgnoreMatcher and
+# its rules are layered on top of (or replace, depending on sync_hidden)
+# the default hidden-file detection.
+HSYNCIGNORE_FILENAME = ".hsyncignore"
+
 # =============================================================================
 # File Transfer Settings
 # =============================================================================
