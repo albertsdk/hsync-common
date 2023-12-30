@@ -4,7 +4,7 @@
 #
 # Copyright (C) 2025 Alberto Basso
 
-"""Tests for the shared --capabilities-json document (DESIGN_REVIEW §8 / P2)."""
+"""Tests for the shared --capabilities-json document."""
 
 import json
 

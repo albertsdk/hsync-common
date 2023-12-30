@@ -5,7 +5,7 @@
 #
 # Copyright (C) 2025 Alberto Basso
 
-"""Relative-link checker for the HSYNC markdown docs (§6).
+"""Relative-link checker for the HSYNC markdown docs.
 
 Scans every ``*.md`` file under the given root(s) and verifies that each
 relative link (``[text](path)``) and inline image points to a file or directory

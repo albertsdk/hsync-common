@@ -4,7 +4,7 @@
 #
 # Copyright (C) 2025 Alberto Basso
 
-"""Tests for the golden protocol fixtures (DESIGN_REVIEW §1 / P0-A, Fase 4).
+"""Tests for the golden protocol fixtures.
 
 These guard the committed cross-language fixtures against silent drift from the
 Python source of truth and assert that each fixture structurally conforms to the

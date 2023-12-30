@@ -7,11 +7,11 @@
 """
 JSON Schema contracts for the WebSocket and LAN/mDNS channels.
 
-Companion to the REST OpenAPI snapshot (DESIGN_REVIEW §1 / P0-A, Fase 3): this
-module builds the WS and LAN/TXT schemas *from the Python source of truth* — the
-handshake constants/capabilities and the shared event/file models — so the
-committed snapshots under ``ws/`` and ``lan/`` can never silently drift from the
-code. Regenerate them with ``scripts/export_protocol_schemas.py`` and guard them
+Companion to the REST OpenAPI snapshot: this module builds the WS and LAN/TXT
+schemas *from the Python source of truth* — the handshake constants/capabilities
+and the shared event/file models — so the committed snapshots under ``ws/`` and
+``lan/`` can never silently drift from the code.
+Regenerate them with ``scripts/export_protocol_schemas.py`` and guard them
 with the matching drift-check test.
 
 JSON Schema (draft 2020-12) is used for both channels — the alternative the

@@ -8,7 +8,7 @@
 Structured UI-event contract emitted by the client over ``--events-json-fd``.
 
 This is the single source of truth for the JSON-Lines status channel that
-replaces the Desktop's fragile log-regex parsing (DESIGN_REVIEW §3 / P0-B).
+replaces the Desktop's fragile log-regex parsing.
 Each line on the events fd is one JSON object validated against this schema:
 a ``schema_version``, an ISO-8601 ``ts``, an ``event`` discriminator and a flat
 set of optional payload fields (only the ones relevant to the event are set).
@@ -64,13 +64,13 @@ class UiEventName(StrEnum):
     preview_end = "preview_end"  # dry-run preview scan ended
     file_status = "file_status"  # preview per-file status (synced/to_*)
     rename_status = "rename_status"  # preview rename status
-    # ── LAN security (P1 §5) ─────────────────────────────────────────────────
+    # ── LAN security ─────────────────────────────────────────────────
     fingerprint_changed = "fingerprint_changed"  # pinned master cert changed (TOFU)
     auth_required = "auth_required"  # a shared LAN key is required but missing
     pairing_needed = "pairing_needed"  # an explicit trust confirmation is required
-    # ── Transfer resilience (P1 §11) ─────────────────────────────────────────
+    # ── Transfer resilience ─────────────────────────────────────────
     transfer_failed = "transfer_failed"  # a file transfer gave up after retries
-    # ── Mass-deletion guard (P1 §12) ─────────────────────────────────────────
+    # ── Mass-deletion guard ─────────────────────────────────────────
     sync_paused = "sync_paused"  # a safety guard paused part of a sync cycle
 
 
