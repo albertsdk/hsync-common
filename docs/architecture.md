@@ -65,7 +65,7 @@ hsync-common/
     ├── compression.py           # Zstandard compress/decompress utilities
     └── models/
         ├── __init__.py          # Re-exports all models
-        ├── file.py              # File model with MD5 caching
+        ├── file.py              # File model with SHA-256 caching
         ├── dir.py               # Dir model
         ├── symlink.py           # Symlink model
         ├── event.py             # Event + EventName enum
@@ -85,13 +85,13 @@ The `File` class represents a file with its synchronization metadata:
 | `ctime`       | `int \| None`    | Creation time (Unix timestamp)           |
 | `mtime`       | `int \| None`    | Modification time (Unix timestamp)       |
 | `size`        | `int`            | File size in bytes                       |
-| `md5sum`      | `str \| None`    | MD5 checksum of file content             |
+| `sha256sum`   | `str \| None`    | SHA-256 checksum of file content         |
 | `permissions` | `str \| None`    | Symbolic permission string               |
 
 Key features:
-- **MD5 caching** — in-memory cache keyed by `(filepath, mtime)` to avoid
+- **SHA-256 caching** — in-memory cache keyed by `(filepath, mtime)` to avoid
   redundant hash computation within a sync cycle.
-- **Adaptive chunk sizes** — MD5 computation uses 8 KB / 64 KB / 256 KB chunks
+- **Adaptive chunk sizes** — SHA-256 computation uses 8 KB / 64 KB / 256 KB chunks
   depending on file size for optimal throughput.
 - **`FileDict`** — a `TypedDict` for type-safe dictionary serialization.
 
@@ -139,9 +139,9 @@ extensions that are already compressed (archives, images, audio, video, etc.).
 |----------------------|---------------|------------------------------------------|
 | `VERSION`            | `"1.0.0"`     | HSYNC protocol version (single source)   |
 | `HSYNCKEEP_FILENAME` | `".hsynckeep"`| Sentinel file for empty-directory sync   |
-| `CHUNK_SIZE_SMALL`   | 8 KB          | MD5 chunk size for files < 1 MB          |
-| `CHUNK_SIZE_MEDIUM`  | 64 KB         | MD5 chunk size for files < 100 MB        |
-| `CHUNK_SIZE_LARGE`   | 256 KB        | MD5 chunk size for files ≥ 100 MB        |
+| `CHUNK_SIZE_SMALL`   | 8 KB          | SHA-256 chunk size for files < 1 MB      |
+| `CHUNK_SIZE_MEDIUM`  | 64 KB         | SHA-256 chunk size for files < 100 MB    |
+| `CHUNK_SIZE_LARGE`   | 256 KB        | SHA-256 chunk size for files ≥ 100 MB    |
 | `FILE_SIZE_SMALL`    | 1 MB          | Threshold for medium chunk size          |
 | `FILE_SIZE_MEDIUM`   | 100 MB        | Threshold for large chunk size           |
 
@@ -158,7 +158,7 @@ symbols from `hsync_common`. For example, in `hsync-client`:
 
 ```python
 # hsync_client/models/file.py
-from hsync_common.models.file import File, FileDict, clear_md5_cache, ...
+from hsync_common.models.file import File, FileDict, clear_sha256_cache, ...
 ```
 
 This ensures that all existing `from hsync_client.models.file import File`
