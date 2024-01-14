@@ -5,11 +5,9 @@ This module defines the File class representing a file with its metadata
 (path, timestamps, size, checksum, permissions) used for file synchronization.
 """
 
-import stat
 from collections import OrderedDict
 from datetime import UTC, datetime
 from hashlib import sha256
-from os import stat as os_stat
 from pathlib import Path
 from re import match
 from typing import Optional, TypedDict
@@ -22,6 +20,7 @@ from hsync_common.constants import (
     FILE_SIZE_SMALL,
     HSYNCKEEP_FILENAME,
 )
+from hsync_common.permissions import get_permissions
 
 # =============================================================================
 # SHA-256 Cache
@@ -172,7 +171,7 @@ class File:
         mtime: Modification time as Unix timestamp.
         size: File size in bytes.
         sha256sum: SHA-256 checksum of file content.
-        permissions: Symbolic permission string (e.g., '-rw-r--r--').
+        permissions: Octal permission string (e.g., '644').
     """
 
     def __init__(
@@ -235,9 +234,8 @@ class File:
 
     @staticmethod
     def _get_permissions(obj_path: str) -> str:
-        """Get file permissions in symbolic notation."""
-        obj_stat = os_stat(obj_path)
-        return stat.filemode(obj_stat.st_mode)
+        """Get file permissions as a canonical octal string."""
+        return get_permissions(obj_path)
 
     def to_dict(self) -> FileDict:
         """Convert the File instance to a FileDict."""

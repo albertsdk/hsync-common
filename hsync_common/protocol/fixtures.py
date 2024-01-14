@@ -69,7 +69,7 @@ def _file_event() -> dict[str, Any]:
             mtime=_FIXTURE_MTIME,
             size=42,
             sha256sum="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-            permissions="-rw-r--r--",
+            permissions="644",
         ),
     )
     return dict(event.to_dict())

@@ -61,7 +61,7 @@
             "type": "string"
           },
           "permissions": {
-            "default": "-rw-rw-r--",
+            "default": "664",
             "title": "Permissions",
             "type": "string"
           },
@@ -402,7 +402,7 @@
         ]
       },
       "post": {
-        "description": "Upload a file to a bucket with resumable upload support.\n\nHandles file upload with integrity verification (SHA-256), timestamp\npreservation, and permission setting. Broadcasts an \"added\" event\nto all connected WebSocket clients.\n\nSupports resumable uploads: if offset > 0, the incoming data is\nappended to an existing partial file (.part extension).\n\nArgs:\n    bucket: Target bucket name.\n    cid: Client ID for event broadcasting.\n    file: The file to upload.\n    path: Subdirectory path within the bucket.\n    ctime: Creation time (Unix timestamp or ISO string).\n    mtime: Modification time (Unix timestamp or ISO string).\n    sha256sum: Expected SHA-256 checksum for integrity verification.\n    permissions: File permissions in symbolic format.\n    offset: Byte offset for resumable uploads (0 for new uploads).\n    size: Total file size (required for resumable uploads).\n\nReturns:\n    JSON response confirming upload or conflict if identical file exists.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    InvalidPathError: If path is invalid.\n    InvalidPermissionFormatError: If permission format is invalid.\n    InvalidFilenameError: If filename contains forbidden characters or is reserved.\n    ChecksumMismatchError: If SHA-256 checksum verification fails.\n    UploadError: If upload operation fails.",
+        "description": "Upload a file to a bucket with resumable upload support.\n\nHandles file upload with integrity verification (SHA-256), timestamp\npreservation, and permission setting. Broadcasts an \"added\" event\nto all connected WebSocket clients.\n\nSupports resumable uploads: if offset > 0, the incoming data is\nappended to an existing partial file (.part extension).\n\nArgs:\n    bucket: Target bucket name.\n    cid: Client ID for event broadcasting.\n    file: The file to upload.\n    path: Subdirectory path within the bucket.\n    ctime: Creation time (Unix timestamp or ISO string).\n    mtime: Modification time (Unix timestamp or ISO string).\n    sha256sum: Expected SHA-256 checksum for integrity verification.\n    permissions: File permissions as an octal string (e.g., '644').\n    offset: Byte offset for resumable uploads (0 for new uploads).\n    size: Total file size (required for resumable uploads).\n\nReturns:\n    JSON response confirming upload or conflict if identical file exists.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    InvalidPathError: If path is invalid.\n    InvalidPermissionFormatError: If permission format is invalid.\n    InvalidFilenameError: If filename contains forbidden characters or is reserved.\n    ChecksumMismatchError: If SHA-256 checksum verification fails.\n    UploadError: If upload operation fails.",
         "operationId": "upload_file_api_v1_buckets__bucket__files_post",
         "parameters": [
           {
