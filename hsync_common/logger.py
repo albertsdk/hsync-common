@@ -17,8 +17,9 @@ from __future__ import annotations
 
 import logging
 import os
-from collections.abc import Callable
-from typing import Final
+import sys
+from collections.abc import Callable, Iterable, Mapping
+from typing import Any, Final
 
 from loguru import logger
 
@@ -130,3 +131,126 @@ class BaseInterceptHandler(logging.Handler):
             target = logger.bind(**self._bind_extra())
 
         target.opt(depth=depth, exception=record.exc_info).log(level, message)
+
+
+# =============================================================================
+# Record formatting
+# =============================================================================
+
+
+def format_timestamp(record: Mapping[str, Any]) -> str:
+    """Return an ISO-8601 millisecond timestamp with a trailing ``Z``."""
+    return record["time"].strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+
+
+def build_record_formatter(
+    *,
+    colored: bool,
+    extra_fields: Iterable[str] = (),
+    message_transform: Callable[[Mapping[str, Any], str], str] | None = None,
+) -> Callable[[Mapping[str, Any]], str]:
+    """Build a loguru format function shared across projects.
+
+    The produced function renders records as::
+
+        <timestamp> - [<pid>][ <extra fields...>] <LEVEL>: <message>
+
+    Args:
+        colored: When True, wrap the timestamp in ``<dim>`` tags and the level
+            name in the per-level color tags from :data:`LEVEL_STYLES` so
+            loguru colorizes the output. When False, emit plain text.
+        extra_fields: Names of ``record["extra"]`` keys to render, in order,
+            each inside square brackets after the pid (e.g. ``"request_id"``).
+            Missing values render as ``"N/A"``.
+        message_transform: Optional callback ``(record, message) -> message``
+            applied to the message before rendering (e.g. to colorize action
+            labels or append a JSON payload).
+
+    Returns:
+        A callable suitable for the ``format`` argument of ``logger.add``.
+    """
+    fields = tuple(extra_fields)
+
+    def _formatter(record: Mapping[str, Any]) -> str:
+        timestamp = format_timestamp(record)
+        level = record["level"].name
+        message = record["message"]
+        if message_transform is not None:
+            message = message_transform(record, message)
+
+        extra = record.get("extra", {})
+        prefix = f"[{record['process'].id}]"
+        for field in fields:
+            prefix += f" [{extra.get(field, 'N/A')}]"
+
+        if colored:
+            level_start, level_end = LEVEL_STYLES.get(level, ("", ""))
+            return f"<dim>{timestamp}</dim> - {prefix} {level_start}{level}{level_end}: {message}\n"
+        return f"{timestamp} - {prefix} {level}: {message}\n"
+
+    return _formatter
+
+
+# =============================================================================
+# Handler configuration
+# =============================================================================
+
+
+def configure_handlers(
+    *,
+    level: str,
+    console_format: Callable[[Mapping[str, Any]], str] | str,
+    colorize: bool,
+    intercept_factory: Callable[[], logging.Handler],
+    intercept_logger_names: Iterable[str],
+    logfile: str | None = None,
+    file_format: Callable[[Mapping[str, Any]], str] | str | None = None,
+    serialize_console: bool = False,
+) -> None:
+    """Apply the common loguru handler setup shared by the projects.
+
+    Removes existing handlers, adds a stdout handler (optionally a JSON
+    serialized one), optionally a rotating file handler, and routes stdlib
+    logging through ``intercept_factory`` for the given logger names.
+
+    Args:
+        level: Upper-case loguru level name (e.g. ``"INFO"``).
+        console_format: Format function or string for the stdout handler.
+        colorize: Whether to enable loguru color-tag processing on stdout.
+        intercept_factory: Zero-argument callable returning a fresh intercept
+            handler instance for stdlib logging.
+        intercept_logger_names: Stdlib logger names to route through loguru.
+        logfile: Optional path enabling a rotating file handler.
+        file_format: Format for the file handler (defaults to ``console_format``).
+        serialize_console: When True, emit JSON on stdout instead of using
+            ``console_format`` (used by the server's JSON mode).
+    """
+    logger.remove()
+
+    if serialize_console:
+        logger.add(sys.stdout, level=level, format="{message}", serialize=True)
+    else:
+        logger.add(
+            sys.stdout,
+            level=level,
+            format=console_format,  # type: ignore[arg-type]
+            colorize=colorize,
+        )
+
+    if logfile:
+        rotation_config = get_rotation_config()
+        logger.add(
+            logfile,
+            level=level,
+            format=file_format if file_format is not None else console_format,  # type: ignore[arg-type]
+            colorize=False,
+            encoding="utf-8",
+            rotation=rotation_config["rotation"],
+            retention=rotation_config["retention"],
+            compression=rotation_config["compression"],
+        )
+
+    logging.basicConfig(handlers=[intercept_factory()], level=0, force=True)
+    for logger_name in intercept_logger_names:
+        logging.getLogger(logger_name).handlers = [intercept_factory()]
+        logging.getLogger(logger_name).propagate = False

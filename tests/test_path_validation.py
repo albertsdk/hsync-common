@@ -9,8 +9,10 @@ from hsync_common.path_validation import (
     has_problematic_trailing,
     is_reserved_name,
     is_safe_path_component,
+    is_valid_bucket_name,
     is_valid_filename,
     is_valid_path,
+    safe_resolve_path,
     sanitize_filename,
 )
 
@@ -205,3 +207,40 @@ class TestSanitizeFilename:
         long_name = "a" * 300 + ".txt"
         result = sanitize_filename(long_name)
         assert len(result) <= 255
+
+
+class TestIsValidBucketName:
+    def test_valid_names(self):
+        assert is_valid_bucket_name("bucket")
+        assert is_valid_bucket_name("My-Bucket_1")
+        assert is_valid_bucket_name("a")
+        assert is_valid_bucket_name("A1")
+
+    def test_invalid_names(self):
+        assert not is_valid_bucket_name("")
+        assert not is_valid_bucket_name("-bucket")
+        assert not is_valid_bucket_name("bucket-")
+        assert not is_valid_bucket_name("_bucket")
+        assert not is_valid_bucket_name("bad/name")
+        assert not is_valid_bucket_name("dot.name")
+
+
+class TestSafeResolvePath:
+    def test_empty_returns_none(self):
+        assert safe_resolve_path("") is None
+
+    def test_dotdot_rejected(self):
+        assert safe_resolve_path("../etc/passwd") is None
+        assert safe_resolve_path("foo/../../bar") is None
+
+    def test_nul_stripped_and_resolved(self, tmp_path):
+        target = tmp_path / "file.txt"
+        result = safe_resolve_path(f"{target}\x00")
+        assert result == str(target.resolve())
+
+    def test_absolute_rejected_when_disallowed(self, tmp_path):
+        assert safe_resolve_path(str(tmp_path), allow_absolute=False) is None
+
+    def test_relative_path_resolved_when_absolute_allowed(self):
+        result = safe_resolve_path("subdir/file.txt")
+        assert result is not None and result.endswith("subdir/file.txt")
