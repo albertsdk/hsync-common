@@ -17,9 +17,12 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Callable, Final
+from collections.abc import Callable
+from typing import Final
 
 from loguru import logger
+
+from hsync_common.text import escape_loguru_braces
 
 # =============================================================================
 # Color tags shared across projects
@@ -120,7 +123,7 @@ class BaseInterceptHandler(logging.Handler):
 
         message = record.getMessage()
         if self._escape_braces:
-            message = message.replace("{", "{{").replace("}", "}}")
+            message = escape_loguru_braces(message)
 
         target = logger
         if self._bind_extra is not None:
