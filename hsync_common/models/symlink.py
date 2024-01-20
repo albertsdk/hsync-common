@@ -7,7 +7,7 @@ that need to be synchronized between client and server.
 
 from os import readlink
 from os import stat as os_stat
-from os.path import basename, exists, islink
+from pathlib import Path
 from typing import Optional
 
 
@@ -32,7 +32,7 @@ class Symlink:
         mtime: float | None = None,
     ):
         self.filepath = filepath
-        self.name = name or basename(filepath)
+        self.name = name or Path(filepath).name
         self.target = target
         self.ctime = ctime
         self.mtime = mtime
@@ -48,10 +48,10 @@ class Symlink:
     @classmethod
     def get(cls, filepath: str) -> Optional["Symlink"]:
         """Create a Symlink instance from a filesystem path."""
-        if not exists(filepath) and not islink(filepath):
+        if not Path(filepath).exists() and not Path(filepath).is_symlink():
             return None
 
-        if not islink(filepath):
+        if not Path(filepath).is_symlink():
             return None
 
         try:
@@ -60,7 +60,7 @@ class Symlink:
 
             return cls(
                 filepath=filepath,
-                name=basename(filepath),
+                name=Path(filepath).name,
                 target=target,
                 ctime=stat.st_ctime,
                 mtime=stat.st_mtime,

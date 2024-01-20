@@ -26,9 +26,9 @@ of any pattern so empty-directory synchronisation keeps working.
 from __future__ import annotations
 
 import threading
-from os.path import basename, isabs, relpath
+from collections.abc import Iterable
+from os.path import relpath
 from pathlib import Path
-from typing import Iterable
 
 from pathspec import PathSpec
 from pathspec.patterns import GitWildMatchPattern
@@ -101,7 +101,7 @@ class IgnoreMatcher:
         """Normalise *path* to a POSIX bucket-root-relative form."""
         if not path:
             return ""
-        if isabs(path) and self.bucket_root:
+        if Path(path).is_absolute() and self.bucket_root:
             try:
                 rel = relpath(path, self.bucket_root)
             except ValueError:
@@ -119,7 +119,7 @@ class IgnoreMatcher:
             is_dir: When ``True`` the trailing slash is appended so
                 gitignore directory-only patterns (``foo/``) match.
         """
-        name = basename(path.rstrip("/"))
+        name = Path(path.rstrip("/")).name
 
         # Sentinel file is always preserved
         if name == HSYNCKEEP_FILENAME:
@@ -180,7 +180,7 @@ def should_skip(path: str, is_dir: bool = False) -> bool:
     if matcher is not None:
         return matcher.matches(path, is_dir=is_dir)
 
-    name = basename(path.rstrip("/"))
+    name = Path(path.rstrip("/")).name
     if name == HSYNCKEEP_FILENAME:
         return False
     return is_hidden_dir(path) if is_dir else is_hidden_file(path)
