@@ -1,14 +1,14 @@
 """Tests for hsync_common.compression."""
 
-import os
-import tempfile
-
 import pytest
 
 from hsync_common.compression import (
     COMPRESSION_LEVEL,
     CONTENT_ENCODING_ZSTD,
     MIN_SIZE_FOR_COMPRESSION,
+    MIN_SIZE_FOR_DOWNLOAD,
+    MIN_SIZE_FOR_LAN,
+    MIN_SIZE_FOR_UPLOAD,
     PRECOMPRESSED_EXTENSIONS,
     compress_data,
     compress_file,
@@ -125,3 +125,46 @@ class TestShouldCompress:
 
     def test_compressible_extension_below_threshold(self):
         assert should_compress("data.csv", 100) is False
+
+
+class TestShouldCompressContextual:
+    def test_download_alias_matches_base_threshold(self):
+        assert MIN_SIZE_FOR_DOWNLOAD == MIN_SIZE_FOR_COMPRESSION
+
+    def test_upload_threshold_greater_than_download(self):
+        assert MIN_SIZE_FOR_UPLOAD > MIN_SIZE_FOR_DOWNLOAD
+
+    def test_lan_threshold_greater_than_upload(self):
+        assert MIN_SIZE_FOR_LAN > MIN_SIZE_FOR_UPLOAD
+
+    def test_upload_below_threshold_skipped(self):
+        assert should_compress("file.txt", MIN_SIZE_FOR_UPLOAD - 1, transfer_type="upload") is False
+
+    def test_upload_above_threshold_compressed(self):
+        assert should_compress("file.txt", MIN_SIZE_FOR_UPLOAD + 1, transfer_type="upload") is True
+
+    def test_upload_at_threshold_compressed(self):
+        assert should_compress("file.txt", MIN_SIZE_FOR_UPLOAD, transfer_type="upload") is True
+
+    def test_lan_below_threshold_skipped(self):
+        assert should_compress("file.txt", MIN_SIZE_FOR_LAN - 1, is_lan=True) is False
+
+    def test_lan_above_threshold_compressed(self):
+        assert should_compress("file.txt", MIN_SIZE_FOR_LAN + 1, is_lan=True) is True
+
+    def test_lan_at_threshold_compressed(self):
+        assert should_compress("file.txt", MIN_SIZE_FOR_LAN, is_lan=True) is True
+
+    def test_lan_overrides_transfer_type(self):
+        # File above upload threshold but below LAN threshold: LAN wins, skip.
+        size = MIN_SIZE_FOR_UPLOAD + 1
+        assert size < MIN_SIZE_FOR_LAN
+        assert should_compress("file.txt", size, transfer_type="upload", is_lan=True) is False
+
+    def test_precompressed_extension_skipped_in_upload(self):
+        assert (
+            should_compress("photo.jpg", MIN_SIZE_FOR_UPLOAD * 10, transfer_type="upload") is False
+        )
+
+    def test_precompressed_extension_skipped_in_lan(self):
+        assert should_compress("photo.jpg", MIN_SIZE_FOR_LAN * 10, is_lan=True) is False

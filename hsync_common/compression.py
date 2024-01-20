@@ -37,6 +37,16 @@ MIN_SIZE_FOR_COMPRESSION = 10 * 1024  # 10 KB
 # Alias for clarity in context-aware code
 MIN_SIZE_FOR_DOWNLOAD = MIN_SIZE_FOR_COMPRESSION
 
+# Upload threshold: 32KB
+# Client CPU is more precious than server CPU; only compress medium-large
+# files where the benefit is clear.
+MIN_SIZE_FOR_UPLOAD = 32 * 1024  # 32 KB
+
+# LAN mode threshold: 100KB
+# Local network is very fast (1Gbps+); below 100KB the compression time
+# exceeds the transfer time saved.
+MIN_SIZE_FOR_LAN = 100 * 1024  # 100 KB
+
 # File extensions that are already compressed (compression won't help).
 #
 # NOTE: only the *last* extension is extracted by os.path.splitext, so compound
@@ -47,31 +57,108 @@ MIN_SIZE_FOR_DOWNLOAD = MIN_SIZE_FOR_COMPRESSION
 PRECOMPRESSED_EXTENSIONS = frozenset(
     {
         # ── Archives / compressed streams ────────────────────────────────────
-        ".zip", ".gz", ".gzip", ".bz2", ".xz", ".7z", ".rar",
-        ".zst", ".zstd", ".lz4", ".lzma", ".lz",   # lz = lzip
-        ".br",                                        # Brotli
-        ".cab", ".dmg", ".pkg", ".msi", ".deb", ".rpm",
+        ".zip",
+        ".gz",
+        ".gzip",
+        ".bz2",
+        ".xz",
+        ".7z",
+        ".rar",
+        ".zst",
+        ".zstd",
+        ".lz4",
+        ".lzma",
+        ".lz",  # lz = lzip
+        ".br",  # Brotli
+        ".cab",
+        ".dmg",
+        ".pkg",
+        ".msi",
+        ".deb",
+        ".rpm",
         # ── Application packages (zip/apk/jar-based, already compressed) ─────
-        ".apk", ".ipa", ".jar", ".war", ".ear", ".nupkg",
-        ".whl",                                       # Python wheel (zip)
-        ".snap",                                      # Linux Snap (squashfs)
+        ".apk",
+        ".ipa",
+        ".jar",
+        ".war",
+        ".ear",
+        ".nupkg",
+        ".whl",  # Python wheel (zip)
+        ".snap",  # Linux Snap (squashfs)
         # ── Images ───────────────────────────────────────────────────────────
-        ".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif",
-        ".heic", ".heif", ".jp2", ".j2k", ".jpf", ".jpm", ".jpx",
-        ".tiff", ".tif", ".psd", ".ico", ".icns",
-        ".raw", ".cr2", ".nef", ".arw", ".dng", ".orf", ".rw2",
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".webp",
+        ".avif",
+        ".heic",
+        ".heif",
+        ".jp2",
+        ".j2k",
+        ".jpf",
+        ".jpm",
+        ".jpx",
+        ".tiff",
+        ".tif",
+        ".psd",
+        ".ico",
+        ".icns",
+        ".raw",
+        ".cr2",
+        ".nef",
+        ".arw",
+        ".dng",
+        ".orf",
+        ".rw2",
         # ── Audio ────────────────────────────────────────────────────────────
-        ".mp3", ".aac", ".ogg", ".opus", ".flac", ".m4a", ".wma", ".alac",
+        ".mp3",
+        ".aac",
+        ".ogg",
+        ".opus",
+        ".flac",
+        ".m4a",
+        ".wma",
+        ".alac",
         # ── Video ────────────────────────────────────────────────────────────
-        ".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm",
-        ".m4v", ".mpeg", ".mpg", ".3gp", ".m2ts", ".mts", ".vob", ".ogv",
+        ".mp4",
+        ".mkv",
+        ".avi",
+        ".mov",
+        ".wmv",
+        ".flv",
+        ".webm",
+        ".m4v",
+        ".mpeg",
+        ".mpg",
+        ".3gp",
+        ".m2ts",
+        ".mts",
+        ".vob",
+        ".ogv",
         # ── Documents (compressed internally by their container format) ───────
-        ".pdf", ".docx", ".xlsx", ".pptx", ".odt", ".ods", ".odp",
-        ".epub", ".pages", ".numbers", ".keynote", ".xps", ".cbz", ".cbr",
+        ".pdf",
+        ".docx",
+        ".xlsx",
+        ".pptx",
+        ".odt",
+        ".ods",
+        ".odp",
+        ".epub",
+        ".pages",
+        ".numbers",
+        ".keynote",
+        ".xps",
+        ".cbz",
+        ".cbr",
         # ── Fonts ────────────────────────────────────────────────────────────
-        ".woff", ".woff2", ".eot", ".ttc",
+        ".woff",
+        ".woff2",
+        ".eot",
+        ".ttc",
         # ── Other ────────────────────────────────────────────────────────────
-        ".sqlite", ".db",
+        ".sqlite",
+        ".db",
     }
 )
 
@@ -80,22 +167,43 @@ _compressor = zstd.ZstdCompressor(level=COMPRESSION_LEVEL)
 _decompressor = zstd.ZstdDecompressor()
 
 
-def should_compress(filepath: str, size: int) -> bool:
+def should_compress(
+    filepath: str,
+    size: int,
+    transfer_type: str = "download",
+    is_lan: bool = False,
+) -> bool:
     """
     Determine if a file should be compressed before transfer.
 
-    Uses the base 10KB threshold. Projects may override this with
-    context-aware versions (e.g., different thresholds for upload/LAN).
+    Uses different thresholds based on transfer direction and network type:
+    - Download (server -> client): 10KB threshold
+    - Upload (client -> server):   32KB threshold (client CPU is more precious)
+    - LAN mode (P2P local):       100KB threshold (local network is very fast)
 
     Args:
         filepath: Path to the file.
         size: Size of the file in bytes.
+        transfer_type: "download" or "upload" (default: "download").
+        is_lan: True if operating in LAN P2P mode (default: False).
 
     Returns:
         True if file should be compressed, False otherwise.
     """
-    if size < MIN_SIZE_FOR_COMPRESSION:
-        log.debug(f"Skip compression: {filepath} too small ({size} bytes)")
+    if is_lan:
+        threshold = MIN_SIZE_FOR_LAN
+        context = "LAN"
+    elif transfer_type == "upload":
+        threshold = MIN_SIZE_FOR_UPLOAD
+        context = "upload"
+    else:
+        threshold = MIN_SIZE_FOR_DOWNLOAD
+        context = "download"
+
+    if size < threshold:
+        log.debug(
+            f"Skip compression ({context}): {filepath} below threshold ({size} < {threshold} bytes)"
+        )
         return False
 
     ext = splitext(filepath.lower())[1]
