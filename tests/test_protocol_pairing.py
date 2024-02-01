@@ -12,6 +12,8 @@ Python client and (later) the Android client can share one provably consistent
 trust decision instead of each re-implementing it.
 """
 
+import pytest
+
 from hsync_common.protocol.pairing import (
     SYNC_DIRECTION_DOWNLOAD_ONLY,
     SYNC_DIRECTION_UPLOAD_ONLY,
@@ -39,9 +41,13 @@ class TestNormalizeFingerprint:
 
 
 class TestEvaluatePin:
-    def test_no_observed_fingerprint_is_no_fingerprint(self):
-        assert evaluate_pin("abc", None) is PinDecision.no_fingerprint
-        assert evaluate_pin(None, "") is PinDecision.no_fingerprint
+    def test_missing_observed_fingerprint_raises(self):
+        # LAN transport is HTTPS-only: a master always presents a fingerprint, so
+        # a missing/blank one is a contract violation rather than a decision.
+        with pytest.raises(ValueError):
+            evaluate_pin("abc", None)
+        with pytest.raises(ValueError):
+            evaluate_pin(None, "")
 
     def test_first_sighting_is_trusted(self):
         assert evaluate_pin(None, "abc123") is PinDecision.trusted
@@ -65,7 +71,6 @@ class TestRequiresPairingConfirmation:
         for decision in (
             PinDecision.matched,
             PinDecision.changed,
-            PinDecision.no_fingerprint,
         ):
             assert requires_pairing_confirmation(decision, require_pairing=True) is False
 

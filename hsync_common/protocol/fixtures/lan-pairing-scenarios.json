@@ -23,12 +23,6 @@
       "expected_requires_pairing": false,
       "name": "changed-never-needs-pairing",
       "require_pairing": true
-    },
-    {
-      "decision": "no_fingerprint",
-      "expected_requires_pairing": false,
-      "name": "no-fingerprint-never-needs-pairing",
-      "require_pairing": true
     }
   ],
   "pin_scenarios": [
@@ -48,18 +42,6 @@
       "expected_decision": "changed",
       "name": "changed-pin-is-refused",
       "observed": "ee:ff:00:11",
-      "stored": "aabbccdd"
-    },
-    {
-      "expected_decision": "no_fingerprint",
-      "name": "no-observed-fingerprint",
-      "observed": null,
-      "stored": null
-    },
-    {
-      "expected_decision": "no_fingerprint",
-      "name": "no-observed-fingerprint-with-stored",
-      "observed": null,
       "stored": "aabbccdd"
     }
   ],

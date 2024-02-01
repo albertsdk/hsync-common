@@ -170,13 +170,13 @@ def _election_scenarios() -> dict[str, Any]:
 # Cross-language TOFU pin-evaluation scenarios. Each lists the stored/observed
 # fingerprints and the expected :class:`PinDecision`, *computed* from the shared
 # ``evaluate_pin`` (never hand-written). Inputs deliberately mix ``:``/case forms
-# so the parity test also covers fingerprint normalization on both sides.
-_PIN_SCENARIOS: tuple[tuple[str, str | None, str | None], ...] = (
+# so the parity test also covers fingerprint normalization on both sides. LAN
+# transport is HTTPS-only, so a master always presents a fingerprint; a missing
+# one is a contract violation (``evaluate_pin`` raises) rather than a scenario.
+_PIN_SCENARIOS: tuple[tuple[str, str | None, str], ...] = (
     ("first-sighting-is-trusted", None, "AA:BB:CC:DD"),
     ("matching-pin-ignoring-format", "aabbccdd", "AA:BB:CC:DD"),
     ("changed-pin-is-refused", "aabbccdd", "ee:ff:00:11"),
-    ("no-observed-fingerprint", None, None),
-    ("no-observed-fingerprint-with-stored", "aabbccdd", None),
 )
 
 # Cross-language LAN write-policy scenarios. ``expected_requires_key`` is computed
@@ -195,12 +195,11 @@ _WRITE_POLICY_SCENARIOS: tuple[tuple[str, str, bool], ...] = (
 # ``PinDecision`` and ``expected_requires_pairing`` are *computed* from the shared
 # ``evaluate_pin``/``requires_pairing_confirmation`` so Python and Android agree on
 # when a first-seen master must be confirmed out of band before it is trusted.
-_PAIRING_SCENARIOS: tuple[tuple[str, str | None, str | None, bool], ...] = (
+_PAIRING_SCENARIOS: tuple[tuple[str, str | None, str, bool], ...] = (
     ("first-sighting-strict-needs-pairing", None, "AA:BB:CC:DD", True),
     ("first-sighting-lax-auto-trust", None, "AA:BB:CC:DD", False),
     ("matched-never-needs-pairing", "aabbccdd", "AA:BB:CC:DD", True),
     ("changed-never-needs-pairing", "aabbccdd", "ee:ff:00:11", True),
-    ("no-fingerprint-never-needs-pairing", None, None, True),
 )
 
 
