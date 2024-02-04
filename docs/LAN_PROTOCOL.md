@@ -106,6 +106,44 @@ then copy the regenerated `protocol/fixtures/*.json` into
 `hsync-android/app/src/test/resources/protocol/fixtures/` (the
 `TestAndroidFixtureParity` test enforces byte-for-byte equality).
 
+## Event propagation and timing
+
+Once roles are settled, file changes flow over the WSS event channel, but the
+two directions are deliberately **asymmetric** because the master and the slaves
+play different transport roles:
+
+- **Master → slave (metadata push, near-instant).** The master watches its
+  local bucket and, the moment a file is closed, broadcasts a `modified` event
+  carrying only metadata (path, size, SHA-256) to every connected slave. Slaves
+  then **pull** the bytes over HTTPS and verify them against the broadcast hash.
+  The master never waits before broadcasting, so propagation is bounded only by
+  network latency and the slave's download time.
+- **Slave → master (byte push, delayed by the stability guard).** A slave does
+  not broadcast; it **uploads** the bytes to the master over HTTPS, which then
+  re-broadcasts to the other peers. Before each upload the slave runs the
+  file-stability guard (`is_file_stable`): it compares the file's size and mtime
+  across a quiet interval (`STABILITY_DELAY`, default
+  `FILE_STABILITY_INTERVAL_DEFAULT` = 5 s) and only uploads once they are
+  unchanged. This adds a **minimum delay of one stability interval** (~5 s) to
+  every slave-originated change, even for a file that is already complete.
+
+### Why the asymmetry is intentional
+
+The guard lives on the **push** side to avoid uploading a half-written
+("torn") file to the master, which is the single source of truth other peers
+pull from. The pull side does not need it: the master only advertises a
+closed-file's metadata, and the slave's download is checksum-verified against
+that metadata, so a transient mismatch is simply re-synced by the next event. A
+file that never stabilises within `MAX_WAIT_TIMEOUT` is **rescheduled** rather
+than uploaded torn (bounded by `UPLOAD_MAX_RESCHEDULES`).
+
+### Known limitation
+
+Slave-originated changes are therefore propagated with a built-in latency of at
+least one stability interval, whereas master-originated changes are not. Tuning
+`STABILITY_DELAY` lower reduces the slave→master delay at the cost of a higher
+risk of catching a file mid-write; the default 5 s is the chosen compromise.
+
 ## Security
 
 The election above decides *who serves*; this section decides *who to trust*. The
