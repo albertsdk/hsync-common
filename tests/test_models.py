@@ -1,8 +1,5 @@
 """Tests for hsync_common models (File, Dir, Symlink, Event, SyncAction)."""
 
-import os
-import stat
-import tempfile
 from datetime import UTC, datetime
 
 import pytest
@@ -12,19 +9,23 @@ from hsync_common.models.event import Event, EventName
 from hsync_common.models.file import (
     SHA256_CACHE_MAX_SIZE,
     File,
-    _sha256_cache,
     _set_cached_sha256,
+    _sha256_cache,
     clear_sha256_cache,
     invalidate_sha256_cache,
     is_hidden_file,
 )
 from hsync_common.models.symlink import Symlink
 from hsync_common.models.sync_action import SyncAction, SyncActionName
-
+from hsync_common.models.tombstone import (
+    TombstoneStore,
+    tombstone_key,
+)
 
 # =============================================================================
 # File model
 # =============================================================================
+
 
 class TestIsHiddenFile:
     def test_dot_file_is_hidden(self):
@@ -41,6 +42,7 @@ class TestIsHiddenFile:
 
     def test_hsynckeep_not_hidden(self):
         from hsync_common.constants import HSYNCKEEP_FILENAME
+
         assert is_hidden_file(HSYNCKEEP_FILENAME) is False
 
     def test_bak_is_hidden(self):
@@ -161,6 +163,7 @@ class TestFileFromDict:
 # Dir model
 # =============================================================================
 
+
 class TestIsHiddenDir:
     def test_dot_dir_is_hidden(self):
         assert is_hidden_dir(".git") is True
@@ -199,6 +202,7 @@ class TestDirModel:
 # Symlink model
 # =============================================================================
 
+
 class TestSymlinkModel:
     def test_init(self):
         s = Symlink(filepath="/tmp/link.txt", target="/tmp/real.txt")
@@ -234,6 +238,7 @@ class TestSymlinkModel:
 # SyncAction model
 # =============================================================================
 
+
 class TestSyncActionName:
     def test_values(self):
         assert SyncActionName.download == "download"
@@ -268,6 +273,7 @@ class TestSyncAction:
 # Event model
 # =============================================================================
 
+
 class TestEventName:
     def test_all_values(self):
         assert EventName.added == "added"
@@ -296,8 +302,11 @@ class TestEventModel:
     def test_event_with_dir_src(self):
         src = Dir(path="/base/mydir")
         event = Event(
-            cid="c", localpath="/base", bucket="b",
-            name=EventName.added, src=src,
+            cid="c",
+            localpath="/base",
+            bucket="b",
+            name=EventName.added,
+            src=src,
         )
         assert event.src.path == "mydir"
 
@@ -315,8 +324,118 @@ class TestEventModel:
         src = File(filepath="/base/old.txt", size=5)
         dst = File(filepath="/base/new.txt", size=5)
         event = Event(
-            cid="c", localpath="/base", bucket="b",
-            name=EventName.renamed, src=src, dst=dst,
+            cid="c",
+            localpath="/base",
+            bucket="b",
+            name=EventName.renamed,
+            src=src,
+            dst=dst,
         )
         assert event.dst is not None
         assert event.dst.filepath == "new.txt"
+
+
+# =============================================================================
+# TombstoneStore
+# =============================================================================
+
+
+class TestTombstoneStore:
+    def test_record_and_get(self):
+        store = TombstoneStore()
+        store.record("a/b.txt", sha256sum="deadbeef", timestamp=1000)
+        entry = store.get("a/b.txt")
+        assert entry is not None
+        assert entry["ts"] == 1000
+        assert entry["sha256"] == "deadbeef"
+
+    def test_get_missing_returns_none(self):
+        assert TombstoneStore().get("nope.txt") is None
+
+    def test_get_by_key_matches_hashed_path(self):
+        store = TombstoneStore()
+        store.record("a/b.txt", timestamp=5)
+        assert store.get_by_key(tombstone_key("a/b.txt")) is not None
+
+    def test_record_is_last_writer_wins(self):
+        store = TombstoneStore()
+        store.record("f.txt", sha256sum="old", timestamp=10)
+        store.record("f.txt", sha256sum="new", timestamp=20)
+        assert store.get("f.txt")["sha256"] == "new"
+        # An older marker must not overwrite a newer one.
+        store.record("f.txt", sha256sum="stale", timestamp=5)
+        assert store.get("f.txt")["sha256"] == "new"
+
+    def test_clear(self):
+        store = TombstoneStore()
+        store.record("f.txt", timestamp=1)
+        assert store.clear("f.txt") is True
+        assert store.get("f.txt") is None
+        assert store.clear("f.txt") is False
+
+    def test_prune_removes_expired(self):
+        store = TombstoneStore(ttl_days=1)
+        store.record("old.txt", timestamp=0)
+        store.record("fresh.txt", timestamp=100_000)
+        removed = store.prune(now=100_000)
+        assert removed == 1
+        assert store.get("old.txt") is None
+        assert store.get("fresh.txt") is not None
+
+    def test_prune_disabled_when_ttl_zero(self):
+        store = TombstoneStore(ttl_days=0)
+        store.record("old.txt", timestamp=0)
+        assert store.prune(now=10**12) == 0
+        assert store.get("old.txt") is not None
+
+    def test_merge_lww(self):
+        store = TombstoneStore()
+        store.record("a.txt", sha256sum="local", timestamp=10)
+        payload = {
+            tombstone_key("a.txt"): {"ts": 20, "sha256": "remote"},
+            tombstone_key("b.txt"): {"ts": 5, "sha256": "newpath"},
+        }
+        changed = store.merge(payload)
+        assert changed == 2
+        assert store.get("a.txt")["sha256"] == "remote"
+        assert store.get("b.txt")["sha256"] == "newpath"
+        # Older remote entry must not override newer local one.
+        assert store.merge({tombstone_key("a.txt"): {"ts": 1, "sha256": "x"}}) == 0
+        assert store.get("a.txt")["sha256"] == "remote"
+
+    def test_merge_ignores_malformed_entries(self):
+        store = TombstoneStore()
+        assert store.merge({"k": {"sha256": "no-ts"}}) == 0
+        assert store.merge(None) == 0
+
+    def test_to_payload_roundtrips_through_merge(self):
+        src = TombstoneStore()
+        src.record("a/b.txt", sha256sum="h1", timestamp=11)
+        dst = TombstoneStore()
+        dst.merge(src.to_payload())
+        assert dst.get("a/b.txt") == src.get("a/b.txt")
+
+    def test_save_and_load(self, tmp_path):
+        path = str(tmp_path / "sub" / ".hsynctombstones")
+        store = TombstoneStore(path=path, ttl_days=30)
+        store.record("a/b.txt", sha256sum="hh", timestamp=42)
+        store.save()
+
+        reloaded = TombstoneStore(path=path, ttl_days=30)
+        reloaded.load()
+        entry = reloaded.get("a/b.txt")
+        assert entry is not None
+        assert entry["ts"] == 42
+        assert entry["sha256"] == "hh"
+
+    def test_load_missing_file_is_noop(self, tmp_path):
+        store = TombstoneStore(path=str(tmp_path / "absent.json"))
+        store.load()
+        assert len(store) == 0
+
+    def test_load_corrupt_file_is_noop(self, tmp_path):
+        path = tmp_path / ".hsynctombstones"
+        path.write_text("{not json", encoding="utf-8")
+        store = TombstoneStore(path=str(path))
+        store.load()
+        assert len(store) == 0
