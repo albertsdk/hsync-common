@@ -173,10 +173,26 @@ def is_valid_filename(filename: str) -> bool:
     if has_problematic_trailing(filename):
         return False
 
-    if not is_safe_path_component(filename):
-        return False
+    return is_safe_path_component(filename)
 
-    return True
+
+def has_dotdot_component(path: str) -> bool:
+    """
+    Check if a path contains ".." as a whole path component.
+
+    This detects parent directory traversal (e.g. ``../secret``,
+    ``foo/../../bar``, mixed ``foo/..\\bar``) while still allowing filenames
+    that merely embed two dots in the name (e.g. ``lib..1.dylib``,
+    ``a..b.txt``, ``v1.2.3.tar.gz``).
+
+    Args:
+        path: The path to inspect.
+
+    Returns:
+        True if any component (split on / or \\) is exactly "..".
+    """
+    # Normalize separators, then split and look for an exact ".." component
+    return ".." in path.replace("\\", "/").split("/")
 
 
 def is_safe_path_component(path: str) -> bool:
@@ -184,9 +200,11 @@ def is_safe_path_component(path: str) -> bool:
     Check if a path component is safe (no path traversal or absolute paths).
 
     This function prevents path traversal attacks by ensuring the path:
-    - Does not contain ".." (parent directory references)
+    - Does not contain ".." as a path component (parent directory references)
     - Is not an absolute path (doesn't start with / or drive letter)
     - Doesn't contain Windows drive letter references (C:, D:, etc.)
+
+    Filenames that merely embed two dots (e.g. ``lib..1.dylib``) are allowed.
 
     Args:
         path: The path component to validate.
@@ -205,16 +223,8 @@ def is_safe_path_component(path: str) -> bool:
     if len(path) >= 2 and path[1] == ":":
         return False
 
-    # Check for parent directory traversal
-    if ".." in path:
-        return False
-
-    # Normalize and check again (handles encoded traversals)
-    normalized = path.replace("\\", "/").replace("//", "/")
-    if ".." in normalized:
-        return False
-
-    return True
+    # Reject parent directory traversal (".." as a component, not substring)
+    return not has_dotdot_component(path)
 
 
 def is_valid_path(path: str, base_dir: str) -> bool:
