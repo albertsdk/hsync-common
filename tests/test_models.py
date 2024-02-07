@@ -176,6 +176,52 @@ class TestIsHiddenDir:
         assert is_hidden_dir(".parent/subdir") is True
 
 
+class TestIsHiddenMatcherAwareness:
+    """is_hidden_dir/is_hidden_file consult the active IgnoreMatcher (2.14).
+
+    The matcher-aware behaviour now lives in hsync_common, so importing the
+    functions from common, client or server yields identical results. The
+    private ``_basic`` helpers remain the matcher's own fallback to avoid
+    infinite recursion.
+    """
+
+    @pytest.fixture
+    def active_secret_matcher(self, tmp_path):
+        from hsync_common.constants import HSYNCIGNORE_FILENAME
+        from hsync_common.ignore import IgnoreMatcher, set_active_matcher
+
+        (tmp_path / HSYNCIGNORE_FILENAME).write_text("*.secret\nbuild/\n")
+        # include_hidden=False keeps the built-in hidden fallback active, which
+        # exercises the recursion-prone path (matcher -> _is_hidden_*_basic).
+        matcher = IgnoreMatcher(str(tmp_path), include_hidden=False)
+        set_active_matcher(matcher)
+        try:
+            yield tmp_path
+        finally:
+            set_active_matcher(None)
+
+    def test_no_matcher_uses_basic_file_check(self):
+        from hsync_common.ignore import set_active_matcher
+
+        set_active_matcher(None)
+        assert is_hidden_file(".hidden") is True
+        assert is_hidden_file("foo.secret") is False
+
+    def test_file_consults_active_matcher(self, active_secret_matcher):
+        assert is_hidden_file("foo.secret") is True
+        assert is_hidden_file("foo.txt") is False
+
+    def test_dir_consults_active_matcher(self, active_secret_matcher):
+        assert is_hidden_dir("build") is True
+        assert is_hidden_dir("documents") is False
+
+    def test_matcher_active_does_not_recurse(self, active_secret_matcher):
+        # A path matching no rule falls through to the matcher's hidden-check,
+        # which must use the pure helper (no re-entry into is_hidden_*).
+        assert is_hidden_file(".env") is True
+        assert is_hidden_dir(".cache") is True
+
+
 class TestDirModel:
     def test_init(self):
         d = Dir(path="/tmp/sync", permissions="drwxr-xr-x")

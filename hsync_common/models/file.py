@@ -97,9 +97,8 @@ class FileDict(TypedDict):
     permissions: str | None
 
 
-def is_hidden_file(file_path: str) -> bool:
-    """
-    Check if a file should be considered hidden and excluded from sync.
+def _is_hidden_file_basic(file_path: str) -> bool:
+    """Pure hidden/temporary/backup file check (no ignore rules).
 
     Matches various patterns for hidden, temporary, and backup files:
     - ^\\..* : Files starting with a dot (Unix hidden files)
@@ -113,6 +112,10 @@ def is_hidden_file(file_path: str) -> bool:
     - .*\\.swp$ : Swap files ending with .swp
     - .*\\.swo$ : Swap files ending with .swo
     - .*-\\d{4}-\\d{2}-\\d{2}-\\d{6}$ : Date-timestamped backups
+
+    This is the legacy detection used as the fallback inside
+    :class:`hsync_common.ignore.IgnoreMatcher`; keeping it separate from
+    :func:`is_hidden_file` avoids infinite recursion when a matcher is active.
 
     Args:
         file_path: Path to the file to check.
@@ -132,6 +135,30 @@ def is_hidden_file(file_path: str) -> bool:
         r".*-\d{4}-\d{2}-\d{2}-\d{6}$)"
     )
     return bool(match(hidden_file_regex, name))
+
+
+def is_hidden_file(file_path: str) -> bool:
+    """
+    Check if a file must be excluded from synchronisation.
+
+    When a process-wide :class:`hsync_common.ignore.IgnoreMatcher` is active
+    (installed by the client at startup) it is consulted so that
+    ``.hsyncignore`` rules and extra patterns are honoured. When no matcher
+    is installed (e.g. on the server) the legacy pattern detection is used,
+    preserving the previous behaviour.
+
+    Args:
+        file_path: Path to the file to check.
+
+    Returns:
+        True if the file is hidden/ignored, False otherwise.
+    """
+    from hsync_common.ignore import get_active_matcher
+
+    matcher = get_active_matcher()
+    if matcher is not None:
+        return matcher.matches(file_path, is_dir=False)
+    return _is_hidden_file_basic(file_path)
 
 
 class File:
