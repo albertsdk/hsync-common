@@ -118,14 +118,26 @@ play different transport roles:
   then **pull** the bytes over HTTPS and verify them against the broadcast hash.
   The master never waits before broadcasting, so propagation is bounded only by
   network latency and the slave's download time.
-- **Slave → master (byte push, delayed by the stability guard).** A slave does
-  not broadcast; it **uploads** the bytes to the master over HTTPS, which then
-  re-broadcasts to the other peers. Before each upload the slave runs the
-  file-stability guard (`is_file_stable`): it compares the file's size and mtime
-  across a quiet interval (`STABILITY_DELAY`, default
-  `FILE_STABILITY_INTERVAL_DEFAULT` = 5 s) and only uploads once they are
-  unchanged. This adds a **minimum delay of one stability interval** (~5 s) to
-  every slave-originated change, even for a file that is already complete.
+- **Slave → master (byte push, guarded by a *hybrid* stability check).** A slave
+  does not broadcast; it **uploads** the bytes to the master over HTTPS, which
+  then re-broadcasts to the other peers. Before each upload the slave runs the
+  file-stability guard (`is_file_stable`), which compares the file's size and
+  mtime across a quiet interval. The length of that interval depends on **what
+  triggered the upload**:
+  - **Fast path (`on_closed` / `IN_CLOSE_WRITE`, Linux).** When the kernel
+    reports that the writer closed the descriptor, the close itself already
+    signals write completion, so the slave performs a single **short re-check**
+    (`STABILITY_DELAY_ON_CLOSED` = 0.3 s) and uploads immediately. This brings
+    slave→master propagation to **sub-second**, matching the near-instant
+    master→slave path.
+  - **Slow path (polling / `on_modified` fallback / non-Linux).** Without a
+    close signal the slave falls back to the conservative guard
+    (`STABILITY_DELAY`, default `FILE_STABILITY_INTERVAL_DEFAULT` = 5 s),
+    polling size+mtime until they settle.
+
+  The fast path also **degrades to the slow path** automatically: if the 0.3 s
+  re-check still sees the file changing (e.g. a rapid multi-close or an NFS
+  chunked write), the guard reverts to the bounded poll.
 
 ### Why the asymmetry is intentional
 
@@ -137,12 +149,23 @@ that metadata, so a transient mismatch is simply re-synced by the next event. A
 file that never stabilises within `MAX_WAIT_TIMEOUT` is **rescheduled** rather
 than uploaded torn (bounded by `UPLOAD_MAX_RESCHEDULES`).
 
-### Known limitation
+### Why trusting `on_closed` is safe
 
-Slave-originated changes are therefore propagated with a built-in latency of at
-least one stability interval, whereas master-originated changes are not. Tuning
-`STABILITY_DELAY` lower reduces the slave→master delay at the cost of a higher
-risk of catching a file mid-write; the default 5 s is the chosen compromise.
+`IN_CLOSE_WRITE` is the same completion signal used by industry-standard tools
+(lsyncd, Syncthing's watcher). The short re-check absorbs the few edge cases
+where a close does not yet mean "done" (NFS, multi-writer rapid close,
+non-atomic save-then-reopen). Integrity is then guaranteed **downstream** by the
+server regardless of client-side timing: every upload is committed with an
+atomic `replace()` and verified against its SHA-256, so a torn or mismatched
+body is rejected and re-synced rather than persisted. This makes reducing the
+client-side latency safe by construction.
+
+### Latency
+
+Slave-originated changes now propagate in **sub-second** time on Linux (the
+common `on_closed` case), aligned with the near-instant master→slave path; the
+conservative 5 s guard remains only for platforms/fallbacks without a close
+signal.
 
 ## Security
 
