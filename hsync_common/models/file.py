@@ -11,7 +11,7 @@ from pathlib import Path
 from re import match
 from typing import Optional, TypedDict
 
-from hsync_common.constants import HSYNCKEEP_FILENAME
+from hsync_common.constants import HSYNCKEEP_FILENAME, PARTIAL_DOWNLOAD_SUFFIX
 from hsync_common.hashing import adaptive_chunk_size, compute_sha256
 from hsync_common.permissions import get_permissions
 
@@ -89,6 +89,24 @@ class FileDict(TypedDict):
     permissions: str | None
 
 
+def is_partial_file(file_path: str) -> bool:
+    """Return True if *file_path* is an in-progress hsync transfer artifact.
+
+    Bytes are streamed to ``<final>.part`` and atomically renamed to the final
+    name only after the SHA-256 checksum is verified, so a ``.part`` file is
+    always a transient internal artifact that must be excluded from
+    synchronisation regardless of the ``include_hidden`` setting or
+    ``.hsyncignore`` rules.
+
+    Args:
+        file_path: Path (or bare filename) to check.
+
+    Returns:
+        True if the basename ends with the partial-transfer suffix.
+    """
+    return Path(file_path).name.endswith(PARTIAL_DOWNLOAD_SUFFIX)
+
+
 def _is_hidden_file_basic(file_path: str) -> bool:
     """Pure hidden/temporary/backup file check (no ignore rules).
 
@@ -120,6 +138,10 @@ def _is_hidden_file_basic(file_path: str) -> bool:
     # Sentinel file for empty-directory sync — never hidden
     if name == HSYNCKEEP_FILENAME:
         return False
+
+    # hsync's own in-progress transfer artifacts (.part) are never synced.
+    if is_partial_file(file_path):
+        return True
 
     hidden_file_regex = (
         r"(^\..*|.*~$|^4913$|^\..*\.sw[px]$|^\.~lock\..*#$|"

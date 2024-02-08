@@ -48,6 +48,16 @@ class TestDefaults:
         assert m.matches(".cache") is False
         assert m.matches("file.bak") is False
 
+    def test_partial_file_always_ignored(self, bucket):
+        m = IgnoreMatcher(str(bucket))
+        assert m.matches("document.txt.part") is True
+
+    def test_partial_file_ignored_even_with_include_hidden(self, bucket):
+        # In-progress transfer artifacts must never sync, regardless of flags.
+        m = IgnoreMatcher(str(bucket), include_hidden=True)
+        assert m.matches("document.txt.part") is True
+        assert m.matches("sub/document.txt.part") is True
+
 
 class TestGitignoreSyntax:
     def test_basic_glob(self, bucket):
