@@ -23,7 +23,7 @@ from typing import Any, Final
 
 from loguru import logger
 
-from hsync_common.text import escape_loguru_braces
+from hsync_common.text import escape_loguru_markup
 
 # =============================================================================
 # Color tags shared across projects
@@ -89,10 +89,11 @@ class BaseInterceptHandler(logging.Handler):
 
     Subclasses (or callers) can customize behavior via constructor flags:
 
-    - ``escape_braces``: when ``True``, replace ``{`` and ``}`` in the log
-      message with ``{{`` / ``}}`` to prevent loguru from interpreting them
-      as format placeholders. Useful when third-party libraries log JSON
-      payloads or templated strings.
+    - ``escape_markup``: when ``True``, neutralize loguru markup (``{`` / ``}``
+      format placeholders and the ``<`` that opens a color tag) in the log
+      message via :func:`escape_loguru_markup`. Useful when third-party
+      libraries log JSON payloads, templated strings, or qualified names
+      containing ``<locals>`` (e.g. tenacity retry messages).
     - ``bind_extra``: optional zero-argument callable returning a mapping of
       extra fields to bind to the loguru logger before emitting (e.g. a
       per-request correlation id).
@@ -101,11 +102,11 @@ class BaseInterceptHandler(logging.Handler):
     def __init__(
         self,
         *,
-        escape_braces: bool = False,
+        escape_markup: bool = False,
         bind_extra: Callable[[], dict] | None = None,
     ) -> None:
         super().__init__()
-        self._escape_braces = escape_braces
+        self._escape_markup = escape_markup
         self._bind_extra = bind_extra
 
     def emit(self, record: logging.LogRecord) -> None:
@@ -123,8 +124,8 @@ class BaseInterceptHandler(logging.Handler):
             depth += 1
 
         message = record.getMessage()
-        if self._escape_braces:
-            message = escape_loguru_braces(message)
+        if self._escape_markup:
+            message = escape_loguru_markup(message)
 
         target = logger
         if self._bind_extra is not None:
