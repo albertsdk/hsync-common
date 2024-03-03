@@ -4,11 +4,19 @@ from datetime import UTC, datetime
 
 import pytest
 
+from hsync_common.constants import (
+    CHUNK_SIZE_LARGE,
+    CHUNK_SIZE_MEDIUM,
+    CHUNK_SIZE_SMALL,
+    FILE_SIZE_MEDIUM,
+    FILE_SIZE_SMALL,
+)
 from hsync_common.models.dir import Dir, is_hidden_dir
 from hsync_common.models.event import Event, EventName
 from hsync_common.models.file import (
     SHA256_CACHE_MAX_SIZE,
     File,
+    _get_cached_sha256,
     _set_cached_sha256,
     _sha256_cache,
     clear_sha256_cache,
@@ -123,6 +131,60 @@ class TestFileSha256Cache:
 
         clear_sha256_cache()  # clean up for subsequent tests
 
+    def test_cache_hit_returns_value_and_moves_to_end(self):
+        """A hit with matching mtime returns the cached sum and refreshes LRU order."""
+        clear_sha256_cache()
+        _set_cached_sha256("/a.txt", "a" * 64, mtime=10)
+        _set_cached_sha256("/b.txt", "b" * 64, mtime=20)
+        # Hitting the oldest entry should move it to the end (most-recent).
+        assert _get_cached_sha256("/a.txt", 10) == "a" * 64
+        assert next(reversed(_sha256_cache)) == "/a.txt"
+        clear_sha256_cache()
+
+    def test_cache_miss_on_mtime_change_evicts_entry(self):
+        """A stale mtime drops the entry and returns None."""
+        clear_sha256_cache()
+        _set_cached_sha256("/c.txt", "c" * 64, mtime=10)
+        assert _get_cached_sha256("/c.txt", 11) is None
+        assert "/c.txt" not in _sha256_cache
+        clear_sha256_cache()
+
+    def test_cache_miss_on_unknown_path(self):
+        clear_sha256_cache()
+        assert _get_cached_sha256("/never-seen.txt", 1) is None
+
+
+class TestComputeSha256ChunkSize:
+    """The adaptive chunk size must not change the resulting digest."""
+
+    def _expected(self, content: bytes) -> str:
+        from hashlib import sha256
+
+        return sha256(content).hexdigest()
+
+    @pytest.mark.parametrize(
+        "file_size",
+        [None, 0, FILE_SIZE_SMALL, FILE_SIZE_MEDIUM],
+    )
+    def test_digest_is_stable_across_chunk_branches(self, tmp_path, file_size):
+        content = b"chunk-size-branch-content"
+        f = tmp_path / "blob.bin"
+        f.write_bytes(content)
+        digest = File._compute_sha256(str(f), file_size=file_size)
+        assert digest == self._expected(content)
+
+    def test_chunk_constants_are_ordered(self):
+        assert CHUNK_SIZE_SMALL < CHUNK_SIZE_MEDIUM < CHUNK_SIZE_LARGE
+
+
+class TestFileRepr:
+    def test_repr_contains_fields(self):
+        f = File(filepath="/tmp/r.txt", size=7, sha256sum="deadbeef")
+        text = repr(f)
+        assert "File(" in text
+        assert "/tmp/r.txt" in text
+        assert "deadbeef" in text
+
 
 class TestFileGet:
     def test_get_existing_file(self, tmp_path):
@@ -158,6 +220,10 @@ class TestFileFromDict:
         d = {"filepath": "/base/file.txt", "size": 10}
         with pytest.raises(ValueError):
             File.from_dict(d, dir_prefix=None, strip_dir_prefix=True)
+
+    def test_from_dict_no_prefix_keeps_filepath(self):
+        f = File.from_dict({"filepath": "plain.txt", "size": 1}, strip_dir_prefix=False)
+        assert f.filepath == "plain.txt"
 
 
 # =============================================================================
@@ -244,6 +310,13 @@ class TestDirModel:
         d = Dir.from_dict({"path": "subdir"}, localpath="/base", strip_localpath=False)
         assert "/base" in d.path
 
+    def test_repr_contains_fields(self):
+        d = Dir(path="/tmp/sync", permissions="drwxr-xr-x")
+        text = repr(d)
+        assert "Dir(" in text
+        assert "/tmp/sync" in text
+        assert "drwxr-xr-x" in text
+
 
 # =============================================================================
 # Symlink model
@@ -280,6 +353,33 @@ class TestSymlinkModel:
         assert result is not None
         assert result.target == str(target)
 
+    def test_get_regular_file_returns_none(self, tmp_path):
+        # An existing path that is not a symlink must be rejected.
+        regular = tmp_path / "regular.txt"
+        regular.write_text("data")
+        assert Symlink.get(str(regular)) is None
+
+    def test_get_oserror_returns_none(self, tmp_path, monkeypatch):
+        target = tmp_path / "t.txt"
+        target.write_text("data")
+        link = tmp_path / "l.txt"
+        link.symlink_to(target)
+
+        import hsync_common.models.symlink as symlink_mod
+
+        def _boom(*_args, **_kwargs):
+            raise OSError("readlink failed")
+
+        monkeypatch.setattr(symlink_mod, "readlink", _boom)
+        assert Symlink.get(str(link)) is None
+
+    def test_repr_contains_fields(self):
+        s = Symlink(filepath="/tmp/link.txt", target="/tmp/real.txt")
+        text = repr(s)
+        assert "Symlink(" in text
+        assert "/tmp/link.txt" in text
+        assert "/tmp/real.txt" in text
+
 
 # =============================================================================
 # SyncAction model
@@ -314,6 +414,18 @@ class TestSyncAction:
         assert "file" in d
         assert "name" in d
         assert d["name"] == SyncActionName.upload
+
+    def test_format_timedelta_includes_days(self):
+        f = File(filepath="/tmp/f.txt", size=0)
+        sa = SyncAction(file=f, timedelta=90_061)  # 1d 1h 1m 1s
+        assert "1d" in sa.timedelta
+
+    def test_repr_contains_fields(self):
+        f = File(filepath="/tmp/f.txt", size=0)
+        sa = SyncAction(file=f, name=SyncActionName.delete, timedelta=5)
+        text = repr(sa)
+        assert "SyncAction(" in text
+        assert "delete" in text
 
 
 # =============================================================================
@@ -380,6 +492,38 @@ class TestEventModel:
         )
         assert event.dst is not None
         assert event.dst.filepath == "new.txt"
+
+    def test_event_without_strip_prepends_localpath(self):
+        src = File(filepath="sub/f.txt", size=5)
+        event = Event(
+            cid="c",
+            localpath="/base",
+            bucket="b",
+            name=EventName.added,
+            src=src,
+            strip_localpath=False,
+        )
+        assert event.src.filepath == "/base/sub/f.txt"
+
+    def test_event_with_dir_without_strip(self):
+        src = Dir(path="mydir")
+        event = Event(
+            cid="c",
+            localpath="/base",
+            bucket="b",
+            name=EventName.added,
+            src=src,
+            strip_localpath=False,
+        )
+        assert event.src.path == "/base/mydir"
+
+    def test_event_repr_contains_fields(self):
+        src = File(filepath="/base/f.txt", size=5)
+        event = Event(cid="cid-1", localpath="/base", bucket="bk", name=EventName.added, src=src)
+        text = repr(event)
+        assert "Event(" in text
+        assert "cid-1" in text
+        assert "bk" in text
 
 
 # =============================================================================
