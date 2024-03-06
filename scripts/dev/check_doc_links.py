@@ -10,8 +10,12 @@
 Scans every ``*.md`` file under the given root(s) and verifies that each
 relative link (``[text](path)``) and inline image points to a file or directory
 that actually exists. External links (``http(s)://``, ``mailto:``), pure anchors
-(``#section``) and absolute paths are skipped. Exits non-zero on the first set
-of broken links so it can gate CI / ``make docs-link-check``.
+(``#section``) and absolute paths are skipped. Links that resolve *outside* the
+scanned root (cross-project references between sibling repos) are also skipped:
+they are unresolvable when a single repo is checked out in isolation and are
+validated instead by the monorepo-root scan that includes every project. Exits
+non-zero on the first set of broken links so it can gate CI / ``make
+docs-link-check``.
 
 Usage::
 
@@ -99,8 +103,16 @@ def find_broken_links(root: Path) -> tuple[list[tuple[Path, str]], int]:
         for target in extract_targets(text):
             if not is_checkable(target):
                 continue
+            resolved = resolve(md_file, target)
+            # Cross-project links escape the scanned root. They cannot be
+            # validated when a single repo is checked out in isolation (per-repo
+            # CI), so skip them here; the monorepo-root scan (the ``Makefile``
+            # passes the workspace root, which contains every project) resolves
+            # and validates them instead.
+            if not resolved.is_relative_to(root):
+                continue
             checked += 1
-            if not resolve(md_file, target).exists():
+            if not resolved.exists():
                 broken.append((md_file, target))
 
     return broken, checked
