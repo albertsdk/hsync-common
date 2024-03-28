@@ -102,6 +102,11 @@ extract_runtime_version() {
     sed -nE 's/^VERSION[[:space:]]*=[[:space:]]*"([0-9]+\.[0-9]+\.[0-9]+)"$/\1/p' "${file}" | head -n 1
 }
 
+extract_common_dependency_version() {
+    local file="$1"
+    sed -nE 's/^[[:space:]]*"hsync-common==([0-9]+\.[0-9]+\.[0-9]+)",$/\1/p' "${file}" | head -n 1
+}
+
 update_pyproject() {
     local project="$1"
     local file="${ROOT_DIR}/${project}/pyproject.toml"
@@ -116,6 +121,19 @@ update_pyproject() {
         sed_in_place "${file}" \
             '^version[[:space:]]*=[[:space:]]*"[0-9]+\.[0-9]+\.[0-9]+"$' \
             "version = \"${NEW_VERSION}\""
+    fi
+
+    if [[ "${project}" != "hsync-common" ]]; then
+        local common_dependency
+        common_dependency="$(extract_common_dependency_version "${file}")"
+        [[ -n "${common_dependency}" ]] || { err "cannot read hsync-common dependency from ${file}"; exit 1; }
+
+        log "${project}/pyproject.toml hsync-common: ${common_dependency} -> ${NEW_VERSION}"
+        if [[ "${DRY_RUN}" == false ]]; then
+            sed_in_place "${file}" \
+                '"hsync-common==[0-9]+\.[0-9]+\.[0-9]+",' \
+                "\"hsync-common==${NEW_VERSION}\","
+        fi
     fi
 }
 
