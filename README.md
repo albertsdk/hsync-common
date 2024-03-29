@@ -52,6 +52,19 @@ Use `set_active_matcher()` / `get_active_matcher()` to install a process-wide
 matcher; `should_skip(rel_path, is_dir)` is a convenience wrapper that falls
 back to the legacy hidden-file check when no matcher is active.
 
+## Documentation
+
+- [Architecture](docs/architecture.md) - Shared models, utilities, and how they fit the HSYNC ecosystem
+- [Contributing](CONTRIBUTING.md) - Development setup and contribution guidelines
+- [Security Policy](SECURITY.md) - Supported versions and how to report vulnerabilities
+
+### Related projects
+
+`hsync-common` is the shared foundation consumed by the other HSYNC projects:
+
+- [HSYNC Client](../hsync-client/README.md) - Sync client (Server Mode and LAN/P2P Mode)
+- [HSYNC Server](../hsync-server/README.md) - Central synchronization server
+
 ## License
 
 [Mozilla Public License 2.0](LICENSE)
