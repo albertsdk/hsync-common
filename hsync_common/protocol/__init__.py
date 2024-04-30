@@ -30,16 +30,31 @@ PROTOCOL_DIR = Path(__file__).resolve().parent
 # Canonical location of the committed REST OpenAPI snapshot.
 REST_OPENAPI_PATH = PROTOCOL_DIR / "rest" / "openapi.json"
 
+# Canonical locations of the committed WebSocket and LAN/TXT JSON Schemas
+# (generated from hsync_common.protocol.schemas; never hand-edit them).
+WS_SCHEMA_PATH = PROTOCOL_DIR / "ws" / "ws-schema.json"
+LAN_TXT_SCHEMA_PATH = PROTOCOL_DIR / "lan" / "txt-schema.json"
 
-def dump_openapi(schema: dict[str, Any]) -> str:
-    """Serialize an OpenAPI schema to its canonical on-disk representation.
 
-    Keys are sorted and the output is indented so the committed snapshot is
+def dump_contract(schema: dict[str, Any]) -> str:
+    """Serialize a contract document to its canonical on-disk representation.
+
+    Keys are sorted and the output is indented so every committed snapshot is
     diff-friendly and the exporter/drift-check produce identical bytes.
     """
     return json.dumps(schema, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
 
 
+def load_contract(path: Path) -> dict[str, Any]:
+    """Load a committed contract snapshot from ``path``."""
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def dump_openapi(schema: dict[str, Any]) -> str:
+    """Serialize an OpenAPI schema to its canonical on-disk representation."""
+    return dump_contract(schema)
+
+
 def load_openapi() -> dict[str, Any]:
     """Load the committed REST OpenAPI contract snapshot."""
-    return json.loads(REST_OPENAPI_PATH.read_text(encoding="utf-8"))
+    return load_contract(REST_OPENAPI_PATH)
