@@ -29,6 +29,14 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0004](0004-desktop-subprocess-contract.md) | Desktop ↔ client subprocess contract | Accepted |
 | [0005](0005-protocol-versioning.md) | Protocol versioning & capability negotiation | Accepted |
 | [0006](0006-master-authoritative-conflict-model.md) | Master-authoritative conflict model | Accepted |
+| [0007](0007-content-addressed-storage.md) | SHA-256 content-addressed storage with flat filesystem | Accepted |
+| [0008](0008-single-api-key-auth.md) | Single shared API key authentication | Accepted |
+| [0009](0009-rest-websocket-transport.md) | REST for data, WebSocket for events | Accepted |
+| [0010](0010-zstandard-compression.md) | Zstandard compression with adaptive thresholds | Accepted |
+| [0011](0011-resumable-upload.md) | Resumable uploads with atomic commit | Accepted |
+| [0012](0012-rate-limiting.md) | Tiered per-IP rate limiting | Accepted |
+| [0013](0013-hsyncignore-gitignore-syntax.md) | `.hsyncignore` using gitignore syntax | Accepted |
+| [0014](0014-multi-repo-strategy.md) | Multi-repository architecture | Accepted |
 
 ## Related documents
 
