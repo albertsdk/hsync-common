@@ -1,0 +1,9 @@
+{
+  "app_version": "1.0.0",
+  "capabilities": [
+    "compression"
+  ],
+  "protocol_version": "ws/1",
+  "status": "ok",
+  "type": "auth"
+}
