@@ -34,6 +34,11 @@ from .handshake import (
     build_ws_auth_request,
 )
 from .lan import ElectionCandidate, elect_master
+from .pairing import (
+    evaluate_pin,
+    lan_write_requires_key,
+    requires_pairing_confirmation,
+)
 
 __all__ = ["FIXTURE_TOKEN", "FIXTURE_APP_VERSION", "build_fixtures"]
 
@@ -162,6 +167,78 @@ def _election_scenarios() -> dict[str, Any]:
     }
 
 
+# Cross-language TOFU pin-evaluation scenarios. Each lists the stored/observed
+# fingerprints and the expected :class:`PinDecision`, *computed* from the shared
+# ``evaluate_pin`` (never hand-written). Inputs deliberately mix ``:``/case forms
+# so the parity test also covers fingerprint normalization on both sides.
+_PIN_SCENARIOS: tuple[tuple[str, str | None, str | None], ...] = (
+    ("first-sighting-is-trusted", None, "AA:BB:CC:DD"),
+    ("matching-pin-ignoring-format", "aabbccdd", "AA:BB:CC:DD"),
+    ("changed-pin-is-refused", "aabbccdd", "ee:ff:00:11"),
+    ("no-observed-fingerprint", None, None),
+    ("no-observed-fingerprint-with-stored", "aabbccdd", None),
+)
+
+# Cross-language LAN write-policy scenarios. ``expected_requires_key`` is computed
+# from the shared ``lan_write_requires_key`` so Python and Android agree on when
+# an unattended, write-capable client must present ``HSYNC_LAN_KEY``.
+_WRITE_POLICY_SCENARIOS: tuple[tuple[str, str, bool], ...] = (
+    ("non-interactive-bidirectional-requires-key", "bidirectional", False),
+    ("non-interactive-upload-only-requires-key", "upload-only", False),
+    ("non-interactive-download-only-no-key", "download-only", False),
+    ("interactive-bidirectional-no-key", "bidirectional", True),
+    ("interactive-upload-only-no-key", "upload-only", True),
+)
+
+# Cross-language explicit-pairing scenarios (P1 §5 step 4). Each lists the stored/
+# observed fingerprints and whether strict pairing is enabled; the resulting
+# ``PinDecision`` and ``expected_requires_pairing`` are *computed* from the shared
+# ``evaluate_pin``/``requires_pairing_confirmation`` so Python and Android agree on
+# when a first-seen master must be confirmed out of band before it is trusted.
+_PAIRING_SCENARIOS: tuple[tuple[str, str | None, str | None, bool], ...] = (
+    ("first-sighting-strict-needs-pairing", None, "AA:BB:CC:DD", True),
+    ("first-sighting-lax-auto-trust", None, "AA:BB:CC:DD", False),
+    ("matched-never-needs-pairing", "aabbccdd", "AA:BB:CC:DD", True),
+    ("changed-never-needs-pairing", "aabbccdd", "ee:ff:00:11", True),
+    ("no-fingerprint-never-needs-pairing", None, None, True),
+)
+
+
+def _pairing_scenarios() -> dict[str, Any]:
+    """Serialized pairing scenarios with expectations computed from the source."""
+    return {
+        "pin_scenarios": [
+            {
+                "name": name,
+                "stored": stored,
+                "observed": observed,
+                "expected_decision": evaluate_pin(stored, observed),
+            }
+            for name, stored, observed in _PIN_SCENARIOS
+        ],
+        "write_policy_scenarios": [
+            {
+                "name": name,
+                "sync_direction": direction,
+                "interactive": interactive,
+                "expected_requires_key": lan_write_requires_key(direction, interactive=interactive),
+            }
+            for name, direction, interactive in _WRITE_POLICY_SCENARIOS
+        ],
+        "pairing_scenarios": [
+            {
+                "name": name,
+                "decision": evaluate_pin(stored, observed),
+                "require_pairing": require_pairing,
+                "expected_requires_pairing": requires_pairing_confirmation(
+                    evaluate_pin(stored, observed), require_pairing=require_pairing
+                ),
+            }
+            for name, stored, observed, require_pairing in _PAIRING_SCENARIOS
+        ],
+    }
+
+
 def build_fixtures() -> dict[str, dict[str, Any]]:
     """Build every golden fixture, keyed by its snapshot file stem.
 
@@ -187,4 +264,5 @@ def build_fixtures() -> dict[str, dict[str, Any]]:
         "ws-file-event": _file_event(),
         "lan-txt-record": _lan_txt_record(),
         "lan-election-scenarios": _election_scenarios(),
+        "lan-pairing-scenarios": _pairing_scenarios(),
     }
