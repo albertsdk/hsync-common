@@ -21,17 +21,23 @@ formatting/hashing/parsing helper (DRY rule in `CLAUDE.md`).
 ## compression.py (Zstandard, level 3)
 
 - `should_compress` (`compression.py:170`) — size/extension gate.
-- `compress_data`/`decompress_data` (`:217`/`:222`), `compress_file` (`:227`).
+- `compress_data`/`decompress_data` (`:217`/`:222`), `compress_file` (`:267`).
+- `decompress_data(data, max_output_size=...)` enforces a hard cap on the
+  decompressed size via a capped streaming read — mandatory for wire-supplied
+  payloads (anti decompression-bomb).
 - Thresholds: `MIN_SIZE_FOR_COMPRESSION` 10 KB (`:35`), download (`:38`), upload
   32 KB (`:43`), LAN 100 KB (`:48`); `PRECOMPRESSED_EXTENSIONS` frozenset (`:57`);
   encoding token `CONTENT_ENCODING_ZSTD` (`:26`).
 
 ## permissions.py (octal SSOT)
 
-- `mode_to_octal` (`permissions.py:27`), `octal_to_mode` (`:40`),
-  `is_valid_octal_permissions` (`:52`), `get_permissions` (`:67`);
+- `mode_to_octal` (`permissions.py:34`), `octal_to_mode` (`:47`),
+  `is_valid_octal_permissions` (`:59`), `get_permissions` (`:97`);
   `PERMISSION_MASK = 0o7777` (`:24`). Used by `File`/`Dir` and the server upload
   form.
+- Wire-facing: `REMOTE_PERMISSION_MASK = 0o777` (`:31`) and
+  `sanitize_remote_permissions` (`:74`) strip setuid/setgid/sticky bits from
+  peer-supplied permission strings before they are applied locally.
 
 ## path_validation.py
 
@@ -42,12 +48,21 @@ formatting/hashing/parsing helper (DRY rule in `CLAUDE.md`).
   `safe_resolve_path` (`:344`).
 - Bucket names: `BUCKET_NAME_PATTERN` (`:319`), `is_valid_bucket_name` (`:324`).
 - `sanitize_filename` (`:261`).
+- Wire-facing remote-path validation (`:380`+): `INTERNAL_FILENAMES`
+  (`.hsyncignore`/`.hsyncstate`/`.hsynctombstones`), `is_internal_name`
+  (also matches `*.part`), `validate_remote_relpath` (rejects `..`, absolute
+  paths, drive letters, `\`, forbidden/control chars, reserved names,
+  problematic trailing chars, internal artifacts), `resolve_within`
+  (validation + `resolve()`/`relative_to()` confinement),
+  `is_safe_symlink_target` (SSOT, shared with the server).
 
 ## ignore.py (.hsyncignore matcher)
 
 - `IgnoreMatcher` (`ignore.py:41`, pathspec-backed). Process-global active
-  matcher: `set_active_matcher` (`:158`), `get_active_matcher` (`:171`),
-  `should_skip` (`:177`). `.part` files are always excluded.
+  matcher: `set_active_matcher` (`:163`), `get_active_matcher` (`:176`),
+  `should_skip` (`:182`). `.part` files and `INTERNAL_FILENAMES` are always
+  excluded, even with `include_hidden=True`. `_to_relative` strips only a
+  leading `./`, so user patterns can match dotfiles.
 
 ## ssl_utils.py (LAN TLS identity)
 

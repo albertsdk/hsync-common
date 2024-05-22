@@ -1,6 +1,9 @@
 """Tests for hsync_common.compression."""
 
+import io
+
 import pytest
+import zstandard as zstd
 
 from hsync_common.compression import (
     COMPRESSION_LEVEL,
@@ -87,6 +90,43 @@ class TestCompressDecompress:
     def test_compressed_size_smaller_for_repetitive_data(self):
         data = b"ABCDEFGH" * 10_000
         assert len(compress_data(data)) < len(data)
+
+
+class TestDecompressMaxOutputSize:
+    """Anti decompression-bomb cap for wire-supplied payloads."""
+
+    def test_within_cap_roundtrips(self):
+        data = b"A" * 50_000
+        assert decompress_data(compress_data(data), max_output_size=60_000) == data
+
+    def test_exact_cap_roundtrips(self):
+        data = b"B" * 10_000
+        assert decompress_data(compress_data(data), max_output_size=10_000) == data
+
+    def test_over_cap_raises(self):
+        data = b"C" * 100_000
+        with pytest.raises(zstd.ZstdError):
+            decompress_data(compress_data(data), max_output_size=1_000)
+
+    def test_cap_on_frame_without_content_size(self):
+        # Frames produced by a streaming compressor carry no embedded content
+        # size: the capped streaming fallback must enforce the limit anyway.
+        compressor = zstd.ZstdCompressor()
+        buf = io.BytesIO()
+        with compressor.stream_writer(buf, closefd=False) as writer:
+            writer.write(b"D" * 50_000)
+        frame = buf.getvalue()
+        assert decompress_data(frame, max_output_size=60_000) == b"D" * 50_000
+        with pytest.raises(zstd.ZstdError):
+            decompress_data(frame, max_output_size=1_000)
+
+    def test_malformed_input_raises(self):
+        with pytest.raises(zstd.ZstdError):
+            decompress_data(b"not a zstd frame", max_output_size=1_000)
+
+    def test_no_cap_still_supported(self):
+        data = b"legacy path"
+        assert decompress_data(compress_data(data)) == data
 
 
 class TestCompressFile:

@@ -36,6 +36,7 @@ from pathspec.patterns import GitWildMatchPattern
 from hsync_common.constants import HSYNCIGNORE_FILENAME, HSYNCKEEP_FILENAME
 from hsync_common.models.dir import _is_hidden_dir_basic
 from hsync_common.models.file import _is_hidden_file_basic, is_partial_file
+from hsync_common.path_validation import is_internal_name
 
 
 class IgnoreMatcher:
@@ -109,7 +110,12 @@ class IgnoreMatcher:
                 rel = path
         else:
             rel = path
-        return rel.replace("\\", "/").lstrip("./")
+        rel = rel.replace("\\", "/")
+        # Strip only leading "./" segments: a blanket lstrip("./") would also
+        # eat leading dots, making dotfiles (.env, .hsyncignore) unmatchable.
+        while rel.startswith("./"):
+            rel = rel[2:]
+        return rel
 
     def matches(self, path: str, is_dir: bool = False) -> bool:
         """Return ``True`` when *path* should be **excluded** from sync.
@@ -125,8 +131,11 @@ class IgnoreMatcher:
         if name == HSYNCKEEP_FILENAME:
             return False
 
-        # hsync's own in-progress transfer artifacts (.part) are never synced,
+        # Engine-owned artifacts (.hsyncignore, .hsyncstate, .hsynctombstones)
+        # and in-progress transfer artifacts (.part) are never synced,
         # regardless of include_hidden or .hsyncignore rules.
+        if is_internal_name(name):
+            return True
         if not is_dir and is_partial_file(name):
             return True
 
