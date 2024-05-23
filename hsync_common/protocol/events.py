@@ -72,6 +72,8 @@ class UiEventName(StrEnum):
     transfer_failed = "transfer_failed"  # a file transfer gave up after retries
     # ── Mass-deletion guard ─────────────────────────────────────────
     sync_paused = "sync_paused"  # a safety guard paused part of a sync cycle
+    # ── Inbound path security ───────────────────────────────────────
+    security_rejected = "security_rejected"  # unsafe remote path rejected
 
 
 class UiEventDict(TypedDict):

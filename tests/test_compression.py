@@ -16,6 +16,7 @@ from hsync_common.compression import (
     compress_data,
     compress_file,
     decompress_data,
+    decompress_stream,
     should_compress,
 )
 
@@ -127,6 +128,42 @@ class TestDecompressMaxOutputSize:
     def test_no_cap_still_supported(self):
         data = b"legacy path"
         assert decompress_data(compress_data(data)) == data
+
+
+class TestDecompressStream:
+    def test_roundtrip_within_cap(self):
+        data = b"E" * 100_000
+        chunks = list(decompress_stream(io.BytesIO(compress_data(data)), 100_000))
+        assert b"".join(chunks) == data
+
+    def test_small_read_size(self):
+        data = b"F" * 10_000
+        chunks = list(decompress_stream(io.BytesIO(compress_data(data)), 10_000, read_size=512))
+        assert b"".join(chunks) == data
+        assert all(len(c) <= 512 for c in chunks)
+
+    def test_over_cap_raises_mid_stream(self):
+        data = b"G" * 100_000
+        stream = decompress_stream(io.BytesIO(compress_data(data)), 1_000, read_size=256)
+        with pytest.raises(zstd.ZstdError):
+            b"".join(stream)
+
+    def test_frame_without_content_size(self):
+        compressor = zstd.ZstdCompressor()
+        buf = io.BytesIO()
+        with compressor.stream_writer(buf, closefd=False) as writer:
+            writer.write(b"H" * 5_000)
+        frame = buf.getvalue()
+        assert b"".join(decompress_stream(io.BytesIO(frame), 5_000)) == b"H" * 5_000
+        with pytest.raises(zstd.ZstdError):
+            b"".join(decompress_stream(io.BytesIO(frame), 100))
+
+    def test_empty_stream(self):
+        assert list(decompress_stream(io.BytesIO(compress_data(b"")), 10)) == []
+
+    def test_negative_cap_rejected(self):
+        with pytest.raises(ValueError):
+            list(decompress_stream(io.BytesIO(b""), -1))
 
 
 class TestCompressFile:
