@@ -1,0 +1,45 @@
+# CI — hsync-common (§6)
+# Lint + tests for the shared library. The pytest run also covers the contract
+# drift checks (WS/LAN schemas, golden fixtures, pairing/election) that guard the
+# protocol single-source-of-truth.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: lint + tests (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Ruff (lint)
+        run: poetry run ruff check .
+
+      - name: Ruff (format check)
+        run: poetry run ruff format --check .
+
+      - name: Tests
+        run: poetry run pytest -q
