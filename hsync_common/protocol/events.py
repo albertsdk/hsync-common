@@ -70,6 +70,8 @@ class UiEventName(StrEnum):
     pairing_needed = "pairing_needed"  # an explicit trust confirmation is required
     # ── Transfer resilience (P1 §11) ─────────────────────────────────────────
     transfer_failed = "transfer_failed"  # a file transfer gave up after retries
+    # ── Mass-deletion guard (P1 §12) ─────────────────────────────────────────
+    sync_paused = "sync_paused"  # a safety guard paused part of a sync cycle
 
 
 class UiEventDict(TypedDict):
