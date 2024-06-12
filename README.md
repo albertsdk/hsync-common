@@ -63,8 +63,8 @@ back to the legacy hidden-file check when no matcher is active.
 
 `hsync-common` is the shared foundation consumed by the other HSYNC projects:
 
-- [HSYNC Client](../hsync-client/README.md) - Sync client (Server Mode and LAN/P2P Mode)
-- [HSYNC Server](../hsync-server/README.md) - Central synchronization server
+- [HSYNC Client](https://github.com/albertobasso/hsync-client/blob/main/README.md) - Sync client (Server Mode and LAN/P2P Mode)
+- [HSYNC Server](https://github.com/albertobasso/hsync-server/blob/main/README.md) - Central synchronization server
 
 ## License
 
