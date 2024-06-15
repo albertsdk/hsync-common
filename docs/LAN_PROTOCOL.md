@@ -177,7 +177,7 @@ which the normal TOFU table applies.
 
 ### Security events
 
-Security state is surfaced on the structured channel (see §3) rather than by
+Security state is surfaced on the structured channel rather than by
 scraping log wording: `fingerprint_changed` (pin mismatch, connection refused),
 `auth_required` (unattended write without an effective key), and `pairing_needed`
 (strict pairing: a first-seen certificate awaiting out-of-band confirmation).

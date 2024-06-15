@@ -1,4 +1,4 @@
-# CI — hsync-common (§6)
+# CI — hsync-common
 # Lint + tests for the shared library. The pytest run also covers the contract
 # drift checks (WS/LAN schemas, golden fixtures, pairing/election) that guard the
 # protocol single-source-of-truth.

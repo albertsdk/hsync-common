@@ -4,7 +4,7 @@
 #
 # Copyright (C) 2025 Alberto Basso
 
-"""Tests for the shared handshake contract (DESIGN_REVIEW §1 / P0-A, Fase 2)."""
+"""Tests for the shared handshake contract."""
 
 from hsync_common.protocol.handshake import (
     ALL_CAPABILITIES,

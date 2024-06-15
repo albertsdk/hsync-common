@@ -7,11 +7,11 @@
 """
 Versioned handshake contract shared by every HSYNC component.
 
-This is the single source of truth (DESIGN_REVIEW §1 / P0-A, Fase 2) for the
-*protocol version* — deliberately separate from the semantic app version — and
-for the *capability registry*. Server and clients import the constants and the
-``build_*``/``parse_*`` helpers from here instead of re-spelling the handshake
-payloads by hand on each side (REST header, WebSocket auth frame, LAN/TXT).
+This is the single source of truth for the *protocol version* — deliberately
+separate from the semantic app version — and for the *capability registry*.
+Server and clients import the constants and the ``build_*``/``parse_*``
+helpers from here instead of re-spelling the handshake payloads by hand on
+each side (REST header, WebSocket auth frame, LAN/TXT).
 
 Because there is no legacy install base to support, a ``protocol_version`` that
 differs from the peer's is a *hard failure*: capabilities are only feature flags

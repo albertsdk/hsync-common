@@ -5,7 +5,7 @@
 # Copyright (C) 2025 Alberto Basso
 
 """
-Canonical LAN security policy (P1 §5, single source of truth).
+Canonical LAN security policy (single source of truth).
 
 The LAN channel proves a peer's *transport* with a self-signed certificate
 (``cert_fp`` carried in the mDNS TXT record) and may authenticate writes with a
