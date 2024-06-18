@@ -35,6 +35,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`models/event.py`)
 
 ### Fixed
+- `TombstoneStore.merge`/`load` no longer crash on non-finite float
+  timestamps (`Infinity`/`NaN`, accepted by `json.loads`) — `int()` is now
+  guarded against `OverflowError` and raw `bool` values are rejected
+- `is_internal_name` matching is now case-insensitive: on case-insensitive
+  filesystems (Windows, default macOS) a remote peer can no longer overwrite
+  the victim's `.hsyncignore`/`.hsyncstate`/`.hsynctombstones` (or `.part`
+  artifacts) through a case variant such as `.HSYNCIGNORE`
 - Aligned `aiofiles` constraint to `>=25.1.0,<26.0.0`, resolving the version
   conflict with `hsync-server` (which requires `>=25.1.0`) that made
   `poetry lock` fail for downstream projects
