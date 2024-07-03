@@ -290,7 +290,7 @@ class TestIsHiddenMatcherAwareness:
 
 class TestDirModel:
     def test_init(self):
-        d = Dir(path="/tmp/sync", permissions="drwxr-xr-x")
+        d = Dir(path="/tmp/sync", permissions="755")
         assert d.path == "/tmp/sync"
 
     def test_to_dict(self):
@@ -311,11 +311,11 @@ class TestDirModel:
         assert "/base" in d.path
 
     def test_repr_contains_fields(self):
-        d = Dir(path="/tmp/sync", permissions="drwxr-xr-x")
+        d = Dir(path="/tmp/sync", permissions="755")
         text = repr(d)
         assert "Dir(" in text
         assert "/tmp/sync" in text
-        assert "drwxr-xr-x" in text
+        assert "755" in text
 
 
 # =============================================================================
