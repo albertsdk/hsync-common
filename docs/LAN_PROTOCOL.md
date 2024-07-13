@@ -34,6 +34,13 @@ lives in `LAN_TXT_KEYS`; do not introduce keys outside it.
 **Optional keys** (present only when meaningful/true): `group`, `https`,
 `cert_fp`, `compression`, `server_ready`, `force_master`, `never_master`.
 
+These keys are optional at the record level because a node only advertises them
+once it is **serving as master**. A master, however, **must** advertise both
+`https` (`"true"`) and `cert_fp` (the SHA-256 fingerprint clients pin): the LAN
+transport is HTTPS-only, so a peer that does not is **not a valid master** and a
+slave refuses to connect to it (it logs `[INSECURE_MASTER]` and stays in
+discovery).
+
 ## Group partitioning
 
 `group` is a strict partition key: a peer is visible only when its group is
@@ -113,35 +120,63 @@ Wi-Fi):
 
 - mDNS/TXT discovery is **unauthenticated**: any host can advertise any `cid`,
   `bucket` or flag. Discovery data is therefore a hint, never proof.
-- A LAN master may serve over self-signed HTTPS, advertising its certificate
-  fingerprint in `cert_fp`. Self-signed HTTPS gives **confidentiality and
-  integrity** against passive eavesdroppers, but **does not prove identity** — on
-  its own it cannot distinguish the real master from an impostor that generated
-  its own certificate.
+- The LAN transport is **HTTPS/WSS only**: there is no plain-HTTP path. A master
+  serves over TLS and advertises its certificate fingerprint in `cert_fp`. TLS
+  gives **confidentiality and integrity** against passive eavesdroppers, but the
+  self-signed certificate **does not prove identity** — on its own it cannot
+  distinguish the real master from an impostor that generated its own
+  certificate. A peer that does not advertise both `https` and `cert_fp` is not a
+  valid master and is refused (`[INSECURE_MASTER]`).
 - `HSYNC_LAN_KEY` is a shared secret presented as a bearer token. It authenticates
-  *writes* to the master, but is only meaningful over HTTPS (it is never sent over
-  plain HTTP) and is shared, not per-peer.
+  *writes* to the master, travels only over the (mandatory) encrypted transport,
+  and is shared, not per-peer.
 
 Identity is therefore established by **Trust On First Use (TOFU)** pinning, and
 writes by an unattended client are gated on the shared key.
+
+### Master identity (persistent)
+
+A master's keypair is **persistent**, not per-session: `load_or_create_master_cert`
+stores it in an OS state directory (`~/.local/state/hsync/lan_cert`, overridable
+via `HSYNC_LAN_CERT_DIR`) and reuses it on every restart, so the fingerprint a
+peer pinned on first use keeps matching instead of triggering a spurious
+`[FINGERPRINT_CHANGED]` after each restart. The certificate is RSA, self-signed,
+and valid for ~10 years — validity is an operational convenience only, since
+trust comes from the pinned fingerprint rather than chain/date validation.
+
+The private key is written as an **unencrypted PKCS#8** PEM, protected solely by
+filesystem permissions: the key file is `0o600` inside a `0o700` directory. There
+is no key password.
 
 ### Certificate pinning (TOFU)
 
 The first `cert_fp` seen for a `(cid, bucket)` is pinned (client store:
 `hsync_client.pinning.PinStore`, outside the synced bucket and overridable via
-`HSYNC_LAN_PIN_FILE`). `evaluate_pin` classifies every later sighting:
+`HSYNC_LAN_PIN_FILE`). Because the transport is HTTPS-only, every master sighting
+carries a fingerprint; a missing one is a contract violation and `evaluate_pin`
+raises. `evaluate_pin` classifies every (present) later sighting:
 
 | Decision | Meaning | Client behaviour |
 |---|---|---|
 | `trusted` | first sighting | pin it and proceed |
 | `matched` | equals the pin | proceed |
 | `changed` | differs from the pin | **refuse** to connect; emit `fingerprint_changed` |
-| `no_fingerprint` | peer offers none | nothing to pin (plain HTTP) |
 
 A `changed` fingerprint is treated as a possible man-in-the-middle: the client
 logs a parsable `[FINGERPRINT_CHANGED]` line, emits the structured event, and
 stays in discovery instead of connecting. Re-trusting a legitimately rotated
 certificate requires removing the stale pin out of band.
+
+The pin is enforced **at the connection level**, on the very TLS connection that
+carries the data, with no separate probe (which would leave a TOCTOU window):
+
+- **REST (`requests`/`urllib3`)** — `FingerprintHTTPAdapter` mounts the pinned
+  fingerprint via urllib3's `assert_fingerprint`, so the handshake itself fails if
+  the peer certificate does not match. The chain and hostname are intentionally
+  not validated: trust is the pinned fingerprint alone.
+- **WebSocket (WSS)** — after the handshake completes,
+  `verify_peer_cert_fingerprint` checks the live connection's peer certificate
+  (`getpeercert(binary_form=True)`) against the pin before any data is exchanged.
 
 ### LAN-key write policy
 
@@ -153,11 +188,9 @@ direction writes to the master (`bidirectional` or `upload-only`). `download-onl
 never writes and is always allowed.
 
 The client enforces this before sync (`_check_lan_write_policy`): when an
-unattended write lacks an effective key — `HSYNC_LAN_KEY` set **and**
-`HSYNC_LAN_HTTPS` enabled, since the key is dropped over plain HTTP — it logs
-`[AUTH_REQUIRED]`, emits the `auth_required` event, and exits. Interactive runs
-keep the key recommended, not required: the operator can vouch for the peer out
-of band.
+unattended write lacks an effective `HSYNC_LAN_KEY` it logs `[AUTH_REQUIRED]`,
+emits the `auth_required` event, and exits. Interactive runs keep the key
+recommended, not required: the operator can vouch for the peer out of band.
 
 ### Explicit pairing (strict mode)
 
@@ -168,7 +201,7 @@ pairing (`HSYNC_LAN_REQUIRE_PAIRING` / client `LAN_REQUIRE_PAIRING` or the
 `SyncConfig.lanRequirePairing`) closes that window by disabling the auto-pin
 shortcut. `requires_pairing_confirmation(decision, require_pairing=...)` is the
 canonical rule: it returns true only for a first sighting (`trusted`) while
-strict pairing is on; `matched`/`changed`/`no_fingerprint` are unaffected.
+strict pairing is on; `matched`/`changed` are unaffected.
 
 When it triggers, the client logs `[PAIRING_NEEDED]`, emits the `pairing_needed`
 event and stays in discovery without connecting. The operator confirms the peer

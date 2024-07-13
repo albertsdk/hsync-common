@@ -103,6 +103,24 @@ def serialize_key_pem(private_key: rsa.RSAPrivateKey, password: bytes) -> bytes:
     )
 
 
+def serialize_private_key_unencrypted(private_key: rsa.RSAPrivateKey) -> bytes:
+    """Serialize an RSA private key to *unencrypted* PKCS#8 PEM bytes.
+
+    Intended for long-lived self-signed service identities whose confidentiality
+    is enforced by filesystem permissions (``0o600`` in a ``0o700`` directory)
+    rather than a passphrase — the standard model for SSH host keys and
+    Syncthing device keys. Identity is established by fingerprint pinning, not by
+    an encrypted-at-rest secret, so there is no co-located password to protect.
+    The caller is responsible for writing the result with restrictive
+    permissions.
+    """
+    return private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+
+
 def compute_cert_fingerprint(cert: x509.Certificate) -> str:
     """Return the SHA-256 fingerprint (hex) of a certificate's DER encoding."""
     der = cert.public_bytes(serialization.Encoding.DER)
