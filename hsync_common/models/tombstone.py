@@ -24,6 +24,8 @@ from hashlib import sha256
 from pathlib import Path
 from typing import TypedDict
 
+from hsync_common.hashing import is_sha256_hex
+
 # Default retention window before a tombstone is garbage-collected. Keeping a
 # bounded window caps file growth and lets a path be reused after a long time.
 TOMBSTONE_TTL_DAYS_DEFAULT = 30
@@ -47,8 +49,13 @@ class TombstoneEntry(TypedDict):
 
 
 def _is_valid_key(key: object) -> bool:
-    """Return True when *key* looks like a sha256 hex digest (tombstone key)."""
-    return isinstance(key, str) and len(key) == 64 and all(c in "0123456789abcdef" for c in key)
+    """Return True when *key* looks like a sha256 hex digest (tombstone key).
+
+    Tombstone keys are always `hashlib.sha256(...).hexdigest()` output, i.e.
+    lowercase: uppercase variants from a peer are rejected (they would never
+    match a locally computed key anyway).
+    """
+    return is_sha256_hex(key) and key == key.lower()
 
 
 def _is_valid_sha256(value: object) -> bool:
@@ -167,6 +174,10 @@ class TombstoneStore:
         entries are validated and the store size is capped. Invalid entries
         are skipped silently so one bad marker cannot poison the merge.
         """
+        if not isinstance(payload, dict):
+            # A truthy non-dict payload (JSON array/string) must not crash the
+            # merge — it simply carries no entries.
+            return 0
         changed = 0
         now = int(time.time())
         for key, entry in (payload or {}).items():
@@ -194,6 +205,10 @@ class TombstoneStore:
         except (OSError, ValueError):
             return
         entries = raw.get("tombstones", {}) if isinstance(raw, dict) else {}
+        if not isinstance(entries, dict):
+            # A malformed side-car (e.g. "tombstones" is a list) must not
+            # crash startup — treat it as empty.
+            return
         now = int(time.time())
         data: dict[str, TombstoneEntry] = {}
         for key, entry in entries.items():

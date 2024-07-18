@@ -26,3 +26,18 @@ live in [`../docs/LAN_PROTOCOL.md`](../docs/LAN_PROTOCOL.md) and map to
   defined only here; other repos mirror, never fork.
 - New ADRs: copy [`../docs/adr/template.md`](../docs/adr/template.md), add to the
   ADR index and reference the governed code here.
+
+## Accepted residual risks
+
+- **TOCTOU window in `resolve_within` → `open`** (path confinement): symlink
+  resolution happens at validation time, the file is opened afterwards, so a
+  symlink swapped in between could redirect the write. Mitigations in place:
+  `.part` downloads open with `O_NOFOLLOW` where supported
+  (`hsync-client` `transfer.py`), which covers the final path component but not
+  intermediate directories. Exploiting the window requires an attacker who can
+  already mutate the victim's local filesystem inside the bucket (a local
+  process or a second sync engine racing the first) — at which point the
+  integrity checks (mandatory SHA-256 before the atomic rename) still bound the
+  damage to wasted work, not corrupted sync content. Accepted as residual risk;
+  a full fix would require `openat2(RESOLVE_BENEATH)`-style resolution at open
+  time, which is Linux-only and out of scope for the portable validator.

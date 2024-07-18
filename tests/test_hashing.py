@@ -20,7 +20,25 @@ from hsync_common.hashing import (
     adaptive_chunk_size,
     compute_sha256,
     compute_sha256_async,
+    is_sha256_hex,
 )
+
+
+class TestIsSha256Hex:
+    def test_valid(self):
+        assert is_sha256_hex("a" * 64) is True
+        assert is_sha256_hex("0123456789abcdef" * 4) is True
+        assert is_sha256_hex("A" * 64) is True
+
+    def test_invalid(self):
+        assert is_sha256_hex("") is False
+        assert is_sha256_hex("a" * 63) is False
+        assert is_sha256_hex("a" * 65) is False
+        assert is_sha256_hex("g" * 64) is False
+        # Non-ASCII would crash hmac.compare_digest: must be rejected up-front.
+        assert is_sha256_hex("é" * 64) is False
+        assert is_sha256_hex(None) is False
+        assert is_sha256_hex(123) is False
 
 
 class TestAdaptiveChunkSize:
