@@ -54,7 +54,7 @@ class TestConstants:
             assert ext not in PRECOMPRESSED_EXTENSIONS
 
     def test_new_extensions_in_precompressed(self):
-        """O1: newly added extensions must be present."""
+        """Newly added extensions must be present."""
         for ext in (".br", ".whl", ".snap", ".lz"):
             assert ext in PRECOMPRESSED_EXTENSIONS, f"{ext} not in PRECOMPRESSED_EXTENSIONS"
 
