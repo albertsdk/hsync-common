@@ -22,6 +22,7 @@ from hsync_common.models.file import (
     clear_sha256_cache,
     invalidate_sha256_cache,
     is_hidden_file,
+    is_partial_file,
 )
 from hsync_common.models.symlink import Symlink
 from hsync_common.models.sync_action import SyncAction, SyncActionName
@@ -59,6 +60,23 @@ class TestIsHiddenFile:
 
     def test_tmp_is_hidden(self):
         assert is_hidden_file("temp.tmp") is True
+
+    def test_partial_download_is_hidden(self):
+        assert is_hidden_file("document.txt.part") is True
+
+
+class TestIsPartialFile:
+    def test_partial_suffix_detected(self):
+        assert is_partial_file("document.txt.part") is True
+
+    def test_partial_suffix_detected_with_path(self):
+        assert is_partial_file("dir/sub/document.txt.part") is True
+
+    def test_regular_file_not_partial(self):
+        assert is_partial_file("document.txt") is False
+
+    def test_part_in_name_only_not_partial(self):
+        assert is_partial_file("part.txt") is False
 
 
 class TestFileInit:
