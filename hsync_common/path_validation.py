@@ -229,35 +229,6 @@ def is_safe_path_component(path: str) -> bool:
     return not has_dotdot_component(path)
 
 
-def is_valid_path(path: str, base_dir: str) -> bool:
-    """
-    Validate a full path against a base directory to prevent path traversal.
-
-    This function ensures the resolved path stays within the base directory,
-    preventing attacks like ../../../etc/passwd.
-
-    Args:
-        path: The relative path to validate.
-        base_dir: The base directory that the path must be within.
-
-    Returns:
-        True if the path is safe, False if it escapes the base directory.
-    """
-    from pathlib import Path
-
-    if not path:
-        return True  # Empty path is valid (root)
-
-    # Resolve both paths and check if the target is within base_dir
-    try:
-        base = Path(base_dir).resolve()
-        target = (base / path).resolve()
-        target.relative_to(base)
-        return True
-    except (ValueError, OSError):
-        return False
-
-
 def sanitize_filename(filename: str) -> str:
     """
     Sanitize a filename by removing/replacing dangerous characters.

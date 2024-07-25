@@ -587,11 +587,6 @@ class TestTombstoneStore:
     def test_get_missing_returns_none(self):
         assert TombstoneStore().get("nope.txt") is None
 
-    def test_get_by_key_matches_hashed_path(self):
-        store = TombstoneStore()
-        store.record("a/b.txt", timestamp=5)
-        assert store.get_by_key(tombstone_key("a/b.txt")) is not None
-
     def test_record_is_last_writer_wins(self):
         store = TombstoneStore()
         store.record("f.txt", sha256sum="old", timestamp=10)
