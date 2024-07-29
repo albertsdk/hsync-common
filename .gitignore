@@ -10,9 +10,6 @@ dist/
 htmlcov/
 .coverage
 
-# Claude
-CLAUDE.md
-
 # Kilo
 .kilo
 
