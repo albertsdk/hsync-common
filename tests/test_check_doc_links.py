@@ -95,6 +95,30 @@ class TestFindBrokenLinks:
         assert checked == 1
         assert broken == []
 
+    def test_cross_root_link_is_skipped(self, tmp_path: Path):
+        # A link escaping the scanned root (a sibling project) is skipped:
+        # neither counted nor flagged, even though it does not exist under root.
+        root = tmp_path / "repo"
+        root.mkdir()
+        (root / "doc.md").write_text("[x](../sibling/llm-wiki/README.md)")
+
+        broken, checked = cdl.find_broken_links(root)
+
+        assert checked == 0
+        assert broken == []
+
+    def test_in_root_link_still_checked_alongside_cross_root(self, tmp_path: Path):
+        # In-root links are still validated when mixed with skipped cross-root ones.
+        root = tmp_path / "repo"
+        root.mkdir()
+        (root / "ok.md").write_text("ok")
+        (root / "doc.md").write_text("[in](ok.md) and [out](../sibling/x.md) and [miss](nope.md)")
+
+        broken, checked = cdl.find_broken_links(root)
+
+        assert checked == 2
+        assert [t for _, t in broken] == ["nope.md"]
+
 
 class TestMain:
     def test_returns_zero_when_all_valid(self, tmp_path: Path, capsys):
