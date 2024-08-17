@@ -39,6 +39,7 @@
           "items": {
             "enum": [
               "compression",
+              "delta",
               "https",
               "never_master",
               "tombstones"
@@ -77,6 +78,7 @@
           "items": {
             "enum": [
               "compression",
+              "delta",
               "https",
               "never_master",
               "tombstones"
