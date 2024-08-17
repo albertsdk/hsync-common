@@ -192,6 +192,64 @@ extensions that are already compressed (archives, images, audio, video, etc.).
 - `hsync-client` adds upload (32 KB) and LAN (100 KB) thresholds.
 - `hsync-server` adds async streaming compression for FastAPI handlers.
 
+### Protocol Negotiation
+
+Compression support is negotiated between peers during connection setup:
+
+- **Server Mode**: The server advertises compression capability during the
+  WebSocket handshake via the `X-HSync-Compression: zstd` response header.
+  The client reads this header and enables compression for subsequent file
+  transfers. The `/health` endpoint also returns `{"compression": true}` in
+  its JSON response.
+- **LAN Mode**: Peers advertise compression support via mDNS TXT records
+  (`compression=zstd`). During master election, the elected master's
+  compression capability is propagated to all slaves.
+
+If either side does not advertise compression, transfers fall back to
+uncompressed mode transparently.
+
+## Path Validation
+
+The `path_validation` module provides safety checks used by both client and
+server to prevent path manipulation attacks:
+
+| Check | Description |
+|-------|-------------|
+| Path traversal | Rejects paths containing `../` or absolute paths that could escape the bucket directory |
+| Null bytes | Rejects paths with embedded null bytes (`\0`) |
+| Symlink escape | Validates that resolved symlink targets stay within the allowed directory |
+| Component validation | Rejects empty path components and reserved names |
+| Length limits | Enforces maximum path and filename length limits |
+
+These checks are applied at every filesystem boundary — file upload, download,
+listing, and deletion — ensuring that a malicious or misconfigured client
+cannot write files outside the bucket directory.
+
+## Ignore Matcher (`IgnoreMatcher`)
+
+The `ignore` module provides gitignore-style pattern matching for excluding
+files from synchronization. It supports the full gitignore specification:
+
+| Feature | Syntax | Example |
+|---------|--------|---------|
+| Wildcard | `*` | `*.log` — matches all `.log` files |
+| Directory-only | trailing `/` | `build/` — matches `build/` directory only |
+| Recursive glob | `**` | `**/__pycache__/` — matches `__pycache__` at any depth |
+| Negation | `!` | `!important.log` — re-includes a previously excluded file |
+| Root-anchored | leading `/` | `/dist/` — matches only at the bucket root |
+
+### Layered matching
+
+`IgnoreMatcher` combines three layers:
+
+1. **Default hidden patterns** — built-in rules for files starting with `.`,
+   temporary files (`.swp`, `~`, `.bak`), and lock files.
+2. **Per-bucket `.hsyncignore`** — user-defined rules in the bucket root.
+3. **Extra patterns** — programmatic patterns from `--ignore-patterns` CLI flag.
+
+The sentinel `.hsynckeep` file is always preserved regardless of any pattern.
+When `--sync-hidden` is passed, the default hidden patterns layer is disabled.
+
 ## Constants
 
 | Constant                     | Value                | Description                              |
