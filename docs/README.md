@@ -26,6 +26,13 @@ from hsync_common.models import File, Dir
 from hsync_common.protocol.handshake import PROTOCOL_VERSION_REST
 ```
 
+## Where to start
+
+- **Understanding the shared models?** → Read the [Architecture](architecture.md) overview.
+- **Implementing LAN P2P?** → The [LAN Protocol spec](LAN_PROTOCOL.md) is the authoritative reference.
+- **Working on the Android app?** → See [Android Mirroring](android-mirroring.md) for Kotlin/Python sync.
+- **Why were these decisions made?** → The [Architecture Decision Records](adr/README.md) document the rationale.
+
 ## Documentation map
 
 | Document | What it covers |
