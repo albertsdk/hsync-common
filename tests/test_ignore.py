@@ -118,6 +118,57 @@ class TestReload:
         assert m.matches("new.tmp") is True
 
 
+class TestComments:
+    """Verify that comment lines (starting with '#') are properly ignored."""
+
+    def test_comment_lines_are_ignored(self, bucket):
+        """Patterns after comment lines should still work."""
+        _write_ignore(bucket, "# Ignore log files\n*.log\n# Ignore temp files\n*.tmp\n")
+        m = IgnoreMatcher(str(bucket), include_hidden=True)
+        assert m.matches("server.log") is True
+        assert m.matches("data.tmp") is True
+        assert m.matches("important.txt") is False
+
+    def test_comment_with_leading_whitespace(self, bucket):
+        """Comments with leading spaces/tabs should still be treated as comments."""
+        _write_ignore(bucket, "  # This is a comment\n*.log\n\t# Another comment\n")
+        m = IgnoreMatcher(str(bucket), include_hidden=True)
+        assert m.matches("app.log") is True
+        assert m.matches("readme.md") is False
+
+    def test_blank_lines_between_patterns(self, bucket):
+        """Blank lines should not affect pattern matching."""
+        _write_ignore(bucket, "*.log\n\n*.tmp\n\n\n")
+        m = IgnoreMatcher(str(bucket), include_hidden=True)
+        assert m.matches("server.log") is True
+        assert m.matches("data.tmp") is True
+        assert m.matches("readme.md") is False
+
+    def test_only_comments_and_blanks(self, bucket):
+        """A file with only comments and blank lines should match nothing extra."""
+        _write_ignore(bucket, "# Everything is a comment\n\n  # indented comment\n")
+        m = IgnoreMatcher(str(bucket), include_hidden=True)
+        assert m.matches("anyfile.txt") is False
+        assert m.matches("another.doc") is False
+
+    def test_inline_hash_not_a_comment(self, bucket):
+        """A '#' in the middle of a line is literal, not a comment.
+        In standard .gitignore, only a '#' at the start of a line
+        (possibly after whitespace) is a comment."""
+        _write_ignore(bucket, "file#name.log\n")
+        m = IgnoreMatcher(str(bucket), include_hidden=True)
+        # The pattern "file#name.log" should literally match a file named "file#name.log"
+        assert m.matches("file#name.log") is True
+        assert m.matches("file.log") is False
+
+    def test_escaped_hash_is_pattern(self, bucket):
+        """A line starting with '\\#' is an escaped hash, treated as a pattern."""
+        _write_ignore(bucket, "\\#not_a_comment.log\n")
+        m = IgnoreMatcher(str(bucket), include_hidden=True)
+        assert m.matches("#not_a_comment.log") is True
+        assert m.matches("not_a_comment.log") is False
+
+
 class TestActiveMatcher:
     def test_set_and_get_active_matcher(self, bucket):
         m = IgnoreMatcher(str(bucket))
