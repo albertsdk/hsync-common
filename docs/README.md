@@ -44,7 +44,7 @@ from hsync_common.protocol.handshake import PROTOCOL_VERSION_REST
 
 ## Related projects
 
-- [hsync-client](../../hsync-client/docs/README.md) — the sync client / CLI.
-- [hsync-server](../../hsync-server/docs/README.md) — the central server.
-- [hsync-desktop](../../hsync-desktop/docs/README.md) — the desktop GUI.
-- [hsync-android](../../hsync-android/docs/README.md) — the Android app.
+- [hsync-client](https://github.com/albertobasso/hsync-client/blob/main/docs/README.md) — the sync client / CLI.
+- [hsync-server](https://github.com/albertobasso/hsync-server/blob/main/docs/README.md) — the central server.
+- [hsync-desktop](https://github.com/albertobasso/hsync-desktop/blob/main/docs/README.md) — the desktop GUI.
+- [hsync-android](https://github.com/albertobasso/hsync-android/blob/main/docs/README.md) — the Android app.
