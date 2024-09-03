@@ -1,0 +1,29 @@
+{
+  "base_sha256": "a1b2c3d4e5f67890123456789012345678901234567890123456789012345678",
+  "block_size": 4096,
+  "description": "Example delta instructions to rebuild a modified file from base + literals",
+  "literal_size": 512,
+  "new_sha256": "d4e5f67890123456789012345678901234567890123456789012345678901234",
+  "new_size": 1048576,
+  "note": "Copy first block, insert 512 bytes of new data at offset 4096, copy remaining blocks",
+  "ops": [
+    {
+      "data_offset": 0,
+      "length": 4096,
+      "offset": 0,
+      "type": "copy"
+    },
+    {
+      "data_offset": 0,
+      "length": 512,
+      "offset": 0,
+      "type": "data"
+    },
+    {
+      "data_offset": 0,
+      "length": 1040384,
+      "offset": 8192,
+      "type": "copy"
+    }
+  ]
+}

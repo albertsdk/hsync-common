@@ -32,7 +32,7 @@ lives in `LAN_TXT_KEYS`; do not introduce keys outside it.
 | `sync_direction` | string | `bidirectional` (preferred), `upload-only`, `download-only`. |
 
 **Optional keys** (present only when meaningful/true): `group`, `https`,
-`cert_fp`, `compression`, `server_ready`, `force_master`, `never_master`.
+`cert_fp`, `compression`, `delta`, `server_ready`, `force_master`, `never_master`.
 
 These keys are optional at the record level because a node only advertises them
 once it is **serving as master**. A master, however, **must** advertise both
