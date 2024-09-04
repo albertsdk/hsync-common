@@ -83,6 +83,8 @@ back to the legacy hidden-file check when no matcher is active.
 
 - [HSYNC Client](https://github.com/albertobasso/hsync-client/blob/main/README.md) - Sync client (Server Mode and LAN/P2P Mode)
 - [HSYNC Server](https://github.com/albertobasso/hsync-server/blob/main/README.md) - Central synchronization server
+- [HSYNC Desktop](https://github.com/albertobasso/hsync-desktop/blob/main/README.md) - Desktop GUI front-end *(in development)*
+- [HSYNC Android](https://github.com/albertobasso/hsync-android/blob/main/README.md) - Android app *(in development)*
 
 ## License
 
