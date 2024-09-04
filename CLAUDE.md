@@ -11,7 +11,7 @@ The project maintains two distinct documentation environments. You must understa
 2. **`docs/` (End-User Technical Documentation)**: Human-readable documentation, user guides, and public API references meant for the final user.
 
 ### 1. Docs-First Workflow (Mandatory)
-* **Read Before Acting**: Before **ANY** action or analysis, you **MUST** first consult the internal wiki, starting from `llm-wiki/README.md`, and then drill down into the specific `llm-wiki/` file(s) relevant to the task.
+* **Read Before Exploring or Modifying Code**: Before exploring or modifying application code, you **MUST** first consult the internal wiki, starting from `llm-wiki/README.md`, and then drill down into the specific `llm-wiki/` file(s) relevant to the task. Administrative, repository-inspection, and documentation-only operations may use a proportionate subset of this workflow.
 * **Index-Driven Navigation**: Use `llm-wiki/README.md` as the map: identify which module/feature/data-model docs are relevant, read them, and follow their `path/to/file.py:line` references to reach the right code directly instead of blindly searching the whole repository.
 * **Docs Guide the Search**: Treat `llm-wiki/` as the first search surface. Codebase-wide exploration is a **fallback** for what the wiki does not yet cover.
 * **Bootstrap on Absence**: If a specific doc does not exist or lacks relevant content, note the gap and create/extend it as part of the task. A missing doc is never an excuse to skip the docs-first step.
@@ -22,6 +22,7 @@ The project maintains two distinct documentation environments. You must understa
   * *Internal Changes* (Refactoring, internal schemas, private logic): You must update the relevant files in **`llm-wiki/`**.
   * *User-Facing Changes* (Public APIs, CLI commands, features, configuration files): You must update the internal architecture in **`llm-wiki/`** AND the user guides/technical specs in **`docs/`**.
 * **No Stale Docs**: Leaving either `llm-wiki/` or `docs/` out of sync with the code is **STRICTLY PROHIBITED**. If you cannot fully document a change in both places, the task is **not complete**.
+* **Semantic Changes Only**: Update documentation when the documented architecture, behavior, contract, configuration, or operational procedure changes. Pure formatting, behavior-preserving refactoring, and test-only changes do not require documentation churn unless they reveal that existing documentation is inaccurate.
 
 ### 3. Directory Structures
 Both doc sets follow a recommended **baseline** layout; adapt the exact file set
@@ -72,28 +73,70 @@ index `README.md` honest about what actually exists.
 ## 🚀 Evolution & Breaking Changes
 
 * **Zero Backward Compatibility**
-  There are no existing production environments. **Backward compatibility is NOT required.** ALWAYS prioritize the ideal architecture and optimal design over supporting legacy states.
+  There are no existing production environments. **Backward compatibility is NOT required when the requested design intentionally changes a contract.** Prioritize the ideal architecture and optimal design over supporting legacy states, but do not introduce unrelated breaking changes. Update all affected consumers, models, tests, schemas, fixtures, protocol versions, persisted assumptions, and documentation atomically.
 
 * **Clean Breaking Changes**
   Treat every major intervention as a completely new version of the application. Implement rigid contracts, mandatory protocol versions, and strict data fields. **CATEGORICALLY REMOVE** shims, legacy channels, migration phases, and fallback logic.
 
 ---
 
+## ✅ Implementation Quality Gate
+
+Every code change must pass a bounded implementation and verification cycle before the task may be considered complete.
+
+### 1. Acceptance Criteria Before Implementation
+
+Before modifying code, identify observable behavior and affected consumer/protocol contracts; failure cases, boundaries, security implications, and state transitions; existing implementation and tests; reusable models/utilities; and impacts on client, server, desktop, and Android mirrors. Do not invent unsupported requirements. Apply proportionally to trivial documentation-only or formatting-only changes.
+
+### 2. First Implementation Pass
+
+Implement the smallest complete change satisfying the acceptance criteria. Do not add speculative functionality, hide failures, weaken tests, or change unrelated code.
+
+### 3. Mandatory Verification Pass
+
+After implementation and before finalizing:
+
+1. Re-read the request and acceptance criteria without assuming correctness.
+2. Inspect the complete diff, including tests, schemas, golden fixtures, ADRs, changelog, and documentation.
+3. Trace normal, invalid-input, empty/missing, limits, serialization, concurrency, cancellation, partial-failure, path-validation, secret-exposure, and injection paths where applicable.
+4. Verify consistency across models, type hints, serialization, protocol versions, JSON schemas, fixtures, callers, all consumers, and documentation.
+5. Run targeted `poetry run pytest` tests first. When practical, run full `poetry run pytest` and `poetry run ruff check .` checks configured by the project.
+6. Correct every issue found and rerun affected checks.
+
+Diff inspection and executed checks are required; stating that the implementation was reviewed is insufficient.
+
+### 4. Regression and Contract Tests
+
+Every bug fix needs a regression test that fails before and passes after the fix. New behavior must cover success and relevant failure/boundary paths. Every protocol change must update generated schemas and committed fixtures, test drift, and update affected Python consumers and Android parity tests atomically. A test may be omitted only when genuinely impractical, with reason and alternative verification reported.
+
+### 5. Bounded Correction Cycle
+
+Fix issues found and repeat relevant verification for at most two review-and-correction cycles unless the user requests more. Do not finalize with known failures. Report environmental or pre-existing blockers precisely, and never claim an unexecuted check passed.
+
+### 6. Definition of Done
+
+Completion requires satisfied acceptance criteria, complete diff review, passing relevant checks, adequate tests, synchronized protocol artifacts/consumers/documentation, and no known correctness or security defect. The final response must state changes, commands and outcomes, omitted checks and reasons, and remaining risks.
+
+For protocol/API contracts, authentication, secrets, destructive sync, persistence, or concurrency changes, request an independent review when available; this does not replace tests or self-verification.
+
+---
+
 ## 🐍 Python Standards & Code Reuse (`*.py`)
 
 ### 1. Strict DRY & Duplication Prevention
-* **Pre-implementation Check**: Before writing ANY new function, component, or logic (e.g., formatting, date handling, custom decorators, logging, or parsing), you **MUST** scan the codebase and explicitly check `@utils.py`, `@helpers.py`, the `core/` module, or the provided context.
+* **Pre-implementation Check**: Before writing any new function, component, or logic, you **MUST** search the relevant module and shared utility/model locations for an existing implementation. Expand to a repository-wide search only when the wiki and local search are insufficient.
 * **No Copy-Paste-Modify**: Copying, pasting, and slightly modifying existing code snippets for a new use case is **STRICTLY PROHIBITED**.
 * **Refactoring over Duplication**: If *similar* (but not identical) logic already exists, **DO NOT** create a duplicate. Instead, refactor the existing code to make it more generic, parameterized, and reusable. Briefly explain your refactoring logic when doing so.
 * **Rule of Three**: If you identify or need the same logic/code block for a second time, treat it as a warning. If requested for a third time, you **MUST** extract it into a standalone utility function, helper, or common base class.
 * **No Inline Helpers**: Writing nested or inline helper functions inside main functions is **PROHIBITED** if the logic is generic and extractable. Always promote exportation and centralized reuse.
+* **Semantic Reuse over Superficial Similarity**: Extract shared logic only when behavior, invariants, and reasons to change are the same. Prefer small local duplication over an incorrect or unstable abstraction.
 
 ### 2. Typing & Data Models
 * **Centralized Models**: Strictly use type hints. For data structures, **ALWAYS** reuse existing models located in the `schemas/` or `models/` directories (Pydantic or Dataclasses).
 * **No Manual Parsing**: **DO NOT** perform manual parsing or complex dictionary navigation (e.g., `dict.get()`) if a Pydantic class already exists to validate and instantiate that specific payload type.
 
 ### 3. Modularity & Maintainability
-* **File Size Control**: Always evaluate the length and complexity of the files you are modifying. If a file becomes too long or handles too many responsibilities, split it into smaller, focused modules to maximize code readability and simplify maintenance.
+* **File Responsibility Control**: Split a file when it contains multiple independently changing responsibilities, not merely because of line count. Do not perform unrelated structural refactoring as part of a narrowly scoped fix.
 
 ---
 
