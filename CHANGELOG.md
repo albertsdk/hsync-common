@@ -7,10 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- `decompress_data` now accepts `max_output_size`, enforcing a hard cap on the
+  decompressed size via a capped streaming read (anti decompression-bomb for
+  wire-supplied payloads)
+- New wire-facing remote-path validators in `path_validation.py`:
+  `validate_remote_relpath` (rejects `..`, absolute paths, drive letters,
+  backslashes, forbidden/control characters, Windows reserved names,
+  problematic trailing characters and internal engine artifacts),
+  `resolve_within` (`resolve()`+`relative_to()` confinement),
+  `is_safe_symlink_target` (now the SSOT shared with the server)
+- New `INTERNAL_FILENAMES` denylist (`.hsyncignore`, `.hsyncstate`,
+  `.hsynctombstones`): `IgnoreMatcher` always excludes them, even with
+  `include_hidden=True`, so engine state can no longer be rewritten through
+  the sync channel
+- New `REMOTE_PERMISSION_MASK` (0o777) and `sanitize_remote_permissions`:
+  setuid/setgid/sticky bits are stripped from peer-supplied permission strings
+- `TombstoneStore.merge`/`load` now validate untrusted gossip payloads:
+  sha256-hex keys/content hashes, rejection of future timestamps beyond a
+  300 s clock-skew tolerance, and a 100 000-entry store cap (anti-poisoning)
+
 ### Fixed
 - Aligned `aiofiles` constraint to `>=25.1.0,<26.0.0`, resolving the version
   conflict with `hsync-server` (which requires `>=25.1.0`) that made
   `poetry lock` fail for downstream projects
+- `IgnoreMatcher._to_relative` now strips only a leading `./` instead of any
+  leading dots/slashes, so `.hsyncignore` patterns can match dotfiles again
 
 ### Changed
 - Updated development dependencies: coverage 7.15.2, filelock 3.31.2,

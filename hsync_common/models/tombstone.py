@@ -28,12 +28,64 @@ from typing import TypedDict
 # bounded window caps file growth and lets a path be reused after a long time.
 TOMBSTONE_TTL_DAYS_DEFAULT = 30
 
+# Tolerance for clock skew between peers when validating tombstone timestamps.
+# A deletion timestamp further in the future than this is rejected: an
+# attacker could otherwise plant far-future markers that never expire and
+# force-delete any local file whose content hash they know.
+TOMBSTONE_MAX_CLOCK_SKEW_SECONDS = 300
+
+# Hard cap on the number of tombstones held in the store. Bounds memory/disk
+# growth against a hostile peer flooding the gossip channel with markers.
+TOMBSTONE_MAX_ENTRIES = 100_000
+
 
 class TombstoneEntry(TypedDict):
     """Serialized deletion marker for a single path."""
 
     ts: int  # deletion wall-clock timestamp (unix seconds)
     sha256: str | None  # content hash of the deleted file (None if unknown)
+
+
+def _is_valid_key(key: object) -> bool:
+    """Return True when *key* looks like a sha256 hex digest (tombstone key)."""
+    return isinstance(key, str) and len(key) == 64 and all(c in "0123456789abcdef" for c in key)
+
+
+def _is_valid_sha256(value: object) -> bool:
+    """Return True when *value* is None or a sha256 hex digest."""
+    return value is None or _is_valid_key(value)
+
+
+def _sanitize_entry(
+    key: object,
+    entry: object,
+    now: int,
+) -> TombstoneEntry | None:
+    """Validate a (key, entry) pair from an untrusted payload.
+
+    Rejects malformed keys, missing/non-numeric timestamps, timestamps in
+    the future (beyond clock-skew tolerance) and malformed content hashes.
+
+    Args:
+        key: The tombstone key (expected sha256 hex of the relpath).
+        entry: The candidate tombstone entry.
+        now: Current unix timestamp used for the future-timestamp check.
+
+    Returns:
+        A sanitized :class:`TombstoneEntry`, or ``None`` when invalid.
+    """
+    if not _is_valid_key(key) or not isinstance(entry, dict) or "ts" not in entry:
+        return None
+    try:
+        ts = int(entry["ts"])  # type: ignore[index,call-overload]
+    except (TypeError, ValueError):
+        return None
+    if ts <= 0 or ts > now + TOMBSTONE_MAX_CLOCK_SKEW_SECONDS:
+        return None
+    sha = entry.get("sha256")  # type: ignore[union-attr]
+    if not _is_valid_sha256(sha):
+        return None
+    return TombstoneEntry(ts=ts, sha256=sha)  # type: ignore[typeddict-item]
 
 
 def tombstone_key(relpath: str) -> str:
@@ -101,15 +153,23 @@ class TombstoneStore:
         return {k: TombstoneEntry(ts=v["ts"], sha256=v["sha256"]) for k, v in self._data.items()}
 
     def merge(self, payload: dict[str, TombstoneEntry] | None) -> int:
-        """Merge a remote payload using last-writer-wins; return change count."""
+        """Merge a remote payload using last-writer-wins; return change count.
+
+        The payload is untrusted (it may come from any LAN peer via gossip):
+        entries are validated and the store size is capped. Invalid entries
+        are skipped silently so one bad marker cannot poison the merge.
+        """
         changed = 0
+        now = int(time.time())
         for key, entry in (payload or {}).items():
-            if not isinstance(entry, dict) or "ts" not in entry:
+            clean = _sanitize_entry(key, entry, now)
+            if clean is None:
                 continue
-            ts = int(entry["ts"])
             existing = self._data.get(key)
-            if existing is None or ts > existing["ts"]:
-                self._data[key] = TombstoneEntry(ts=ts, sha256=entry.get("sha256"))
+            if existing is None and len(self._data) >= TOMBSTONE_MAX_ENTRIES:
+                break
+            if existing is None or clean["ts"] > existing["ts"]:
+                self._data[key] = clean
                 changed += 1
         return changed
 
@@ -126,10 +186,14 @@ class TombstoneStore:
         except (OSError, ValueError):
             return
         entries = raw.get("tombstones", {}) if isinstance(raw, dict) else {}
+        now = int(time.time())
         data: dict[str, TombstoneEntry] = {}
         for key, entry in entries.items():
-            if isinstance(entry, dict) and "ts" in entry:
-                data[key] = TombstoneEntry(ts=int(entry["ts"]), sha256=entry.get("sha256"))
+            if len(data) >= TOMBSTONE_MAX_ENTRIES:
+                break
+            clean = _sanitize_entry(key, entry, now)
+            if clean is not None:
+                data[key] = clean
         self._data = data
 
     def save(self) -> None:
