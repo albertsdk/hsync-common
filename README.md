@@ -1,17 +1,16 @@
 # hsync-common
 
+**hsync-common** is the shared foundation that all other HSYNC projects build
+upon — data formats, compression, file exclusion rules, and security utilities.
+You don't install or run it directly; it's a library used by the client, server,
+desktop, and Android apps.
+
 > [!WARNING]
 > **HSYNC manipulates files and directories** — it creates, overwrites, moves, and deletes data.
 > Misconfiguration, software defects, or other unforeseen conditions may lead to **data loss or
 > corruption**. **Use at your own risk and always keep verified, independent backups.**
 > The software is provided "as is", without warranty of any kind — see the full
 > [Disclaimer](#disclaimer) and [License](#license) below.
-
-
-**hsync-common** is the shared foundation that all other HSYNC projects build
-upon — data formats, compression, file exclusion rules, and security utilities.
-You don't install or run it directly; it's a library used by the client, server,
-desktop, and Android apps.
 
 ---
 
