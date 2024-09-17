@@ -10,7 +10,7 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
 | `File` | `models/file.py:178` | `FileDict` (`models/file.py:80`) | sync metadata + content hash |
 | `Dir` | `models/dir.py:54` | — | `path`, octal `permissions` |
 | `Symlink` | `models/symlink.py:14` | — | `filepath`, `target`, `name`, times |
-| `Event` | `models/event.py:50` | `EventDict` (`models/event.py:21`) | FS change; `EventName` enum `models/event.py:31` |
+| `Event` | `models/event.py:63` | `EventDict` (`models/event.py:34`) | FS change; `EventName` enum `models/event.py:44`; `is_valid_cid` wire validator `models/event.py:29` |
 | `SyncAction` | `models/sync_action.py:31` | — | decision; `SyncActionName` enum `models/sync_action.py:14` |
 | `TombstoneStore` | `models/tombstone.py:101` | `TombstoneEntry` (`models/tombstone.py:42`) | deletion markers, LWW merge |
 | `SyncStateStore` / `FileVersion` | `models/version.py:100` / `:46` | `FileVersion` TypedDict | 3-way merge state |
@@ -30,7 +30,8 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
 
 ## Event / SyncAction
 
-- `EventName` (`models/event.py:31`): `added, modified, renamed, deleted, symlink`.
+- `EventName` (`models/event.py:44`): `added, modified, renamed, deleted, symlink`.
+- `is_valid_cid` (`models/event.py:29`): NanoID-alphabet/length check for peer-supplied client IDs.
 - `SyncActionName` (`models/sync_action.py:14`): `download, upload, delete, nothing`.
 
 ## TombstoneStore (deletion markers)
