@@ -25,7 +25,7 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
   `invalidate_sha256_cache` (`:43`), full clear `clear_sha256_cache` (`:34`).
 - Partial-download exclusion: `is_partial_file` (`models/file.py:92`) matches the
   `PARTIAL_DOWNLOAD_SUFFIX = ".part"` constant (`constants.py:74`); applied in
-  `_is_hidden_file_basic` (`:110`) and unconditionally by the ignore matcher.
+  the ignore matcher (`hsync_common.ignore.IgnoreMatcher`).
 - Hidden detection: `is_hidden_file` (`models/file.py:154`).
 
 ## Event / SyncAction

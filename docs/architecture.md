@@ -144,7 +144,8 @@ Key features:
 ### Dir
 
 Represents a directory with `path` and `permissions`. Includes `is_hidden_dir()`
-to detect dot-prefixed directories.
+which delegates to the active `IgnoreMatcher` to check whether a directory
+should be excluded from synchronisation.
 
 ### Symlink
 
@@ -294,13 +295,18 @@ files from synchronization. It supports the full gitignore specification:
 
 `IgnoreMatcher` combines three layers:
 
-1. **Default hidden patterns** — built-in rules for files starting with `.`,
-   temporary files (`.swp`, `~`, `.bak`), and lock files.
+1. **Default ignore patterns** — built-in gitignore-style patterns for
+   operating-system cache files (`.DS_Store`, `Thumbs.db`, ...) and
+   editor/office temporary files. These are **always active** and cannot be
+   disabled, following the industry standard (Syncthing, rsync, Nextcloud,
+   OneDrive). Dotfiles in general (`.env`, `.config`, `.git/` ...) are **not**
+   excluded: they are synchronised normally.
 2. **Per-bucket `.hsyncignore`** — user-defined rules in the bucket root.
 3. **Extra patterns** — programmatic patterns from `--ignore-patterns` CLI flag.
 
 The sentinel `.hsynckeep` file is always preserved regardless of any pattern.
-When `--sync-hidden` is passed, the default hidden patterns layer is disabled.
+Engine-owned artifacts (`.hsyncignore`, `.hsyncstate`, `.hsynctombstones`,
+`*.part`) are always excluded.
 
 ## Constants
 
