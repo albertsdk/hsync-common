@@ -658,6 +658,26 @@ class TestTombstoneStore:
         assert store.merge({key: {"ts": "soon", "sha256": None}}) == 0
         assert store.merge({key: {"ts": 0, "sha256": None}}) == 0
         assert len(store) == 0
+
+    def test_merge_rejects_non_finite_and_bool_timestamps(self):
+        """json.loads accepts Infinity/NaN: int() would then raise
+        OverflowError/ValueError — the merge must reject, not crash."""
+        now = int(time.time())
+        key = tombstone_key("victim.txt")
+        store = TombstoneStore()
+        assert store.merge({key: {"ts": float("inf"), "sha256": None}}) == 0
+        assert store.merge({key: {"ts": float("-inf"), "sha256": None}}) == 0
+        assert store.merge({key: {"ts": float("nan"), "sha256": None}}) == 0
+        assert store.merge({key: {"ts": True, "sha256": None}}) == 0
+        assert len(store) == 0
+        # A legitimate float timestamp still converts cleanly.
+        assert store.merge({key: {"ts": float(now), "sha256": None}}) == 1
+        assert store.get("victim.txt") is not None
+
+    def test_merge_accepts_timestamp_within_clock_skew(self):
+        now = int(time.time())
+        key = tombstone_key("victim.txt")
+        store = TombstoneStore()
         # A timestamp within the clock-skew tolerance is accepted.
         assert store.merge({key: {"ts": now + 60, "sha256": None}}) == 1
         assert store.get("victim.txt") is not None

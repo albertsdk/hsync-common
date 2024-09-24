@@ -399,6 +399,10 @@ INTERNAL_FILENAMES: frozenset[str] = frozenset(
     }
 )
 
+# Lowercase view of :data:`INTERNAL_FILENAMES` for the case-insensitive
+# matching done by :func:`is_internal_name` (case-insensitive filesystems).
+_INTERNAL_FILENAMES_LOWER: frozenset[str] = frozenset(n.lower() for n in INTERNAL_FILENAMES)
+
 
 def is_internal_name(name: str) -> bool:
     """Return True if *name* is an internal sync-engine artifact.
@@ -406,6 +410,11 @@ def is_internal_name(name: str) -> bool:
     Matches the basename against :data:`INTERNAL_FILENAMES` and the partial
     download suffix (``.part``). The per-peer sentinel ``.hsynckeep`` is NOT
     internal: it legitimately appears in delete events handled by clients.
+
+    The comparison is case-insensitive: on case-insensitive filesystems
+    (Windows, default macOS) ``.HSYNCIGNORE`` and ``.hsyncignore`` are the
+    same file, so a case-variant must be rejected too — otherwise a remote
+    peer could overwrite the victim's engine artifacts through the wire.
 
     Args:
         name: A filename or path; only the basename is considered.
@@ -415,8 +424,8 @@ def is_internal_name(name: str) -> bool:
     """
     from hsync_common.constants import PARTIAL_DOWNLOAD_SUFFIX
 
-    base = name.replace("\\", "/").rstrip("/").rsplit("/", 1)[-1]
-    return base in INTERNAL_FILENAMES or base.endswith(PARTIAL_DOWNLOAD_SUFFIX)
+    base = name.replace("\\", "/").rstrip("/").rsplit("/", 1)[-1].lower()
+    return base in _INTERNAL_FILENAMES_LOWER or base.endswith(PARTIAL_DOWNLOAD_SUFFIX.lower())
 
 
 def validate_remote_relpath(rel: str) -> str | None:

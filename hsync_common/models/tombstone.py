@@ -76,9 +76,17 @@ def _sanitize_entry(
     """
     if not _is_valid_key(key) or not isinstance(entry, dict) or "ts" not in entry:
         return None
+    raw_ts = entry["ts"]  # type: ignore[index]
+    if isinstance(raw_ts, bool):
+        # bool is an int subclass: reject it on the RAW value, before int()
+        # would silently turn True into a valid-looking timestamp of 1.
+        return None
     try:
-        ts = int(entry["ts"])  # type: ignore[index,call-overload]
-    except (TypeError, ValueError):
+        ts = int(raw_ts)  # type: ignore[call-overload]
+    except (TypeError, ValueError, OverflowError):
+        # Non-numeric ts, or a non-finite float (JSON ``Infinity``/``NaN``
+        # are accepted by json.loads and would crash int() with
+        # OverflowError/ValueError) — reject instead of blowing up the merge.
         return None
     if ts <= 0 or ts > now + TOMBSTONE_MAX_CLOCK_SKEW_SECONDS:
         return None
