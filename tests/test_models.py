@@ -479,6 +479,12 @@ class TestIsValidCid:
         assert is_valid_cid(None) is False
         assert is_valid_cid(123) is False
 
+    def test_trailing_newline_rejected(self):
+        # Python's `$` also matches before a final newline: with plain
+        # `re.match` a cid like "abc\n" would pass and could forge log lines.
+        assert is_valid_cid("abc\n") is False
+        assert is_valid_cid("legit-cid\nForged: synced /etc/passwd\n") is False
+
 
 class TestEventModel:
     def test_event_with_file_src(self):
@@ -741,6 +747,22 @@ class TestTombstoneStore:
     def test_load_corrupt_file_is_noop(self, tmp_path):
         path = tmp_path / ".hsynctombstones"
         path.write_text("{not json", encoding="utf-8")
+        store = TombstoneStore(path=str(path))
+        store.load()
+        assert len(store) == 0
+
+    def test_merge_rejects_non_dict_payload(self):
+        # Gossip payloads are untrusted: a JSON array/string must be ignored,
+        # not crash the merge with AttributeError.
+        store = TombstoneStore()
+        assert store.merge(["not", "a", "dict"]) == 0  # type: ignore[arg-type]
+        assert store.merge("string") == 0  # type: ignore[arg-type]
+        assert store.merge(None) == 0
+        assert len(store) == 0
+
+    def test_load_malformed_tombstones_member_is_noop(self, tmp_path):
+        path = tmp_path / ".hsynctombstones"
+        path.write_text(json.dumps({"tombstones": ["not", "a", "dict"]}), encoding="utf-8")
         store = TombstoneStore(path=str(path))
         store.load()
         assert len(store) == 0
