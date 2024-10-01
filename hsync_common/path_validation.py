@@ -296,14 +296,30 @@ def sanitize_filename(filename: str) -> str:
     # Remove problematic trailing characters
     filename = filename.rstrip(" .")
 
-    # Truncate to maximum filename length (255 chars is typical limit)
-    if len(filename) > 255:
+    # Truncate to maximum filename length (255 bytes is the typical limit on
+    # most filesystems). Truncation is byte-aware so a multi-byte UTF-8
+    # sequence is never split in the middle (which would produce an invalid
+    # encoding). The extension is preserved when possible.
+    filename_bytes = filename.encode("utf-8")
+    if len(filename_bytes) > 255:
         name, ext = filename.rsplit(".", 1) if "." in filename else (filename, "")
-        max_name_len = 255 - len(ext) - 1  # -1 for the dot
-        filename = name[:max_name_len] + "." + ext if ext else name[:255]
+        ext_bytes = ext.encode("utf-8")
+        # Reserve 1 byte for the dot + ext bytes; truncate the name part.
+        max_name_bytes = 255 - len(ext_bytes) - 1 if ext else 255
+        # Truncate the name to max_name_bytes without splitting a UTF-8
+        # character: decode with errors="ignore" drops any partial trailing
+        # sequence.
+        name_truncated = name.encode("utf-8")[:max_name_bytes].decode("utf-8", errors="ignore")
+        filename = (
+            f"{name_truncated}.{ext}"
+            if ext
+            else name.encode("utf-8")[:255].decode("utf-8", errors="ignore")
+        )
 
-    # Handle empty or reserved names (RESERVED_FILENAMES uses uppercase)
-    if not filename or filename.upper() in RESERVED_FILENAMES:
+    # Handle empty or reserved names. ``is_reserved_name`` correctly handles
+    # names with extensions (e.g. "NUL.txt" is reserved), unlike a plain
+    # ``filename.upper() in RESERVED_FILENAMES`` check.
+    if not filename or is_reserved_name(filename):
         filename = "unnamed"
 
     return filename
@@ -450,6 +466,16 @@ def wire_relpaths(payload: dict) -> list[str]:
     return paths
 
 
+# Maximum byte length of a single path component (filename). Most filesystems
+# (ext4, XFS, NTFS, APFS) enforce a 255-byte limit per component.
+MAX_PATH_COMPONENT_BYTES = 255
+
+# Maximum total byte length of a bucket-relative path. 4096 is the Linux
+# PATH_MAX; keeping the wire path well below it leaves room for the bucket
+# root prefix on the receiving peer and avoids ENAMETOOLONG at every cycle.
+MAX_REMOTE_RELPATH_BYTES = 4096
+
+
 def validate_remote_relpath(rel: str) -> str | None:
     """Validate a bucket-relative path received from a remote peer.
 
@@ -460,6 +486,8 @@ def validate_remote_relpath(rel: str) -> str | None:
       (protects Windows peers from Linux-legal but hostile names);
     - Windows reserved names and problematic trailing characters in any
       path component;
+    - path components longer than 255 bytes or total path longer than
+      4096 bytes (avoids ENAMETOOLONG and hostile multi-MB paths);
     - internal sync-engine artifacts (see :data:`INTERNAL_FILENAMES`).
 
     Args:
@@ -484,10 +512,17 @@ def validate_remote_relpath(rel: str) -> str | None:
     if not rel:
         return None
 
+    # Total path length bound (byte-aware for cross-platform safety).
+    if len(rel.encode("utf-8")) > MAX_REMOTE_RELPATH_BYTES:
+        return None
+
     for part in rel.split("/"):
         if not part or part in (".", ".."):
             return None
         if is_reserved_name(part) or has_problematic_trailing(part):
+            return None
+        # Per-component byte bound (filesystem limit).
+        if len(part.encode("utf-8")) > MAX_PATH_COMPONENT_BYTES:
             return None
 
     if is_internal_name(rel):
