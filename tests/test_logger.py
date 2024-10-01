@@ -54,7 +54,7 @@ class TestRotationDefaults:
         assert "days" in DEFAULT_LOG_RETENTION
 
     def test_compression_is_xz(self):
-        # O3: upgraded from gz to xz for better compression ratio (~30-40 %)
+        # Upgraded from gz to xz for better compression ratio (~30-40 %)
         assert DEFAULT_LOG_COMPRESSION == "xz"
 
 
