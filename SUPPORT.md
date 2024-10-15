@@ -11,7 +11,7 @@ the applications that use it, please refer to their documentation:
 For issues specific to the shared library itself:
 
 - **[GitHub Issues](https://github.com/albertobasso/hsync-common/issues)** — bug reports and feature requests.
-- **[Architecture Decision Records](docs/adr/README.md)** — the *why* behind the ecosystem's design decisions.
+- **[Architecture Decision Records](docs/internal/adr/README.md)** — the *why* behind the ecosystem's design decisions.
 - **[Security Policy](SECURITY.md)** — how to report security vulnerabilities privately.
 
 ## 💚 Solo project

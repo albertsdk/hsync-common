@@ -40,6 +40,6 @@ fixtures (`protocol/fixtures/lan-election-scenarios.json`) replayed in both
 - Edge cases are first-class and observable via parsable log markers
   (`[MASTER_CONFLICT]`, `[MASTER_TAKEOVER]`, `[NO_MASTER]`) and structured events.
 - The election decides *who serves*; *who to trust* is a separate concern
-  (TOFU pinning / pairing) documented in [LAN_PROTOCOL.md](../LAN_PROTOCOL.md).
+  (TOFU pinning / pairing) documented in [LAN_PROTOCOL.md](../../LAN_PROTOCOL.md).
 - Any change to ranking or TXT keys must regenerate the golden fixtures and the
   Android copy, keeping the human doc and the machine sources aligned.
