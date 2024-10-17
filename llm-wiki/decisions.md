@@ -15,7 +15,7 @@ each ADR to the code it governs.
 | [0006 master-authoritative-conflict-model](../docs/internal/adr/0006-master-authoritative-conflict-model.md) | `models/version.py:70` (`resolve_three_way`) |
 
 LAN transport/security specifics (TOFU pinning, LAN-key policy, threat model)
-live in [`../docs/LAN_PROTOCOL.md`](../docs/LAN_PROTOCOL.md) and map to
+live in [`../docs/lan-protocol.md`](../docs/lan-protocol.md) and map to
 `protocol/pairing.py` + `ssl_utils.py`.
 
 ## House rules (from `CLAUDE.md`)

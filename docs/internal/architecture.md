@@ -72,7 +72,7 @@ hsync-common/
 ├── README.md
 ├── docs/
 │   ├── architecture.md         # This file
-│   ├── LAN_PROTOCOL.md         # LAN discovery/election/pairing/security spec
+│   ├── lan-protocol.md         # LAN discovery/election/pairing/security spec
 │   └── adr/                    # Architecture Decision Records
 ├── llm-wiki/                   # Agent-optimized knowledge base
 └── hsync_common/
