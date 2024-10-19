@@ -35,6 +35,10 @@ differences between the Python and Kotlin implementations.
 | Compression | `hsync_common.compression` | `com.hsync.android.util.Compression` | Zstandard via `zstd-jni` |
 | Protocol version | `hsync_common.protocol.handshake` | `com.hsync.android.network.Protocol` | `PROTOCOL_VERSION_REST` |
 | Tombstone store | `hsync_common.models.tombstone` | `com.hsync.android.data.TombstoneStore` | JSON persistence, TTL pruning |
+| Delta engine | `hsync_common.delta` | `com.hsync.android.util.DeltaEngine` | Rolling Adler32, block signatures, find_matches, apply_delta |
+| Delta decision | `hsync_common.delta.decision` | `com.hsync.android.util.DeltaDecision` | Block size thresholds, worthwhileness gate |
+| Delta transfer | `hsync_client.delta_transfer` | `com.hsync.android.util.DeltaTransfer` | Client-side upload/download delta orchestration |
+| LAN delta | `hsync_client.lan_delta` | `com.hsync.android.p2p.LanDelta` | Master-side delta endpoints + token store |
 
 ### What is NOT mirrored
 

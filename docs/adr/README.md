@@ -37,6 +37,8 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0012](0012-rate-limiting.md) | Tiered per-IP rate limiting | Accepted |
 | [0013](0013-hsyncignore-gitignore-syntax.md) | `.hsyncignore` using gitignore syntax | Accepted |
 | [0014](0014-multi-repo-strategy.md) | Multi-repository architecture | Accepted |
+| [0015](0015-mass-deletion-guard.md) | Mass-deletion safety guard | Accepted |
+| [0016](0016-delta-transfer.md) | Delta transfer (rsync-style block sync) | Accepted |
 
 ## Related documents
 

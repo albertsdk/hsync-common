@@ -29,6 +29,8 @@ from hsync_common.hashing import is_sha256_hex
 __all__ = [
     "BlockSignature",
     "BlockSignatureDict",
+    "DeltaApplyMetadata",
+    "DeltaApplyMetadataDict",
     "DeltaInstructions",
     "DeltaInstructionsDict",
     "DeltaOp",
@@ -82,6 +84,25 @@ class DeltaInstructionsDict(TypedDict):
     block_size: int  # block size used for signature/matching
     ops: list[DeltaOpDict]  # ordered operations
     base_sha256: NotRequired[str]  # upload only: SHA-256 of the base file
+
+
+class DeltaApplyMetadataDict(TypedDict):
+    """Serialized metadata for POST /delta/apply (upload delta).
+
+    Sent as a JSON part in multipart/form-data alongside the literal payload.
+    The server uses these fields to validate the apply operation and update
+    file metadata after successful reconstruction.
+    """
+
+    cid: str  # client ID (for event broadcasting and echo suppression)
+    base_sha256: str  # SHA-256 of the base file (race check: 409 if changed)
+    new_sha256: str  # expected SHA-256 of the reconstructed file (verification)
+    new_size: int  # expected size of the reconstructed file (coverage check)
+    block_size: int  # block size used for signature/matching
+    compressed: bool  # whether the literal payload is zstd-compressed
+    mtime: NotRequired[float]  # modification time (epoch seconds) to preserve
+    permissions: NotRequired[str]  # octal permissions string (e.g., "644")
+    ops: list[DeltaOpDict]  # ordered operations to rebuild the file
 
 
 @dataclass(frozen=True)
@@ -154,6 +175,43 @@ class DeltaInstructions:
         )
         if self.base_sha256 is not None:
             out["base_sha256"] = self.base_sha256
+        return out
+
+
+@dataclass(frozen=True)
+class DeltaApplyMetadata:
+    """Metadata for POST /delta/apply (upload delta).
+
+    Sent as a JSON part in multipart/form-data alongside the literal payload.
+    The server uses these fields to validate the apply operation and update
+    file metadata after successful reconstruction.
+    """
+
+    cid: str
+    base_sha256: str
+    new_sha256: str
+    new_size: int
+    block_size: int
+    compressed: bool
+    ops: tuple[DeltaOp, ...] = field(default_factory=tuple)
+    mtime: float | None = None
+    permissions: str | None = None
+
+    def to_dict(self) -> DeltaApplyMetadataDict:
+        """Serialize to the wire shape."""
+        out = DeltaApplyMetadataDict(
+            cid=self.cid,
+            base_sha256=self.base_sha256,
+            new_sha256=self.new_sha256,
+            new_size=self.new_size,
+            block_size=self.block_size,
+            compressed=self.compressed,
+            ops=[op.to_dict() for op in self.ops],
+        )
+        if self.mtime is not None:
+            out["mtime"] = self.mtime
+        if self.permissions is not None:
+            out["permissions"] = self.permissions
         return out
 
 
