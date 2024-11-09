@@ -95,6 +95,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Updated development dependencies: coverage 7.15.2, filelock 3.31.2,
   platformdirs 4.10.1, ruff 0.15.22
+- **Docs**: Updated `CONTRIBUTING.md` — added a test-structure table organised
+  by area (protocol, models, path validation, delta, compression, config,
+  utils, docs) covering the actual test files, expanded the test command
+  examples, and added a cross-project testing section reminding contributors
+  to run the downstream `hsync-client` and `hsync-server` suites when changing
+  shared models or protocol constants.
 
 ## [1.0.0] — 2025-12-xx
 
