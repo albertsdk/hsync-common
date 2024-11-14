@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Runtime environment detection** (`hsync_common.runtime`): container
+  detection (`detect_container` → Docker/Podman/Kubernetes/containerd via the
+  `container` env var, `/.dockerenv`, `/run/.containerenv`, `/proc/1/cgroup`
+  markers), interactive-terminal detection (`is_tty_interactive`), the color
+  output gate SSOT (`color_output_enabled`: `--no-color` flag, standard
+  `NO_COLOR` env, stdout TTY), cgroup resource introspection
+  (`get_memory_limit_bytes` / `get_cpu_quota_cores`, v2 with v1 fallback), and
+  `runtime_summary` for one-line startup logs.
 - **Delta transfer protocol**: new `delta` capability token in
   `hsync_common.protocol.handshake.Capability`; new `delta` optional key in
   `LAN_TXT_KEYS` (`hsync_common.protocol.schemas`); regenerated `txt-schema.json`
@@ -93,6 +101,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   leading dots/slashes, so `.hsyncignore` patterns can match dotfiles again
 
 ### Changed
+- **Ignore patterns**: vim swap files are now matched only as dotfiles
+  (`.*.sw?` replaces `*.swp`/`*.swo` in `DEFAULT_IGNORE_PATTERNS`), so
+  non-hidden names such as `animation.swf` are no longer excluded by mistake.
+  Real Vim/Neovim swap files (`.file.swp`, `.file.swo`, `.file.swx`) remain
+  ignored.
 - Updated development dependencies: coverage 7.15.2, filelock 3.31.2,
   platformdirs 4.10.1, ruff 0.15.22
 - **Docs**: Updated `CONTRIBUTING.md` — added a test-structure table organised

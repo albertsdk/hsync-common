@@ -61,8 +61,7 @@ DEFAULT_IGNORE_PATTERNS: tuple[str, ...] = (
     # --- Microsoft Office lock / temp files ---
     "~$*",
     # --- Editor swap / backup / lock files ---
-    "*.swp",
-    "*.swo",
+    ".*.sw?",
     "*~",
     "4913",
     ".~lock.*#",

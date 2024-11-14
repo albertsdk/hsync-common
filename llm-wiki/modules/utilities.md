@@ -93,6 +93,25 @@ formatting/hashing/parsing helper (DRY rule in `CLAUDE.md`).
 - `compute_clock_offset` (`clock.py:46`) / `measure_clock_offset` (`:64`);
   `CLOCK_SKEW_THRESHOLD = 5.0` (`:29`). NTP-style offset for sync timestamps.
 
+## runtime.py (container / TTY / cgroup detection)
+
+- `ContainerInfo` (`runtime.py:78`) — frozen dataclass: `is_container`,
+  `runtime`, `method` (which probe produced the verdict).
+- `detect_container` (`runtime.py:106`) — probes in precedence order:
+  `container` env var, `/.dockerenv`, `/run/.containerenv`, runtime markers in
+  `/proc/1/cgroup` (docker / podman / kubernetes / containerd). Never raises.
+- `is_tty_interactive` (`runtime.py:151`) — True only when stdin **and** stdout
+  are TTYs; False in containers without `-t`, systemd units, cron, pipes.
+- `color_output_enabled` (`runtime.py:161`) — color gate SSOT used by the
+  client/server loggers: `--no-color` flag, `NO_COLOR` env (no-color.org), TTY.
+- `get_memory_limit_bytes` (`runtime.py:215`) / `get_cpu_quota_cores`
+  (`runtime.py:254`) — cgroup v2 (`memory.max`, `cpu.max`) with v1 fallback;
+  `None` = unlimited/unknown. Unlike `os.cpu_count()`, the CPU quota reflects
+  container limits, not host hardware.
+- `runtime_summary` (`runtime.py:272`) — one-line startup log line composed
+  from the probes above; logged by both client (`run_sync`) and server
+  (`__main__`) at startup.
+
 ## format.py / text.py / env.py / exceptions.py
 
 - `format_bytes` (`format.py:23`), `format_duration` (`format.py:47`).
