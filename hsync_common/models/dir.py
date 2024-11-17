@@ -11,22 +11,6 @@ from typing import Optional
 from hsync_common.permissions import get_permissions
 
 
-def _is_hidden_dir_basic(directory: str) -> bool:
-    """Pure dot-prefix hidden-directory check (no ignore rules).
-
-    A directory is considered hidden if its name, or its immediate parent's
-    name, starts with a dot. This is the legacy detection used as the
-    fallback inside :class:`hsync_common.ignore.IgnoreMatcher`; keeping it
-    separate from :func:`is_hidden_dir` avoids infinite recursion when a
-    matcher is active.
-    """
-    path = Path(directory.rstrip("/"))
-    if path.name.startswith("."):
-        return True
-    parent = path.parent
-    return parent != path and parent.name.startswith(".")
-
-
 def is_hidden_dir(directory: str) -> bool:
     """
     Check if a directory must be excluded from synchronisation.
@@ -34,21 +18,23 @@ def is_hidden_dir(directory: str) -> bool:
     When a process-wide :class:`hsync_common.ignore.IgnoreMatcher` is active
     (installed by the client at startup) it is consulted so that
     ``.hsyncignore`` rules and extra patterns are honoured. When no matcher
-    is installed (e.g. on the server) the legacy dot-prefix detection is used,
-    preserving the previous behaviour.
+    is installed (e.g. on the server) the built-in default ignore patterns
+    (:data:`hsync_common.constants.DEFAULT_IGNORE_PATTERNS`) are used.
+
+    Following the industry standard (Syncthing, rsync, Nextcloud, OneDrive),
+    dotfile directories in general (``.git/``, ``.config/`` …) are **not**
+    excluded: only OS cache directories and editor/office temporary files are
+    filtered by default.
 
     Args:
         directory: Path to the directory.
 
     Returns:
-        True if the directory is hidden/ignored, False otherwise.
+        True if the directory is ignored, False otherwise.
     """
-    from hsync_common.ignore import get_active_matcher
+    from hsync_common.ignore import should_skip
 
-    matcher = get_active_matcher()
-    if matcher is not None:
-        return matcher.matches(directory, is_dir=True)
-    return _is_hidden_dir_basic(directory)
+    return should_skip(directory, is_dir=True)
 
 
 class Dir:

@@ -8,11 +8,9 @@ This module defines the File class representing a file with its metadata
 from collections import OrderedDict
 from datetime import UTC, datetime
 from pathlib import Path
-from re import match
 from typing import Optional, TypedDict
 
 from hsync_common.constants import (
-    HSYNCKEEP_FILENAME,
     PARTIAL_DELTA_SUFFIX,
     PARTIAL_DOWNLOAD_SUFFIX,
 )
@@ -99,7 +97,7 @@ def is_partial_file(file_path: str) -> bool:
     Bytes are streamed to ``<final>.part`` and atomically renamed to the final
     name only after the SHA-256 checksum is verified, so a ``.part`` file is
     always a transient internal artifact that must be excluded from
-    synchronisation regardless of the ``include_hidden`` setting or
+    synchronisation regardless of
     ``.hsyncignore`` rules. The same applies to delta-transfer artifacts:
     ``<final>.delta.part`` (already covered by the ``.part`` suffix) and the
     parked literal payload ``<final>.delta.part.lit``.
@@ -114,50 +112,6 @@ def is_partial_file(file_path: str) -> bool:
     return name.endswith(PARTIAL_DOWNLOAD_SUFFIX) or name.endswith(f"{PARTIAL_DELTA_SUFFIX}.lit")
 
 
-def _is_hidden_file_basic(file_path: str) -> bool:
-    """Pure hidden/temporary/backup file check (no ignore rules).
-
-    Matches various patterns for hidden, temporary, and backup files:
-    - ^\\..* : Files starting with a dot (Unix hidden files)
-    - .*~$ : Emacs/editor backup files ending with tilde
-    - ^4913$ : Vim temporary file identifier
-    - ^\\..*\\.sw[px]$ : Vim swap files (.swp, .swo)
-    - ^\\.~lock\\..*#$ : LibreOffice lock files
-    - .*\\.bak$ : Common backup files ending with .bak
-    - .*\\.tmp$ : Temporary files ending with .tmp
-    - .*\\.temp$ : Temporary files ending with .temp
-    - .*\\.swp$ : Swap files ending with .swp
-    - .*\\.swo$ : Swap files ending with .swo
-    - .*-\\d{4}-\\d{2}-\\d{2}-\\d{6}$ : Date-timestamped backups
-
-    This is the legacy detection used as the fallback inside
-    :class:`hsync_common.ignore.IgnoreMatcher`; keeping it separate from
-    :func:`is_hidden_file` avoids infinite recursion when a matcher is active.
-
-    Args:
-        file_path: Path to the file to check.
-
-    Returns:
-        True if the file matches any hidden file pattern, False otherwise.
-    """
-    name = Path(file_path).name
-
-    # Sentinel file for empty-directory sync — never hidden
-    if name == HSYNCKEEP_FILENAME:
-        return False
-
-    # hsync's own in-progress transfer artifacts (.part) are never synced.
-    if is_partial_file(file_path):
-        return True
-
-    hidden_file_regex = (
-        r"(^\..*|.*~$|^4913$|^\..*\.sw[px]$|^\.~lock\..*#$|"
-        r".*\.bak$|.*\.tmp$|.*\.temp$|.*\.swp$|.*\.swo$|"
-        r".*-\d{4}-\d{2}-\d{2}-\d{6}$)"
-    )
-    return bool(match(hidden_file_regex, name))
-
-
 def is_hidden_file(file_path: str) -> bool:
     """
     Check if a file must be excluded from synchronisation.
@@ -165,21 +119,22 @@ def is_hidden_file(file_path: str) -> bool:
     When a process-wide :class:`hsync_common.ignore.IgnoreMatcher` is active
     (installed by the client at startup) it is consulted so that
     ``.hsyncignore`` rules and extra patterns are honoured. When no matcher
-    is installed (e.g. on the server) the legacy pattern detection is used,
-    preserving the previous behaviour.
+    is installed (e.g. on the server) the built-in default ignore patterns
+    (:data:`hsync_common.constants.DEFAULT_IGNORE_PATTERNS`) are used.
+
+    Following the industry standard (Syncthing, rsync, Nextcloud, OneDrive),
+    dotfiles in general (``.env``, ``.config`` …) are **not** excluded: only
+    OS cache files and editor/office temporary files are filtered by default.
 
     Args:
         file_path: Path to the file to check.
 
     Returns:
-        True if the file is hidden/ignored, False otherwise.
+        True if the file is ignored, False otherwise.
     """
-    from hsync_common.ignore import get_active_matcher
+    from hsync_common.ignore import should_skip
 
-    matcher = get_active_matcher()
-    if matcher is not None:
-        return matcher.matches(file_path, is_dir=False)
-    return _is_hidden_file_basic(file_path)
+    return should_skip(file_path, is_dir=False)
 
 
 class File:
