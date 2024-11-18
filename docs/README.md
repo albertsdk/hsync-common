@@ -45,10 +45,9 @@ from hsync_common.protocol.handshake import PROTOCOL_VERSION_REST
 
 ## Related projects
 
-- [hsync-client](https://github.com/albertobasso/hsync-client/blob/main/docs/README.md) — the sync client / CLI.
-- [hsync-server](https://github.com/albertobasso/hsync-server/blob/main/docs/README.md) — the central server.
-- [hsync-desktop](https://github.com/albertobasso/hsync-desktop/blob/main/docs/README.md) — the desktop GUI *(in development)*.
-- [hsync-android](https://github.com/albertobasso/hsync-android/blob/main/docs/README.md) — the Android app *(in development)*.
+- [HSYNC Client](https://github.com/albertobasso/hsync-client/blob/main/README.md) - Sync client (Server Mode and LAN/P2P Mode)
+- [HSYNC Server](https://github.com/albertobasso/hsync-server/blob/main/README.md) - Central synchronization server (Server Mode)
+- [HSYNC Desktop](https://github.com/albertobasso/hsync-desktop/blob/main/docs/README.md) — desktop GUI front-end *(in development)*.
 
-> **Note:** The desktop GUI (`hsync-desktop`) and the Android app (`hsync-android`)
-> are still under active development and are not yet ready for production use.
+> **Note:** The desktop GUI (`HSYNC Desktop`) is still under active development
+> and are not yet ready for production use.
