@@ -77,8 +77,12 @@ back to the legacy hidden-file check when no matcher is active.
 
 ## Documentation
 
-- [Architecture](docs/architecture.md) - Shared models, utilities, and how they fit the HSYNC ecosystem
-- [Architecture Decision Records](docs/adr/README.md) - Why the stable, cross-project decisions were made
+- [Usage](docs/usage.md) - How to integrate hsync-common as a dependency
+- [Models](docs/models.md) - Shared data models reference
+- [Utilities](docs/utilities.md) - Cross-cutting utilities guide
+- [Protocol](docs/protocol.md) - Versioned wire protocol reference
+- [Internal Architecture](docs/internal/architecture.md) - Shared models, utilities, and how they fit the HSYNC ecosystem
+- [Architecture Decision Records](docs/internal/adr/README.md) - Why the stable, cross-project decisions were made
 - [Contributing](CONTRIBUTING.md) - Development setup and contribution guidelines
 - [Security Policy](SECURITY.md) - Supported versions and how to report vulnerabilities
 

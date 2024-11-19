@@ -10,7 +10,7 @@ This page explains what is mirrored, how to keep it in sync, and the
 differences between the Python and Kotlin implementations.
 
 > The *why* behind this approach is documented in the
-> [Architecture Decision Records](adr/README.md).
+> [Architecture Decision Records](internal/adr/README.md).
 
 ## Table of Contents
 
@@ -221,6 +221,6 @@ Both test suites should run in CI when either project changes:
 
 ## See also
 
-- [Architecture](architecture.md) — `hsync-common` architecture overview.
-- [Architecture Decision Records](adr/README.md) — why the mirroring approach was chosen.
+- [Architecture](internal/architecture.md) — `hsync-common` architecture overview.
+- [Architecture Decision Records](internal/adr/README.md) — why the mirroring approach was chosen.
 - [LAN Protocol](LAN_PROTOCOL.md) — protocol specification.
