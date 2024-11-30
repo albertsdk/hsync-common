@@ -6,15 +6,8 @@
 
 **hsync-common** is the shared foundation that all other HSYNC projects build
 upon — data formats, compression, file exclusion rules, and security utilities.
-You don't install or run it directly; it's a library used by the client, server,
-desktop, and Android apps.
-
-> [!WARNING]
-> **HSYNC manipulates files and directories** — it creates, overwrites, moves, and deletes data.
-> Misconfiguration, software defects, or other unforeseen conditions may lead to **data loss or
-> corruption**. **Use at your own risk and always keep verified, independent backups.**
-> The software is provided "as is", without warranty of any kind — see the full
-> [Disclaimer](#disclaimer) and [License](#license) below.
+You don't install or run it directly; it's a library used by the client, server and
+desktop application.
 
 ---
 
@@ -97,9 +90,10 @@ back to the legacy hidden-file check when no matcher is active.
 - [HSYNC Client](https://github.com/albertobasso/hsync-client/blob/main/README.md) - Sync client (Server Mode and LAN/P2P Mode)
 - [HSYNC Server](https://github.com/albertobasso/hsync-server/blob/main/README.md) - Central synchronization server (Server Mode)
 - [HSYNC Desktop](https://github.com/albertobasso/hsync-desktop/blob/main/docs/README.md) — desktop GUI front-end *(in development)*.
+- [HSYNC Android](https://github.com/albertobasso/hsync-android/blob/main/docs/README.md) — the Android app *(in development)*.
 
-> **Note:** The desktop GUI (`HSYNC Desktop`) is still under active development
-> and are not yet ready for production use.
+> **Note:** The desktop GUI (`HSYNC Desktop`) and the Android app (`HSYNC Android`)
+> are still under active development and are not yet ready for production use.
 
 ## Disclaimer
 
