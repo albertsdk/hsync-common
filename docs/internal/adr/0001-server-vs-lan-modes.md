@@ -43,4 +43,4 @@ is opt-in (`--lan-mode`); server mode is the default.
   controls on advertised binary capabilities ([ADR-0004](0004-desktop-subprocess-contract.md)).
 - Security posture differs by mode: the LAN channel is designed for a trusted
   LAN and degrades safely on untrusted networks (TOFU pinning, write-key policy,
-  strict pairing) — see [LAN_PROTOCOL.md](../../LAN_PROTOCOL.md).
+  strict pairing) — see [lan-protocol.md](../../lan-protocol.md).

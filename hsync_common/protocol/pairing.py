@@ -24,7 +24,7 @@ drift:
 
 Both are side-effect free; persistence (the pin store) and I/O (events, prompts)
 live in the consuming client, never here. The threat model these decisions
-implement is documented in ``hsync-common/docs/LAN_PROTOCOL.md``.
+implement is documented in ``hsync-common/docs/lan-protocol.md``.
 """
 
 from __future__ import annotations

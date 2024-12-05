@@ -43,4 +43,4 @@ consequences accepted. Code answers "how"; these records answer "why".
 ## Related documents
 
 - [HSYNC Common Architecture](../architecture.md)
-- [LAN Discovery & Master Election](../../LAN_PROTOCOL.md)
+- [LAN Discovery & Master Election](../../lan-protocol.md)

@@ -32,7 +32,7 @@ from hsync_common.protocol.handshake import PROTOCOL_VERSION_REST
 - **Understanding the shared models?** → Read the [Models guide](models.md).
 - **Using the utilities?** → See the [Utilities guide](utilities.md).
 - **Working with the protocol?** → Read the [Protocol guide](protocol.md).
-- **Implementing LAN P2P?** → The [LAN Protocol spec](LAN_PROTOCOL.md) is the authoritative reference.
+- **Implementing LAN P2P?** → The [LAN Protocol spec](lan-protocol.md) is the authoritative reference.
 - **Working on the Android app?** → See [Android Mirroring](android-mirroring.md) for Kotlin/Python sync.
 - **Why were these decisions made?** → The [Architecture Decision Records](internal/adr/README.md) document the rationale.
 - **Contributing to the codebase?** → See the [Internal architecture](internal/architecture.md).
@@ -45,7 +45,7 @@ from hsync_common.protocol.handshake import PROTOCOL_VERSION_REST
 | [models.md](models.md) | The shared data models: File, Dir, Symlink, Event, SyncAction, TombstoneStore, SyncStateStore, delta models. |
 | [utilities.md](utilities.md) | Cross-cutting utilities: compression, hashing, ignore matcher, path validation, SSL, logging, clock, formatting. |
 | [protocol.md](protocol.md) | Versioned wire protocol: handshake, capabilities, LAN election, pairing, JSON-Schemas, fixtures. |
-| [LAN_PROTOCOL.md](LAN_PROTOCOL.md) | The LAN discovery, master-election, pairing, and security specification (authoritative reference). |
+| [lan-protocol.md](lan-protocol.md) | The LAN discovery, master-election, pairing, and security specification (authoritative reference). |
 | [android-mirroring.md](android-mirroring.md) | How Python models are mirrored in Kotlin for the Android app. |
 | [internal/architecture.md](internal/architecture.md) | Internal architecture — models, utilities, and the protocol package in detail. |
 | [internal/adr/](internal/adr/README.md) | Architecture Decision Records — the *why* behind the ecosystem's stable, cross-project decisions. |

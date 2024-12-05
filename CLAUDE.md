@@ -53,7 +53,7 @@ index `README.md` honest about what actually exists.
 ## ⚠️ Domain-Critical Rules
 
 * **LAN Discovery & Master Election**
-  Before modifying any logic related to these mechanisms, you **MUST** read and follow the specifications outlined in `hsync-common/docs/LAN_PROTOCOL.md`.
+  Before modifying any logic related to these mechanisms, you **MUST** read and follow the specifications outlined in `hsync-common/docs/lan-protocol.md`.
 
 * **Packaging WD My Cloud OS5**
   Any change to CLI flags, environment variables (`HSYNC_*`), or user-facing behaviors/defaults **REQUIRES** a synchronous update to `hsync-client/packaging/wd-os5`:

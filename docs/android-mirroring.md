@@ -223,4 +223,4 @@ Both test suites should run in CI when either project changes:
 
 - [Architecture](internal/architecture.md) — `hsync-common` architecture overview.
 - [Architecture Decision Records](internal/adr/README.md) — why the mirroring approach was chosen.
-- [LAN Protocol](LAN_PROTOCOL.md) — protocol specification.
+- [LAN Protocol](lan-protocol.md) — protocol specification.
