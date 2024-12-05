@@ -111,6 +111,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   GNOME editors (gedit, nautilus, …) during atomic safe-save and must never
   be synced; the client's watcher reframes the temp→final rename as a content
   `modified` of the destination file.
+- **Ignore patterns**: Chromium-based browser (Chrome, Edge, Brave) in-progress
+  download temp files (`*.crdownload`) are now in `DEFAULT_IGNORE_PATTERNS`.
+  These files are created during an active download and renamed to the final
+  name only when complete; syncing them would propagate a truncated file.
 - Updated development dependencies: coverage 7.15.2, filelock 3.31.2,
   platformdirs 4.10.1, ruff 0.15.22
 - **Docs**: Updated `CONTRIBUTING.md` — added a test-structure table organised
