@@ -39,6 +39,7 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0014](0014-multi-repo-strategy.md) | Multi-repository architecture | Accepted |
 | [0015](0015-mass-deletion-guard.md) | Mass-deletion safety guard | Accepted |
 | [0016](0016-delta-transfer.md) | Delta transfer (rsync-style block sync) | Accepted |
+| [0017](0017-lan-slave-outbound-event-reliability.md) | LAN slave outbound event reliability (defer-to-close uploads, echo-pair rename caching) | Accepted |
 
 ## Related documents
 
