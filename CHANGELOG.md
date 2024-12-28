@@ -7,7 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Log label format normalized to spaces**: multi-word `ActionLabel` *values*
+  (the strings emitted in logs) now use spaces instead of underscores — e.g.
+  `[NO MASTER]`, `[TO DOWNLOAD]`, `[FINGERPRINT CHANGED]` instead of
+  `[NO_MASTER]`/`[TO_DOWNLOAD]`/`[FINGERPRINT_CHANGED]`. The enum *member* names
+  stay snake_case (`NO_MASTER`, `TO_DOWNLOAD`, …) and `resolve_label` still
+  translates a spaced stem to the member. **Breaking** for any consumer that
+  grep-parses these strings: the Android Kotlin mirror, Python tests, docstring
+  references and user docs have been updated atomically.
+
 ### Added
+- **Shared action-label SSOT** (`hsync_common.labels`): the `ActionLabel`
+  `StrEnum` (every bracketed log label across the ecosystem), the
+  `LABEL_CATEGORIES` semantic-color map, the derived `LABEL_STYLES` view, the
+  `colorize_labels` helper (wired into both client and server loguru
+  formatters), and `resolve_label` (the single label-resolution helper shared by
+  the watchdog handlers and the inbound event dispatcher). Client and server
+  now re-export `ActionLabel` from here; no project-local label table remains.
+  Labels are grouped into semantic categories (transfer/upload/create/modify/
+  rename/delete/permission/in-sync/warning/security/infrastructure) so the log
+  output uses a small set of meaningful colors instead of one per label.
 - **Runtime environment detection** (`hsync_common.runtime`): container
   detection (`detect_container` → Docker/Podman/Kubernetes/containerd via the
   `container` env var, `/.dockerenv`, `/run/.containerenv`, `/proc/1/cgroup`
