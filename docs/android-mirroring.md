@@ -28,28 +28,35 @@ differences between the Python and Kotlin implementations.
 
 | Module | Python | Kotlin | Notes |
 |--------|--------|--------|-------|
-| Data models | `hsync_common.models` | `com.hsync.android.data.model` | `File`, `Dir`, `Symlink`, `Event`, `SyncAction`, `TombstoneEntry` |
-| Event types | `hsync_common.models.event.EventName` | `com.hsync.android.data.model.EventName` | `added`, `modified`, `renamed`, `deleted`, `symlink` |
-| Sync actions | `hsync_common.models.sync_action.SyncActionName` | `com.hsync.android.data.model.SyncActionName` | `download`, `upload`, `delete`, `nothing` |
-| Constants | `hsync_common.constants` | `com.hsync.android.util.Constants` | `VERSION`, sentinel filenames, chunk sizes |
-| Compression | `hsync_common.compression` | `com.hsync.android.util.Compression` | Zstandard via `zstd-jni` |
-| Protocol version | `hsync_common.protocol.handshake` | `com.hsync.android.network.Protocol` | `PROTOCOL_VERSION_REST` |
-| Tombstone store | `hsync_common.models.tombstone` | `com.hsync.android.data.TombstoneStore` | JSON persistence, TTL pruning |
+| File model | `hsync_common.models.file.File` | `com.hsync.android.data.model.FileItem` | `filepath`, `name`, `ctime`, `mtime`, `size`, `sha256sum`, `permissions` |
+| Sync actions | `hsync_common.models.sync_action.SyncActionName` | `com.hsync.android.data.model.SyncAction` | `NOTHING`, `DOWNLOAD`, `UPLOAD`, `DELETE`, `RENAME` |
+| Protocol version | `hsync_common.protocol.handshake` | `com.hsync.android.data.api.Protocol` | `VERSION_REST`, `VERSION_WS`, `VERSION_LAN`, capability tokens |
+| Compression | `hsync_common.compression` | `com.hsync.android.util.CompressionManager` | Zstandard via `zstd-jni`, level 3 |
+| Tombstone store | `hsync_common.models.tombstone` | `com.hsync.android.util.TombstoneStore` (`Tombstones.kt`) | JSON persistence, TTL pruning, LWW merge |
+| Sync state (three-way merge) | `hsync_common.models.version` | `com.hsync.android.util.SyncStateStore` (`Version.kt`) | `FileVersion`, `resolveThreeWay`, `.hsyncstate` side-car |
 | Delta engine | `hsync_common.delta` | `com.hsync.android.util.DeltaEngine` | Rolling Adler32, block signatures, find_matches, apply_delta |
 | Delta decision | `hsync_common.delta.decision` | `com.hsync.android.util.DeltaDecision` | Block size thresholds, worthwhileness gate |
 | Delta transfer | `hsync_client.delta_transfer` | `com.hsync.android.util.DeltaTransfer` | Client-side upload/download delta orchestration |
 | LAN delta | `hsync_client.lan_delta` | `com.hsync.android.p2p.LanDelta` | Master-side delta endpoints + token store |
+| LAN election | `hsync_common.protocol.lan` | `com.hsync.android.p2p.Election` | `electMaster`, `ranked` |
+| LAN pairing | `hsync_common.protocol.pairing` | `com.hsync.android.p2p.Pairing` | `evaluatePin`, `lanWriteRequiresKey`, `requiresPairingConfirmation` |
 
 ### What is NOT mirrored
 
-- **Path validation** — Android uses SAF (Storage Access Framework) which
-  provides path safety at the OS level.
-- **Ignore matcher** — Reimplemented with Android-specific optimizations
-  because SAF file access patterns differ from POSIX.
-- **SSL utilities** — Android uses its own `KeyStore` and `CertificateFactory`.
-- **Logger/Env/Text utilities** — Platform-specific implementations.
-- **SyncStateStore (three-way merge)** — Not yet mirrored; Android uses the
-  legacy mtime/hash heuristic for conflict resolution.
+- **Path validation** — Android has its own `PathValidation.kt` adapted to SAF
+  (Storage Access Framework) path semantics rather than POSIX paths.
+- **Ignore matcher** — Reimplemented as `IgnoreMatcher.kt`/`IgnoreRule.kt` with
+  Android-specific optimizations because SAF file access patterns differ from
+  POSIX.
+- **SSL utilities** — Android uses its own `SslHelper.kt` built on `KeyStore`
+  and `CertificateFactory`.
+- **Logger/Env/Text utilities** — Platform-specific implementations
+  (`LogManager.kt`, `SecureStorage.kt`, etc.).
+- **Dir / Symlink / Event models** — The Android app models filesystem state
+  through `FileItem` and the SAF layer; the Python `Dir`, `Symlink` and `Event`
+  wire models are not mirrored as standalone Kotlin classes.
+- **`EventName` enum** — Android uses its own event vocabulary in
+  `FileEventQueue.kt` rather than the Python `EventName` values.
 
 ---
 
@@ -72,8 +79,8 @@ hsync-common/
     ├── lan-election-scenarios.json   # Master election test vectors
     └── lan-pairing-scenarios.json    # Pairing/pinning test vectors
 
-# Python tests use: tests/test_fixtures.py
-# Kotlin tests use: app/src/test/java/.../ProtocolFixturesTest.kt
+# Python tests use: tests/test_protocol_fixtures.py
+# Kotlin tests use: app/src/test/java/.../LanElectionParityTest.kt, LanPairingParityTest.kt
 ```
 
 Both test suites load the same JSON files and verify their implementations
@@ -85,24 +92,30 @@ produce identical results.
 
 ### File model comparison
 
-| Field | Python (`File`) | Kotlin (`File`) | Wire format |
-|-------|-----------------|-----------------|-------------|
-| `filepath` | `str \| None` | `String?` | `"filepath"` or omitted |
+| Field | Python (`File`) | Kotlin (`FileItem`) | Wire format |
+|-------|-----------------|---------------------|-------------|
+| `filepath` | `str \| None` | `String` | `"filepath"` or omitted |
 | `name` | `str \| None` | `String?` | `"name"` or omitted |
 | `ctime` | `int \| None` | `Long?` | Unix timestamp |
 | `mtime` | `int \| None` | `Long?` | Unix timestamp |
 | `size` | `int` | `Long` | Integer bytes |
 | `sha256sum` | `str \| None` | `String?` | Hex string |
 | `permissions` | `str \| None` | `String?` | Symbolic string |
+| `id` | — | `String` | Local UUID (not on the wire) |
+| `action` | — | `SyncAction` | Local sync-queue state (not on the wire) |
+| `status` | — | `FileStatus` | Local sync-queue state (not on the wire) |
 
 ### Key differences
 
-- **SHA-256 caching**: Python uses an in-memory LRU cache; Kotlin uses a
-  simpler `LruCache` from Android's `android.util`.
-- **Adaptive chunk sizes**: Same constants, different I/O primitives
-  (Python `open()` vs Kotlin `FileInputStream`).
+- **SHA-256 caching**: Python uses an in-memory LRU cache keyed by
+  `(filepath, mtime)`; Kotlin's `FileHashUtils` computes hashes on demand with
+  a fixed 8 KB buffer and no caching.
+- **Adaptive chunk sizes**: Python uses 8 KB / 64 KB / 256 KB depending on file
+  size; Kotlin's `FileHashUtils` uses a single fixed 8 KB buffer.
 - **`FileDict`**: Python's `TypedDict` has no Kotlin equivalent; Kotlin uses
-  a `data class` with `kotlinx.serialization`.
+  a `data class` (`FileItem`) serialized with Gson.
+- **Serialization**: Python uses Pydantic/dataclass `to_dict()`; Kotlin uses
+  Gson with `@SerializedName` annotations for snake_case wire fields.
 
 ---
 
@@ -122,27 +135,24 @@ CHUNK_SIZE_MEDIUM = 65536  # 64 KB
 CHUNK_SIZE_LARGE = 262144  # 256 KB
 ```
 
-The Kotlin equivalent in `Constants.kt`:
+There is no single `Constants.kt` in the Android app; the constants are
+distributed across the Kotlin files that mirror their Python counterparts:
 
-```kotlin
-object Constants {
-    const val VERSION = "1.0.0"
-    const val HSYNCKEEP_FILENAME = ".hsynckeep"
-    const val HSYNCIGNORE_FILENAME = ".hsyncignore"
-    const val HSYNCTOMBSTONES_FILENAME = ".hsynctombstones"
-    const val TOMBSTONE_TTL_DAYS_DEFAULT = 30
-    const val CHUNK_SIZE_SMALL = 8192L
-    const val CHUNK_SIZE_MEDIUM = 65536L
-    const val CHUNK_SIZE_LARGE = 262144L
-}
-```
+| Constant | Kotlin location |
+|----------|-----------------|
+| `VERSION` | `com.hsync.android.data.api.Protocol` (`VERSION_REST`, `VERSION_WS`, `VERSION_LAN`) |
+| `HSYNCKEEP_FILENAME`, `HSYNCIGNORE_FILENAME` | `com.hsync.android.util.IgnoreMatcher` (companion object) |
+| `HSYNCTOMBSTONES_FILENAME` | Referenced as a string literal in `PathValidation.kt` / `IgnoreMatcher.kt` |
+| `TOMBSTONE_TTL_DAYS_DEFAULT` | `com.hsync.android.util.Tombstones.kt` (`TOMBSTONE_TTL_DAYS_DEFAULT = 30L`) |
+| `CHUNK_SIZE_SMALL/MEDIUM/LARGE` | Not exposed as named constants; `FileHashUtils` uses a fixed 8 KB buffer |
+| `DELTA_*` constants | `com.hsync.android.util.DeltaConfig` |
 
 ### When to update
 
 When changing any constant in `hsync-common`:
 
 1. Update `hsync_common/constants.py`
-2. Update the corresponding Kotlin constant in `Constants.kt`
+2. Update the corresponding Kotlin constant in its mirror file
 3. Run both test suites to verify no regressions
 4. Bump `PROTOCOL_VERSION_REST` if the change affects the wire protocol
 
@@ -157,8 +167,10 @@ Python uses the `zstandard` package; Kotlin uses `zstd-jni` via JNI bindings.
 |--------|--------|--------|
 | Library | `zstandard` (PyPI) | `com.github.luben:zstd-jni` (Maven) |
 | Level | 3 | 3 |
-| Pre-compressed extensions | `PRECOMPRESSED_EXTENSIONS` (frozenset) | `PrecompressedExtensions` (Set<String>) |
-| Threshold | 10 KB (base), 32 KB (upload), 100 KB (LAN) | Same thresholds |
+| Pre-compressed extensions | `PRECOMPRESSED_EXTENSIONS` (frozenset, 95 entries) | `PRECOMPRESSED_EXTENSIONS` (Set<String>) in `CompressionManager` |
+| Upload threshold | `MIN_SIZE_FOR_UPLOAD` = 32 KB | `MIN_SIZE_FOR_UPLOAD` = 32 KB |
+| LAN threshold | `MIN_SIZE_FOR_LAN` = 100 KB | `MIN_SIZE_FOR_LAN` = 100 KB |
+| Download threshold | `MIN_SIZE_FOR_DOWNLOAD` = 10 KB | — (not exposed in `CompressionManager`) |
 
 Both implementations must produce byte-identical compressed output for the
 same input. The cross-language test fixtures include compression round-trip
@@ -182,7 +194,7 @@ vectors to verify this.
 2. Update `hsync_common/protocol/handshake.py` if protocol version changes
 3. Implement the endpoint in the Kotlin networking layer
 4. Add cross-language test fixtures
-5. Update `docs/api.md`
+5. Update the relevant protocol documentation (`docs/protocol.md`, `docs/lan-protocol.md`)
 
 ### Checklist for protocol changes
 
@@ -202,7 +214,7 @@ vectors to verify this.
 
 ```bash
 cd hsync-common
-poetry run pytest tests/ -k "fixture"
+.venv/bin/python -m pytest tests/ -k "fixture"
 ```
 
 ### Running Kotlin tests
