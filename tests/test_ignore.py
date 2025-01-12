@@ -68,6 +68,15 @@ class TestDefaults:
         # The final file is NOT ignored
         assert m.matches("hello.txt") is False
 
+    def test_browser_download_temp_ignored(self, bucket):
+        """Chromium browser download temp files (*.crdownload) are excluded."""
+        m = IgnoreMatcher(str(bucket))
+        assert m.matches("report.crdownload") is True
+        assert m.matches("sub/large-file.zip.crdownload") is True
+        # The final file (after download completes) is NOT ignored
+        assert m.matches("report.pdf") is False
+        assert m.matches("large-file.zip") is False
+
     def test_internal_files_always_ignored(self, bucket):
         # Engine-owned state files must never be synced: a peer that could
         # push them would rewrite the victim's sync behaviour via the sync

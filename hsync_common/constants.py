@@ -70,6 +70,13 @@ DEFAULT_IGNORE_PATTERNS: tuple[str, ...] = (
     # atomically renames over the final file. The temp must never be synced;
     # the watcher reframes the rename as a content modification of the dest.
     ".goutputstream-*",
+    # --- Browser download temp files ---
+    # Chromium-based browsers (Chrome, Edge, Brave, …) write to
+    # "filename.crdownload" during an active download and rename it to the
+    # final name only when complete. The temp must never be synced (it would
+    # propagate a truncated file); unlike a safe-save there is no rename to
+    # reframe, so the temp is simply ignored until the browser removes it.
+    "*.crdownload",
     # --- Generic temporary / backup files ---
     "*.tmp",
     "*.temp",
