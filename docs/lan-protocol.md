@@ -38,7 +38,7 @@ These keys are optional at the record level because a node only advertises them
 once it is **serving as master**. A master, however, **must** advertise both
 `https` (`"true"`) and `cert_fp` (the SHA-256 fingerprint clients pin): the LAN
 transport is HTTPS-only, so a peer that does not is **not a valid master** and a
-slave refuses to connect to it (it logs `[INSECURE_MASTER]` and stays in
+slave refuses to connect to it (it logs `[INSECURE MASTER]` and stays in
 discovery).
 
 ## Group partitioning
@@ -68,7 +68,7 @@ The winner is the candidate with the smallest sort key
 
 If no candidate is eligible (every node is `never_master`) **no master is
 elected**: `elect_master` returns `None`, the role becomes `NONE`, and a parsable
-`[NO_MASTER]` warning is logged so front-ends can tell the user synchronization
+`[NO MASTER]` warning is logged so front-ends can tell the user synchronization
 cannot proceed.
 
 ### Edge cases
@@ -79,9 +79,9 @@ cannot proceed.
   readiness (scenario `incumbent-server-ready-wins-over-force-master`).
 - **force_master conflict.** When more than one eligible candidate sets
   `force_master`, the best-ranked one wins and the others are logged as
-  `[MASTER_CONFLICT]` (`conflict_won` / `conflict_lost`).
+  `[MASTER CONFLICT]` (`conflict_won` / `conflict_lost`).
 - **force_master takeover.** A remote `force_master` peer overriding the local
-  non-`force_master` incumbent is logged as `[MASTER_TAKEOVER]`.
+  non-`force_master` incumbent is logged as `[MASTER TAKEOVER]`.
 - **never_master.** Such nodes never serve. If they are the only candidates the
   result is `NO_MASTER` (scenario `all-never-master-no-master`).
 
@@ -187,7 +187,7 @@ Wi-Fi):
   self-signed certificate **does not prove identity** — on its own it cannot
   distinguish the real master from an impostor that generated its own
   certificate. A peer that does not advertise both `https` and `cert_fp` is not a
-  valid master and is refused (`[INSECURE_MASTER]`).
+  valid master and is refused (`[INSECURE MASTER]`).
 - `HSYNC_LAN_KEY` is a shared secret presented as a bearer token. It authenticates
   *writes* to the master, travels only over the (mandatory) encrypted transport,
   and is shared, not per-peer.
@@ -201,7 +201,7 @@ A master's keypair is **persistent**, not per-session: `load_or_create_master_ce
 stores it in an OS state directory (`~/.local/state/hsync/lan_cert`, overridable
 via `HSYNC_LAN_CERT_DIR`) and reuses it on every restart, so the fingerprint a
 peer pinned on first use keeps matching instead of triggering a spurious
-`[FINGERPRINT_CHANGED]` after each restart. The certificate is RSA, self-signed,
+`[FINGERPRINT CHANGED]` after each restart. The certificate is RSA, self-signed,
 and valid for ~10 years — validity is an operational convenience only, since
 trust comes from the pinned fingerprint rather than chain/date validation.
 
@@ -224,7 +224,7 @@ raises. `evaluate_pin` classifies every (present) later sighting:
 | `changed` | differs from the pin | **refuse** to connect; emit `fingerprint_changed` |
 
 A `changed` fingerprint is treated as a possible man-in-the-middle: the client
-logs a parsable `[FINGERPRINT_CHANGED]` line, emits the structured event, and
+logs a parsable `[FINGERPRINT CHANGED]` line, emits the structured event, and
 stays in discovery instead of connecting. Re-trusting a legitimately rotated
 certificate requires removing the stale pin out of band.
 
@@ -249,7 +249,7 @@ direction writes to the master (`bidirectional` or `upload-only`). `download-onl
 never writes and is always allowed.
 
 The client enforces this before sync (`_check_lan_write_policy`): when an
-unattended write lacks an effective `HSYNC_LAN_KEY` it logs `[AUTH_REQUIRED]`,
+unattended write lacks an effective `HSYNC_LAN_KEY` it logs `[AUTH REQUIRED]`,
 emits the `auth_required` event, and exits. Interactive runs keep the key
 recommended, not required: the operator can vouch for the peer out of band.
 
@@ -264,7 +264,7 @@ shortcut. `requires_pairing_confirmation(decision, require_pairing=...)` is the
 canonical rule: it returns true only for a first sighting (`trusted`) while
 strict pairing is on; `matched`/`changed` are unaffected.
 
-When it triggers, the client logs `[PAIRING_NEEDED]`, emits the `pairing_needed`
+When it triggers, the client logs `[PAIRING NEEDED]`, emits the `pairing_needed`
 event and stays in discovery without connecting. The operator confirms the peer
 out of band — by pinning its fingerprint (or disabling strict pairing) — after
 which the normal TOFU table applies.
