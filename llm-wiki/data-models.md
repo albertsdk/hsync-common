@@ -31,8 +31,9 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
 ## Event / SyncAction
 
 - `EventName` (`models/event.py:44`): `added, modified, renamed, deleted, symlink`.
-- `is_valid_cid` (`models/event.py:29`): NanoID-alphabet/length check for
-  peer-supplied client IDs (`fullmatch` — a trailing `\n` is rejected).
+- `is_valid_cid` (`models/event.py:29`): strictly-alphanumeric client-ID check
+  (`^[A-Za-z0-9]{1,64}$`) for peer-supplied client IDs — no `-`/`_`, so a cid
+  always starts with a letter/digit (`fullmatch` — a trailing `\n` is rejected).
 - `SyncActionName` (`models/sync_action.py:14`): `download, upload, delete, nothing`.
 
 ## TombstoneStore (deletion markers)

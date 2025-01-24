@@ -503,7 +503,7 @@ class TestIsValidCid:
 
     def test_valid_cids(self):
         assert is_valid_cid("abc123") is True
-        assert is_valid_cid("V1StGXR8_Z5jdHi6B-myT") is True
+        assert is_valid_cid("V1StGXR8Z5jdHi6BmyT") is True
         assert is_valid_cid("a" * 64) is True
 
     def test_invalid_cids(self):
@@ -514,6 +514,16 @@ class TestIsValidCid:
         assert is_valid_cid("bad.cid") is False
         assert is_valid_cid(None) is False
         assert is_valid_cid(123) is False
+
+    def test_non_alphanumeric_cids_rejected(self):
+        # The wire contract is strictly alphanumeric: a cid must always start
+        # with (and contain only) ASCII letters/digits — no `-`/`_` anywhere.
+        assert is_valid_cid("_-zjbhgmW2hWfht39QoaZ") is False
+        assert is_valid_cid("-abc") is False
+        assert is_valid_cid("_abc") is False
+        assert is_valid_cid("abc-def") is False
+        assert is_valid_cid("abc_def") is False
+        assert is_valid_cid("V1StGXR8_Z5jdHi6B-myT") is False
 
     def test_trailing_newline_rejected(self):
         # Python's `$` also matches before a final newline: with plain
