@@ -44,13 +44,21 @@ def format_bytes(n: float, *, decimals: int = 1) -> str:
     return f"{value:.{decimals}f} {_BYTE_UNITS[-1]}"
 
 
-def format_duration(seconds: float | None, *, style: str = "compact") -> str:
+def format_duration(
+    seconds: float | None, *, style: str = "compact", subsecond: bool = False
+) -> str:
     """Format a number of seconds as a human-readable duration.
 
     Args:
         seconds: Duration in seconds. ``None`` yields an empty string.
         style: ``"compact"`` for ``"1h 5m 30s"`` style output, or ``"clock"``
             for ``"1:05:30"`` / ``"5:30"`` style output.
+        subsecond: When ``True`` and ``style="compact"``, render sub-second
+            durations with millisecond precision (``"120ms"``) and sub-minute
+            durations with one decimal place (``"5.2s"``). Intended for
+            short-lived operations such as file transfers where whole-second
+            truncation would hide useful detail. Has no effect on the
+            ``"clock"`` style or on durations of one minute or more.
 
     Returns:
         Human-readable duration string.
@@ -60,6 +68,14 @@ def format_duration(seconds: float | None, *, style: str = "compact") -> str:
     """
     if seconds is None:
         return ""
+
+    if seconds < 0:
+        seconds = 0
+
+    if subsecond and style == "compact" and seconds < 60:
+        if seconds < 1:
+            return f"{int(seconds * 1000)}ms"
+        return f"{seconds:.1f}s"
 
     total = int(seconds)
     if total < 0:
