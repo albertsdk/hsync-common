@@ -536,13 +536,13 @@ class TestEventModel:
     def test_event_with_file_src(self):
         src = File(filepath="/base/subdir/file.txt", size=10)
         event = Event(
-            cid="client-1",
+            cid="client1",
             localpath="/base",
             bucket="mybucket",
             name=EventName.added,
             src=src,
         )
-        assert event.cid == "client-1"
+        assert event.cid == "client1"
         assert event.bucket == "mybucket"
         assert event.name == "added"
         # Path should have /base stripped
