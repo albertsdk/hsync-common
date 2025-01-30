@@ -393,7 +393,7 @@ class TestSymlinkModel:
         assert "target" in d
 
     def test_from_dict(self):
-        s = Symlink.from_dict({"filepath": "/a/link", "target": "/b/real"})
+        s = Symlink.from_dict({"filepath": "/a/link", "target": "/b/real"}, strip_dir_prefix=False)
         assert s.filepath == "/a/link"
         assert s.target == "/b/real"
 

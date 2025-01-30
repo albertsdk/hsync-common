@@ -5,10 +5,13 @@ This module defines the SyncAction class and SyncActionName enum
 for representing synchronization decisions (upload, download, delete, or no action).
 """
 
+from __future__ import annotations
+
 from datetime import timedelta as td
 from enum import StrEnum
 
 from .file import File
+from .symlink import Symlink
 
 
 class SyncActionName(StrEnum):
@@ -30,10 +33,10 @@ class SyncActionName(StrEnum):
 
 class SyncAction:
     """
-    Represents a synchronization action for a file.
+    Represents a synchronization action for a file or symlink.
 
     Attributes:
-        file: The File object this action applies to.
+        file: The File or Symlink object this action applies to.
         name: The type of action (download, upload, delete, nothing).
         timedelta: Human-readable time difference string.
         conflict: True when the action overwrites a locally-modified file that
@@ -43,12 +46,12 @@ class SyncAction:
 
     def __init__(
         self,
-        file: File,
+        file: File | Symlink,
         name: SyncActionName | None = None,
         timedelta: int = 0,
         conflict: bool = False,
     ):
-        self.file = file
+        self.file: File | Symlink = file
         self.name = name
         self.timedelta = self._format_timedelta(timedelta)
         self.conflict = conflict

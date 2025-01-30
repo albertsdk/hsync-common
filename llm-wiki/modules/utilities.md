@@ -59,7 +59,11 @@ formatting/hashing/parsing helper (DRY rule in `CLAUDE.md`).
   paths, drive letters, `\`, forbidden/control chars, reserved names,
   problematic trailing chars, internal artifacts), `resolve_within`
   (validation + `resolve()`/`relative_to()` confinement),
-  `is_safe_symlink_target` (SSOT, shared with the server).
+  `is_safe_symlink_target` (SSOT, shared with the server). Every component
+  that can dereference a local path (client scan `sync.get_files_local`,
+  client upload `transfer.upload_file`, LAN master listing/download
+  `lan_server`, server listing/download `api/files/*`, WS event handlers)
+  uses it to refuse symlinks whose target escapes the bucket.
 - Event-payload path keys: `WIRE_PATH_KEYS` + `wire_relpaths` (`:435`) —
   SSOT for the set of path-carrying keys (`filepath`, `path`) used by both
   the server relay gate and the client dispatcher.
