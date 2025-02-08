@@ -52,6 +52,28 @@ EXCLUDE_DIRS = {
 _LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
 _SKIP_PREFIXES = ("http://", "https://", "mailto:", "tel:", "#", "//")
 
+# Projects whose documentation is referenced across the monorepo. Relative
+# links pointing into these projects are broken when a single repo is checked
+# out in isolation (CI / GitHub browsing) — they must use absolute GitHub URLs.
+_HSYNC_PROJECTS = {
+    "hsync-common",
+    "hsync-client",
+    "hsync-server",
+    "hsync-desktop",
+    "hsync-android",
+}
+
+
+def _is_cross_project_link(target: str) -> bool:
+    """Return True when *target* is a relative path into another HSYNC project.
+
+    A target like ``../../hsync-common/docs/foo.md`` or
+    ``../../../hsync-server/docs/bar.md`` is recognised as a cross-project
+    reference that will not resolve on GitHub when browsing a single repo.
+    """
+    first = target.lstrip("./").split("/", 1)[0]
+    return first in _HSYNC_PROJECTS
+
 
 def iter_markdown_files(root: Path) -> list[Path]:
     files: list[Path] = []
@@ -104,12 +126,15 @@ def find_broken_links(root: Path) -> tuple[list[tuple[Path, str]], int]:
             if not is_checkable(target):
                 continue
             resolved = resolve(md_file, target)
-            # Cross-project links escape the scanned root. They cannot be
-            # validated when a single repo is checked out in isolation (per-repo
-            # CI), so skip them here; the monorepo-root scan (the ``Makefile``
-            # passes the workspace root, which contains every project) resolves
-            # and validates them instead.
+            # Cross-project links escape the scanned root. They are valid when
+            # this scanner is invoked from the monorepo root (the workspace
+            # ``Makefile`` passes `.` which contains every project), but they
+            # are BROKEN when a single repo is checked out in isolation (per-
+            # repo CI or GitHub browsing).  Flag them so authors replace the
+            # relative path with an absolute GitHub URL.
             if not resolved.is_relative_to(root):
+                if _is_cross_project_link(target):
+                    broken.append((md_file, target))
                 continue
             checked += 1
             if not resolved.exists():

@@ -275,3 +275,17 @@ Security state is surfaced on the structured channel rather than by
 scraping log wording: `fingerprint_changed` (pin mismatch, connection refused),
 `auth_required` (unattended write without an effective key), and `pairing_needed`
 (strict pairing: a first-seen certificate awaiting out-of-band confirmation).
+
+### CID format enforcement
+
+Every client-ID received from a remote peer (WebSocket auth/hello message, HTTP
+query parameter `?cid=`, delta token metadata) **MUST** pass `is_valid_cid()`
+(`hsync_common.models.event`, pattern `^[A-Za-z0-9]{1,64}$`, `fullmatch`) before
+it is trusted for log lines, echo suppression, or event attribution.  A CID that
+fails validation is rejected at the transport level (WebSocket close / HTTP 4xx)
+rather than silently falling back to `"unknown"`.  This prevents log injection
+and ensures every CID-bearing log line is safe to parse.
+
+The `fullmatch` (vs `match`) guarantee means a trailing `\n` or any other
+character outside the alphanumeric set causes rejection, closing the
+newline-injection vector documented in the `CID_PATTERN` docstring.
