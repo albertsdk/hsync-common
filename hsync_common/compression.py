@@ -221,7 +221,7 @@ def compress_data(data: bytes) -> bytes:
     return _compressor.compress(data)
 
 
-def decompress_data(data: bytes, max_output_size: int | None = None) -> bytes:
+def decompress_data(data: bytes, max_output_size: int = 100 * 1024 * 1024) -> bytes:
     """Decompress Zstandard-compressed data.
 
     Args:
@@ -240,9 +240,6 @@ def decompress_data(data: bytes, max_output_size: int | None = None) -> bytes:
         zstd.ZstdError: On malformed input or when the decompressed size
             exceeds *max_output_size*.
     """
-    if max_output_size is None:
-        return _decompressor.decompress(data)
-
     if max_output_size < 0:
         raise ValueError("max_output_size must be >= 0")
 

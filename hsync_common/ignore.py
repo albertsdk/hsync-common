@@ -40,6 +40,11 @@ from hsync_common.constants import (
     HSYNCIGNORE_FILENAME,
     HSYNCKEEP_FILENAME,
 )
+
+# Maximum number of total ignore patterns (defaults + .hsyncignore + extras).
+# Beyond this cap the remaining patterns are silently dropped to prevent
+# ReDoS from a crafted file with thousands of complex regex-compiled globs.
+_MAX_IGNORE_PATTERNS = 1000
 from hsync_common.models.file import is_partial_file
 from hsync_common.path_validation import is_internal_name
 
@@ -97,6 +102,20 @@ class IgnoreMatcher:
 
         # Layer 3 — extra programmatic patterns
         patterns.extend(self._extra_patterns)
+
+        # Enforce a maximum number of patterns to prevent ReDoS from a
+        # crafted .hsyncignore with thousands of complex glob expressions.
+        # Each pattern is compiled to a regex internally; 1000 is well
+        # beyond any reasonable hand-crafted file.
+        if len(patterns) > _MAX_IGNORE_PATTERNS:
+            import warnings
+
+            warnings.warn(
+                f"Ignore patterns exceed {_MAX_IGNORE_PATTERNS}; "
+                f"truncating to first {_MAX_IGNORE_PATTERNS}",
+                stacklevel=2,
+            )
+            patterns = patterns[:_MAX_IGNORE_PATTERNS]
 
         with self._lock:
             self._spec = PathSpec.from_lines(GitWildMatchPattern, patterns)

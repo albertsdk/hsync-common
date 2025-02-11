@@ -471,6 +471,14 @@ def validate_remote_relpath(rel: str) -> str | None:
     if not rel or not isinstance(rel, str):
         return None
 
+    # Normalize Unicode to NFC so homoglyph attacks (e.g. U+2024 ‥ as "..",
+    # fullwidth U+FF0F as "/") cannot bypass the component-level checks
+    # below. Normalize BEFORE every subsequent guard so the normalized form
+    # is what the filesystem eventually sees.
+    import unicodedata
+
+    rel = unicodedata.normalize("NFC", rel)
+
     # Absolute paths and drive letters are never acceptable on the wire.
     if not is_safe_path_component(rel):
         return None

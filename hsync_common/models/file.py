@@ -162,11 +162,16 @@ class File:
     ):
         self.filepath = filepath
         self.name = Path(filepath).name if filepath else None
+        if size < 0:
+            raise ValueError(f"File size must be >= 0, got {size}")
         self.size = size
         self.sha256sum = sha256sum
         self.permissions = permissions
-        self.ctime = self._parse_time(ctime)
-        self.mtime = self._parse_time(mtime)
+        try:
+            self.ctime = self._parse_time(ctime)
+            self.mtime = self._parse_time(mtime)
+        except (OverflowError, ValueError) as e:
+            raise ValueError(f"Invalid timestamp: {e}") from e
 
     def __repr__(self) -> str:
         return (
@@ -181,7 +186,12 @@ class File:
         )
 
     def _parse_time(self, time: str | int | float | datetime | None) -> int | None:
-        """Parse various time formats to Unix timestamp."""
+        """Parse various time formats to Unix timestamp.
+
+        OverflowError and ValueError from malformed or extreme time values
+        are allowed to propagate; callers must catch them (the __init__
+        constructor wraps them in a ValueError for all init paths).
+        """
         if isinstance(time, datetime):
             return int(time.timestamp())
         elif isinstance(time, str):
