@@ -38,10 +38,10 @@ def format_bytes(n: float, *, decimals: int = 1) -> str:
     for unit in _BYTE_UNITS[:-1]:
         if abs(value) < 1024:
             if unit == "B":
-                return f"{int(value)} {unit}"
-            return f"{value:.{decimals}f} {unit}"
+                return f"{int(value)}{unit}"
+            return f"{value:.{decimals}f}{unit}"
         value /= 1024
-    return f"{value:.{decimals}f} {_BYTE_UNITS[-1]}"
+    return f"{value:.{decimals}f}{_BYTE_UNITS[-1]}"
 
 
 def format_duration(
