@@ -502,16 +502,29 @@ class TestIsValidCid:
     """Wire-facing client-ID format validation."""
 
     def test_valid_cids(self):
-        assert is_valid_cid("abc123") is True
+        # Exactly 21 alphanumeric characters — the fixed wire-contract length.
         assert is_valid_cid("V1StGXR8Z5jdHi6BmyT") is True
-        assert is_valid_cid("a" * 64) is True
+        assert is_valid_cid("a" * 21) is True
+        assert is_valid_cid("0" * 21) is True
 
-    def test_invalid_cids(self):
+    def test_invalid_length(self):
+        # Too short or too long — only exactly 21 characters is valid.
+        assert is_valid_cid("abc123") is False  # 6 chars
         assert is_valid_cid("") is False
+        assert is_valid_cid("a" * 20) is False
+        assert is_valid_cid("a" * 22) is False
+        assert is_valid_cid("a" * 64) is False
         assert is_valid_cid("a" * 65) is False
+
+    def test_invalid_chars(self):
+        # Only [A-Za-z0-9] is allowed — any other character is rejected.
         assert is_valid_cid("bad cid") is False
         assert is_valid_cid("bad/cid") is False
         assert is_valid_cid("bad.cid") is False
+        assert is_valid_cid("abc-def") is False
+        assert is_valid_cid("abc_def") is False
+
+    def test_non_string_types(self):
         assert is_valid_cid(None) is False
         assert is_valid_cid(123) is False
 
