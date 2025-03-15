@@ -148,6 +148,18 @@ class TombstoneStore:
         if existing is None or ts >= existing["ts"]:
             self._data[key] = TombstoneEntry(ts=ts, sha256=sha256sum)
 
+    def record_by_key(
+        self,
+        key: str,
+        sha256sum: str | None = None,
+        timestamp: int | float | None = None,
+    ) -> None:
+        """Record (or refresh, LWW) a deletion marker for an already-hashed key."""
+        ts = int(timestamp) if timestamp is not None else int(time.time())
+        existing = self._data.get(key)
+        if existing is None or ts >= existing["ts"]:
+            self._data[key] = TombstoneEntry(ts=ts, sha256=sha256sum)
+
     def clear(self, relpath: str) -> bool:
         """Drop the marker for a relative path (e.g. when it is re-created)."""
         return self._data.pop(tombstone_key(relpath), None) is not None
