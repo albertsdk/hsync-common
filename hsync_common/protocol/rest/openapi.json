@@ -948,6 +948,50 @@
         "tags": [
           "Authenticated Router"
         ]
+      },
+      "post": {
+        "description": "Merge deletion markers (tombstones) pushed by a client.\n\nA client that deleted files while offline pushes its accumulated markers\nat the start of each sync cycle so the server converges to the union of\nall known deletions and other peers do not resurrect those files. The\nmerge is last-writer-wins per marker; entries are validated and the store\nsize is capped (see ``TombstoneStore.merge``).\n\nArgs:\n    request: The incoming FastAPI request; the body is the JSON tombstone\n        payload (mapping of hashed path to ``{\"ts\": ..., \"sha256\": ...}``).\n    bucket: Name of the bucket to merge markers into.\n\nReturns:\n    JSON response with the number of markers accepted/changed.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    BucketNotFoundError: If bucket does not exist.\n    InvalidPathError: If the body is not a JSON object.",
+        "operationId": "post_tombstones_api_v1_buckets__bucket__tombstones_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bucket",
+            "required": true,
+            "schema": {
+              "title": "Bucket",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Post Tombstones",
+        "tags": [
+          "Authenticated Router"
+        ]
       }
     },
     "/api/v1/time": {
