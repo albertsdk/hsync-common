@@ -81,12 +81,49 @@ class TestMeasureClockOffset:
         result = measure_clock_offset("http://srv/api/v1/time", http_get=getter)
         assert result is None
 
+    def test_null_timestamp_returns_none(self):
+        # An explicit JSON null must exercise the None branch *inside* the
+        # function (a missing key is already swallowed by dict.get).
+        getter = _FakeGet(_FakeResponse(200, {"timestamp": None}))
+        result = measure_clock_offset("http://srv/api/v1/time", http_get=getter)
+        assert result is None
+
+    def test_non_numeric_timestamp_returns_none(self):
+        # A malformed payload must degrade to None, not crash in float().
+        getter = _FakeGet(_FakeResponse(200, {"timestamp": "not-a-number"}))
+        result = measure_clock_offset("http://srv/api/v1/time", http_get=getter)
+        assert result is None
+
+    def test_bool_timestamp_returns_none(self):
+        # bool is an int subclass: True would coerce to a timestamp of 1.0.
+        getter = _FakeGet(_FakeResponse(200, {"timestamp": True}))
+        result = measure_clock_offset("http://srv/api/v1/time", http_get=getter)
+        assert result is None
+
+    def test_non_finite_timestamp_returns_none(self):
+        # json.loads accepts Infinity/NaN: the offset would be meaningless.
+        for bad in (float("inf"), float("-inf"), float("nan")):
+            getter = _FakeGet(_FakeResponse(200, {"timestamp": bad}))
+            result = measure_clock_offset("http://srv/api/v1/time", http_get=getter)
+            assert result is None
+
     def test_timestamp_string_is_coerced_to_float(self):
         getter = _FakeGet(_FakeResponse(200, {"timestamp": "110.5"}))
         with patch("hsync_common.clock.time.time", side_effect=[100.0, 101.0]):
             result = measure_clock_offset("http://srv/api/v1/time", http_get=getter)
         assert result is not None
         assert result[0] == pytest.approx(10.0)
+
+    def test_success_uses_computed_rtt(self):
+        # Pin both outputs: the offset depends on the measured RTT, so a
+        # regression in rtt computation must fail here.
+        getter = _FakeGet(_FakeResponse(200, {"timestamp": 110.5}))
+        with patch("hsync_common.clock.time.time", side_effect=[100.0, 101.0]):
+            result = measure_clock_offset("http://srv/api/v1/time", http_get=getter)
+        assert result is not None
+        offset, rtt = result
+        assert offset == pytest.approx(10.0)
+        assert rtt == pytest.approx(1.0)
 
     def test_getter_receives_expected_kwargs(self):
         getter = _FakeGet(_FakeResponse(200, {"timestamp": 1.0}))

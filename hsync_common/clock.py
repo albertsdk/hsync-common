@@ -21,6 +21,7 @@ is never silently applied to rewrite timestamps (which would be unreliable in
 multi-peer topologies).
 """
 
+import math
 import time
 from typing import Protocol
 
@@ -86,7 +87,9 @@ def measure_clock_offset(
 
     Returns:
         Tuple ``(offset, rtt)`` in seconds, or ``None`` if the endpoint did
-        not return HTTP 200 or omitted the ``timestamp`` field.
+        not return HTTP 200 or the ``timestamp`` field was missing, not a
+        finite number and not numeric-string coercible (a malformed payload
+        must degrade the measurement, never crash the caller).
     """
     t1 = time.time()
     response = http_get(time_url, headers=headers or {}, verify=verify, timeout=timeout)
@@ -95,8 +98,17 @@ def measure_clock_offset(
     if response.status_code != 200:
         return None
 
-    t2 = response.json().get("timestamp")
-    if t2 is None:
+    raw_t2 = response.json().get("timestamp")
+    if raw_t2 is None or isinstance(raw_t2, bool):
+        # Missing key or JSON null/bool: no usable remote timestamp.
+        return None
+    try:
+        t2 = float(raw_t2)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(t2):
+        # json.loads accepts Infinity/NaN: a non-finite timestamp would
+        # produce a meaningless offset.
         return None
 
-    return compute_clock_offset(t1, float(t2), t3)
+    return compute_clock_offset(t1, t2, t3)

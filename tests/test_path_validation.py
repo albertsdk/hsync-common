@@ -202,6 +202,22 @@ class TestSanitizeFilename:
         result = sanitize_filename(long_name)
         assert len(result) <= 255
 
+    def test_long_multibyte_filename_truncated_without_splitting_utf8(self):
+        # Each 'é' is 2 UTF-8 bytes: 200 of them exceed the 255-byte limit.
+        # Byte-aware truncation must not split a multi-byte sequence (which
+        # would produce an invalid encoding) and must preserve the extension.
+        result = sanitize_filename("é" * 200 + ".txt")
+        assert result.endswith(".txt")
+        assert len(result.encode("utf-8")) <= 255
+        # Would raise UnicodeDecodeError/encode implicitly fails on a split
+        # sequence if the implementation sliced characters instead of bytes.
+        assert result.encode("utf-8").decode("utf-8") == result
+
+    def test_long_extensionless_name_truncated(self):
+        result = sanitize_filename("a" * 300)
+        assert len(result.encode("utf-8")) <= 255
+        assert result != "unnamed"
+
 
 class TestIsValidBucketName:
     def test_valid_names(self):

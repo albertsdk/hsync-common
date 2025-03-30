@@ -38,9 +38,29 @@ class TestResolveThreeWay:
     def test_both_changed_is_conflict(self):
         assert resolve_three_way("a", "b", "base") is SyncDecision.conflict
 
-    def test_local_absent_remote_present(self):
-        # None vs content with a known base where local matched base -> download
+    def test_unknown_base_when_local_absent_and_remote_present(self):
+        # No recorded base: a missing local file vs a present remote one is
+        # indistinguishable from a first-ever sync, so the caller must fall
+        # back to its legacy heuristic (unknown_base), not auto-download.
         assert resolve_three_way(None, "remote", None) is SyncDecision.unknown_base
+
+    def test_local_deleted_remote_unchanged_uploads(self):
+        # None means "absent": local went from base to deleted, remote still
+        # matches base -> propagate the local change (deletion) upstream.
+        assert resolve_three_way(None, "base", "base") is SyncDecision.upload
+
+    def test_remote_deleted_local_unchanged_downloads(self):
+        # Remote went from base to deleted, local still matches base ->
+        # propagate the remote change (deletion) locally.
+        assert resolve_three_way("base", None, "base") is SyncDecision.download
+
+    def test_delete_vs_edit_is_conflict(self):
+        # One side deleted, the other edited since base: genuine divergence.
+        assert resolve_three_way(None, "remote", "base") is SyncDecision.conflict
+        assert resolve_three_way("local", None, "base") is SyncDecision.conflict
+
+    def test_both_absent_is_in_sync(self):
+        assert resolve_three_way(None, None, "base") is SyncDecision.in_sync
 
 
 class TestSyncStateStoreMutation:
@@ -138,6 +158,52 @@ class TestSyncStateStorePersistence:
         path = tmp_path / ".hsyncstate"
         path.write_text(
             json.dumps({"versions": {"k1": {"change_id": "c"}, "k2": {"base_hash": "h"}}}),
+            encoding="utf-8",
+        )
+        store = SyncStateStore(path=str(path))
+        store.load()
+        assert len(store) == 1
+
+    def test_load_skips_entries_with_malformed_ts(self, tmp_path):
+        # A hand-edited/corrupt side-car must degrade entry-by-entry instead
+        # of crashing the whole load with TypeError/ValueError.
+        import json
+
+        path = tmp_path / ".hsyncstate"
+        path.write_text(
+            json.dumps(
+                {
+                    "versions": {
+                        "ok": {"base_hash": "h", "change_id": "c", "origin_cid": None, "ts": 7},
+                        "bad-ts": {"base_hash": "h", "ts": "abc"},
+                        "null-ts": {"base_hash": "h", "ts": None},
+                        "bool-ts": {"base_hash": "h", "ts": True},
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        store = SyncStateStore(path=str(path))
+        store.load()
+        # Only the well-formed entry survives (keys in the file are raw
+        # tombstone keys, so membership is checked via the store size).
+        assert len(store) == 1
+
+    def test_load_malformed_versions_member_is_noop(self, tmp_path):
+        import json
+
+        path = tmp_path / ".hsyncstate"
+        path.write_text(json.dumps({"versions": ["not", "a", "dict"]}), encoding="utf-8")
+        store = SyncStateStore(path=str(path))
+        store.load()
+        assert len(store) == 0
+
+    def test_load_skips_non_dict_entries(self, tmp_path):
+        import json
+
+        path = tmp_path / ".hsyncstate"
+        path.write_text(
+            json.dumps({"versions": {"ok": {"base_hash": "h"}, "junk": "not-a-dict"}}),
             encoding="utf-8",
         )
         store = SyncStateStore(path=str(path))
