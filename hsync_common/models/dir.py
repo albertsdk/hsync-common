@@ -64,11 +64,6 @@ class Dir:
         """Return string representation of the Dir instance."""
         return f"{self.__class__.__name__}(path={self.path}, permissions={self.permissions})"
 
-    @staticmethod
-    def _get_permissions(obj_path: str) -> str:
-        """Get permissions for a path as a canonical octal string."""
-        return get_permissions(obj_path)
-
     def to_dict(self) -> dict:
         """Convert the Dir instance to a dictionary."""
         return {
@@ -89,12 +84,9 @@ class Dir:
         Returns:
             New Dir instance.
         """
-        data_path = data.get("path", "")
-        path = (
-            str(data_path).removeprefix(localpath).lstrip("/")
-            if strip_localpath
-            else str(Path(localpath) / str(data_path).lstrip("/"))
-        )
+        from hsync_common.models import _resolve_prefixed_path
+
+        path = _resolve_prefixed_path(data.get("path", ""), localpath, strip=strip_localpath)
         return cls(
             path=path,
             permissions=data.get("permissions"),
@@ -116,7 +108,7 @@ class Dir:
         if Path(path).exists():
             return cls(
                 path=path,
-                permissions=cls._get_permissions(path),
+                permissions=get_permissions(path),
             )
         else:
             return None

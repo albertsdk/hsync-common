@@ -13,6 +13,18 @@ each ADR to the code it governs.
 | [0004 desktop-subprocess-contract](../docs/internal/adr/0004-desktop-subprocess-contract.md) | `protocol/events.py` event stream; `protocol/capabilities.py` |
 | [0005 protocol-versioning](../docs/internal/adr/0005-protocol-versioning.md) | `protocol/handshake.py:44` (versions + hard-fail handshake) |
 | [0006 master-authoritative-conflict-model](../docs/internal/adr/0006-master-authoritative-conflict-model.md) | `models/version.py:70` (`resolve_three_way`) |
+| [0007 content-addressed-storage](../docs/internal/adr/0007-content-addressed-storage.md) | `hsync_server/hashes.py` (in-memory SHA-256 cache, hard-link dedup); `models/file.py` (content hash model) |
+| [0008 single-api-key-auth](../docs/internal/adr/0008-single-api-key-auth.md) | `hsync_server/routers.py` (Bearer token, HMAC compare); server-only, common defines no auth code |
+| [0009 rest-websocket-transport](../docs/internal/adr/0009-rest-websocket-transport.md) | `protocol/schemas.py` (REST schema SSOT); `protocol/ws/ws-schema.json` (WS schema); `hsync_server` implements endpoints |
+| [0010 zstandard-compression](../docs/internal/adr/0010-zstandard-compression.md) | `compression.py` (adaptive thresholds, precompressed extension list) |
+| [0011 resumable-upload](../docs/internal/adr/0011-resumable-upload.md) | `hsync_server/api/files/upload.py` (Content-Range, `.partial` temp files, atomic rename) |
+| [0012 rate-limiting](../docs/internal/adr/0012-rate-limiting.md) | `hsync_server/rate_limiter.py` (slowapi token-bucket, per-IP tiers) |
+| [0013 hsyncignore-gitignore-syntax](../docs/internal/adr/0013-hsyncignore-gitignore-syntax.md) | `ignore.py` (`load_hsyncignore`, `pathspec.PathSpec`) |
+| [0014 multi-repo-strategy](../docs/internal/adr/0014-multi-repo-strategy.md) | this repository is the SSOT; enforced by path dependencies, golden fixtures, ADR index |
+| [0015 mass-deletion-guard](../docs/internal/adr/0015-mass-deletion-guard.md) | `hsync_client/sync.py` (`_mass_deletion_blocked`); client-side guard, common has no code |
+| [0016 delta-transfer](../docs/internal/adr/0016-delta-transfer.md) | `delta/decision.py` (Adler32 + SHA-256 matching); `delta/rolling_checksum.py`; `models/delta.py` (wire shapes) |
+| [0017 lan-slave-outbound-event-reliability](../docs/internal/adr/0017-lan-slave-outbound-event-reliability.md) | `hsync_client/lan_websocket.py` (defer-to-close, echo-pair cache); Android mirror |
+| [0018 origin-based-log-labels](../docs/internal/adr/0018-origin-based-log-labels.md) | `labels.py` (`ActionLabel`, `resolve_label`, `LOCAL`/`REMOTE` prefix); Kotlin mirror `LogManager.kt` |
 
 LAN transport/security specifics (TOFU pinning, LAN-key policy, threat model)
 live in [`../docs/lan-protocol.md`](../docs/lan-protocol.md) and map to

@@ -28,7 +28,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import TypedDict
 
-from .tombstone import relpath_in_bucket, tombstone_key
+from .tombstone import _parse_wire_timestamp, relpath_in_bucket, tombstone_key
 
 __all__ = [
     "FileVersion",
@@ -182,16 +182,8 @@ class SyncStateStore:
         for key, entry in entries.items():
             if not isinstance(entry, dict) or "base_hash" not in entry:
                 continue
-            raw_ts = entry.get("ts", 0)
-            if isinstance(raw_ts, bool):
-                # bool is an int subclass: reject it rather than recording a
-                # timestamp of 0/1.
-                continue
-            try:
-                ts = int(raw_ts)
-            except (TypeError, ValueError, OverflowError):
-                # A corrupt entry (e.g. "ts": "abc", null or NaN) is skipped,
-                # not allowed to crash the load.
+            ts = _parse_wire_timestamp(entry.get("ts", 0))
+            if ts is None:
                 continue
             data[key] = FileVersion(
                 base_hash=str(entry["base_hash"]),
