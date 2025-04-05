@@ -47,6 +47,11 @@ as separate channels:
   frame with the API key) and **per-bucket** (one WS per bucket per client).
 - The REST API is versioned (`api/v1`) and the WebSocket uses the protocol
   versioning from [ADR-0005](0005-protocol-versioning.md).
+  The `v1` in the URL prefix `/api/v1/` corresponds to
+  `PROTOCOL_VERSION_REST = "api/1"` ([ADR-0005](0005-protocol-versioning.md)).
+  A bump to `"api/2"` would introduce `/api/v2/` endpoints; the old `/api/v1/`
+  would remain available during a deprecation window, after which it would be
+  removed in a clean breaking change.
 
 Alternatives rejected:
 
