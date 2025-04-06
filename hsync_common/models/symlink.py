@@ -40,6 +40,20 @@ class Symlink:
         self.ctime = ctime
         self.mtime = mtime
 
+        if target is not None:
+            # Wire-supplied symlink targets must be trusted as little as
+            # bucket-relative paths: reject null bytes, empty strings and
+            # targets that exceed a reasonable length bound (matching the
+            # path_relpath limit in validate_remote_relpath). This is a
+            # lexical gate; callers must still use is_safe_symlink_target()
+            # for filesystem-level confinement.
+            if not isinstance(target, str) or not target:
+                raise ValueError("Symlink target must be a non-empty string")
+            if "\x00" in target:
+                raise ValueError("Symlink target contains null byte")
+            if len(target.encode("utf-8")) > 4096:
+                raise ValueError("Symlink target exceeds maximum length")
+
     def __repr__(self) -> str:
         return (
             f"{self.__class__.__name__}("
