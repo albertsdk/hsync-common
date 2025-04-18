@@ -144,6 +144,9 @@ For protocol/API contracts, authentication, secrets, destructive sync, persisten
 ### 3. Modularity & Maintainability
 * **File Responsibility Control**: Split a file when it contains multiple independently changing responsibilities, not merely because of line count. Do not perform unrelated structural refactoring as part of a narrowly scoped fix.
 
+### 4. Public API Consumer Traceability (`hsync-common`)
+* **Declared Consumers**: Every new public function, class, or constant added to `hsync-common` **MUST** state in its docstring or an adjacent comment which consumer(s) are expected to use it (e.g., `hsync-client`, `hsync-server`, `hsync-desktop` mirrors, shared fixtures/tests), so that a future dead-code analysis can trace each symbol back to its intended use.
+
 ---
 
 ## 📝 Changelog Maintenance
