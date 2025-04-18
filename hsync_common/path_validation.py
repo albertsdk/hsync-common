@@ -43,21 +43,9 @@ FORBIDDEN_FILENAME_CHARS: frozenset[str] = frozenset(
 # These are checked separately for efficiency
 CONTROL_CHARS: frozenset[str] = frozenset(chr(i) for i in range(1, 32))
 
-# Forbidden characters in path parts (allows / for path separator)
-# Same as FORBIDDEN_FILENAME_CHARS but without forward slash
-FORBIDDEN_PATH_CHARS: frozenset[str] = frozenset(
-    {
-        "<",
-        ">",
-        ":",
-        '"',
-        "\\",
-        "|",
-        "?",
-        "*",
-        "\x00",  # NUL - forbidden on all systems
-    }
-)
+# Forbidden characters in path parts (allows / for path separator).
+# Derived from FORBIDDEN_FILENAME_CHARS minus the forward slash.
+FORBIDDEN_PATH_CHARS: frozenset[str] = FORBIDDEN_FILENAME_CHARS - {"/"}
 
 # =============================================================================
 # Reserved Filenames
