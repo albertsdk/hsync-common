@@ -241,7 +241,7 @@ class TestRuntimeSummary:
         summary = runtime_summary()
 
         assert "container=docker (via /.dockerenv)" in summary
-        assert "mem_limit=512.0 MB" in summary
+        assert "mem_limit=512.0MB" in summary
         assert "cpu_quota=1.5 cores" in summary
         assert "tty=no" in summary
 
