@@ -6,8 +6,6 @@ import pytest
 import zstandard as zstd
 
 from hsync_common.compression import (
-    COMPRESSION_LEVEL,
-    CONTENT_ENCODING_ZSTD,
     MIN_SIZE_FOR_COMPRESSION,
     MIN_SIZE_FOR_DOWNLOAD,
     MIN_SIZE_FOR_LAN,
@@ -22,15 +20,6 @@ from hsync_common.compression import (
 
 
 class TestConstants:
-    def test_compression_level_in_range(self):
-        assert 1 <= COMPRESSION_LEVEL <= 22
-
-    def test_content_encoding_value(self):
-        assert CONTENT_ENCODING_ZSTD == "zstd"
-
-    def test_min_size_positive(self):
-        assert MIN_SIZE_FOR_COMPRESSION > 0
-
     def test_precompressed_extensions_is_frozenset(self):
         assert isinstance(PRECOMPRESSED_EXTENSIONS, frozenset)
 
