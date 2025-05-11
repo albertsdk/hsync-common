@@ -252,13 +252,19 @@ class TestActiveMatcher:
             set_active_matcher(None)
 
     def test_should_skip_falls_back_to_default_patterns(self):
+        from hsync_common.ignore import get_active_matcher
+
+        saved = get_active_matcher()
         set_active_matcher(None)
-        # Default patterns still exclude OS cache files
-        assert should_skip(".DS_Store") is True
-        assert should_skip("Thumbs.db") is True
-        # Dotfiles are NOT excluded
-        assert should_skip(".env") is False
-        assert should_skip("regular.txt") is False
+        try:
+            # Default patterns still exclude OS cache files
+            assert should_skip(".DS_Store") is True
+            assert should_skip("Thumbs.db") is True
+            # Dotfiles are NOT excluded
+            assert should_skip(".env") is False
+            assert should_skip("regular.txt") is False
+        finally:
+            set_active_matcher(saved)
 
     def test_should_skip_honours_is_dir(self, bucket):
         # A directory-only pattern ("build/") must match a directory through
