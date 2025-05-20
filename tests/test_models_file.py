@@ -136,6 +136,14 @@ class TestFileInit:
         assert f.ctime is None
         assert f.mtime is None
 
+    def test_bool_time_rejected_as_none(self):
+        # bool is an int subclass: True would silently parse as timestamp 0
+        # unless explicitly rejected (same guard as TombstoneStore).
+        # _parse_time returns None for unrecognized types, so a bool timestamp
+        # is treated the same as an explicit None.
+        f = File(mtime=True)
+        assert f.mtime is None
+
 
 class TestFileToDict:
     def test_to_dict_keys(self):

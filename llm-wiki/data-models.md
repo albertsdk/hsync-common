@@ -67,8 +67,8 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
   (`models/version.py:55`).
 - Core resolver: `resolve_three_way` (`models/version.py:70`) — compares
   base/local/remote hashes to pick keep/overwrite/conflict.
-- Change-id minting: `new_change_id` (`models/version.py:65`,
-  `_CHANGE_ID_BYTES = 16`).
+- Version-id minting: `new_version_id` (`models/version.py:65`,
+  `_VERSION_ID_BYTES = 16`).
 - `SyncStateStore` (`models/version.py:100`) persists per-file base versions for
   the next reconciliation; backs the `.hsyncstate` side-car (`constants.py:51`).
   `load()` is hardened like `TombstoneStore.load()`: a non-dict `versions`

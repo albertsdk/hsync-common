@@ -196,7 +196,7 @@ class File:
             return int(time.timestamp())
         elif isinstance(time, str):
             return int(datetime.fromisoformat(time).timestamp())
-        elif isinstance(time, int | float):
+        elif isinstance(time, (int, float)) and not isinstance(time, bool):
             return int(datetime.fromtimestamp(time, UTC).timestamp())
         return None
 

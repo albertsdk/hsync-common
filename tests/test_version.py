@@ -4,19 +4,19 @@ from hsync_common.models.version import (
     FileVersion,
     SyncDecision,
     SyncStateStore,
-    new_change_id,
+    new_version_id,
     resolve_three_way,
 )
 
 
-class TestNewChangeId:
+class TestNewVersionId:
     def test_is_hex_string(self):
-        cid = new_change_id()
-        assert isinstance(cid, str)
-        int(cid, 16)  # raises if not hex
+        vid = new_version_id()
+        assert isinstance(vid, str)
+        int(vid, 16)  # raises if not hex
 
     def test_is_unique(self):
-        assert new_change_id() != new_change_id()
+        assert new_version_id() != new_version_id()
 
 
 class TestResolveThreeWay:
@@ -69,23 +69,23 @@ class TestSyncStateStoreMutation:
         store.record(
             "a/b.txt",
             base_hash="hh",
-            change_id="cid",
+            version_id="vid",
             origin_cid="TestClientPeer1111111",
             timestamp=42,
         )
         entry = store.get("a/b.txt")
         assert entry is not None
         assert entry["base_hash"] == "hh"
-        assert entry["change_id"] == "cid"
+        assert entry["version_id"] == "vid"
         assert entry["origin_cid"] == "TestClientPeer1111111"
         assert entry["ts"] == 42
 
-    def test_record_defaults_change_id_and_ts(self):
+    def test_record_defaults_version_id_and_ts(self):
         store = SyncStateStore()
         store.record("x.txt", base_hash="hh")
         entry = store.get("x.txt")
         assert entry is not None
-        assert entry["change_id"]  # auto-minted, non-empty
+        assert entry["version_id"]  # auto-minted, non-empty
         assert entry["origin_cid"] is None
         assert entry["ts"] > 0
 
@@ -123,7 +123,7 @@ class TestSyncStateStorePersistence:
     def test_save_and_load(self, tmp_path):
         path = str(tmp_path / "sub" / ".hsyncstate")
         store = SyncStateStore(path=path)
-        store.record("a/b.txt", base_hash="hh", change_id="cid", origin_cid="peer", timestamp=7)
+        store.record("a/b.txt", base_hash="hh", version_id="vid", origin_cid="peer", timestamp=7)
         store.save()
 
         reloaded = SyncStateStore(path=path)
@@ -131,7 +131,7 @@ class TestSyncStateStorePersistence:
         entry = reloaded.get("a/b.txt")
         assert entry is not None
         assert entry["base_hash"] == "hh"
-        assert entry["change_id"] == "cid"
+        assert entry["version_id"] == "vid"
         assert entry["origin_cid"] == "peer"
         assert entry["ts"] == 7
 
@@ -157,7 +157,7 @@ class TestSyncStateStorePersistence:
 
         path = tmp_path / ".hsyncstate"
         path.write_text(
-            json.dumps({"versions": {"k1": {"change_id": "c"}, "k2": {"base_hash": "h"}}}),
+            json.dumps({"versions": {"k1": {"version_id": "v"}, "k2": {"base_hash": "h"}}}),
             encoding="utf-8",
         )
         store = SyncStateStore(path=str(path))
@@ -174,7 +174,12 @@ class TestSyncStateStorePersistence:
             json.dumps(
                 {
                     "versions": {
-                        "ok": {"base_hash": "h", "change_id": "c", "origin_cid": None, "ts": 7},
+                        "ok": {
+                            "base_hash": "h",
+                            "version_id": "v",
+                            "origin_cid": None,
+                            "ts": 7,
+                        },
                         "bad-ts": {"base_hash": "h", "ts": "abc"},
                         "null-ts": {"base_hash": "h", "ts": None},
                         "bool-ts": {"base_hash": "h", "ts": True},
@@ -213,5 +218,10 @@ class TestSyncStateStorePersistence:
 
 class TestFileVersionTypedDict:
     def test_construct(self):
-        v: FileVersion = {"base_hash": "h", "change_id": "c", "origin_cid": None, "ts": 1}
+        v: FileVersion = {
+            "base_hash": "h",
+            "version_id": "v",
+            "origin_cid": None,
+            "ts": 1,
+        }
         assert v["base_hash"] == "h"
