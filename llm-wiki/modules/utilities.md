@@ -1,4 +1,4 @@
-# hsync-common — Cross-cutting utilities
+# HSYNC Common Library — Cross-cutting utilities
 
 Leaf helpers shared by every project. Check here before writing any new
 formatting/hashing/parsing helper (DRY rule in `CLAUDE.md`).

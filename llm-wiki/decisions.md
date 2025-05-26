@@ -1,4 +1,4 @@
-# hsync-common — Decisions
+# HSYNC Common Library — Decisions
 
 Ecosystem-wide architectural decisions are recorded as ADRs under
 [`../docs/internal/adr/`](../docs/internal/adr/README.md) (committed, human-readable). They are the
