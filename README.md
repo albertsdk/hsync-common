@@ -9,6 +9,9 @@ upon — data formats, compression, file exclusion rules, and security utilities
 You don't install or run it directly; it's a library used by the client, server and
 desktop application.
 
+> 👉 **Remember:** keep verified backups of your data before trying new
+> synchronization tools. 😉
+
 ---
 
 [![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)](LICENSE)
