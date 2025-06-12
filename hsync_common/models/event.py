@@ -18,12 +18,12 @@ from .symlink import Symlink
 if TYPE_CHECKING:
     from .file import FileDict
 
-# Canonical shape of a client ID on the wire: strictly alphanumeric NanoID-style
-# alphabet (ASCII letters and digits only) with a bounded length, so a cid always
-# starts with an alphanumeric character. Applied to cid values received from
-# remote peers (form fields, WS paths, event payloads) before trusting them for
-# echo suppression or logging.
-CID_PATTERN = r"^[A-Za-z0-9]{1,64}$"
+# Canonical shape of a client ID on the wire: strictly alphanumeric (ASCII
+# letters and digits only, no separators), exactly 21 characters, so a cid
+# always starts with a letter or digit — never ``-`` or ``_``. Applied to cid
+# values received from remote peers (form fields, WS paths, event payloads)
+# before trusting them for echo suppression or logging.
+CID_PATTERN = r"^[A-Za-z0-9]{21}$"
 _CID_RE = _re_compile(CID_PATTERN)
 
 
