@@ -197,13 +197,17 @@ writes by an unattended client are gated on the shared key.
 
 ### Master identity (persistent)
 
-A master's keypair is **persistent**, not per-session: `load_or_create_master_cert`
-stores it in an OS state directory (`~/.local/state/hsync/lan_cert`, overridable
-via `HSYNC_LAN_CERT_DIR`) and reuses it on every restart, so the fingerprint a
-peer pinned on first use keeps matching instead of triggering a spurious
-`[FINGERPRINT CHANGED]` after each restart. The certificate is RSA, self-signed,
-and valid for ~10 years — validity is an operational convenience only, since
-trust comes from the pinned fingerprint rather than chain/date validation.
+A peer's identity is **persistent**, not per-session: each installation owns a
+device identity (Syncthing-style) — a stable 21-character device ID plus the
+LAN keypair — stored in the device directory (`~/.local/state/hsync/device`,
+overridable via `HSYNC_DEVICE_DIR`). The device ID is advertised as the mDNS
+`cid` and
+anchors the TOFU pin (`(cid, bucket)`), so a restarted master is recognised by
+its peers instead of being silently re-pinned, and a rotated keypair (deleted
+`*.pem` files with the device ID kept) triggers `[FINGERPRINT CHANGED]` as
+intended. The certificate is RSA, self-signed, and valid for ~10 years —
+validity is an operational convenience only, since trust comes from the pinned
+fingerprint rather than chain/date validation.
 
 The private key is written as an **unencrypted PKCS#8** PEM, protected solely by
 filesystem permissions: the key file is `0o600` inside a `0o700` directory. There
