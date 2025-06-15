@@ -42,10 +42,10 @@ with mismatched block sizes are incompatible.
 ```python
 from hsync_common.delta.decision import optimal_block_size
 
-optimal_block_size(500_000)    # 4096 (4 KB)  — < 1 MB
-optimal_block_size(5_000_000)   # 16384 (16 KB) — 1–10 MB
+optimal_block_size(500_000)  # 4096 (4 KB)  — < 1 MB
+optimal_block_size(5_000_000)  # 16384 (16 KB) — 1–10 MB
 optimal_block_size(50_000_000)  # 65536 (64 KB) — 10–100 MB
-optimal_block_size(500_000_000) # 262144 (256 KB) — > 100 MB
+optimal_block_size(500_000_000)  # 262144 (256 KB) — > 100 MB
 ```
 
 | Base file size | Block size |
@@ -115,6 +115,7 @@ from hsync_common.delta.rolling_checksum import adler32_roll
 
 # Initialize from zlib.adler32
 import zlib
+
 window = new_data[0:block_size]
 weak = zlib.adler32(window)
 a = weak & 0xFFFF

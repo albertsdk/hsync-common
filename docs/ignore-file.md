@@ -77,10 +77,10 @@ Return `True` when *path* should be **excluded** from sync.
 | `is_dir` | `bool` | When `True` a trailing slash is appended so gitignore directory-only patterns (`foo/`) match. |
 
 ```python
-matcher.matches(".DS_Store")        # True (default pattern)
-matcher.matches("build/output.o")   # True if .hsyncignore has "build/"
-matcher.matches("important.log")    # False (no matching rule)
-matcher.matches(".hsynckeep")       # Always False (sentinel preserved)
+matcher.matches(".DS_Store")  # True (default pattern)
+matcher.matches("build/output.o")  # True if .hsyncignore has "build/"
+matcher.matches("important.log")  # False (no matching rule)
+matcher.matches(".hsynckeep")  # Always False (sentinel preserved)
 ```
 
 #### `reload()`
