@@ -59,7 +59,7 @@ _FIXTURE_MTIME = 1_700_000_500
 def _file_event() -> dict[str, Any]:
     """Serialized ``added`` file event built from the shared Event/File models."""
     event = Event(
-        cid="client1",
+        cid="TestClientX1234567890",
         localpath="/data",
         bucket="bucket-1",
         name=EventName.added,
@@ -78,7 +78,7 @@ def _file_event() -> dict[str, Any]:
 def _lan_txt_record() -> dict[str, Any]:
     """Sample mDNS/TXT record: all values are strings (mDNS encoding)."""
     return {
-        "cid": "client1",
+        "cid": "TestClientX1234567890",
         "bucket": "bucket-1",
         "version": FIXTURE_APP_VERSION,
         "protocol": PROTOCOL_VERSION_LAN,
@@ -306,7 +306,7 @@ def _delta_apply_metadata() -> dict[str, Any]:
     """
     return {
         "description": "Example metadata for POST /delta/apply (upload delta)",
-        "cid": "clientAbc123",
+        "cid": "TestClientABC34567890",
         "base_sha256": "a1b2c3d4e5f67890123456789012345678901234567890123456789012345678",
         "new_sha256": "d4e5f67890123456789012345678901234567890123456789012345678901234",
         "new_size": 1048576,
