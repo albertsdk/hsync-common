@@ -261,7 +261,7 @@ class TestFileFromDict:
     def test_from_dict_without_strip(self):
         d = {"filepath": "subdir/file.txt", "size": 50}
         f = File.from_dict(d, dir_prefix="/base", strip_dir_prefix=False)
-        assert "/base" in f.filepath
+        assert "/base" in f.filepath  # type: ignore[reportOperatorIssue]
 
     def test_from_dict_raises_if_strip_without_prefix(self):
         d = {"filepath": "/base/file.txt", "size": 10}
@@ -364,7 +364,7 @@ class TestDirModel:
 
     def test_from_dict(self):
         d = Dir.from_dict({"path": "subdir"}, localpath="/base", strip_localpath=False)
-        assert "/base" in d.path
+        assert "/base" in d.path  # type: ignore[reportOperatorIssue]
 
     def test_repr_contains_fields(self):
         d = Dir(path="/tmp/sync", permissions="755")
@@ -503,7 +503,7 @@ class TestIsValidCid:
 
     def test_valid_cids(self):
         # Exactly 21 alphanumeric characters — the fixed wire-contract length.
-        assert is_valid_cid("V1StGXR8Z5jdHi6BmyT") is True
+        assert is_valid_cid("V1StGXR8Z5jdHi6BmyTab") is True
         assert is_valid_cid("a" * 21) is True
         assert is_valid_cid("0" * 21) is True
 
@@ -559,7 +559,7 @@ class TestEventModel:
         assert event.bucket == "mybucket"
         assert event.name == "added"
         # Path should have /base stripped
-        assert event.src.filepath == "subdir/file.txt"
+        assert event.src.filepath == "subdir/file.txt"  # type: ignore[reportAttributeAccessIssue]
 
     def test_event_with_dir_src(self):
         src = Dir(path="/base/mydir")
@@ -570,7 +570,7 @@ class TestEventModel:
             name=EventName.added,
             src=src,
         )
-        assert event.src.path == "mydir"
+        assert event.src.path == "mydir"  # type: ignore[reportAttributeAccessIssue]
 
     def test_event_to_dict(self):
         src = File(filepath="/base/f.txt", size=5)
@@ -594,7 +594,7 @@ class TestEventModel:
             dst=dst,
         )
         assert event.dst is not None
-        assert event.dst.filepath == "new.txt"
+        assert event.dst.filepath == "new.txt"  # type: ignore[reportAttributeAccessIssue]
 
     def test_event_without_strip_prepends_localpath(self):
         src = File(filepath="sub/f.txt", size=5)
@@ -606,7 +606,7 @@ class TestEventModel:
             src=src,
             strip_localpath=False,
         )
-        assert event.src.filepath == "/base/sub/f.txt"
+        assert event.src.filepath == "/base/sub/f.txt"  # type: ignore[reportAttributeAccessIssue]
 
     def test_event_with_dir_without_strip(self):
         src = Dir(path="mydir")
@@ -618,7 +618,7 @@ class TestEventModel:
             src=src,
             strip_localpath=False,
         )
-        assert event.src.path == "/base/mydir"
+        assert event.src.path == "/base/mydir"  # type: ignore[reportAttributeAccessIssue]
 
     def test_event_repr_contains_fields(self):
         src = File(filepath="/base/f.txt", size=5)
@@ -650,10 +650,14 @@ class TestTombstoneStore:
         store = TombstoneStore()
         store.record("f.txt", sha256sum="old", timestamp=10)
         store.record("f.txt", sha256sum="new", timestamp=20)
-        assert store.get("f.txt")["sha256"] == "new"
+        entry = store.get("f.txt")
+        assert entry is not None
+        assert entry["sha256"] == "new"
         # An older marker must not overwrite a newer one.
         store.record("f.txt", sha256sum="stale", timestamp=5)
-        assert store.get("f.txt")["sha256"] == "new"
+        entry = store.get("f.txt")
+        assert entry is not None
+        assert entry["sha256"] == "new"
 
     def test_clear(self):
         store = TombstoneStore()
@@ -688,17 +692,23 @@ class TestTombstoneStore:
             tombstone_key("a.txt"): {"ts": now, "sha256": sha_remote},
             tombstone_key("b.txt"): {"ts": now - 20, "sha256": sha_newpath},
         }
-        changed = store.merge(payload)
+        changed = store.merge(payload)  # type: ignore[reportArgumentType]
         assert changed == 2
-        assert store.get("a.txt")["sha256"] == sha_remote
-        assert store.get("b.txt")["sha256"] == sha_newpath
+        entry_a = store.get("a.txt")
+        assert entry_a is not None
+        assert entry_a["sha256"] == sha_remote
+        entry_b = store.get("b.txt")
+        assert entry_b is not None
+        assert entry_b["sha256"] == sha_newpath
         # Older remote entry must not override newer local one.
-        assert store.merge({tombstone_key("a.txt"): {"ts": now - 30, "sha256": "d" * 64}}) == 0
-        assert store.get("a.txt")["sha256"] == sha_remote
+        assert store.merge({tombstone_key("a.txt"): {"ts": now - 30, "sha256": "d" * 64}}) == 0  # type: ignore[reportArgumentType]
+        entry_a = store.get("a.txt")
+        assert entry_a is not None
+        assert entry_a["sha256"] == sha_remote
 
     def test_merge_ignores_malformed_entries(self):
         store = TombstoneStore()
-        assert store.merge({"k": {"sha256": "no-ts"}}) == 0
+        assert store.merge({"k": {"sha256": "no-ts"}}) == 0  # type: ignore[reportArgumentType]
         assert store.merge(None) == 0
 
     def test_merge_rejects_poisoned_entries(self):
@@ -707,16 +717,16 @@ class TestTombstoneStore:
         key = tombstone_key("victim.txt")
         store = TombstoneStore()
         # Far-future timestamp (permanent poison) is rejected.
-        assert store.merge({key: {"ts": now + 10_000_000, "sha256": None}}) == 0
+        assert store.merge({key: {"ts": now + 10_000_000, "sha256": None}}) == 0  # type: ignore[reportArgumentType]
         assert store.get("victim.txt") is None
         # Non-hex / short keys are rejected.
-        assert store.merge({"not-a-sha": {"ts": now, "sha256": None}}) == 0
+        assert store.merge({"not-a-sha": {"ts": now, "sha256": None}}) == 0  # type: ignore[reportArgumentType]
         # Malformed content hash is rejected.
-        assert store.merge({key: {"ts": now, "sha256": "not-hex"}}) == 0
+        assert store.merge({key: {"ts": now, "sha256": "not-hex"}}) == 0  # type: ignore[reportArgumentType]
         # Missing/non-numeric/zero timestamps are rejected.
-        assert store.merge({key: {"sha256": None}}) == 0
-        assert store.merge({key: {"ts": "soon", "sha256": None}}) == 0
-        assert store.merge({key: {"ts": 0, "sha256": None}}) == 0
+        assert store.merge({key: {"sha256": None}}) == 0  # type: ignore[reportArgumentType]
+        assert store.merge({key: {"ts": "soon", "sha256": None}}) == 0  # type: ignore[reportArgumentType]
+        assert store.merge({key: {"ts": 0, "sha256": None}}) == 0  # type: ignore[reportArgumentType]
         assert len(store) == 0
 
     def test_merge_rejects_non_finite_and_bool_timestamps(self):
@@ -725,13 +735,13 @@ class TestTombstoneStore:
         now = int(time.time())
         key = tombstone_key("victim.txt")
         store = TombstoneStore()
-        assert store.merge({key: {"ts": float("inf"), "sha256": None}}) == 0
-        assert store.merge({key: {"ts": float("-inf"), "sha256": None}}) == 0
-        assert store.merge({key: {"ts": float("nan"), "sha256": None}}) == 0
-        assert store.merge({key: {"ts": True, "sha256": None}}) == 0
+        assert store.merge({key: {"ts": float("inf"), "sha256": None}}) == 0  # type: ignore[reportArgumentType]
+        assert store.merge({key: {"ts": float("-inf"), "sha256": None}}) == 0  # type: ignore[reportArgumentType]
+        assert store.merge({key: {"ts": float("nan"), "sha256": None}}) == 0  # type: ignore[reportArgumentType]
+        assert store.merge({key: {"ts": True, "sha256": None}}) == 0  # type: ignore[reportArgumentType]
         assert len(store) == 0
         # A legitimate float timestamp still converts cleanly.
-        assert store.merge({key: {"ts": float(now), "sha256": None}}) == 1
+        assert store.merge({key: {"ts": float(now), "sha256": None}}) == 1  # type: ignore[reportArgumentType]
         assert store.get("victim.txt") is not None
 
     def test_merge_accepts_timestamp_within_clock_skew(self):
@@ -739,7 +749,7 @@ class TestTombstoneStore:
         key = tombstone_key("victim.txt")
         store = TombstoneStore()
         # A timestamp within the clock-skew tolerance is accepted.
-        assert store.merge({key: {"ts": now + 60, "sha256": None}}) == 1
+        assert store.merge({key: {"ts": now + 60, "sha256": None}}) == 1  # type: ignore[reportArgumentType]
         assert store.get("victim.txt") is not None
 
     def test_merge_caps_store_size(self, monkeypatch):
@@ -747,7 +757,7 @@ class TestTombstoneStore:
         now = int(time.time())
         store = TombstoneStore()
         payload = {tombstone_key(f"f{i}.txt"): {"ts": now, "sha256": None} for i in range(5)}
-        store.merge(payload)
+        store.merge(payload)  # type: ignore[reportArgumentType]
         assert len(store) == 2
 
     def test_to_payload_roundtrips_through_merge(self):
