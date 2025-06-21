@@ -42,7 +42,8 @@
               "delta",
               "https",
               "never_master",
-              "tombstones"
+              "tombstones",
+              "vector_clocks"
             ]
           },
           "type": "array",
@@ -81,7 +82,8 @@
               "delta",
               "https",
               "never_master",
-              "tombstones"
+              "tombstones",
+              "vector_clocks"
             ]
           },
           "type": "array",
@@ -184,16 +186,53 @@
         },
         "size": {
           "type": "integer"
+        },
+        "version": {
+          "additionalProperties": false,
+          "description": "Causal version metadata joined from the version store (ADR-0022). Optional: absent ⇒ empty vector clock.",
+          "properties": {
+            "origin_cid": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "ts": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "vclock": {
+              "additionalProperties": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "description": "Node cid → logical counter.",
+              "type": "object"
+            },
+            "version_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "vclock",
+            "version_id",
+            "origin_cid",
+            "ts"
+          ],
+          "title": "VersionInfo",
+          "type": "object"
         }
       },
       "required": [
-        "filepath",
-        "name",
         "ctime",
+        "filepath",
         "mtime",
-        "size",
+        "name",
+        "permissions",
         "sha256sum",
-        "permissions"
+        "size"
       ],
       "title": "File",
       "type": "object"
