@@ -1,0 +1,152 @@
+{
+  "scenarios": [
+    {
+      "existing": null,
+      "expected_decision": "adopt",
+      "incoming": {
+        "origin_cid": "TestClientA1234567890",
+        "sha256": "aaa",
+        "ts": 1700000000,
+        "vclock": {
+          "TestClientA1234567890": 1
+        },
+        "version_id": "v1"
+      },
+      "name": "no-existing-adopts"
+    },
+    {
+      "existing": {
+        "origin_cid": "TestClientA1234567890",
+        "sha256": "aaa",
+        "ts": 1700000000,
+        "vclock": {
+          "TestClientA1234567890": 2,
+          "TestClientB1234567890": 1
+        },
+        "version_id": "v1"
+      },
+      "expected_decision": "keep",
+      "incoming": {
+        "origin_cid": "TestClientA1234567890",
+        "sha256": "bbb",
+        "ts": 1700000000,
+        "vclock": {
+          "TestClientA1234567890": 1
+        },
+        "version_id": "v1"
+      },
+      "name": "existing-dominates-keeps"
+    },
+    {
+      "existing": {
+        "origin_cid": "TestClientA1234567890",
+        "sha256": "aaa",
+        "ts": 1700000000,
+        "vclock": {
+          "TestClientA1234567890": 1
+        },
+        "version_id": "v1"
+      },
+      "expected_decision": "adopt",
+      "incoming": {
+        "origin_cid": "TestClientA1234567890",
+        "sha256": "bbb",
+        "ts": 1700000000,
+        "vclock": {
+          "TestClientA1234567890": 2,
+          "TestClientB1234567890": 1
+        },
+        "version_id": "v1"
+      },
+      "name": "incoming-dominates-adopts"
+    },
+    {
+      "existing": {
+        "origin_cid": "TestClientA1234567890",
+        "sha256": "aaa",
+        "ts": 1700000000,
+        "vclock": {
+          "TestClientA1234567890": 2
+        },
+        "version_id": "v1"
+      },
+      "expected_decision": "adopt",
+      "incoming": {
+        "origin_cid": "TestClientA1234567890",
+        "sha256": "zzz",
+        "ts": 1700000000,
+        "vclock": {
+          "TestClientB1234567890": 2
+        },
+        "version_id": "v1"
+      },
+      "name": "concurrent-incoming-wins-sha"
+    },
+    {
+      "existing": {
+        "origin_cid": "TestClientA1234567890",
+        "sha256": "zzz",
+        "ts": 1700000000,
+        "vclock": {
+          "TestClientA1234567890": 2
+        },
+        "version_id": "v1"
+      },
+      "expected_decision": "keep",
+      "incoming": {
+        "origin_cid": "TestClientA1234567890",
+        "sha256": "aaa",
+        "ts": 1700000000,
+        "vclock": {
+          "TestClientB1234567890": 2
+        },
+        "version_id": "v1"
+      },
+      "name": "concurrent-existing-wins-sha"
+    },
+    {
+      "existing": {
+        "origin_cid": "TestClientA1234567890",
+        "sha256": "aaa",
+        "ts": 1700000000,
+        "vclock": {
+          "TestClientA1234567890": 1
+        },
+        "version_id": "v1"
+      },
+      "expected_decision": "adopt",
+      "incoming": {
+        "origin_cid": "TestClientB1234567890",
+        "sha256": "zzz",
+        "ts": 1700000000,
+        "vclock": {
+          "TestClientA1234567890": 1
+        },
+        "version_id": "v1"
+      },
+      "name": "equal-clock-anomaly-incoming-wins-sha"
+    },
+    {
+      "existing": {
+        "origin_cid": "TestClientA1234567890",
+        "sha256": "zzz",
+        "ts": 1700000000,
+        "vclock": {
+          "TestClientA1234567890": 1
+        },
+        "version_id": "v1"
+      },
+      "expected_decision": "keep",
+      "incoming": {
+        "origin_cid": "TestClientB1234567890",
+        "sha256": "aaa",
+        "ts": 1700000000,
+        "vclock": {
+          "TestClientA1234567890": 1
+        },
+        "version_id": "v1"
+      },
+      "name": "equal-clock-anomaly-existing-wins-sha"
+    }
+  ]
+}

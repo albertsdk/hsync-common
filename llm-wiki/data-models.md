@@ -12,7 +12,7 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
 | `Symlink` | `models/symlink.py:14` | — | `filepath`, `target`, `name`, times |
 | `Event` | `models/event.py:63` | `EventDict` (`models/event.py:34`) | FS change; `EventName` enum `models/event.py:44`; `is_valid_cid` wire validator `models/event.py:29` |
 | `SyncAction` | `models/sync_action.py:31` | — | decision; `SyncActionName` enum `models/sync_action.py:14` |
-| `TombstoneStore` | `models/tombstone.py:101` | `TombstoneEntry` (`models/tombstone.py:42`) | deletion markers, LWW merge |
+| `TombstoneStore` | `models/tombstone.py:210` | `TombstoneEntry` (`models/tombstone.py:76`) | causal deletion markers (vclock merge) |
 | `SyncStateStore` / `FileVersion` | `models/version.py:100` / `:46` | `FileVersion` TypedDict | 3-way merge state |
 
 ## File
@@ -45,20 +45,38 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
   serialized shape so the "preserve the local copy first" signal survives
   serialization.
 
-## TombstoneStore (deletion markers)
+## TombstoneStore (causal deletion markers)
 
-- Key derivation hashed for privacy: `tombstone_key` (`models/tombstone.py:91`),
-  bucket-relative path via `relpath_in_bucket` (`:96`).
-- `TombstoneEntry`: `{ts: int, sha256: str|None}` (`models/tombstone.py:42`).
-- LWW semantics in `record()` / `merge()` keep newest `ts`; TTL GC via `prune()`
-  bounded by `TOMBSTONE_TTL_DAYS_DEFAULT = 30` (`models/tombstone.py:29`).
-- Untrusted-input hardening (`merge()`/`load()` via `_sanitize_entry`,
-  `models/tombstone.py:59`): keys and `sha256` must be sha256 hex (64),
-  `ts` must be `0 < ts ≤ now + TOMBSTONE_MAX_CLOCK_SKEW_SECONDS` (300 s, `:35`),
-  store capped at `TOMBSTONE_MAX_ENTRIES` (100 000, `:39`) — anti-poisoning
-  for LAN gossip payloads. Raw `ts` is also type-hardened: `bool` rejected
-  outright, `int()` guarded against `OverflowError` from non-finite floats
-  (JSON `Infinity`/`NaN` are accepted by `json.loads`).
+- Key derivation hashed for privacy: `tombstone_key`/`relpath_in_bucket`
+  live in `models/_util.py` and are re-exported from `models/tombstone.py`.
+- `TombstoneEntry`: `{sha256: str|None, version_id: str, origin_cid: str|None,
+  ts: int, vclock: dict[str,int]}` (`models/tombstone.py:76`).
+- **Causal record** (`record`/`record_by_key`): the marker inherits the stored
+  version clock for the path (`prev_vclock`) and is ticked by the deleter cid
+  (`tick_vclock`) — the deletion is an operation in the same causal history as
+  edits (ADR-0003). Without an origin cid the inherited clock is recorded
+  un-ticked.
+- **Causal merge** (`merge`, pure decision in `tombstone_merge_decision`,
+  `models/tombstone.py:188`): dominance decides `adopt`/`keep`
+  (`compare_vclocks`); true concurrency resolves via deterministic content
+  tie-break (content hash → version_id → origin_cid); **`ts` never decides**.
+- TTL GC via `prune()` bounded by `TOMBSTONE_TTL_DAYS_DEFAULT = 90`
+  (`models/tombstone.py:64`) — a **storage bound only**, correctness does not
+  depend on it.
+- Strict wire validation (`merge()`/`load()` via `_sanitize_entry`,
+  `models/tombstone.py:128`): keys and `sha256` must be sha256 hex (64),
+  `ts` must be `0 < ts ≤ now + TOMBSTONE_MAX_CLOCK_SKEW_SECONDS` (300 s),
+  the `vclock` must parse strictly (`_parse_vclock`, `:106`: dict, ≤
+  `VCLOCK_MAX_ENTRIES` entries, non-negative int counters with `bool`
+  rejected, valid cids only) — an entry without a valid clock is dropped,
+  never loaded with a fabricated empty clock. Store capped at
+  `TOMBSTONE_MAX_ENTRIES` (100 000) — anti-poisoning for LAN gossip payloads.
+  Raw `ts` is also type-hardened: `bool` rejected outright, `int()` guarded
+  against `OverflowError` from non-finite floats (JSON `Infinity`/`NaN` are
+  accepted by `json.loads`).
+- Cross-language parity: `protocol/fixtures.py` builds
+  `causal-tombstone-scenarios` from `tombstone_merge_decision` (never
+  hand-written); the committed JSON is replayed by the Android parity test.
 - Persisted to the `.hsynctombstones` side-car (`constants.py:43`).
 
 ## Version / causal merge
@@ -80,9 +98,10 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
   `conflict_download` (tie-break loser preserved as a conflicted copy).
 - Version-id minting: `new_version_id` (`_VERSION_ID_BYTES = 16`).
 - `SyncStateStore` persists per-file versions for the next reconciliation; backs
-  the `.hsyncstate` side-car (`constants.py`). `load()` tolerates side-cars
-  written before vector clocks (entries without `vclock` ⇒ empty clock) and
-  drops malformed `vclock` sub-values entry-by-entry.
+  the `.hsyncstate` side-car (`constants.py`). The model is strictly causal:
+  `load()` drops entries without a structurally valid `vclock` (no fabricated
+  empty clocks) — a corrupted entry degrades entry-by-entry instead of
+  crashing startup.
 
 ## Delta Transfer Models (`models/delta.py`)
 

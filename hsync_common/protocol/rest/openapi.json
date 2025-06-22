@@ -916,7 +916,7 @@
     },
     "/api/v1/buckets/{bucket}/tombstones": {
       "get": {
-        "description": "List deletion markers (tombstones) for a bucket.\n\nReturns a mapping of hashed bucket-relative path to the deletion\ntimestamp and the content hash of the removed file. Clients use these\nmarkers to avoid resurrecting files that were deleted while they were\noffline.\n\nArgs:\n    request: The incoming FastAPI request.\n    bucket: Name of the bucket to list tombstones from.\n\nReturns:\n    JSON response with the tombstone payload.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    BucketNotFoundError: If bucket does not exist.",
+        "description": "List deletion markers (tombstones) for a bucket.\n\nReturns a mapping of hashed bucket-relative path to the causal marker\n(``{\"sha256\", \"version_id\", \"origin_cid\", \"ts\", \"vclock\"}``). Clients use\nthese markers to avoid resurrecting files that were deleted while they\nwere offline.\n\nArgs:\n    request: The incoming FastAPI request.\n    bucket: Name of the bucket to list tombstones from.\n\nReturns:\n    JSON response with the tombstone payload.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    BucketNotFoundError: If bucket does not exist.",
         "operationId": "get_tombstones_api_v1_buckets__bucket__tombstones_get",
         "parameters": [
           {
@@ -960,7 +960,7 @@
         ]
       },
       "post": {
-        "description": "Merge deletion markers (tombstones) pushed by a client.\n\nA client that deleted files while offline pushes its accumulated markers\nat the start of each sync cycle so the server converges to the union of\nall known deletions and other peers do not resurrect those files. The\nmerge is last-writer-wins per marker; entries are validated and the store\nsize is capped (see ``TombstoneStore.merge``).\n\nArgs:\n    request: The incoming FastAPI request; the body is the JSON tombstone\n        payload (mapping of hashed path to ``{\"ts\": ..., \"sha256\": ...}``).\n    bucket: Name of the bucket to merge markers into.\n\nReturns:\n    JSON response with the number of markers accepted/changed.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    BucketNotFoundError: If bucket does not exist.\n    InvalidPathError: If the body is not a JSON object.",
+        "description": "Merge deletion markers (tombstones) pushed by a client.\n\nA client that deleted files while offline pushes its accumulated markers\nat the start of each sync cycle so the server converges to the union of\nall known deletions and other peers do not resurrect those files. The\nmerge is **causal** per marker (vector-clock dominance, deterministic\ncontent tie-break on concurrency — never the deletion timestamp, ADR-0003);\nentries are strictly validated and the store size is capped (see\n``TombstoneStore.merge``).\n\nArgs:\n    request: The incoming FastAPI request; the body is the JSON tombstone\n        payload (mapping of hashed path to the causal\n        ``{\"sha256\", \"version_id\", \"origin_cid\", \"ts\", \"vclock\"}`` entry).\n    bucket: Name of the bucket to merge markers into.\n\nReturns:\n    JSON response with the number of markers accepted/changed.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    BucketNotFoundError: If bucket does not exist.\n    InvalidPathError: If the body is not a JSON object.",
         "operationId": "post_tombstones_api_v1_buckets__bucket__tombstones_post",
         "parameters": [
           {
