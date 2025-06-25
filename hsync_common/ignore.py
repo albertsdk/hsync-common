@@ -33,7 +33,7 @@ from os.path import relpath
 from pathlib import Path
 
 from pathspec import PathSpec
-from pathspec.patterns.gitwildmatch import GitWildMatchPattern
+from pathspec.patterns.gitignore.spec import GitIgnoreSpecPattern
 
 from hsync_common.constants import (
     DEFAULT_IGNORE_PATTERNS,
@@ -69,7 +69,7 @@ class IgnoreMatcher:
     ) -> None:
         self.bucket_root = str(Path(bucket_root).resolve()) if bucket_root else ""
         self._extra_patterns = list(extra_patterns or [])
-        self._spec: PathSpec = PathSpec.from_lines(GitWildMatchPattern, [])
+        self._spec: PathSpec = PathSpec.from_lines(GitIgnoreSpecPattern, [])
         self._lock = threading.RLock()
         self.reload()
 
@@ -118,7 +118,7 @@ class IgnoreMatcher:
             patterns = patterns[:_MAX_IGNORE_PATTERNS]
 
         with self._lock:
-            self._spec = PathSpec.from_lines(GitWildMatchPattern, patterns)
+            self._spec = PathSpec.from_lines(GitIgnoreSpecPattern, patterns)
 
     # ------------------------------------------------------------------
     # Matching
