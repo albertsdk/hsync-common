@@ -97,6 +97,10 @@ class Dir:
         """
         Get a Dir instance for an existing directory.
 
+        A directory can disappear concurrently with a sync scan; any
+        :class:`OSError` raised by the stat/read degrades to ``None`` instead
+        of aborting the whole sync cycle.
+
         Args:
             path: Path to the directory.
             buckets_dir: Optional base directory to prepend.
@@ -105,10 +109,12 @@ class Dir:
             Dir instance if directory exists, None otherwise.
         """
         path = str(Path(buckets_dir) / path.lstrip("/")) if buckets_dir else path
-        if Path(path).exists():
+        try:
+            if not Path(path).exists():
+                return None
             return cls(
                 path=path,
                 permissions=get_permissions(path),
             )
-        else:
+        except OSError:
             return None

@@ -53,6 +53,7 @@ __all__ = [
     "compute_signatures",
     "find_matches",
     "find_matches_file",
+    "signatures_for_data",
 ]
 
 # Adler32 modulus: largest prime < 2**16.
@@ -94,11 +95,23 @@ def adler32_roll(
     return ((new_b << 16) | new_a), new_a, new_b
 
 
+def _signature_for_chunk(chunk: bytes, index: int, offset: int) -> BlockSignature:
+    """Build the weak+strong signature of one base-file chunk."""
+    return BlockSignature(
+        index=index,
+        offset=offset,
+        length=len(chunk),
+        weak=zlib.adler32(chunk),
+        strong=sha256(chunk).hexdigest(),
+    )
+
+
 def compute_signatures(filepath: str, block_size: int) -> list[BlockSignature]:
     """Compute per-block signatures of the base file.
 
     Every block gets a weak Adler32 and a strong SHA-256; the final partial
-    block (``length < block_size``) is included with its real length.
+    block (``length < block_size``) is included with its real length. The file
+    is streamed chunk-by-chunk so memory stays bounded for large bases.
     """
     if block_size <= 0:
         raise DeltaError(
@@ -110,17 +123,46 @@ def compute_signatures(filepath: str, block_size: int) -> list[BlockSignature]:
         index = 0
         offset = 0
         while chunk := f.read(block_size):
-            signatures.append(
-                BlockSignature(
-                    index=index,
-                    offset=offset,
-                    length=len(chunk),
-                    weak=zlib.adler32(chunk),
-                    strong=sha256(chunk).hexdigest(),
-                )
-            )
+            signatures.append(_signature_for_chunk(chunk, index, offset))
             index += 1
             offset += len(chunk)
+    return signatures
+
+
+def signatures_for_data(data: bytes, block_size: int) -> list[BlockSignature]:
+    """Compute per-block signatures of an in-memory *data* buffer.
+
+    Twin of :func:`compute_signatures` for callers that already hold the base
+    bytes (fixture builders, tests). Both delegate the per-chunk weak+strong
+    computation to the same helper, so the two paths cannot drift.
+
+    Args:
+        data: The base payload to signature.
+        block_size: Block width in bytes (must be positive).
+
+    Returns:
+        One :class:`BlockSignature` per block; the final partial block
+        (``length < block_size``) is included with its real length.
+
+    Raises:
+        DeltaError: When ``block_size`` is not positive.
+
+    Consumers: ``hsync-common`` (``protocol.fixtures`` delta fixtures) and
+    the shared delta test suite.
+    """
+    if block_size <= 0:
+        raise DeltaError(
+            "block_size must be positive",
+            details={"block_size": block_size},
+        )
+    signatures: list[BlockSignature] = []
+    index = 0
+    offset = 0
+    while offset < len(data):
+        chunk = data[offset : offset + block_size]
+        signatures.append(_signature_for_chunk(chunk, index, offset))
+        index += 1
+        offset += len(chunk)
     return signatures
 
 

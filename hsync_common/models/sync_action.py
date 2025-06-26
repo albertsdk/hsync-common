@@ -25,6 +25,12 @@ class SyncActionName(StrEnum):
         delete_remote: File should be deleted on the server/master (a local
             tombstone says it was deleted here while offline; it must not be
             resurrected by downloading it back).
+        upload_symlink: A local symlink (target inside the bucket) should be
+            replicated structurally to the remote — the (path, target) pair,
+            never the target's content.
+        download_symlink: A remote symlink (target inside the bucket) should be
+            recreated locally as a link — the (path, target) pair, never the
+            target's content.
         nothing: No action needed (files are in sync).
     """
 
@@ -32,6 +38,8 @@ class SyncActionName(StrEnum):
     upload = "upload"
     delete = "delete"
     delete_remote = "delete_remote"
+    upload_symlink = "upload_symlink"
+    download_symlink = "download_symlink"
     nothing = "nothing"
 
 

@@ -97,6 +97,12 @@ def to_epoch(t: str | int | float | datetime | None) -> int | None:
         raise TypeError(f"Expected a timestamp, got bool ({t!r})")
 
     if isinstance(t, datetime):
+        if t.tzinfo is None:
+            # Documented contract: naive datetimes are treated as UTC (the
+            # same policy as naive ISO strings below). .timestamp() alone
+            # would interpret a naive datetime as LOCAL time, silently
+            # diverging between hosts in different timezones.
+            t = t.replace(tzinfo=UTC)
         return int(t.timestamp())
 
     if isinstance(t, str):

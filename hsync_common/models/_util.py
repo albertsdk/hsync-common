@@ -46,7 +46,7 @@ def tombstone_key(relpath: str) -> str:
     return sha256(relpath.encode("utf-8")).hexdigest()
 
 
-def relpath_in_bucket(abs_path: str, bucket_dir: str) -> str:
+def relpath_in_bucket(abs_path: str, bucket_dir: str) -> str | None:
     """Return the bucket-relative path used as the tombstone identity.
 
     Uses :meth:`pathlib.Path.relative_to` so a sibling-prefix directory
@@ -54,6 +54,11 @@ def relpath_in_bucket(abs_path: str, bucket_dir: str) -> str:
     the bucket itself: ``removeprefix`` would strip the shared prefix and
     produce a bogus relative path (``2/x``), while ``relative_to`` raises
     ``ValueError`` for paths outside the bucket.
+
+    A path outside the bucket returns ``None`` (never the empty string of
+    the bucket root): mapping it to the root key (``tombstone_key("")``)
+    would corrupt the root's causal state, so callers must treat ``None``
+    as "not in bucket" and skip the path.
     """
     try:
         rel = str(Path(str(abs_path)).relative_to(str(bucket_dir)))
@@ -61,4 +66,4 @@ def relpath_in_bucket(abs_path: str, bucket_dir: str) -> str:
         # caller treats the bucket root as an empty relative path.
         return "" if rel == "." else rel
     except ValueError:
-        return ""
+        return None

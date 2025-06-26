@@ -512,17 +512,26 @@ def validate_remote_relpath(rel: str) -> str | None:
     return rel
 
 
-def resolve_within(base_dir: str, rel: str) -> str | None:
+def resolve_within(base_dir: str, rel: str, *, resolve_final: bool = True) -> str | None:
     """Resolve a remote-supplied relative path inside *base_dir*.
 
     Combines lexical validation (:func:`validate_remote_relpath`) with
     filesystem confinement: the resolved path must remain within
     ``base_dir`` even after symlink resolution of existing components.
 
+    When *resolve_final* is False the **final component is not
+    dereferenced**: a symlink at the endpoint is returned as the link path.
+    This is required by every operation that must treat a symlink
+    structurally (delete the link itself, replace an existing link) instead
+    of acting on its target — while intermediate directory symlinks remain
+    resolved and confined, so an escaping hop is still rejected.
+
     Args:
         base_dir: The directory the path must stay within (e.g. the local
             bucket root).
         rel: The remote-supplied bucket-relative path.
+        resolve_final: When True (default) the returned path is fully
+            resolved — the safe choice for file/directory content paths.
 
     Returns:
         The confined absolute path, or ``None`` when the path is unsafe.
@@ -535,12 +544,52 @@ def resolve_within(base_dir: str, rel: str) -> str | None:
 
     try:
         base = Path(base_dir).resolve()
-        target = (base / clean).resolve()
+        if resolve_final:
+            target = (base / clean).resolve()
+        else:
+            target = (base / Path(clean).parent).resolve() / Path(clean).name
         target.relative_to(base)
     except (OSError, ValueError):
         return None
 
     return str(target)
+
+
+def wire_symlink_target(symlink_path: str, target: str, bucket_dir: str) -> str | None:
+    """Normalize a symlink target for wire replication (rsync munge semantics).
+
+    The (path, target) pair is replicated structurally, but an ABSOLUTE target
+    is not portable: it refers to the sender's filesystem layout and would
+    dangle (or be rejected) on every other peer. An absolute target that
+    resolves inside *bucket_dir* is therefore converted to a path RELATIVE to
+    the link's own directory, preserving the reference it denotes while making
+    it valid on any peer regardless of where the bucket is mounted. A relative
+    target is returned verbatim. Returns ``None`` when the absolute target
+    resolves outside the bucket (the caller must skip the link entirely).
+
+    Args:
+        symlink_path: Full path where the symlink lives.
+        target: The symlink target (relative or absolute).
+        bucket_dir: The bucket directory.
+
+    Returns:
+        The wire-safe target string, or ``None`` when escaping the bucket.
+    """
+    from pathlib import Path
+
+    if not target:
+        return None
+    try:
+        if not Path(target).is_absolute():
+            return target
+        target_resolved = Path(target).resolve()
+        target_resolved.relative_to(Path(bucket_dir).resolve())
+        link_parent = Path(symlink_path).resolve().parent
+        import os
+
+        return os.path.relpath(target_resolved, link_parent)
+    except (OSError, ValueError):
+        return None
 
 
 def is_safe_symlink_target(symlink_path: str, target: str, bucket_dir: str) -> bool:

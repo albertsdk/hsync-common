@@ -33,10 +33,14 @@ if TYPE_CHECKING:
 SHA256_CACHE_MAX_SIZE: int = 10_000
 
 # In-memory LRU cache for SHA-256 checksums to avoid redundant computation
-# during a single sync operation. Key: filepath, Value: tuple[sha256sum, mtime].
+# during a single sync operation. Key: filepath, Value: tuple[sha256sum, mtime,
+# size]. The size is part of the validity key: on filesystems with coarse mtime
+# granularity (1s) a file rewritten in the same second keeps the same mtime, so
+# mtime alone would serve a stale digest — the size catches a large class of
+# those same-second rewrites.
 # OrderedDict is used so we can evict the least-recently-used entry when the
 # cache is full (move-to-end on hit, pop-first on overflow).
-_sha256_cache: OrderedDict[str, tuple[str, int]] = OrderedDict()
+_sha256_cache: OrderedDict[str, tuple[str, int, int]] = OrderedDict()
 
 
 def clear_sha256_cache() -> None:
@@ -61,20 +65,20 @@ def invalidate_sha256_cache(file_path: str) -> None:
     _sha256_cache.pop(file_path, None)
 
 
-def _get_cached_sha256(file_path: str, current_mtime: int) -> str | None:
-    """Get cached SHA-256 if file hasn't been modified (LRU: move to end on hit)."""
+def _get_cached_sha256(file_path: str, current_mtime: int, current_size: int) -> str | None:
+    """Get cached SHA-256 if file metadata still matches (LRU: move to end on hit)."""
     if file_path in _sha256_cache:
-        cached_sha256, cached_mtime = _sha256_cache[file_path]
-        if cached_mtime == current_mtime:
+        cached_sha256, cached_mtime, cached_size = _sha256_cache[file_path]
+        if cached_mtime == current_mtime and cached_size == current_size:
             _sha256_cache.move_to_end(file_path)
             return cached_sha256
         del _sha256_cache[file_path]
     return None
 
 
-def _set_cached_sha256(file_path: str, sha256sum: str, mtime: int) -> None:
-    """Store SHA-256 in cache with its mtime; evict LRU entry when at capacity."""
-    _sha256_cache[file_path] = (sha256sum, mtime)
+def _set_cached_sha256(file_path: str, sha256sum: str, mtime: int, size: int) -> None:
+    """Store SHA-256 in cache with its mtime/size; evict LRU entry at capacity."""
+    _sha256_cache[file_path] = (sha256sum, mtime, size)
     _sha256_cache.move_to_end(file_path)
     if len(_sha256_cache) > SHA256_CACHE_MAX_SIZE:
         _sha256_cache.popitem(last=False)  # evict oldest (least recently used)
@@ -241,29 +245,43 @@ class File:
 
     @classmethod
     def get(cls, file_path: str, buckets_dir: str | None = None) -> "File | None":
-        """Get a File instance for an existing file."""
+        """Get a File instance for an existing file.
+
+        The file can disappear or change concurrently with a sync scan (the
+        watcher and transfers share the bucket): any :class:`OSError` raised
+        by ``stat``/hash/permission reads degrades to ``None`` instead of
+        aborting the whole sync cycle.
+        """
         file_path = str(Path(buckets_dir) / file_path.lstrip("/")) if buckets_dir else file_path
         file = Path(file_path)
-        if file.exists():
+        try:
             file_stat = file.stat()
-            file_size = file_stat.st_size
-            file_mtime = int(file_stat.st_mtime)
-
-            sha256sum = _get_cached_sha256(file_path, file_mtime)
-            if sha256sum is None:
-                sha256sum = cls._compute_sha256(file_path, file_size)
-                _set_cached_sha256(file_path, sha256sum, file_mtime)
-
-            return cls(
-                filepath=file_path,
-                ctime=int(file_stat.st_ctime),
-                mtime=file_mtime,
-                size=file_size,
-                sha256sum=sha256sum,
-                permissions=get_permissions(file_path),
-            )
-        else:
+        except OSError:
             return None
+        file_size = file_stat.st_size
+        file_mtime = int(file_stat.st_mtime)
+
+        sha256sum = _get_cached_sha256(file_path, file_mtime, file_size)
+        if sha256sum is None:
+            try:
+                sha256sum = cls._compute_sha256(file_path, file_size)
+            except OSError:
+                return None
+            _set_cached_sha256(file_path, sha256sum, file_mtime, file_size)
+
+        try:
+            permissions = get_permissions(file_path)
+        except OSError:
+            return None
+
+        return cls(
+            filepath=file_path,
+            ctime=int(file_stat.st_ctime),
+            mtime=file_mtime,
+            size=file_size,
+            sha256sum=sha256sum,
+            permissions=permissions,
+        )
 
     @classmethod
     def from_dict(

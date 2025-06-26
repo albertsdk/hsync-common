@@ -230,26 +230,48 @@ class TestCpuQuota:
 
 
 class TestRuntimeSummary:
-    def test_compose_container_line(self, monkeypatch):
+    def test_compose_container_line(self, monkeypatch, tmp_path):
+        """The summary must reflect real probe OUTPUTS, not just format them.
+
+        The memory/CPU probes run against real cgroup files (``CGROUP_ROOT``
+        is redirected to *tmp_path*, so the real parsing logic executes on
+        hermetic inputs): only the environment-only feed (container marker,
+        TTY) is stubbed. A summary function that ignored the probes and
+        hardcoded values would fail here.
+        """
+        (tmp_path / "memory.max").write_text("536870912\n")
+        (tmp_path / "cpu.max").write_text("150000 100000\n")
+        # Rebinding the probes keeps the REAL cgroup parsing logic on the
+        # real files in tmp_path (default parameter values were bound at
+        # import time and ignore CGROUP_ROOT patches); the environment-only
+        # feed (container marker, TTY) is stubbed.
+        monkeypatch.setattr(
+            runtime, "get_memory_limit_bytes", lambda: get_memory_limit_bytes(tmp_path)
+        )
+        monkeypatch.setattr(runtime, "get_cpu_quota_cores", lambda: get_cpu_quota_cores(tmp_path))
         monkeypatch.setattr(
             runtime, "detect_container", lambda: ContainerInfo(True, "docker", "/.dockerenv")
         )
-        monkeypatch.setattr(runtime, "get_memory_limit_bytes", lambda: 512 * 1024 * 1024)
-        monkeypatch.setattr(runtime, "get_cpu_quota_cores", lambda: 1.5)
-        monkeypatch.setattr(runtime, "is_tty_interactive", lambda: False)
+        monkeypatch.setattr(sys, "stdin", _NotTty())
+        monkeypatch.setattr(sys, "stdout", _NotTty())
 
         summary = runtime_summary()
 
         assert "container=docker (via /.dockerenv)" in summary
+        # 536870912 B == 512 MiB -> format_bytes renders "512.0MB" (compact form).
         assert "mem_limit=512.0MB" in summary
         assert "cpu_quota=1.5 cores" in summary
         assert "tty=no" in summary
 
-    def test_compose_host_line(self, monkeypatch):
+    def test_compose_host_line(self, monkeypatch, tmp_path):
+        """Absent cgroup files under the redirected probes surface as 'unlimited'."""
+        monkeypatch.setattr(
+            runtime, "get_memory_limit_bytes", lambda: get_memory_limit_bytes(tmp_path)
+        )
+        monkeypatch.setattr(runtime, "get_cpu_quota_cores", lambda: get_cpu_quota_cores(tmp_path))
         monkeypatch.setattr(runtime, "detect_container", lambda: ContainerInfo(False))
-        monkeypatch.setattr(runtime, "get_memory_limit_bytes", lambda: None)
-        monkeypatch.setattr(runtime, "get_cpu_quota_cores", lambda: None)
-        monkeypatch.setattr(runtime, "is_tty_interactive", lambda: True)
+        monkeypatch.setattr(sys, "stdin", _Tty())
+        monkeypatch.setattr(sys, "stdout", _Tty())
 
         summary = runtime_summary()
 

@@ -20,6 +20,13 @@ formatting/hashing/parsing helper (DRY rule in `CLAUDE.md`).
 - `compute_sha256` (`hashing.py:67`) + async `compute_sha256_async`
   (`hashing.py:84`).
 
+## delta/rolling_checksum.py
+
+- `compute_signatures(filepath, block_size)` (streamed, bounded memory) and
+  `signatures_for_data(data, block_size)` (in-memory twin for fixture/test
+  builders) share the same per-chunk weak+strong helper, so the two paths
+  cannot drift.
+
 ## compression.py (Zstandard, level 3)
 
 - `should_compress` (`compression.py:170`) — size/extension gate.
@@ -58,7 +65,15 @@ formatting/hashing/parsing helper (DRY rule in `CLAUDE.md`).
   filesystems), `validate_remote_relpath` (rejects `..`, absolute
   paths, drive letters, `\`, forbidden/control chars, reserved names,
   problematic trailing chars, internal artifacts), `resolve_within`
-  (validation + `resolve()`/`relative_to()` confinement),
+  (validation + `resolve()`/`relative_to()` confinement; new
+  `resolve_final=False` kwarg: the final component is NOT dereferenced, so
+  delete/replace/symlink-materialisation operate on the LINK entry — a
+  dangling link is a real directory entry and must be removable, while
+  intermediate directory symlinks stay confined),
+  `wire_symlink_target` (rsync `munge` semantics: an ABSOLUTE in-bucket
+  target is converted to a path relative to the link's directory for wire
+  replication — the sender's filesystem layout must never reach peers;
+  escaping targets return `None`),
   `is_safe_symlink_target` (SSOT, shared with the server). Every component
   that can dereference a local path (client scan `sync.get_files_local`,
   client upload `transfer.upload_file`, LAN master listing/download
@@ -161,11 +176,16 @@ reconciliation, transfers, previews and server lines.
   from the probes above; logged by both client (`run_sync`) and server
   (`__main__`) at startup.
 
-## format.py / text.py / env.py / exceptions.py
+## format.py / time_utils.py / text.py / env.py / exceptions.py
 
-- `format_bytes` (`format.py:23`), `format_duration` (`format.py:47`) —
-  `subsecond=True` renders sub-second durations as `"120ms"` / `"5.2s"` for
+- `format_bytes` (`format.py:23`) renders compact binary units with **no
+  separating space** (`"500B"`, `"1.5MB"`); `format_duration` (`format.py:47`)
+  — `subsecond=True` renders sub-second durations as `"120ms"` / `"5.2s"` for
   transfer timing; default `False` preserves the whole-second compact style.
+- `time_utils.to_epoch` (`time_utils.py`) treats **naive datetimes as UTC**
+  (matching naive ISO strings): deterministic across hosts, independent of the
+  caller's local timezone. `to_iso` and `conflict_timestamp` reject naive
+  datetimes instead.
 - `escape_loguru_markup` (`text.py:28`), `safe_json_for_log` (`text.py:38`).
 - `load_env_file` (`env.py:21`).
 - `HSyncError` base (`exceptions.py:30`), `format_exception` (`:63`),
