@@ -46,9 +46,9 @@ class Symlink:
             # Wire-supplied symlink targets must be trusted as little as
             # bucket-relative paths: reject null bytes, empty strings and
             # targets that exceed a reasonable length bound (matching the
-            # path_relpath limit in validate_remote_relpath). This is a
-            # lexical gate; callers must still use is_safe_symlink_target()
-            # for filesystem-level confinement.
+            # MAX_REMOTE_RELPATH_BYTES limit in validate_remote_relpath).
+            # This is a lexical gate; callers must still use
+            # is_safe_symlink_target() for filesystem-level confinement.
             if not isinstance(target, str) or not target:
                 raise ValueError("Symlink target must be a non-empty string")
             if "\x00" in target:
