@@ -95,8 +95,13 @@ def adler32_roll(
     return ((new_b << 16) | new_a), new_a, new_b
 
 
-def _signature_for_chunk(chunk: bytes, index: int, offset: int) -> BlockSignature:
-    """Build the weak+strong signature of one base-file chunk."""
+def _signature_for_chunk(chunk: bytes | memoryview, index: int, offset: int) -> BlockSignature:
+    """Build the weak+strong signature of one base-file chunk.
+
+    *chunk* accepts any bytes-like object: :func:`signatures_for_data` passes a
+    zero-copy :class:`memoryview` slice, so both digest computations run
+    directly on the source buffer without materialising an intermediate copy.
+    """
     return BlockSignature(
         index=index,
         offset=offset,
@@ -119,11 +124,13 @@ def compute_signatures(filepath: str, block_size: int) -> list[BlockSignature]:
             details={"block_size": block_size},
         )
     signatures: list[BlockSignature] = []
+    sig_for_chunk = _signature_for_chunk  # bind locally: hot loop, one lookup saved per block
     with open(filepath, "rb") as f:
+        read = f.read
         index = 0
         offset = 0
-        while chunk := f.read(block_size):
-            signatures.append(_signature_for_chunk(chunk, index, offset))
+        while chunk := read(block_size):
+            signatures.append(sig_for_chunk(chunk, index, offset))
             index += 1
             offset += len(chunk)
     return signatures
@@ -156,11 +163,14 @@ def signatures_for_data(data: bytes, block_size: int) -> list[BlockSignature]:
             details={"block_size": block_size},
         )
     signatures: list[BlockSignature] = []
+    sig_for_chunk = _signature_for_chunk  # hot loop: avoid a global lookup per block
+    view = memoryview(data)  # zero-copy: slice views are hashed without copying bytes
     index = 0
     offset = 0
-    while offset < len(data):
-        chunk = data[offset : offset + block_size]
-        signatures.append(_signature_for_chunk(chunk, index, offset))
+    n = len(data)
+    while offset < n:
+        chunk = view[offset : offset + block_size]
+        signatures.append(sig_for_chunk(chunk, index, offset))
         index += 1
         offset += len(chunk)
     return signatures
@@ -200,18 +210,21 @@ def find_matches(
             details={"block_size": block_size},
         )
     table = build_signature_index(signatures, block_size)
+    table_get = table.get  # bind locally: O(1) lookup, one attribute resolution saved per window
+    strong_hash = sha256  # bind locally: called once per candidate window (hot loop)
 
     ops: list[DeltaOp] = []
     literal_data = bytearray()
     literal_run_start: int | None = None
-    n = len(new_data)
+    view = memoryview(new_data)  # zero-copy: window slices are hashed without copying bytes
+    n = len(view)
     pos = 0
     roll_a: int | None = None
     roll_b: int | None = None
 
     while pos + block_size <= n:
         if roll_a is None or roll_b is None:
-            weak = zlib.adler32(new_data[pos : pos + block_size])
+            weak = zlib.adler32(view[pos : pos + block_size])
             roll_a = weak & 0xFFFF
             roll_b = (weak >> 16) & 0xFFFF
         else:
@@ -219,14 +232,14 @@ def find_matches(
                 roll_a,
                 roll_b,
                 block_size,
-                new_data[pos - 1],
-                new_data[pos + block_size - 1],
+                view[pos - 1],
+                view[pos + block_size - 1],
             )
 
         matched = False
-        candidates = table.get(weak)
+        candidates = table_get(weak)
         if candidates:
-            strong = sha256(bytes(new_data[pos : pos + block_size])).hexdigest()
+            strong = strong_hash(view[pos : pos + block_size]).hexdigest()
             for base_offset, expected_strong in candidates:
                 if strong == expected_strong:
                     if literal_run_start is not None:
@@ -243,14 +256,14 @@ def find_matches(
         if not matched:
             if literal_run_start is None:
                 literal_run_start = len(literal_data)
-            literal_data.append(new_data[pos])
+            literal_data.append(view[pos])
             pos += 1
 
     # Remaining tail bytes (pos + block_size > n) can never match a window.
     while pos < n:
         if literal_run_start is None:
             literal_run_start = len(literal_data)
-        literal_data.append(new_data[pos])
+        literal_data.append(view[pos])
         pos += 1
 
     if literal_run_start is not None:

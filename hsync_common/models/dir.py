@@ -5,10 +5,11 @@ This module defines the Dir class representing a directory with its
 path and permissions, used for directory synchronization events.
 """
 
+from os import stat as os_stat
 from pathlib import Path
 from typing import Optional
 
-from hsync_common.permissions import get_permissions
+from hsync_common.permissions import mode_to_octal
 
 
 def is_hidden_dir(directory: str) -> bool:
@@ -110,11 +111,14 @@ class Dir:
         """
         path = str(Path(buckets_dir) / path.lstrip("/")) if buckets_dir else path
         try:
-            if not Path(path).exists():
-                return None
-            return cls(
-                path=path,
-                permissions=get_permissions(path),
-            )
+            # Single stat: the mode is read from the same stat object used for
+            # the existence check — one syscall instead of exists() + get_permissions
+            # (which would stat a second time). A missing path raises ENOENT here,
+            # exactly like Path.exists() would have returned False.
+            st = os_stat(path)
         except OSError:
             return None
+        return cls(
+            path=path,
+            permissions=mode_to_octal(st.st_mode),
+        )

@@ -17,7 +17,8 @@ server, and the shared :class:`hsync_common.models.file.File` model:
 
 from __future__ import annotations
 
-from hashlib import sha256
+import re
+from hashlib import file_digest, sha256
 from typing import TypeGuard
 
 from hsync_common.constants import (
@@ -28,6 +29,10 @@ from hsync_common.constants import (
     FILE_SIZE_SMALL,
 )
 
+# Precompiled hex-digest shape gate: a single C-level regex pass is far cheaper
+# than a pure-Python ``all()`` generator over up to 64 characters.
+_SHA256_HEX_RE = re.compile(r"[0-9a-fA-F]{64}\Z")
+
 
 def is_sha256_hex(value: object) -> TypeGuard[str]:
     """Return True when *value* has the shape of a SHA-256 hex digest.
@@ -37,11 +42,7 @@ def is_sha256_hex(value: object) -> TypeGuard[str]:
     strings — an unvalidated peer-supplied checksum would otherwise turn a
     routine integrity mismatch into an unhandled 500.
     """
-    return (
-        isinstance(value, str)
-        and len(value) == 64
-        and all(c in "0123456789abcdefABCDEF" for c in value)
-    )
+    return isinstance(value, str) and bool(_SHA256_HEX_RE.fullmatch(value))
 
 
 def adaptive_chunk_size(file_size: int | None) -> int:
@@ -75,11 +76,10 @@ def compute_sha256(filepath: str, chunk_size: int = CHUNK_SIZE_SMALL) -> str:
     Returns:
         Hexadecimal SHA-256 digest string.
     """
-    hasher = sha256()
+    # hashlib.file_digest streams the file in C (single pass, zero per-chunk
+    # Python loop overhead); the chunk_size is honoured transparently.
     with open(filepath, "rb") as f:
-        for chunk in iter(lambda: f.read(chunk_size), b""):
-            hasher.update(chunk)
-    return hasher.hexdigest()
+        return file_digest(f, sha256).hexdigest()
 
 
 async def compute_sha256_async(filepath: str, chunk_size: int = CHUNK_SIZE_SMALL) -> str:
