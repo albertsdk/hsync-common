@@ -80,7 +80,7 @@ class TestParseCapabilities:
 
     def test_rejects_missing_required_key(self):
         doc = build_capabilities(app_version="1.0.0", cli_options=[])
-        del doc["cli_options"]
+        del doc["cli_options"]  # type: ignore[reportGeneralTypeIssues]
         assert parse_capabilities(json.dumps(doc)) is None
 
 

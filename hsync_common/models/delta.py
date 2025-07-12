@@ -21,7 +21,7 @@ and by the final whole-file SHA-256 verification after reconstruction.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal, NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict, TypeGuard
 
 from hsync_common.constants import DELTA_MAX_OPS, DELTA_MAX_SIGNATURES
 from hsync_common.hashing import is_sha256_hex
@@ -215,7 +215,7 @@ class DeltaApplyMetadata:
         return out
 
 
-def _is_valid_non_negative_int(value: object) -> bool:
+def _is_valid_non_negative_int(value: object) -> TypeGuard[int]:
     """Return True for real non-negative ints (bools are rejected)."""
     return isinstance(value, int) and not isinstance(value, bool) and value >= 0
 
@@ -234,17 +234,20 @@ def sanitize_block_signature(value: object) -> BlockSignatureDict | None:
     length = value.get("length")
     weak = value.get("weak")
     strong = value.get("strong")
-    if not (
-        _is_valid_non_negative_int(index)
-        and _is_valid_non_negative_int(offset)
-        and isinstance(length, int)
-        and not isinstance(length, bool)
-        and length > 0
-        and _is_valid_non_negative_int(weak)
-        and weak <= _ADLER32_MAX
-        and is_sha256_hex(strong)
-    ):
+
+    if not _is_valid_non_negative_int(index):
         return None
+    if not _is_valid_non_negative_int(offset):
+        return None
+    if not (isinstance(length, int) and not isinstance(length, bool) and length > 0):
+        return None
+    if not _is_valid_non_negative_int(weak):
+        return None
+    if not (weak <= _ADLER32_MAX):
+        return None
+    if not is_sha256_hex(strong):
+        return None
+
     return BlockSignatureDict(index=index, offset=offset, length=length, weak=weak, strong=strong)
 
 
@@ -261,16 +264,16 @@ def sanitize_delta_op(value: object) -> DeltaOpDict | None:
     offset = value.get("offset")
     length = value.get("length")
     data_offset = value.get("data_offset")
+
     if op_type not in (OP_TYPE_COPY, OP_TYPE_DATA):
         return None
-    if not (
-        _is_valid_non_negative_int(offset)
-        and isinstance(length, int)
-        and not isinstance(length, bool)
-        and length > 0
-        and _is_valid_non_negative_int(data_offset)
-    ):
+    if not _is_valid_non_negative_int(offset):
         return None
+    if not (isinstance(length, int) and not isinstance(length, bool) and length > 0):
+        return None
+    if not _is_valid_non_negative_int(data_offset):
+        return None
+
     return DeltaOpDict(type=op_type, offset=offset, length=length, data_offset=data_offset)
 
 

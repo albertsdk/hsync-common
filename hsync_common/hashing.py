@@ -18,6 +18,7 @@ server, and the shared :class:`hsync_common.models.file.File` model:
 from __future__ import annotations
 
 from hashlib import sha256
+from typing import TypeGuard
 
 from hsync_common.constants import (
     CHUNK_SIZE_LARGE,
@@ -28,7 +29,7 @@ from hsync_common.constants import (
 )
 
 
-def is_sha256_hex(value: object) -> bool:
+def is_sha256_hex(value: object) -> TypeGuard[str]:
     """Return True when *value* has the shape of a SHA-256 hex digest.
 
     Wire-supplied checksums must pass this before being compared with
