@@ -29,12 +29,17 @@ base_hash)` decides by content identity first, then causal dominance, then a
 deterministic tie-break — never by wall clock (see the source docstring for the
 6-rule matrix).
 
-### 3. Deterministic tie-break on true divergence
+### 3. Tie-break on true divergence (amended by ADR-0023)
 
-When clocks are concurrent (true divergence), the content with the highest
-SHA-256 lexicographically wins. The losing content is preserved as a
-``_conflicted_copy_`` — the only case for conflict copies (extrema ratio). Both
-sides compute the same winner from the same inputs.
+When clocks are concurrent (true divergence), the version with the higher
+**corrected modification time** (``corrected_mtime``, the local mtime shifted
+by the clock offset measured against the server or a public SNTP host) wins.
+When either side lacks the field or the two values tie, the deterministic
+SHA-256 fallback picks the winner. The losing content is preserved as a
+``_conflicted_copy_`` — the only case for conflict copies (extrema ratio).
+Both sides compute the same winner from the same inputs.
+
+> **Amended by [ADR-0023](0023-corrected-mtime-tie-break.md).**
 
 ### 4. No authoritative node
 
@@ -71,8 +76,9 @@ handled natively by the same matrix.
 ## Consequences
 
 - Conflict copies appear only on true causal divergence.
-- The wall clock is informational only (`ts`); content decisions use hashes and
-  vector clocks.
+- The raw wall clock is informational only (`ts`); causal decisions use hashes
+  and vector clocks. The chronological tie-break uses only offset-corrected
+  `corrected_mtime` values, never the raw clock (ADR-0023).
 - Deletions follow the same causal model: tombstones carry vector clocks
   inherited from the deleted version and ticked by the deleter (ADR 0003).
 - All consumers (server, client, Android) mirror the algorithm; cross-language

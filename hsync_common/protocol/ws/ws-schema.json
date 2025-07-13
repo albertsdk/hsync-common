@@ -191,6 +191,10 @@
           "additionalProperties": false,
           "description": "Causal version metadata joined from the version store (ADR-0022). Optional: absent ⇒ empty vector clock.",
           "properties": {
+            "corrected_mtime": {
+              "description": "Clock-offset-corrected modification time used as the chronological tie-break on concurrent divergence (ADR-0023). 0 or absent ⇒ unknown, hash fallback.",
+              "type": "integer"
+            },
             "origin_cid": {
               "type": [
                 "string",

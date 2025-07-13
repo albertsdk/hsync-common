@@ -63,9 +63,29 @@ for persistent master identity.
 Shared loguru configuration with `BaseInterceptHandler` and log rotation
 helpers.
 
-## Clock (`hsync_common.clock`)
+## Clock synchronisation (`hsync_common.clock`)
 
-NTP-style clock offset computation for client-server time synchronisation.
+Clock-offset measurement and correction used to compare file modification times
+across devices:
+
+| Function | Description |
+|----------|-------------|
+| `measure_clock_offset` | NTP-like HTTP round-trip against the server/master `/api/v1/time` endpoint (client-server mode) — the server is the time authority |
+| `measure_clock_offset_ntp_multi` | UDP SNTP probe (RFC 4330) against a list of public NTP servers, tried in order until one answers (LAN P2P / no-server startup); the offset is the median of several round-trips |
+| `parse_ntp_hosts` | Parses the `HSYNC_NTP_HOSTS` comma-separated host list (defaults: `pool.ntp.org`, `time.cloudflare.com`, `time.google.com`) |
+| `correct_mtime` | Applies the measured offset to a local modification time (`corrected_mtime = mtime + offset`) |
+| `clamp_wire_corrected_mtime` | Clamps a peer-supplied far-future corrected time so no device can win every tie-break |
+
+**Offline/air-gapped behaviour**: when every NTP server is unreachable the
+client records offset 0 (raw local time), logs a degraded-temporal-mode notice,
+and synchronisation proceeds normally.
+
+The corrected time is carried as `corrected_mtime` inside the version metadata
+attached to every file on the wire. When two devices change the same file
+concurrently, the most recent corrected time wins the original path and the
+other content is preserved as a `_conflicted_copy_` file; if either side lacks
+the field the comparison falls back to a deterministic hash tie-break. See the
+[Models guide](models.md) and the [conflict model ADR](internal/adr/0023-corrected-mtime-tie-break.md).
 
 ## Format (`hsync_common.format`)
 

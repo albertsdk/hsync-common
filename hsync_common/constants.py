@@ -178,3 +178,32 @@ WS_MAX_MESSAGE_BYTES = 2 * 1024 * 1024  # 2 MiB
 # after the rolling scan to detect content changes that mtime+size alone miss.
 # 10 MB is a reasonable cutoff — re-hashing is fast enough to not impact UX.
 DELTA_TOCTOU_REHASH_THRESHOLD = 10 * 1024 * 1024  # 10 MB
+
+# =============================================================================
+# Clock Synchronisation (NTP)
+# =============================================================================
+
+# Default public SNTP servers probed in order during LAN/offline startup until
+# one answers. Overridable via the HSYNC_NTP_HOSTS environment variable (comma-
+# separated list), consumed by every HSYNC project (hsync-client,
+# hsync-desktop via the client subprocess, hsync-android mirror).
+NTP_DEFAULT_HOSTS: tuple[str, ...] = (
+    "pool.ntp.org",
+    "time.cloudflare.com",
+    "time.google.com",
+)
+
+# SNTP server port (RFC 4330).
+NTP_PORT = 123
+
+# Seconds to wait for a single SNTP probe before moving to the next host.
+NTP_TIMEOUT_SECONDS = 3.0
+
+# Number of SNTP round-trips per host, median of which is the offset estimate.
+NTP_PROBES_PER_HOST = 3
+
+# Wire-level guard: a peer-supplied ``corrected_mtime`` farther than this in the
+# future relative to the receiver's corrected clock is clamped, so a malicious
+# or wildly mis-set peer cannot win every mtime tie-break (conflict
+# engineering). Mirrored by the Android client.
+CORRECTED_MTIME_MAX_FUTURE_SKEW = 300
