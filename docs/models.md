@@ -41,7 +41,10 @@ values: `added`, `modified`, `renamed`, `deleted`, `symlink`.
 ## SyncAction / SyncActionName
 
 Represents a synchronisation decision. `SyncActionName` is a `StrEnum` with
-values: `download`, `upload`, `delete`, `nothing`.
+values: `download`, `upload`, `delete`, `delete_remote`, `nothing`.
+`to_dict()` serializes `file`, `name`, `timedelta` and the `conflict` flag
+(`True` when the action overwrites a locally-modified file whose local copy
+should be preserved first).
 
 ## TombstoneStore
 

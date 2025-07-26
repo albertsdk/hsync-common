@@ -174,15 +174,31 @@ class SyncStateStore:
         except (OSError, ValueError):
             return
         entries = raw.get("versions", {}) if isinstance(raw, dict) else {}
+        if not isinstance(entries, dict):
+            # A malformed side-car (e.g. "versions" is a list) must not crash
+            # startup — treat it as empty.
+            return
         data: dict[str, FileVersion] = {}
         for key, entry in entries.items():
-            if isinstance(entry, dict) and "base_hash" in entry:
-                data[key] = FileVersion(
-                    base_hash=str(entry["base_hash"]),
-                    change_id=str(entry.get("change_id", "")),
-                    origin_cid=entry.get("origin_cid"),
-                    ts=int(entry.get("ts", 0)),
-                )
+            if not isinstance(entry, dict) or "base_hash" not in entry:
+                continue
+            raw_ts = entry.get("ts", 0)
+            if isinstance(raw_ts, bool):
+                # bool is an int subclass: reject it rather than recording a
+                # timestamp of 0/1.
+                continue
+            try:
+                ts = int(raw_ts)
+            except (TypeError, ValueError, OverflowError):
+                # A corrupt entry (e.g. "ts": "abc", null or NaN) is skipped,
+                # not allowed to crash the load.
+                continue
+            data[key] = FileVersion(
+                base_hash=str(entry["base_hash"]),
+                change_id=str(entry.get("change_id", "")),
+                origin_cid=entry.get("origin_cid"),
+                ts=ts,
+            )
         self._data = data
 
     def save(self) -> None:

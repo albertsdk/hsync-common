@@ -133,8 +133,11 @@ reconciliation, transfers, previews and server lines.
 
 ## clock.py
 
-- `compute_clock_offset` (`clock.py:46`) / `measure_clock_offset` (`:64`);
-  `CLOCK_SKEW_THRESHOLD = 5.0` (`:29`). NTP-style offset for sync timestamps.
+- `compute_clock_offset` (`clock.py:47`) / `measure_clock_offset` (`:65`);
+  `CLOCK_SKEW_THRESHOLD = 5.0` (`:30`). NTP-style offset for sync timestamps.
+  `measure_clock_offset` returns `None` on non-200 or when `timestamp` is
+  missing/null/bool/non-numeric/non-finite — a malformed payload degrades the
+  measurement, it never raises into the caller.
 
 ## runtime.py (container / TTY / cgroup detection)
 

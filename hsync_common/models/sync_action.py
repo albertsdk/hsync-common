@@ -70,11 +70,17 @@ class SyncAction:
         )
 
     def to_dict(self) -> dict:
-        """Convert the SyncAction instance to a dictionary."""
+        """Convert the SyncAction instance to a dictionary.
+
+        Includes ``conflict``: dropping it would silently lose the
+        "preserve the local copy first" signal for any consumer that
+        serializes the action instead of reading attributes.
+        """
         return {
             "file": self.file.to_dict(),
             "name": self.name,
             "timedelta": self.timedelta,
+            "conflict": self.conflict,
         }
 
     def _format_timedelta(self, delta_seconds: int) -> str:

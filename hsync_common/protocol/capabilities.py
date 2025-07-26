@@ -108,7 +108,9 @@ def parse_capabilities(text: str) -> CapabilitiesDoc | None:
     """Parse and validate a capabilities document.
 
     Returns ``None`` for blank input, malformed JSON, a non-object payload, an
-    unsupported ``schema_version`` or a missing required key — the caller treats
+    unsupported ``schema_version``, a missing required key or a required key
+    holding a value of the wrong type (e.g. ``cli_options`` as a plain string
+    would make ``supports_cli_option`` silently mis-answer) — the caller treats
     any of these as "capabilities unknown" and degrades to a best-effort UI.
     """
     import json
@@ -126,7 +128,35 @@ def parse_capabilities(text: str) -> CapabilitiesDoc | None:
         return None
     if not _REQUIRED_KEYS.issubset(data):
         return None
+    if not _field_types_valid(data):
+        return None
     return data  # type: ignore[return-value]
+
+
+def _field_types_valid(data: dict[str, Any]) -> bool:
+    """Type-check the fields a consumer relies on.
+
+    Key presence alone is not enough: the document travels across a process
+    boundary (client binary → desktop GUI), so a producer bug or a hostile
+    payload must be rejected here rather than mis-parsed downstream.
+    """
+    protocol = data["protocol_version"]
+    if not isinstance(protocol, dict) or not all(
+        isinstance(protocol.get(channel), str) for channel in ("rest", "ws", "lan")
+    ):
+        return False
+    if not isinstance(data["app_version"], str):
+        return False
+    # bool is an int subclass: reject it explicitly for the version field.
+    if not isinstance(data["events_schema_version"], int) or isinstance(
+        data["events_schema_version"], bool
+    ):
+        return False
+    for key in ("capabilities", "cli_options"):
+        value = data[key]
+        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+            return False
+    return True
 
 
 def supports_cli_option(doc: CapabilitiesDoc | dict[str, Any] | None, flag: str) -> bool:
