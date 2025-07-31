@@ -9,10 +9,11 @@ the same golden fixtures.
 | Concern | Single source of truth |
 |---|---|
 | TXT record keys / schema | `hsync_common.protocol.schemas` (`LAN_TXT_KEYS`, `build_lan_txt_schema`) |
+| WSS handshake frames / schema | `hsync_common.protocol.handshake` (`build_lan_*`), `hsync_common.protocol.schemas` (`build_lan_wss_schema`) |
 | Election algorithm | `hsync_common.protocol.lan` (`elect_master`, `election_sort_key`) |
 | Pairing / trust policy | `hsync_common.protocol.pairing` (`evaluate_pin`, `lan_write_requires_key`, `requires_pairing_confirmation`) |
-| Kotlin mirror | `com.hsync.android.p2p.Election`, `com.hsync.android.p2p.Pairing` |
-| Cross-language scenarios | `protocol/fixtures/lan-election-scenarios.json`, `protocol/fixtures/lan-pairing-scenarios.json` |
+| Kotlin mirror | `com.hsync.android.p2p.Election`, `com.hsync.android.p2p.Pairing`, `com.hsync.android.data.api.Protocol` |
+| Cross-language scenarios | `protocol/fixtures/lan-election-scenarios.json`, `protocol/fixtures/lan-pairing-scenarios.json`, `protocol/fixtures/lan-wss-*.json` |
 
 ## mDNS / TXT record
 
@@ -32,8 +33,15 @@ lives in `LAN_TXT_KEYS`; do not introduce keys outside it.
 | `sync_direction` | string | `bidirectional` (preferred), `upload-only`, `download-only`. |
 
 **Optional keys** (present only when meaningful/true): `group`, `https`,
-`cert_fp`, `compression`, `delta`, `vector_clocks`, `server_ready`,
-`force_master`, `never_master`.
+`cert_fp`, `compression`, `delta`, `vector_clocks`, `tombstones`,
+`server_ready`, `force_master`, `never_master`.
+
+`vector_clocks` (causal version metadata, ADR-0022) and `tombstones`
+(deletion-marker gossip, ADR-0003) are core to the sync/conflict model: every
+build implements them **unconditionally** and advertises both. The
+`compression` and `delta` keys are advertised only when the feature is enabled
+on that node. Per the canonical rule, a boolean flag is advertised only when
+true, so an absent key means "false".
 
 These keys are optional at the record level because a node only advertises them
 once it is **serving as master**. A master, however, **must** advertise both
@@ -41,6 +49,42 @@ once it is **serving as master**. A master, however, **must** advertise both
 transport is HTTPS-only, so a peer that does not is **not a valid master** and a
 slave refuses to connect to it (it logs `[INSECURE MASTER]` and stays in
 discovery).
+
+## Master ⇄ slave WebSocket handshake
+
+The connecting slave and the master exchange the **capability registry on the
+WSS connection itself** (ADR-0024), on both the authenticated and the
+unauthenticated path. The frames are built by
+`hsync_common.protocol.handshake` builders and are pinned by
+`protocol/lan/wss-schema.json` and the `lan-wss-*` golden fixtures (mirrored in
+Android):
+
+1. The master greets first:
+   - **With a LAN key** — `{"type": "auth_required", "protocol_version": "lan/1", "capabilities": [...]}`.
+   - **Without a LAN key** — `{"type": "hello", "protocol_version": "lan/1", "capabilities": [...]}` (the slave replies with the same shape plus its `cid`).
+2. On the auth path the slave replies
+   `{"type": "auth", "token", "cid", "protocol_version", "capabilities"}`; the
+   master validates the CID format **first**, then the `protocol_version` (hard
+   fail → `{"type": "auth", "status": "failed", "reason": "protocol_incompatible"}`),
+   then the token (constant-time). Success is
+   `{"type": "auth", "status": "ok", "protocol_version", "capabilities"}`.
+
+Semantics:
+
+- **The authenticated reply is the authoritative capability source.** The slave
+  adopts the master's advertised set from the auth reply into its transfer
+  gates; the TXT values are a discovery-time hint only. mDNS data is
+  unauthenticated and can be stale, so it never decides the session.
+- **Intersection, never negotiation.** A feature is used only when both sides
+  advertise it; an absent capability degrades the feature (delta → full
+  transfer, compression → raw bytes, no `vector_clocks` → empty clock), never an
+  error. Unknown tokens are silently ignored.
+- **The hello path is coherence only.** Without a `LAN_KEY` neither the CID nor
+  the capabilities are authenticated: the values are logged, never trusted for
+  gating decisions on the master side; the slave keeps using the TXT values
+  unless it later authenticates.
+- A `protocol_version` mismatch anywhere in the handshake is a **hard failure**
+  (auth refused / peer treated as invalid), exactly like the WS channel.
 
 ## Group partitioning
 

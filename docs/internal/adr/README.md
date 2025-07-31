@@ -44,6 +44,7 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0020](0020-lan-security-model.md) | LAN security model: TOFU pinning, LAN key, and strict pairing | Accepted |
 | [0022](0022-causal-vector-clock-conflict-model.md) | Causal vector-clock conflict model | Accepted (tie-break amended by ADR-0023) |
 | [0023](0023-corrected-mtime-tie-break.md) | Corrected-mtime chronological tie-break | Accepted |
+| [0024](0024-capability-negotiation.md) | Capability negotiation (registry, channels, intersection) | Accepted |
 
 ## Related documents
 

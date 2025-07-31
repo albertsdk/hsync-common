@@ -1,0 +1,7 @@
+{
+  "capabilities": [
+    "compression"
+  ],
+  "protocol_version": "lan/1",
+  "type": "hello"
+}

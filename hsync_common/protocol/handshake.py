@@ -16,6 +16,11 @@ each side (REST header, WebSocket auth frame, LAN/TXT).
 Because there is no legacy install base to support, a ``protocol_version`` that
 differs from the peer's is a *hard failure*: capabilities are only feature flags
 *within* the same protocol version, never a cross-version negotiation mechanism.
+
+The LAN WebSocket channel (master ⇄ slave) reuses the same capability registry:
+the master advertises it in the connect-time handshake (greeting/auth reply) so
+peers learn each other's capabilities over an **authenticated** channel instead
+of relying on the unauthenticated mDNS/TXT record alone (ADR-0024).
 """
 
 from __future__ import annotations
@@ -32,11 +37,20 @@ __all__ = [
     "ALL_CAPABILITIES",
     "WsAuthRequest",
     "WsAuthResponse",
+    "LanAuthRequiredFrame",
+    "LanAuthFrame",
+    "LanAuthResultFrame",
+    "LanHelloFrame",
     "encode_capabilities",
     "decode_capabilities",
     "build_ws_auth_request",
     "build_ws_auth_ok",
     "build_ws_auth_error",
+    "build_lan_auth_required",
+    "build_lan_auth",
+    "build_lan_auth_ok",
+    "build_lan_auth_failed",
+    "build_lan_hello",
 ]
 
 # Per-channel protocol versions. Bump the channel suffix on any breaking change
@@ -146,3 +160,106 @@ def build_ws_auth_error(*, error: str, client_protocol_version: str) -> WsAuthRe
         "error": error,
         "client_protocol_version": client_protocol_version,
     }
+
+
+class LanAuthRequiredFrame(TypedDict):
+    """LAN master → slave first frame (``auth_required`` greeting).
+
+    Carries the LAN protocol version and the master's capabilities so the auth
+    path and the unauthenticated ``hello`` path exchange the same information
+    (ADR-0024).
+    """
+
+    type: str  # always "auth_required"
+    protocol_version: str
+    capabilities: list[str]
+
+
+class LanAuthFrame(TypedDict):
+    """LAN slave → master authentication frame."""
+
+    type: str  # always "auth"
+    token: str
+    cid: str
+    protocol_version: str
+    capabilities: list[str]
+
+
+class LanAuthResultFrame(TypedDict):
+    """LAN master → slave auth reply (``ok`` or ``failed``)."""
+
+    type: str  # always "auth"
+    status: str  # "ok" | "failed"
+    protocol_version: str
+    capabilities: NotRequired[list[str]]
+    reason: NotRequired[str]
+
+
+class LanHelloFrame(TypedDict):
+    """LAN hello frame (both directions on the unauthenticated path).
+
+    The master greets with ``{"type": "hello", protocol_version, capabilities}``
+    and the slave replies with the same shape plus its ``cid``. The CID is a
+    logging hint only when no ``LAN_KEY`` is configured.
+    """
+
+    type: str  # always "hello"
+    protocol_version: str
+    capabilities: list[str]
+    cid: NotRequired[str]
+
+
+def build_lan_auth_required(*, capabilities: Iterable[Capability | str]) -> LanAuthRequiredFrame:
+    """Build the LAN master's ``auth_required`` greeting frame."""
+    return {
+        "type": "auth_required",
+        "protocol_version": PROTOCOL_VERSION_LAN,
+        "capabilities": encode_capabilities(capabilities),
+    }
+
+
+def build_lan_auth(
+    *, token: str, cid: str, capabilities: Iterable[Capability | str]
+) -> LanAuthFrame:
+    """Build the LAN slave's authentication frame."""
+    return {
+        "type": "auth",
+        "token": token,
+        "cid": cid,
+        "protocol_version": PROTOCOL_VERSION_LAN,
+        "capabilities": encode_capabilities(capabilities),
+    }
+
+
+def build_lan_auth_ok(*, capabilities: Iterable[Capability | str]) -> LanAuthResultFrame:
+    """Build the LAN master's successful auth reply."""
+    return {
+        "type": "auth",
+        "status": "ok",
+        "protocol_version": PROTOCOL_VERSION_LAN,
+        "capabilities": encode_capabilities(capabilities),
+    }
+
+
+def build_lan_auth_failed(*, reason: str) -> LanAuthResultFrame:
+    """Build the LAN master's auth rejection frame."""
+    return {
+        "type": "auth",
+        "status": "failed",
+        "protocol_version": PROTOCOL_VERSION_LAN,
+        "reason": reason,
+    }
+
+
+def build_lan_hello(
+    *, capabilities: Iterable[Capability | str], cid: str | None = None
+) -> LanHelloFrame:
+    """Build a LAN hello frame (master greeting or slave reply with ``cid``)."""
+    frame: LanHelloFrame = {
+        "type": "hello",
+        "protocol_version": PROTOCOL_VERSION_LAN,
+        "capabilities": encode_capabilities(capabilities),
+    }
+    if cid is not None:
+        frame["cid"] = cid
+    return frame

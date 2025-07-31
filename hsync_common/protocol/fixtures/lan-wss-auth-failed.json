@@ -1,0 +1,6 @@
+{
+  "protocol_version": "lan/1",
+  "reason": "invalid_token",
+  "status": "failed",
+  "type": "auth"
+}

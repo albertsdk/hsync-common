@@ -34,6 +34,11 @@ from hsync_common.models.version import VersionInfo, resolve_three_way
 from .handshake import (
     PROTOCOL_VERSION_LAN,
     Capability,
+    build_lan_auth,
+    build_lan_auth_failed,
+    build_lan_auth_ok,
+    build_lan_auth_required,
+    build_lan_hello,
     build_ws_auth_error,
     build_ws_auth_ok,
     build_ws_auth_request,
@@ -99,6 +104,7 @@ def _lan_txt_record() -> dict[str, Any]:
         "compression": "true",
         "delta": "true",
         "vector_clocks": "true",
+        "tombstones": "true",
     }
 
 
@@ -561,6 +567,18 @@ def build_fixtures() -> dict[str, dict[str, Any]]:
         "ws-pong": {"type": "pong"},
         "ws-file-event": _file_event(),
         "lan-txt-record": _lan_txt_record(),
+        "lan-wss-auth-required": dict(build_lan_auth_required(capabilities=_FIXTURE_CAPS)),
+        "lan-wss-auth": dict(
+            build_lan_auth(
+                token=FIXTURE_TOKEN, cid="TestClientX1234567890", capabilities=_FIXTURE_CAPS
+            )
+        ),
+        "lan-wss-auth-ok": dict(build_lan_auth_ok(capabilities=_FIXTURE_CAPS)),
+        "lan-wss-auth-failed": dict(build_lan_auth_failed(reason="invalid_token")),
+        "lan-wss-hello-master": dict(build_lan_hello(capabilities=_FIXTURE_CAPS)),
+        "lan-wss-hello-slave": dict(
+            build_lan_hello(capabilities=_FIXTURE_CAPS, cid="TestClientX1234567890")
+        ),
         "lan-election-scenarios": _election_scenarios(),
         "lan-pairing-scenarios": _pairing_scenarios(),
         "causal-resolution-scenarios": _causal_resolution_scenarios(),

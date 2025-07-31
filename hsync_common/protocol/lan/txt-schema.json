@@ -64,6 +64,12 @@
     "sync_direction": {
       "type": "string"
     },
+    "tombstones": {
+      "enum": [
+        "true"
+      ],
+      "type": "string"
+    },
     "vector_clocks": {
       "enum": [
         "true"
