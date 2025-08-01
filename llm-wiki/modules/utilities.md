@@ -151,27 +151,31 @@ reconciliation, transfers, previews and server lines.
 
 ## clock.py (clock-offset SSOT, ADR-0023)
 
-- `compute_clock_offset` (`clock.py:70`) / `measure_clock_offset` (`:108`);
-  `CLOCK_SKEW_THRESHOLD = 5.0` (`:50`). NTP-style HTTP/RTT offset against the
+- `compute_clock_offset` (`clock.py:86`) / `measure_clock_offset` (`:123`);
+  `CLOCK_SKEW_THRESHOLD = 5.0` (`:57`). NTP-style HTTP/RTT offset against the
   server/master `/api/v1/time` endpoint (client-server mode).
   `measure_clock_offset` returns `None` on non-200 or when `timestamp` is
   missing/null/bool/non-numeric/non-finite — a malformed payload degrades the
   measurement, it never raises into the caller.
-- SNTP (LAN P2P / no-server startup): `parse_ntp_hosts` (`:153`) parses the
+- SNTP (LAN P2P / no-server startup): `parse_ntp_hosts` (`:180`) parses the
   `HSYNC_NTP_HOSTS` CSV (defaults from `constants.NTP_DEFAULT_HOSTS`),
-  `measure_clock_offset_ntp` (`:194`, median of several UDP round-trips, RFC
-  4330) and `measure_clock_offset_ntp_multi` (`:222`, probes hosts in order
+  `measure_clock_offset_ntp` (`:289`, median of several UDP round-trips, RFC
+  4330) and `measure_clock_offset_ntp_multi` (`:318`, probes hosts in order
   until one answers). All failures ⇒ `None` ⇒ caller records offset 0 +
-  degraded-temporal-mode log; sync never blocks.
-- Process-local store: `ClockOffsetStore` (`:244`) + module singleton
-  `offset_store` + `correct_mtime()` (`:314`) — `corrected_mtime =
+  degraded-temporal-mode log; sync never blocks. `_sntp_probe_once` (`:265`)
+  uses a *connected* UDP socket: a dead endpoint surfaces ICMP
+  port/host-unreachable as an immediate `ECONNREFUSED` (fails in ~0s instead
+  of blocking for the full per-probe timeout) and datagrams from other
+  sources are kernel-filtered.
+- Process-local store: `ClockOffsetStore` (`:348`) + module singleton
+  `offset_store` + `correct_mtime()` (`:400`) — `corrected_mtime =
   local_mtime + measured_offset` (int), consumed when a version is
   self-recorded/advertised. Never persisted, never writes the system clock.
-- Anti conflict-engineering: `clamp_wire_corrected_mtime` (`:357`) clamps
+- Anti conflict-engineering: `clamp_wire_corrected_mtime` (`:429`) clamps
   peer-supplied corrected mtimes beyond
   `constants.CORRECTED_MTIME_MAX_FUTURE_SKEW = 300 s`; the receiver-side guard
-  used by every consuming hub is `clamp_incoming_corrected_mtime` (`:385`,
-  reference = `now_corrected()` at `:375`, i.e. `correct_mtime(time.time())`).
+  used by every consuming hub is `clamp_incoming_corrected_mtime` (`:443`,
+  reference = `now_corrected()` at `:409`, i.e. `correct_mtime(time.time())`).
   Wired in: `hsync-server` upload/delta-apply, client LAN master upload and
   remote decode; Android mirror `TimeSync.kt`.
 - Android mirror: `TimeSync.kt` (same SNTP + HTTP/RTT algorithms).
