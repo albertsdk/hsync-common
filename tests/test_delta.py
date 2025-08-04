@@ -287,6 +287,29 @@ class TestApplyDelta:
         with pytest.raises(DeltaError):
             apply_delta(base_path, [DeltaOp.data(3, 10)], b"abc", str(tmp_path / "out.bin"))
 
+    def test_same_path_raises(self, tmp_path):
+        """Regression: base == output would truncate the base before reading."""
+        base = _base_bytes(size=BLOCK * 3)
+        path = _write(tmp_path / "file.bin", base)
+        sigs = compute_signatures(path, BLOCK)
+        new = base + b"appended"
+        ops, literals = find_matches(new, sigs, BLOCK)
+        with pytest.raises(DeltaError, match="same path"):
+            apply_delta(path, ops, literals, path)
+
+    def test_symlink_same_path_raises(self, tmp_path):
+        """A symlink to the base file is still the same realpath."""
+        base = _base_bytes(size=BLOCK * 3)
+        real = tmp_path / "real.bin"
+        link = tmp_path / "link.bin"
+        _write(real, base)
+        link.symlink_to(real)
+        sigs = compute_signatures(str(real), BLOCK)
+        new = base + b"appended"
+        ops, literals = find_matches(new, sigs, BLOCK)
+        with pytest.raises(DeltaError, match="same path"):
+            apply_delta(str(real), ops, literals, str(link))
+
 
 # ---------------------------------------------------------------------------
 # find_matches_file (mmap-backed)
