@@ -160,7 +160,7 @@ then copy the regenerated `protocol/fixtures/*.json` into
 ## Causal tombstones (deletion gossip)
 
 Deletion markers exchanged over the LAN gossip channel (`/tombstones` on the
-master, see `hsync-client/lan_server.py`) are **causal** ([ADR-0003](../internal/adr/0003-tombstone-gossip.md)):
+master, see `hsync-client/lan_server.py`) are **causal** ([ADR-0003](../docs/internal/adr/0003-tombstone-gossip.md)):
 each entry carries `sha256`, `version_id`, `origin_cid`, the informational `ts`
 and a `vclock` — the stored version clock for the path, merged and ticked by
 the deleter. The merge between peers is decided by **causal dominance** of the
