@@ -2,18 +2,18 @@
 
 Thanks for your interest in contributing! `hsync-common` is the shared library
 (models, constants, compression, and utilities) used by the other HSYNC
-components, so changes here must stay backward compatible across the ecosystem.
+components, so changes here must stay consistent across the ecosystem.
 
 ## Prerequisites
 
 - Python `>=3.12,<3.15` (lint/CI target: **3.13**)
-- [Poetry](https://python-poetry.org/) for dependency management
+- A committed virtualenv at `.venv/` (no Poetry required)
 
 ## Setup
 
-```bash
-poetry install
-```
+The project ships a committed virtualenv at `.venv/`. All tooling is invoked
+through it as `.venv/bin/python -m <tool>` — exactly as the root `Makefile`
+does. No Poetry installation is required.
 
 ## Code Style
 
@@ -21,8 +21,8 @@ This project uses [ruff](https://docs.astral.sh/ruff/) for linting and
 formatting (line length 100, target `py313`), enforced via pre-commit hooks.
 
 ```bash
-poetry run ruff check --fix .
-poetry run ruff format .
+.venv/bin/python -m ruff check --fix .
+.venv/bin/python -m ruff format .
 ```
 
 ## Pre-commit Workflow
@@ -32,8 +32,8 @@ auto-fixes files, the commit aborts because files changed — **this is expected
 not a failure**. Re-stage and commit again:
 
 ```bash
-poetry run ruff check --fix .
-poetry run ruff format .
+.venv/bin/python -m ruff check --fix .
+.venv/bin/python -m ruff format .
 git add -A
 git commit -m "type(scope): message"
 # if hooks modified files and the commit aborted, re-stage and retry:
@@ -45,20 +45,17 @@ git commit -m "type(scope): message"
 
 ```bash
 # Run the full test suite
-poetry run pytest
+.venv/bin/python -m pytest
 
 # Run a specific test file
-poetry run pytest tests/test_models.py
+.venv/bin/python -m pytest tests/test_models.py
 
 # Run with coverage report
-poetry run pytest --cov=hsync_common --cov-report=term-missing
+.venv/bin/python -m pytest --cov=hsync_common --cov-report=term-missing
 
 # Run a test matching a keyword
-poetry run pytest -k "protocol"
+.venv/bin/python -m pytest -k "protocol"
 ```
-
-If the project configures mypy (see `pyproject.toml`), also run
-`poetry run mypy .`.
 
 ### Test structure
 
@@ -84,9 +81,19 @@ protocol. When you change a model or protocol constant, run the downstream
 test suites to verify nothing breaks:
 
 ```bash
-cd ../hsync-client && poetry run pytest
-cd ../hsync-server && poetry run pytest
+cd ../hsync-client && .venv/bin/python -m pytest
+cd ../hsync-server && .venv/bin/python -m pytest
 ```
+
+## Documentation
+
+HSYNC maintains two documentation sets that must stay in sync with the code:
+
+- `llm-wiki/` — internal agent knowledge base (architecture, modules, data models)
+- `docs/` — end-user technical documentation
+
+Any change that affects architecture, contracts, configuration, or behavior
+must update the relevant files in both sets within the same change.
 
 ## Commit Messages
 
@@ -96,6 +103,8 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 ## Pull Requests
 
 - Keep changes focused and covered by tests.
-- Preserve backward compatibility — both `hsync-client` and `hsync-server`
-  depend on this package via a Poetry path dependency.
+- `hsync-common` is the single source of truth for shared models and the wire
+  protocol. The project follows a **Zero Backward Compatibility** policy: when
+  a contract intentionally changes, update all affected consumers atomically
+  (client, server, desktop, Android mirrors, fixtures, schemas, and docs).
 - Ensure `ruff` and `pytest` pass locally before opening a PR.
