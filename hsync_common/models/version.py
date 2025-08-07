@@ -30,18 +30,19 @@ delete-vs-delete are causal too (ADR-0003). The raw wall clock is never
 consulted for any *causal* decision; it enters only the chronological tie-break
 through the offset-corrected ``corrected_mtime`` (ADR-0023).
 
-The store mirrors the tombstone store: a hidden ``.hsyncstate`` side-car with
-atomic JSON persistence. It is private to each peer and never exchanged; the
-wire form is :class:`VersionInfo`.
+The store is an in-memory path→version map persisted in the installation
+SQLite database (``syncstate.db``, ADR-0025), keyed by a folder UUID. It is
+private to each peer and never exchanged; the wire form is :class:`VersionInfo`.
 
 The stored clock itself carries the node's own causal history only. It is
 validated as untrusted on load (structurally malformed entries are dropped)
-so a hand-edited or corrupted side-car degrades entry-by-entry rather than
-crashing startup or poisoning the merge base.
+so a corrupted row degrades entry-by-entry rather than crashing startup or
+poisoning the merge base.
 """
 
 import json
 import secrets
+import sqlite3
 import time
 from enum import StrEnum
 from pathlib import Path
@@ -49,6 +50,7 @@ from typing import TypedDict
 
 from ._util import _parse_wire_timestamp, relpath_in_bucket, tombstone_key
 from .event import is_valid_cid
+from .sqlstore import StateDb, get_state_db
 
 __all__ = [
     "FileVersion",
@@ -338,7 +340,7 @@ def resolve_three_way(
 
 
 def _parse_stored_vclock(raw: object) -> dict[str, int] | None:
-    """Parse a ``vclock`` read from the local side-car (validated as untrusted).
+    """Parse a ``vclock`` read from local storage (validated as untrusted).
 
     A structurally invalid clock (non-dict, oversized, ``bool``/negative
     counters, non-cid keys, unknown-types) makes the whole entry unusable:
@@ -358,12 +360,67 @@ def _parse_stored_vclock(raw: object) -> dict[str, int] | None:
     return vclock
 
 
-class SyncStateStore:
-    """In-memory path->version map with atomic JSON persistence."""
+def _vclock_to_json(vclock: dict[str, int]) -> str:
+    """Serialize a validated vector clock for the ``versions.vclock`` column."""
+    return json.dumps(vclock, separators=(",", ":"), sort_keys=True)
 
-    def __init__(self, path: str | None = None):
-        self.path = path
+
+def _file_version_from_row(row: object) -> FileVersion | None:
+    """Build a :class:`FileVersion` from a SQLite row, or ``None`` if unusable."""
+    mapping = dict(row)  # type: ignore[arg-type]
+    base_hash = mapping.get("base_hash")
+    if not isinstance(base_hash, str) or not base_hash:
+        return None
+    ts = _parse_wire_timestamp(mapping.get("ts", 0))
+    if ts is None:
+        return None
+    raw_vclock = mapping.get("vclock")
+    parsed_clock: object
+    if isinstance(raw_vclock, str):
+        try:
+            parsed_clock = json.loads(raw_vclock)
+        except ValueError:
+            return None
+    else:
+        parsed_clock = raw_vclock
+    vclock = _parse_stored_vclock(parsed_clock)
+    if vclock is None:
+        return None
+    raw_corrected = mapping.get("corrected_mtime")
+    if raw_corrected is None:
+        corrected = 0
+    else:
+        corrected = _parse_wire_timestamp(raw_corrected)
+        if corrected is None:
+            return None
+    origin = mapping.get("origin_cid")
+    version_id = mapping.get("version_id", "")
+    return FileVersion(
+        base_hash=base_hash,
+        version_id=str(version_id) if version_id is not None else "",
+        origin_cid=origin if isinstance(origin, str) else None,
+        ts=ts,
+        vclock=vclock,
+        corrected_mtime=corrected,
+    )
+
+
+class SyncStateStore:
+    """In-memory path→version map persisted in the installation SQLite DB."""
+
+    def __init__(
+        self,
+        db_path: str | Path | None = None,
+        folder_id: str | None = None,
+        *,
+        canonical_path: str = "",
+    ):
+        self.db_path = str(db_path) if db_path is not None else None
+        self.folder_id = folder_id
+        self.canonical_path = canonical_path
         self._data: dict[str, FileVersion] = {}
+        self._db: StateDb | None = None
+        self._dirty = False
 
     # ── mutation ────────────────────────────────────────────────────
     def record(
@@ -386,10 +443,14 @@ class SyncStateStore:
             vclock=dict(vclock) if vclock else {},
             corrected_mtime=corrected_mtime,
         )
+        self._dirty = True
 
     def clear(self, relpath: str) -> bool:
         """Drop the recorded version for a path (e.g. on deletion)."""
-        return self._data.pop(tombstone_key(relpath), None) is not None
+        dropped = self._data.pop(tombstone_key(relpath), None) is not None
+        if dropped:
+            self._dirty = True
+        return dropped
 
     def retain(self, relpaths: list[str]) -> int:
         """Drop entries for paths not in ``relpaths``; return the drop count.
@@ -401,6 +462,8 @@ class SyncStateStore:
         stale = [k for k in self._data if k not in keep]
         for k in stale:
             del self._data[k]
+        if stale:
+            self._dirty = True
         return len(stale)
 
     # ── query ───────────────────────────────────────────────────────
@@ -427,59 +490,72 @@ class SyncStateStore:
         return len(self._data)
 
     # ── persistence ─────────────────────────────────────────────────
-    def load(self) -> None:
-        """Load recorded versions from the backing JSON file, if present.
+    def _backend(self) -> StateDb | None:
+        """Return the shared DB handle when ``db_path`` + ``folder_id`` are set."""
+        if not self.db_path or not self.folder_id:
+            return None
+        if self._db is None:
+            self._db = get_state_db(self.db_path)
+        return self._db
 
-        Entries with a structurally invalid clock or missing mandatory fields
-        are dropped entry-by-entry: a corrupted side-car degrades safely
+    def load(self) -> None:
+        """Load recorded versions from the installation DB, if configured.
+
+        Rows with a structurally invalid clock or missing mandatory fields
+        are dropped entry-by-entry: a corrupted store degrades safely
         without crashing startup. Every accepted entry carries a valid clock,
         because sync decisions are causal (ADR-0022/ADR-0003).
         """
-        if not self.path:
+        db = self._backend()
+        if db is None or self.folder_id is None:
             return
-        p = Path(self.path)
-        if not p.exists():
-            return
-        try:
-            raw = json.loads(p.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            return
-        entries = raw.get("versions", {}) if isinstance(raw, dict) else {}
-        if not isinstance(entries, dict):
-            # A malformed side-car (e.g. "versions" is a list) must not crash
-            # startup — treat it as empty.
-            return
+        db.ensure_folder(self.folder_id, self.canonical_path)
         data: dict[str, FileVersion] = {}
-        for key, entry in entries.items():
-            if not isinstance(entry, dict) or "base_hash" not in entry:
+        for row in db.iter_versions(self.folder_id):
+            parsed = _file_version_from_row(row)
+            if parsed is None:
                 continue
-            ts = _parse_wire_timestamp(entry.get("ts", 0))
-            if ts is None:
-                continue
-            parsed_vclock = _parse_stored_vclock(entry.get("vclock"))
-            if parsed_vclock is None:
-                continue
-            corrected = _parse_wire_timestamp(entry.get("corrected_mtime", 0))
-            # A side-car written before corrected_mtime existed has no field:
-            # 0 ⇒ unknown, the hash fallback applies natively.
-            if corrected is None:
-                continue
-            data[str(key)] = FileVersion(
-                base_hash=str(entry["base_hash"]),
-                version_id=str(entry.get("version_id", "")),
-                origin_cid=entry.get("origin_cid"),
-                ts=ts,
-                vclock=parsed_vclock,
-                corrected_mtime=corrected,
-            )
+            data[str(row["key"])] = parsed
         self._data = data
+        self._dirty = False
 
     def save(self) -> None:
-        """Persist recorded versions atomically to the backing JSON file."""
-        if not self.path:
+        """Persist recorded versions to the installation DB (one transaction).
+
+        No-op when the store is not dirty or has no backend. Callers that
+        already hold a ``BEGIN IMMEDIATE`` (client ``flush``) still get a
+        consistent snapshot: this method opens its own transaction only
+        when none is active.
+        """
+        db = self._backend()
+        if db is None or self.folder_id is None or not self._dirty:
             return
-        p = Path(self.path)
-        p.parent.mkdir(parents=True, exist_ok=True)
-        tmp = p.with_suffix(p.suffix + ".tmp")
-        tmp.write_text(json.dumps({"versions": self._data}), encoding="utf-8")
-        tmp.replace(p)
+        db.ensure_folder(self.folder_id, self.canonical_path)
+        own_txn = False
+        try:
+            db.begin_immediate()
+            own_txn = True
+        except sqlite3.OperationalError:
+            # Nested flush inside an already-open transaction (LAN realtime
+            # delete after a cycle BEGIN): write without starting another.
+            own_txn = False
+        try:
+            db.retain_versions(self.folder_id, list(self._data.keys()))
+            for key, entry in self._data.items():
+                db.upsert_version(
+                    self.folder_id,
+                    key,
+                    base_hash=entry["base_hash"],
+                    version_id=entry["version_id"],
+                    origin_cid=entry["origin_cid"],
+                    ts=float(entry["ts"]),
+                    vclock=_vclock_to_json(entry["vclock"]),
+                    corrected_mtime=float(entry["corrected_mtime"]),
+                )
+            if own_txn:
+                db.commit()
+            self._dirty = False
+        except Exception:
+            if own_txn:
+                db.rollback()
+            raise

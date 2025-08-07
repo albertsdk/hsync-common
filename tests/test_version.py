@@ -420,10 +420,20 @@ class TestSyncStateStoreMutation:
         assert store.get("drop.txt") is None
 
 
+_FOLDER = "11111111-1111-4111-8111-111111111111"
+
+
+def _version_store(tmp_path, folder_id=_FOLDER):
+    return SyncStateStore(
+        db_path=str(tmp_path / "syncstate.db"),
+        folder_id=folder_id,
+        canonical_path=str(tmp_path / "bucket"),
+    )
+
+
 class TestSyncStateStorePersistence:
     def test_save_and_load(self, tmp_path):
-        path = str(tmp_path / "sub" / ".hsyncstate")
-        store = SyncStateStore(path=path)
+        store = _version_store(tmp_path)
         store.record(
             "a/b.txt",
             base_hash="hh",
@@ -434,7 +444,7 @@ class TestSyncStateStorePersistence:
         )
         store.save()
 
-        reloaded = SyncStateStore(path=path)
+        reloaded = _version_store(tmp_path)
         reloaded.load()
         entry = reloaded.get("a/b.txt")
         assert entry is not None
@@ -444,53 +454,39 @@ class TestSyncStateStorePersistence:
         assert entry["ts"] == 7
         assert entry["vclock"] == {CID_A: 3, CID_B: 1}
 
-    def test_load_missing_file_is_noop(self, tmp_path):
-        store = SyncStateStore(path=str(tmp_path / "absent.json"))
+    def test_load_missing_db_is_empty(self, tmp_path):
+        store = _version_store(tmp_path)
         store.load()
         assert len(store) == 0
 
-    def test_load_corrupt_file_is_noop(self, tmp_path):
-        path = tmp_path / ".hsyncstate"
-        path.write_text("{not json", encoding="utf-8")
-        store = SyncStateStore(path=str(path))
-        store.load()
-        assert len(store) == 0
-
-    def test_save_without_path_is_noop(self):
+    def test_save_without_backend_is_noop(self):
         store = SyncStateStore()
         store.record("x.txt", base_hash="hh")
         store.save()  # must not raise
 
     def test_load_drops_entries_without_vclock(self, tmp_path):
-        # The conflict model is strictly causal (ADR-0003): an entry without a
-        # valid clock carries no causal history and is dropped, never loaded
-        # with a fabricated empty clock that could flip a sync decision.
-        import json
+        from hsync_common.models.sqlstore import get_state_db
+        from hsync_common.models.tombstone import tombstone_key
 
-        path = tmp_path / ".hsyncstate"
-        path.write_text(
-            json.dumps(
-                {
-                    "versions": {
-                        "novclock": {
-                            "base_hash": "h",
-                            "version_id": "v",
-                            "origin_cid": None,
-                            "ts": 7,
-                        },
-                        "ok": {
-                            "base_hash": "h",
-                            "version_id": "v",
-                            "origin_cid": None,
-                            "ts": 7,
-                            "vclock": {},
-                        },
-                    }
-                }
-            ),
-            encoding="utf-8",
+        store = _version_store(tmp_path)
+        store.load()
+        db = get_state_db(str(tmp_path / "syncstate.db"))
+        db.conn.execute(
+            """
+            INSERT INTO versions
+              (folder_id, key, base_hash, version_id, origin_cid, ts, vclock, corrected_mtime)
+            VALUES (?, ?, 'h', 'v', NULL, 7, '', 0)
+            """,
+            (_FOLDER, tombstone_key("novclock")),
         )
-        store = SyncStateStore(path=str(path))
+        db.conn.execute(
+            """
+            INSERT INTO versions
+              (folder_id, key, base_hash, version_id, origin_cid, ts, vclock, corrected_mtime)
+            VALUES (?, ?, 'h', 'v', NULL, 7, '{}', 0)
+            """,
+            (_FOLDER, tombstone_key("ok")),
+        )
         store.load()
         entries = store.iter_entries()
         assert len(entries) == 1
@@ -499,104 +495,113 @@ class TestSyncStateStorePersistence:
         assert entry["vclock"] == {}
 
     def test_load_skips_entries_without_base_hash(self, tmp_path):
-        import json
+        from hsync_common.models.sqlstore import get_state_db
 
-        path = tmp_path / ".hsyncstate"
-        path.write_text(
-            json.dumps(
-                {
-                    "versions": {
-                        "k1": {"version_id": "v"},
-                        "k2": {"base_hash": "h", "ts": 7, "vclock": {CID_A: 1}},
-                    }
-                }
-            ),
-            encoding="utf-8",
+        store = _version_store(tmp_path)
+        store.load()
+        db = get_state_db(str(tmp_path / "syncstate.db"))
+        db.conn.execute(
+            """
+            INSERT INTO versions
+              (folder_id, key, base_hash, version_id, origin_cid, ts, vclock, corrected_mtime)
+            VALUES (?, 'k1', '', 'v', NULL, 7, '{}', 0)
+            """,
+            (_FOLDER,),
         )
-        store = SyncStateStore(path=str(path))
+        db.conn.execute(
+            """
+            INSERT INTO versions
+              (folder_id, key, base_hash, version_id, origin_cid, ts, vclock, corrected_mtime)
+            VALUES (?, 'k2', 'h', 'v', NULL, 7, ?, 0)
+            """,
+            (_FOLDER, f'{{"{CID_A}": 1}}'),
+        )
         store.load()
         assert len(store) == 1
 
     def test_load_skips_entries_with_malformed_ts(self, tmp_path):
-        import json
+        from hsync_common.models.sqlstore import get_state_db
 
-        path = tmp_path / ".hsyncstate"
-        path.write_text(
-            json.dumps(
-                {
-                    "versions": {
-                        "ok": {
-                            "base_hash": "h",
-                            "version_id": "v",
-                            "origin_cid": None,
-                            "ts": 7,
-                            "vclock": {},
-                        },
-                        "bad-ts": {"base_hash": "h", "ts": "abc", "vclock": {}},
-                        "null-ts": {"base_hash": "h", "ts": None, "vclock": {}},
-                        "bool-ts": {"base_hash": "h", "ts": True, "vclock": {}},
-                    }
-                }
-            ),
-            encoding="utf-8",
+        store = _version_store(tmp_path)
+        store.load()
+        db = get_state_db(str(tmp_path / "syncstate.db"))
+        db.conn.execute(
+            """
+            INSERT INTO versions
+              (folder_id, key, base_hash, version_id, origin_cid, ts, vclock, corrected_mtime)
+            VALUES (?, 'ok', 'h', 'v', NULL, 7, '{}', 0)
+            """,
+            (_FOLDER,),
         )
-        store = SyncStateStore(path=str(path))
+        db.conn.execute(
+            """
+            INSERT INTO versions
+              (folder_id, key, base_hash, version_id, origin_cid, ts, vclock, corrected_mtime)
+            VALUES (?, 'bad-ts', 'h', 'v', NULL, 'abc', '{}', 0)
+            """,
+            (_FOLDER,),
+        )
         store.load()
         assert len(store) == 1
 
     def test_load_drops_malformed_vclock_entries(self, tmp_path):
-        # A hand-edited side-car with a structurally invalid vclock makes the
-        # entry unusable: it is dropped whole rather than loaded with an
-        # empty clock, which could mask a corrupted common ancestor.
-        import json
+        from hsync_common.models.sqlstore import get_state_db
 
-        path = tmp_path / ".hsyncstate"
-        path.write_text(
-            json.dumps(
-                {
-                    "versions": {
-                        "ok": {"base_hash": "h", "ts": 7, "vclock": {CID_A: 1}},
-                        "bad-value": {"base_hash": "h", "ts": 7, "vclock": {"x": "not-int"}},
-                        "neg-counter": {"base_hash": "h", "ts": 7, "vclock": {CID_A: -1}},
-                        "non-dict": {"base_hash": "h", "ts": 7, "vclock": [1, 2]},
-                    }
-                }
-            ),
-            encoding="utf-8",
+        store = _version_store(tmp_path)
+        store.load()
+        db = get_state_db(str(tmp_path / "syncstate.db"))
+        db.conn.execute(
+            """
+            INSERT INTO versions
+              (folder_id, key, base_hash, version_id, origin_cid, ts, vclock, corrected_mtime)
+            VALUES (?, 'ok', 'h', 'v', NULL, 7, ?, 0)
+            """,
+            (_FOLDER, f'{{"{CID_A}": 1}}'),
         )
-        store = SyncStateStore(path=str(path))
+        db.conn.execute(
+            """
+            INSERT INTO versions
+              (folder_id, key, base_hash, version_id, origin_cid, ts, vclock, corrected_mtime)
+            VALUES (?, 'bad-value', 'h', 'v', NULL, 7, '{"x": "not-int"}', 0)
+            """,
+            (_FOLDER,),
+        )
+        db.conn.execute(
+            """
+            INSERT INTO versions
+              (folder_id, key, base_hash, version_id, origin_cid, ts, vclock, corrected_mtime)
+            VALUES (?, 'neg-counter', 'h', 'v', NULL, 7, ?, 0)
+            """,
+            (_FOLDER, f'{{"{CID_A}": -1}}'),
+        )
+        db.conn.execute(
+            """
+            INSERT INTO versions
+              (folder_id, key, base_hash, version_id, origin_cid, ts, vclock, corrected_mtime)
+            VALUES (?, 'non-dict', 'h', 'v', NULL, 7, '[1, 2]', 0)
+            """,
+            (_FOLDER,),
+        )
         store.load()
         assert len(store) == 1
         _, ok = store.iter_entries()[0]
         assert ok["vclock"] == {CID_A: 1}
 
-    def test_load_malformed_versions_member_is_noop(self, tmp_path):
-        import json
-
-        path = tmp_path / ".hsyncstate"
-        path.write_text(json.dumps({"versions": ["not", "a", "dict"]}), encoding="utf-8")
-        store = SyncStateStore(path=str(path))
-        store.load()
-        assert len(store) == 0
-
-    def test_load_skips_non_dict_entries(self, tmp_path):
-        import json
-
-        path = tmp_path / ".hsyncstate"
-        path.write_text(
-            json.dumps(
-                {
-                    "versions": {
-                        "ok": {"base_hash": "h", "ts": 7, "vclock": {}},
-                        "junk": "not-a-dict",
-                    }
-                }
-            ),
-            encoding="utf-8",
-        )
-        store = SyncStateStore(path=str(path))
-        store.load()
-        assert len(store) == 1
+    def test_retain_chunks_more_than_1000_keys(self, tmp_path):
+        store = _version_store(tmp_path)
+        keep = [f"keep-{i}.txt" for i in range(1200)]
+        drop = [f"drop-{i}.txt" for i in range(50)]
+        for name in keep + drop:
+            store.record(name, base_hash="h")
+        store.save()
+        dropped = store.retain(keep)
+        store.save()
+        assert dropped == 50
+        reloaded = _version_store(tmp_path)
+        reloaded.load()
+        assert len(reloaded) == 1200
+        assert reloaded.base_hash("keep-0.txt") == "h"
+        assert reloaded.get("drop-0.txt") is None
 
 
 class TestFileVersionTypedDict:

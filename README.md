@@ -35,7 +35,7 @@ desktop application.
 | `hsync_common.permissions` | Octal permission SSOT, remote permission sanitization |
 | `hsync_common.ignore` | `.hsyncignore` gitignore-style matcher (`IgnoreMatcher`) |
 | `hsync_common.path_validation` | Path safety helpers, remote-path validators |
-| `hsync_common.constants` | Shared constants (`HSYNCKEEP_FILENAME`, `HSYNCIGNORE_FILENAME`, `HSYNCTOMBSTONES_FILENAME`, …) |
+| `hsync_common.constants` | Shared constants (`HSYNCKEEP_FILENAME`, `HSYNCIGNORE_FILENAME`, `HSYNCFOLDER_FILENAME`, …) |
 | `hsync_common.ssl_utils` | Shared SSL primitives, cert fingerprinting |
 | `hsync_common.logger` | `BaseInterceptHandler`, log rotation helpers |
 | `hsync_common.clock` | NTP-style clock offset computation |

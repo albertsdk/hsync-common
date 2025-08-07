@@ -53,9 +53,9 @@ than *missing*. Key properties:
   fabricated empty clock). Counters must be non-negative ints (bool rejected),
   keys must be valid cids, clocks capped at `VCLOCK_MAX_ENTRIES` entries,
   timestamps within the anti-poisoning skew bound.
-- **Atomic persistence** to the `.hsynctombstones` side-car, with a wire shape
-  (`to_payload()`) reused by the REST endpoints, the LAN gossip channel and the
-  Android mirror (`Tombstones.kt`).
+- **Persistence** in the installation ``syncstate.db`` (ADR-0025), with a
+  wire shape (`to_payload()`) reused by the REST endpoints, the LAN gossip
+  channel and the Android mirror (`Tombstones.kt`).
 
 Tombstones are advertised as the `tombstones` capability
 ([ADR-0005](0005-protocol-versioning.md)).

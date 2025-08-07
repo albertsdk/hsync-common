@@ -188,17 +188,19 @@ Key features:
   the store is capped at 100 000 entries. An entry without a valid clock is
   dropped — never loaded with a fabricated empty clock. A hostile peer cannot
   plant permanent or unbounded deletion markers through the gossip channel.
-- **JSON persistence** — atomic `save()`/`load()` to the `.hsynctombstones`
-  side-car file, with a wire shape (`to_payload()`) reused by the REST
-  endpoints, the LAN gossip channel and the Android mirror (`Tombstones.kt`).
+- **SQLite persistence** — `save()`/`load()` against the installation
+  `syncstate.db` (ADR-0025), keyed by folder UUID. The wire shape
+  (`to_payload()`) is reused by the REST endpoints, the LAN gossip channel
+  and the Android mirror (`Tombstones.kt`).
 
 ### SyncStateStore / FileVersion
 
 Backs the three-way merge conflict model. `SyncStateStore` persists per-file
-base versions (the hash known to both peers) to the `.hsyncstate` side-car so
-that conflicts are detected on the next reconciliation rather than by timestamp
-alone. `FileVersion` is the `TypedDict` wire shape, and `resolve_three_way()`
-compares base/local/remote hashes to pick keep/overwrite/conflict.
+base versions (the hash known to both peers) in the installation
+`syncstate.db`, keyed by the `.hsyncfolder` UUID (ADR-0025), so that
+conflicts are detected on the next reconciliation rather than by timestamp
+alone. `FileVersion` is the private record; `VersionInfo` is the wire shape;
+`resolve_three_way()` compares hashes and vector clocks.
 
 See [ADR 0022 — Causal vector-clock conflict model](adr/0022-causal-vector-clock-conflict-model.md).
 
@@ -314,8 +316,8 @@ files from synchronization. It supports the full gitignore specification:
 3. **Extra patterns** — programmatic patterns from `--ignore-patterns` CLI flag.
 
 The sentinel `.hsynckeep` file is always preserved regardless of any pattern.
-Engine-owned artifacts (`.hsyncignore`, `.hsyncstate`, `.hsynctombstones`,
-`*.part`) are always excluded.
+Engine-owned artifacts (`.hsyncignore`, `.hsyncfolder`, leftover
+`.hsyncstate` / `.hsynctombstones`, `*.part`) are always excluded.
 
 ## Constants
 
@@ -324,8 +326,11 @@ Engine-owned artifacts (`.hsyncignore`, `.hsyncstate`, `.hsynctombstones`,
 | `VERSION`                    | `"1.0.0"`            | HSYNC protocol version (single source)   |
 | `HSYNCKEEP_FILENAME`         | `".hsynckeep"`       | Sentinel file for empty-directory sync   |
 | `HSYNCIGNORE_FILENAME`       | `".hsyncignore"`     | Per-bucket gitignore-style ignore file   |
-| `HSYNCTOMBSTONES_FILENAME`   | `".hsynctombstones"` | Per-bucket deletion-marker side-car file |
-| `HSYNCSTATE_FILENAME`        | `".hsyncstate"`      | Per-bucket 3-way merge state side-car    |
+| `HSYNCFOLDER_FILENAME`       | `".hsyncfolder"`     | Folder-identity marker (UUIDv4)          |
+| `SYNCSTATE_DB_FILENAME`      | `"syncstate.db"`     | Installation causal-state database       |
+| `HSYNC_STATE_DIR_ENV`        | `"HSYNC_STATE_DIR"`  | Override for the state directory         |
+| `HSYNCTOMBSTONES_FILENAME`   | `".hsynctombstones"` | Legacy name; rejected on the wire        |
+| `HSYNCSTATE_FILENAME`        | `".hsyncstate"`      | Legacy name; rejected on the wire        |
 | `PARTIAL_DOWNLOAD_SUFFIX`    | `".part"`            | Suffix for in-progress downloads         |
 | `TOMBSTONE_TTL_DAYS_DEFAULT` | `90`                 | Retention window before tombstone GC (storage bound only) |
 | `CHUNK_SIZE_SMALL`           | 8 KB                 | SHA-256 chunk size for files < 1 MB      |
