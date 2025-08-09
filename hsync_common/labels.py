@@ -194,6 +194,11 @@ LABEL_STYLES: dict[str, tuple[str, str]] = {
 def colorize_labels(message: str, use_colors: bool = True) -> str:
     """Add color tags to action labels in *message*.
 
+    Labels are matched by longest-first to prevent short labels from
+    being substituted inside their longer counterparts (e.g.
+    ``[DOWNLOAD]`` inside ``[REMOTE DOWNLOAD]``). Only exact occurrences
+    are replaced.
+
     Args:
         message: The log message to colorize.
         use_colors: Whether to apply colors (False for plain output).
@@ -204,7 +209,11 @@ def colorize_labels(message: str, use_colors: bool = True) -> str:
     if not use_colors:
         return message
 
-    for label, (start_tag, end_tag) in LABEL_STYLES.items():
+    # Longest-first avoids substring corruption:
+    # "[REMOTE DOWNLOAD]" must be processed before "[DOWNLOAD]".
+    for label, (start_tag, end_tag) in sorted(
+        LABEL_STYLES.items(), key=lambda item: len(item[0]), reverse=True
+    ):
         if label in message:
             message = message.replace(label, f"{start_tag}{label}{end_tag}")
     return message

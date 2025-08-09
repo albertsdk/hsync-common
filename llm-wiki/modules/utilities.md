@@ -116,8 +116,11 @@ reconciliation, transfers, previews and server lines.
 - `_LABEL_CATEGORY_MAP` (`:129`) — label → category (the binding table);
   `LABEL_STYLES` (`:177`) is the derived label → color-tag view consumed by
   `colorize_labels`.
-- `colorize_labels(message, use_colors)` (`:183`) — wraps every known label in
-  the message with its category's color tags; a no-op when `use_colors=False`.
+- `colorize_labels(message, use_colors)` (`labels.py:199`) — wraps every known
+  label in the message with its category's color tags; a no-op when
+  `use_colors=False`. Labels are processed **longest-first** so that shorter
+  labels (e.g. `[DOWNLOAD]`) are never substituted inside longer prefixed
+  labels (e.g. `[REMOTE DOWNLOAD]`), preventing corrupted double-wrapping.
   Wired into the loguru `message_transform` of both client
   (`hsync_client/logger.py`) and server (`hsync_server/logger.py`) formatters.
 - `resolve_label(prefix, name)` (`:206`) — resolves a label stem (with optional

@@ -254,6 +254,12 @@ def apply_delta(
     payloads never need to be resident in RAM. Returns the number of bytes
     written; the caller verifies the whole-file SHA-256 afterwards.
     """
+    if os.path.realpath(base_path) == os.path.realpath(output_path):
+        raise DeltaError(
+            "Base file and output path must be different — same path would "
+            "truncate the base before it can be read",
+            details={"base_path": base_path, "output_path": output_path},
+        )
     written = 0
     with open(base_path, "rb") as base_file, open(output_path, "wb") as out_file:
         for op in ops:
