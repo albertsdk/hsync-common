@@ -123,6 +123,10 @@
             "string",
             "null"
           ]
+        },
+        "recursive": {
+          "description": "On a `deleted` event the directory deletion applies recursively (single message replaces the per-descendant delete stream). Optional: absent ⇒ non-recursive.",
+          "type": "boolean"
         }
       },
       "required": [
