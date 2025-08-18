@@ -10,9 +10,10 @@ buggy client could flood uploads, exhaust disk space, saturate bandwidth, or
 open thousands of WebSocket connections. Rate limiting is essential for
 availability and fair resource allocation.
 
-The server has no user accounts ([ADR-0008](0008-single-api-key-auth.md)), so
-limiting must be per-IP. Different endpoints have different costs and risk
-profiles:
+The server uses per-account tokens ([ADR-0008](0008-client-accounts.md)) but
+rate limiting remains per-IP (the account id is opaque and an attacker can
+mint many tokens). Admin endpoints have a stricter limit. Different endpoints
+have different costs and risk profiles:
 
 - **Uploads** are the most expensive (disk I/O, SHA-256, potential disk
   exhaustion) — should be the most restricted.
@@ -72,7 +73,7 @@ Alternatives rejected:
 
 ## See also
 
-- [ADR-0008](0008-single-api-key-auth.md) — single API key means no per-user
-  limiting.
+- [ADR-0008](0008-client-accounts.md) — account tokens are opaque, so limiting
+  stays per-IP; admin endpoints get a stricter limit.
 - [hsync_server/rate_limiter.py](https://github.com/albertobasso/hsync-server/blob/main/hsync_server/rate_limiter.py) —
   implementation.

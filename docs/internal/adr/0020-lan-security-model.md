@@ -66,7 +66,7 @@ pinning serves that role — but a coarse "are you part of my sync group?" gate.
 
 **Accepted risk**: the LAN key is a shared secret; compromise of one device
 compromises the whole LAN group. This matches the single API key model of the
-server ([ADR-0008](0008-single-api-key-auth.md)) and the target use case
+server ([ADR-0008](0008-client-accounts.md)) and the target use case
 (single-user/small-family fleet).
 
 ### 3. Strict pairing mode (optional)
@@ -107,7 +107,7 @@ untrusted bulletin board and moves all trust decisions to the TLS+key layer.
   contact.
 - **Discovery is untrusted by design**: eliminating trust from mDNS simplifies
   the threat model — no need to secure a protocol that is inherently unsecurable.
-- **Shared secret model**: both the server API key ([ADR-0008](0008-single-api-key-auth.md))
+- **Shared secret model**: both the server account tokens ([ADR-0008](0008-client-accounts.md))
   and the LAN key use shared secrets. Revocation requires rotating the secret and
   updating all peers simultaneously.
 
@@ -115,6 +115,6 @@ untrusted bulletin board and moves all trust decisions to the TLS+key layer.
 
 - [ADR-0001](0001-server-vs-lan-modes.md) — LAN P2P mode overview
 - [ADR-0002](0002-lan-master-election.md) — Deterministic master election
-- [ADR-0008](0008-single-api-key-auth.md) — Server-side single API key model
+- [ADR-0008](0008-client-accounts.md) — Server-side account token model
 - [`docs/lan-protocol.md`](../../lan-protocol.md) — Full LAN protocol specification
 - Implementation: `hsync_client/pinning.py`, `protocol/pairing.py`, `ssl_utils.py`
