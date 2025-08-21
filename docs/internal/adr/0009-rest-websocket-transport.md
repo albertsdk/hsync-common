@@ -44,7 +44,7 @@ as separate channels:
   pushes a `file_added` event to clients B and C via their open WebSocket
   connections.
 - The WebSocket connection is **authenticated** (first message is a JSON `auth`
-  frame with the API key) and **per-bucket** (one WS per bucket per client).
+  frame with the account token) and **per-bucket** (one WS per bucket per client).
 - The REST API is versioned (`api/v1`) and the WebSocket uses the protocol
   versioning from [ADR-0005](0005-protocol-versioning.md).
   The `v1` in the URL prefix `/api/v1/` corresponds to
