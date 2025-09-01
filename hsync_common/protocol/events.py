@@ -38,14 +38,14 @@ __all__ = [
 # Bump only on a breaking change to the event payload shape. The Desktop hard
 # fails on an unknown version rather than silently mis-parsing (P0-B has no
 # legacy channel to fall back to).
-EVENTS_SCHEMA_VERSION = 1
+EVENTS_SCHEMA_VERSION = 2
 
 
 class UiEventName(StrEnum):
     """Discriminator for a structured UI event (1:1 with Desktop signals)."""
 
     status = "status"  # connection status: disconnected|connecting|connected|waiting|error
-    peers = "peers"  # alive peer count changed
+    peers = "peers"  # client presence changed (connected / total clients in the share)
     role = "role"  # this client became master / client
     bucket = "bucket"  # bucket name detected
     group = "group"  # LAN group name detected
@@ -89,7 +89,7 @@ class UiEventDict(TypedDict):
     event: str
     # ── optional payload (only the fields relevant to ``event`` are present) ──
     status: NotRequired[str]
-    count: NotRequired[int]
+    connected: NotRequired[int]  # peers event: clients currently connected (self included)
     is_master: NotRequired[bool]
     bucket: NotRequired[str]
     group: NotRequired[str]
@@ -102,7 +102,7 @@ class UiEventDict(TypedDict):
     dst: NotRequired[str]
     path: NotRequired[str]
     transferred: NotRequired[int]
-    total: NotRequired[int]
+    total: NotRequired[int]  # peers event (clients in the share) / progress event (bytes)
     message: NotRequired[str]
     conflict_type: NotRequired[str]
     peer_cid: NotRequired[str]
