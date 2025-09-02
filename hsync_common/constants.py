@@ -175,10 +175,13 @@ DELTA_FILE_SIZE_LARGE = 100 * 1024 * 1024  # 100 MB
 DELTA_MAX_SIGNATURES = 100_000
 DELTA_MAX_OPS = 100_000
 
-# Maximum WebSocket text-frame size accepted by the server and client.
-# Limits JSON payload memory allocation for auth frames (pre-authentication)
-# and event messages; 2 MiB is ample for structured event JSON with file
-# paths and metadata while preventing OOM DoS from a single giant frame.
+# Maximum WebSocket text-frame size accepted by every peer. HSYNC frames
+# carry ONLY structured metadata (auth frames, file events, presence), never
+# bulk content: a legitimate frame is tens of KB at most. The value is twice
+# the websockets library default (max_size = 1 MiB), giving comfortable head
+# room for the largest auth frame (token + capabilities + vclock) while
+# halving the worst-case memory cost of a hostile giant frame versus 4 MiB.
+# SSOT: both hsync-client and hsync-server import it from here.
 WS_MAX_MESSAGE_BYTES = 2 * 1024 * 1024  # 2 MiB
 
 # TOCTOU re-hash threshold: files smaller than this get a full SHA-256 re-hash

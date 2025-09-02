@@ -89,7 +89,7 @@ within a version — intersection semantics, never cross-version negotiation
   `LAN_WSS_SCHEMA_PATH` (`:37`), `FIXTURES_DIR` (`:40`),
   `ANDROID_FIXTURES_DIR` (`:46`).
 - Canonical dump/load: `dump_contract`/`load_contract` (`__init__.py:58`/`:67`),
-  with `dump_openapi`/`load_openapi` (`:72`/`:77`) reusing them.
+  with `dump_openapi` (`:72`) reusing them.
 
 ## Change checklist
 
