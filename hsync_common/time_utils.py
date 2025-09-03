@@ -28,17 +28,18 @@ contracts (see ``hsync-android``).
 
 from __future__ import annotations
 
+import time
 from datetime import UTC, datetime
 
 
 def utc_now_epoch() -> int:
     """Current UTC time as integer Unix epoch seconds."""
-    return int(datetime.now(UTC).timestamp())
+    return int(time.time())
 
 
 def utc_now_epoch_ms() -> int:
     """Current UTC time as integer Unix epoch milliseconds."""
-    return int(datetime.now(UTC).timestamp() * 1000)
+    return int(time.time() * 1000)
 
 
 def utc_now_iso() -> str:
