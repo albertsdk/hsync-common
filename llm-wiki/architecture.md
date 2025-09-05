@@ -46,8 +46,10 @@ these constants:
 
 - `models/version.py` is the SSOT for per-file causal versions: `FileVersion`
   (private, persisted), `VersionInfo` (wire form), `compare/tick/merge_vclocks`,
-  `resolve_three_way` (the §3.2 decision matrix) and `SyncStateStore`
-  (installation ``syncstate.db`` keyed by ``.hsyncfolder`` UUID, ADR-0025).
+  `resolve_three_way` (the §3.2 decision matrix); the SQLite-backed
+  `SyncStateStore` lives in `models/version_store.py` (re-exported from
+  `models/version.py`; installation ``syncstate.db`` keyed by ``.hsyncfolder``
+  UUID, ADR-0025).
   No node is authoritative: the server and the
   elected LAN master arbitrate uploads causally against their stored version
   and never decide by role.

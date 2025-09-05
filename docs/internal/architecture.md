@@ -98,8 +98,10 @@ hsync-common/
     │   ├── event.py             # Event + EventName enum
     │   ├── sync_action.py       # SyncAction + SyncActionName enum
     │   ├── _util.py             # Shared path/key/timestamp helpers (no model imports)
-    │   ├── tombstone.py         # TombstoneStore (causal deletion markers)
-    │   ├── version.py           # SyncStateStore + FileVersion (causal merge state)
+    │   ├── tombstone.py         # Causal tombstone model + merge decision (re-exports store)
+    │   ├── tombstone_store.py   # TombstoneStore (causal deletion markers, SQLite)
+    │   ├── version.py           # Causal version model + resolve_three_way (re-exports store)
+    │   ├── version_store.py     # SyncStateStore + FileVersion (causal merge state, SQLite)
     │   └── delta.py             # Delta transfer wire models (signatures, ops, instructions)
     ├── delta/                   # Rsync-style delta transfer algorithm
     │   ├── decision.py          # Block-size selection, is-delta-worthwhile heuristics
