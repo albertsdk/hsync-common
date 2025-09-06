@@ -11,7 +11,7 @@ Provides the canonical chunked checksum routines used by the client, the
 server, and the shared :class:`hsync_common.models.file.File` model:
 
 - :func:`adaptive_chunk_size` - pick a read chunk size from a file size.
-- :func:`compute_sha256` - synchronous, chunked SHA-256 of a file.
+- :func:`compute_sha256` - synchronous SHA-256 of a file (C-level streaming).
 - :func:`compute_sha256_async` - asyncio variant backed by ``aiofiles``.
 """
 
@@ -66,18 +66,19 @@ def adaptive_chunk_size(file_size: int | None) -> int:
     return CHUNK_SIZE_SMALL
 
 
-def compute_sha256(filepath: str, chunk_size: int = CHUNK_SIZE_SMALL) -> str:
-    """Compute the SHA-256 checksum of a file using chunked reads.
+def compute_sha256(filepath: str) -> str:
+    """Compute the SHA-256 checksum of a file.
+
+    Uses :func:`hashlib.file_digest`, which streams the file in C (single
+    pass, zero per-chunk Python loop overhead), so memory stays bounded for
+    large files.
 
     Args:
         filepath: Path to the file.
-        chunk_size: Size of chunks to read.
 
     Returns:
         Hexadecimal SHA-256 digest string.
     """
-    # hashlib.file_digest streams the file in C (single pass, zero per-chunk
-    # Python loop overhead); the chunk_size is honoured transparently.
     with open(filepath, "rb") as f:
         return file_digest(f, sha256).hexdigest()
 

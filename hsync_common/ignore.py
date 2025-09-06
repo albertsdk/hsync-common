@@ -40,13 +40,13 @@ from hsync_common.constants import (
     HSYNCIGNORE_FILENAME,
     HSYNCKEEP_FILENAME,
 )
+from hsync_common.models.file import is_partial_file
+from hsync_common.path_validation import is_internal_name
 
 # Maximum number of total ignore patterns (defaults + .hsyncignore + extras).
 # Beyond this cap the remaining patterns are silently dropped to prevent
 # ReDoS from a crafted file with thousands of complex regex-compiled globs.
 _MAX_IGNORE_PATTERNS = 1000
-from hsync_common.models.file import is_partial_file
-from hsync_common.path_validation import is_internal_name
 
 
 class IgnoreMatcher:

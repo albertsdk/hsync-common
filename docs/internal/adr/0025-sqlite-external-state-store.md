@@ -56,7 +56,7 @@ bucket.
 Tables ``folders``, ``buckets`` (server-only mapping), ``versions`` and
 ``tombstones``, all keyed by ``folder_id``. ``vclock`` remains a JSON
 string validated by the existing parsers (``parse_version_info`` /
-``_parse_stored_vclock`` in Python; ``parseStoredVclock`` on Android).
+``parse_vclock`` in Python; ``parseStoredVclock`` on Android).
 ``ts`` and ``corrected_mtime`` are ``REAL`` so int|float JSON parity is
 preserved. Version and tombstone keys stay the existing
 ``tombstone_key(relpath)`` hashes (privacy-preserving, shared with

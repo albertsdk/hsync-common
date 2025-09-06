@@ -23,7 +23,7 @@ import time
 from pathlib import Path
 
 from . import tombstone
-from ._util import tombstone_key
+from ._util import _vclock_to_json, tombstone_key
 from .sqlstore import StateDb, get_state_db
 from .tombstone import (
     TOMBSTONE_TTL_DAYS_DEFAULT,
@@ -36,14 +36,9 @@ from .version import merge_vclocks, new_version_id, tick_vclock
 __all__ = ["TombstoneStore"]
 
 
-def _vclock_to_json(vclock: dict[str, int]) -> str:
-    """Serialize a validated vector clock for the ``tombstones.vclock`` column."""
-    return json.dumps(vclock, separators=(",", ":"), sort_keys=True)
-
-
-def _tombstone_from_row(row: object, now: int) -> tuple[str, TombstoneEntry] | None:
+def _tombstone_from_row(row: sqlite3.Row, now: int) -> tuple[str, TombstoneEntry] | None:
     """Sanitize a SQLite tombstone row the same way as an untrusted payload."""
-    mapping = dict(row)  # type: ignore[arg-type]
+    mapping = dict(row)
     key = mapping.get("key")
     entry = {
         "sha256": mapping.get("sha256sum"),
@@ -252,13 +247,7 @@ class TombstoneStore:
         if db is None or self.folder_id is None or not self._dirty:
             return
         db.ensure_folder(self.folder_id, self.canonical_path)
-        own_txn = False
-        try:
-            db.begin_immediate()
-            own_txn = True
-        except sqlite3.OperationalError:
-            own_txn = False
-        try:
+        with db.transaction():
             db.retain_tombstones(self.folder_id, list(self._data.keys()))
             for key, entry in self._data.items():
                 db.upsert_tombstone(
@@ -270,10 +259,4 @@ class TombstoneStore:
                     ts=float(entry["ts"]),
                     vclock=_vclock_to_json(entry["vclock"]),
                 )
-            if own_txn:
-                db.commit()
-            self._dirty = False
-        except Exception:
-            if own_txn:
-                db.rollback()
-            raise
+        self._dirty = False
