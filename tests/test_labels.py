@@ -56,6 +56,7 @@ class TestSpecificLabelColors:
         assert LABEL_STYLES[str(ActionLabel.CREATE)] == ("<green>", "</green>")
         assert LABEL_STYLES[str(ActionLabel.LOCAL_CREATE)] == ("<green>", "</green>")
         assert LABEL_STYLES[str(ActionLabel.REMOTE_CREATE)] == ("<green>", "</green>")
+        assert LABEL_STYLES[str(ActionLabel.READY)] == ("<green>", "</green>")
 
     def test_delete_labels_are_red(self):
         assert LABEL_STYLES[str(ActionLabel.DELETE)] == ("<red>", "</red>")
