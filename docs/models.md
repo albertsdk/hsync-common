@@ -44,19 +44,34 @@ values: `added`, `modified`, `renamed`, `deleted`, `symlink`.
 ## SyncAction / SyncActionName
 
 Represents a synchronisation decision. `SyncActionName` is a `StrEnum` with
-values: `download`, `upload`, `delete`, `delete_remote`, `nothing`.
-`to_dict()` serializes `file`, `name`, `timedelta` and the `conflict` flag
+values: `download`, `upload`, `delete`, `delete_remote`, `upload_symlink`,
+`download_symlink`, `nothing`.
+
+The two symlink actions replicate the link structurally (the path and target
+pair) — never the target's file content.
+
+`to_dict()` serializes `file`, `name`, `timedelta`, the `conflict` flag
 (`True` when the action overwrites a locally-modified file whose local copy
-should be preserved first).
+should be preserved first), and `tombstone_confirmed` (`True` when a local
+delete is backed by a matching deletion marker, so the mass-deletion guard
+can treat it as intentional).
 
 ## TombstoneStore
 
 Records deletion markers so that a peer which was offline at deletion time does
-not resurrect a file during a full reconciliation. Key features:
+not resurrect a file during a full reconciliation. Tombstones are **not** a
+recycle bin: they prevent resurrection, they do not store file contents and
+they do not provide restore.
 
-- **Last-writer-wins merge** — `merge()` and `record()` keep the newest timestamp.
+Key features:
+
+- **Causal merge** — `merge()` and `record()` follow vector-clock dominance.
+  Concurrent markers use a deterministic content-based tie-break (content hash,
+  then version id, then author). The wall-clock timestamp never decides the
+  merge; it is used only for TTL garbage collection and anti-poisoning checks.
 - **Privacy-preserving keys** — paths are hashed (SHA-256) before storage.
-- **TTL pruning** — `prune()` garbage-collects markers older than 30 days.
+- **TTL pruning** — `prune()` garbage-collects markers older than 90 days.
+  That window is a storage bound only; correctness does not depend on it.
 - **Untrusted-payload validation** — well-formedness checks prevent hostile peers
   from planting permanent or unbounded deletion markers.
 - **SQLite persistence** — `save()`/`load()` against the installation
