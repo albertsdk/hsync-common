@@ -11,6 +11,8 @@ from os import readlink
 from os import stat as os_stat
 from pathlib import Path
 
+from hsync_common.path_validation import MAX_REMOTE_RELPATH_BYTES
+
 
 class Symlink:
     """
@@ -51,7 +53,7 @@ class Symlink:
                 raise ValueError("Symlink target must be a non-empty string")
             if "\x00" in target:
                 raise ValueError("Symlink target contains null byte")
-            if len(target.encode("utf-8")) > 4096:
+            if len(target.encode("utf-8")) > MAX_REMOTE_RELPATH_BYTES:
                 raise ValueError("Symlink target exceeds maximum length")
 
     def __repr__(self) -> str:
@@ -114,16 +116,11 @@ class Symlink:
         stripped from the dict's ``filepath`` (making it bucket-relative);
         when False the prefix is prepended (making it absolute).
         """
-        if strip_dir_prefix and not dir_prefix:
-            raise ValueError("Set dir_prefix to strip it.")
+        from hsync_common.models import _resolve_prefixed_path
 
-        data_filepath = data.get("filepath", "")
-        if strip_dir_prefix and dir_prefix:
-            filepath = str(data_filepath).removeprefix(dir_prefix).lstrip("/")
-        elif dir_prefix:
-            filepath = str(Path(dir_prefix) / str(data_filepath).lstrip("/"))
-        else:
-            filepath = str(data_filepath)
+        filepath = _resolve_prefixed_path(
+            data.get("filepath", ""), dir_prefix, strip=strip_dir_prefix
+        )
 
         return cls(
             filepath=filepath,

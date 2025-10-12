@@ -26,7 +26,7 @@ disproportionate to the actual data change.
 | Alternative | Rejected because |
 |-------------|-----------------|
 | **Manual rsync** | Requires users to run a separate tool outside HSYNC; breaks the unified sync model; no real-time event propagation |
-| **Content-addressed deduplication** (ADR 0007) | Deduplicates identical files across peers, but does not help when a single file changes incrementally |
+| **Content-addressed deduplication** ([ADR-0007](0007-content-addressed-storage.md)) | Deduplicates identical files across peers, but does not help when a single file changes incrementally |
 | **Chunked upload with server-side dedup** | Server must store every chunk ever uploaded; complex metadata; doesn't reduce download bandwidth for other peers |
 | **Binary diff (bsdiff/xdelta)** | Requires the server to hold both old and new versions; not suitable for streaming; CPU-intensive on the server |
 | **rsync-style rolling checksum (chosen)** | Client-side computation, server only stores signatures; works with existing file storage; transparent fallback to full transfer |
@@ -54,7 +54,7 @@ This approach has three key properties that make it ideal for HSYNC:
   network error, peer doesn't support delta), the client falls back to a full
   transfer. The user never has to choose manually.
 - **Protocol compatibility**: delta transfer is an **optional capability**
-  negotiated via the existing capability system (ADR 0005). Older peers that
+  negotiated via the existing capability system ([ADR-0005](0005-protocol-versioning.md)). Older peers that
   don't support delta continue to work with full transfers.
 
 ## Decision
@@ -98,7 +98,7 @@ memory and allows the server to stream the data efficiently.
 ### Capability negotiation
 
 Delta transfer is advertised as a **capability token** (`delta`) in the REST
-handshake (ADR 0005) and as a **TXT record key** (`delta=true`) in LAN mDNS
+handshake ([ADR-0005](0005-protocol-versioning.md)) and as a **TXT record key** (`delta=true`) in LAN mDNS
 discovery. Peers only attempt delta transfer when **both** sides support it.
 
 ### Size thresholds
@@ -198,9 +198,9 @@ multiple clients would write to the same `.delta.part` file simultaneously.
 
 ## References
 
-- [ADR 0005 — Protocol Versioning & Capability Negotiation](0005-protocol-versioning.md)
-- [ADR 0007 — Content-Addressed Storage](0007-content-addressed-storage.md)
-- [ADR 0009 — REST/WebSocket Transport](0009-rest-websocket-transport.md)
+- [ADR-0005](0005-protocol-versioning.md) — Protocol Versioning & Capability Negotiation
+- [ADR-0007](0007-content-addressed-storage.md) — Content-Addressed Storage
+- [ADR-0009](0009-rest-websocket-transport.md) — REST/WebSocket Transport
 - rsync algorithm: Tridgell, A. & Mackerras, P. (1996). "The rsync algorithm."
   *Australian Computer Science Communication*, 18(1), 101-106.
 - Implementation: `hsync_common/delta/` in `hsync-common/hsync_common/delta/`
