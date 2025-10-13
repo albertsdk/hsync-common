@@ -25,6 +25,8 @@ each ADR to the code it governs.
 | [0016 delta-transfer](../docs/internal/adr/0016-delta-transfer.md) | `delta/decision.py` (Adler32 + SHA-256 matching); `delta/rolling_checksum.py`; `models/delta.py` (wire shapes) |
 | [0017 lan-slave-outbound-event-reliability](../docs/internal/adr/0017-lan-slave-outbound-event-reliability.md) | `hsync_client/lan_websocket.py` (defer-to-close, echo-pair cache); Android mirror |
 | [0018 origin-based-log-labels](../docs/internal/adr/0018-origin-based-log-labels.md) | `labels.py` (`ActionLabel`, `resolve_label`, `LOCAL`/`REMOTE` prefix); Kotlin mirror `LogManager.kt` |
+| [0019 tombstone-clock-model](../docs/internal/adr/0019-tombstone-clock-model.md) | justification only — no code change; cross-references [ADR-0003](../docs/internal/adr/0003-tombstone-gossip.md) and [ADR-0006](../docs/internal/adr/0006-master-authoritative-conflict-model.md) |
+| [0020 lan-security-model](../docs/internal/adr/0020-lan-security-model.md) | `protocol/pairing.py` (pairing); `ssl_utils.py` (self-signed cert); `hsync_client/pinning.py` (TOFU pinning); Android `PinStore.kt` |
 
 LAN transport/security specifics (TOFU pinning, LAN-key policy, threat model)
 live in [`../docs/lan-protocol.md`](../docs/lan-protocol.md) and map to
