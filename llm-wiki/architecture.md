@@ -23,7 +23,7 @@ contract is mechanically tied to the in-code types.
 
 | Path | Responsibility | Wiki |
 | ---- | -------------- | ---- |
-| `hsync_common/constants.py:20` | `VERSION`, sentinel filenames, chunk-size tiers, `.part` suffix | [utilities](modules/utilities.md) |
+| `hsync_common/constants.py:24` | `HSYNC_VERSION`, wire header names + client-name validator, content types, sentinel filenames, chunk-size tiers, `.part` suffix | [utilities](modules/utilities.md) |
 | `hsync_common/models/` | Canonical sync data types; `folder.py` (`.hsyncfolder` + state dir), `sqlstore.py` (`syncstate.db`) | [data-models](data-models.md) |
 | `hsync_common/protocol/` | Versioned wire protocol + contract artifacts | [protocol](modules/protocol.md) |
 | `hsync_common/{hashing,compression,permissions,path_validation,ignore,ssl_utils,logger,env,text,clock,format,exceptions}.py` | Cross-cutting helpers | [utilities](modules/utilities.md) |

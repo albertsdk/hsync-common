@@ -3,7 +3,8 @@
 ## Supported Versions
 
 Security fixes are applied to the latest released version on the `main` branch.
-HSYNC components share a single protocol version (`hsync_common.VERSION`).
+HSYNC components share a single application version
+(`hsync_common.constants.HSYNC_VERSION`).
 
 | Version | Supported |
 |---------|-----------|

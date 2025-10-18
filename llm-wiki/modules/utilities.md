@@ -5,14 +5,22 @@ formatting/hashing/parsing helper (DRY rule in `CLAUDE.md`).
 
 ## constants.py
 
-- `VERSION = "1.0.0"` (`constants.py:20`) — ecosystem version SSOT.
-- Sentinel / engine filenames: `.hsynckeep` (`:30`), `.hsyncignore` (`:35`),
-  `.hsyncfolder` (`:93`), `syncstate.db` (`:99`), `HSYNC_STATE_DIR` (`:104`);
-  leftover `.hsynctombstones` / `.hsyncstate` (`:110`/`:111`) stay rejected
+- `HSYNC_VERSION = "1.0.0"` (`constants.py:24`) — ecosystem version SSOT.
+- Wire headers `HEADER_CLIENT_NAME/CLIENT_VERSION/SERVER_VERSION/PROTOCOL_VERSION`
+  (`constants.py:33`) — REST header names shared by client, server and the
+  Android mirror; `CLIENT_NAME_PATTERN` (`:43`) + `is_valid_client_name`
+  (`:48`) validate the slug shape and are the same rule the server middleware
+  applies to `X-Client-Name`.
+- Wire content types `CONTENT_TYPE_OCTET_STREAM` / `CONTENT_TYPE_JSON`
+  (`constants.py:63`) — media types shared by the Python client/server and the
+  Kotlin mirrors.
+- Sentinel / engine filenames: `.hsynckeep` (`:43`), `.hsyncignore` (`:48`),
+  `.hsyncfolder` (`:106`), `syncstate.db` (`:111`), `HSYNC_STATE_DIR` (`:115`);
+  leftover `.hsynctombstones` / `.hsyncstate` (`:120`/`:121`) stay rejected
   on the wire (ADR-0025).
-- Adaptive chunk tiers: `CHUNK_SIZE_SMALL/MEDIUM/LARGE` (`:58`–`:60`) gated by
-  `FILE_SIZE_SMALL/MEDIUM` (`:63`/`:64`).
-- `PARTIAL_DOWNLOAD_SUFFIX = ".part"` (`:74`).
+- Adaptive chunk tiers: `CHUNK_SIZE_SMALL/MEDIUM/LARGE` (`:128`–`:130`) gated by
+  `FILE_SIZE_SMALL/MEDIUM` (`:133`/`:134`).
+- `PARTIAL_DOWNLOAD_SUFFIX = ".part"` (`:144`).
 
 ## hashing.py
 
