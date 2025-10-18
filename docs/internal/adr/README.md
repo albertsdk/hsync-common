@@ -29,7 +29,7 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0004](0004-desktop-subprocess-contract.md) | Desktop ↔ client subprocess contract | Accepted |
 | [0005](0005-protocol-versioning.md) | Protocol versioning & capability negotiation | Accepted |
 | [0006](0006-master-authoritative-conflict-model.md) | Master-authoritative conflict model | Accepted |
-| [0007](0007-content-addressed-storage.md) | SHA-256 content-addressed storage with flat filesystem | Accepted |
+| [0007](0007-content-addressed-storage.md) | SHA-256 integrity verification and idempotent upload | Accepted |
 | [0008](0008-single-api-key-auth.md) | Single shared API key authentication | Accepted |
 | [0009](0009-rest-websocket-transport.md) | REST for data, WebSocket for events | Accepted |
 | [0010](0010-zstandard-compression.md) | Zstandard compression with adaptive thresholds | Accepted |
