@@ -58,15 +58,3 @@ class HSyncError(Exception):
         if self.details:
             result["details"] = self.details
         return result
-
-
-def format_exception(exc: Exception) -> str:
-    """Format an exception for logging.
-
-    Args:
-        exc: The exception to format.
-
-    Returns:
-        Formatted string with exception type and message.
-    """
-    return f"{type(exc).__name__}: {exc}"

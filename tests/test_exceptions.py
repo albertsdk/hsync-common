@@ -2,7 +2,7 @@
 
 import pytest
 
-from hsync_common.exceptions import HSyncError, format_exception
+from hsync_common.exceptions import HSyncError
 
 
 class TestHSyncErrorDefaults:
@@ -90,9 +90,3 @@ class TestHSyncErrorSubclassing:
 
         with pytest.raises(HSyncError):
             raise MyError("subclass error")
-
-
-class TestFormatException:
-    def test_format_exception(self):
-        exc = ValueError("boom")
-        assert format_exception(exc) == "ValueError: boom"
