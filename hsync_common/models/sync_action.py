@@ -46,6 +46,11 @@ class SyncAction:
         conflict: True when the action overwrites a locally-modified file that
             could not be reconciled automatically (same mtime, different
             content); signals that the local copy should be preserved first.
+        tombstone_confirmed: True when the deletion is backed by a matching
+            tombstone marker (the file was deleted elsewhere while this peer
+            was offline). The mass-deletion guard exempts these deletions
+            because a tombstone is positive proof the removal is intentional,
+            not a transient empty-bucket artefact.
     """
 
     def __init__(
@@ -54,11 +59,13 @@ class SyncAction:
         name: SyncActionName | None = None,
         timedelta: int = 0,
         conflict: bool = False,
+        tombstone_confirmed: bool = False,
     ):
         self.file: File | Symlink = file
         self.name = name
         self.timedelta = self._format_timedelta(timedelta)
         self.conflict = conflict
+        self.tombstone_confirmed = tombstone_confirmed
 
     def __repr__(self) -> str:
         return (
@@ -66,21 +73,23 @@ class SyncAction:
             f"file={self.file}, "
             f"name={self.name}, "
             f"timedelta={self.timedelta}, "
-            f"conflict={self.conflict})"
+            f"conflict={self.conflict}, "
+            f"tombstone_confirmed={self.tombstone_confirmed})"
         )
 
     def to_dict(self) -> dict:
         """Convert the SyncAction instance to a dictionary.
 
-        Includes ``conflict``: dropping it would silently lose the
-        "preserve the local copy first" signal for any consumer that
-        serializes the action instead of reading attributes.
+        Includes ``conflict`` and ``tombstone_confirmed``: dropping either
+        would silently lose a signal for any consumer that serializes the
+        action instead of reading attributes.
         """
         return {
             "file": self.file.to_dict(),
             "name": self.name,
             "timedelta": self.timedelta,
             "conflict": self.conflict,
+            "tombstone_confirmed": self.tombstone_confirmed,
         }
 
     def _format_timedelta(self, delta_seconds: int) -> str:
