@@ -11,36 +11,25 @@ mirrored in Kotlin by the Android app.
 
 ## Using the library
 
-Add it as a path dependency from a sibling project (this is already wired in the
-client, server, and desktop `pyproject.toml`):
+Add the path dependency and import the shared building blocks as shown in the
+[Usage guide](usage.md) — that page is the single source for the integration
+snippet.
 
-```toml
-[tool.poetry.dependencies]
-hsync-common = { path = "../hsync-common", develop = true }
-```
+## What do you want to do?
 
-Then import the shared building blocks directly:
-
-```python
-from hsync_common.models import File, Dir
-from hsync_common.protocol.handshake import PROTOCOL_VERSION_REST
-```
-
-## Where to start
-
-- **New to hsync-common?** → Start with [Usage](usage.md) for an overview of how to integrate the library.
-- **Understanding the shared models?** → Read the [Models guide](models.md).
-- **Using the utilities?** → See the [Utilities guide](utilities.md).
-- **Working with the protocol?** → Read the [Protocol guide](protocol.md).
-- **Configuring ignore rules?** → Read the [Ignore file guide](ignore-file.md) for `.hsyncignore` syntax and API reference.
-- **Understanding authentication?** → The [Authentication](authentication.md) spec covers CID format, message schema, and protocol versioning shared by all components.
-- **Implementing LAN P2P?** → The [LAN Protocol spec](lan-protocol.md) is the authoritative reference.
-- **Reading logs?** → The [Log Labels reference](log-labels.md) catalogs every action label across all projects.
-- **Working with delta transfers?** → The [Delta transfer guide](delta.md) documents the rsync-style block-level sync API.
-- **Checking protocol constants?** → The [Constants reference](constants.md) lists all canonical values.
-- **Working on the Android app?** → See [Android Mirroring](android-mirroring.md) for Kotlin/Python sync.
-- **Why were these decisions made?** → The [Architecture Decision Records](internal/adr/README.md) document the rationale.
-- **Contributing to the codebase?** → See the [Internal architecture](internal/architecture.md).
+- **Integrate hsync-common into a project?** → [Usage](usage.md) (Tutorial)
+- **Read or exchange data models?** → [Models guide](models.md) (Reference)
+- **Use a utility (compression, hashing, SSL, ignore…)?** → [Utilities guide](utilities.md) (Reference)
+- **Check a canonical value or constant?** → [Constants reference](constants.md) (Reference)
+- **Speak or extend the wire protocol?** → [Protocol guide](protocol.md) (Reference)
+- **Implement or debug LAN P2P?** → [LAN Protocol spec](lan-protocol.md) (Specification, authoritative)
+- **Understand authentication contracts?** → [Authentication](authentication.md) (Specification)
+- **Understand delta transfer?** → [Delta transfer guide](delta.md) (Explanation)
+- **Configure ignore rules?** → [Ignore file guide](ignore-file.md) (Reference)
+- **Decode the client/server logs?** → [Log Labels reference](log-labels.md) (Reference)
+- **Keep the Android app in sync with Python?** → [Android Mirroring](android-mirroring.md) (Explanation)
+- **Understand why a decision was made?** → [Architecture Decision Records](internal/adr/README.md)
+- **Contribute to the codebase?** → [Internal architecture](internal/architecture.md)
 
 ## Documentation map
 
