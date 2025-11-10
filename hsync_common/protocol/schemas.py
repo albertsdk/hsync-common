@@ -79,6 +79,15 @@ def _capability_tokens() -> list[str]:
     return encode_capabilities(Capability)
 
 
+def _capabilities_array() -> dict[str, Any]:
+    """JSON Schema for a handshake capabilities list (WS and LAN)."""
+    return {
+        "type": "array",
+        "items": {"enum": _capability_tokens()},
+        "uniqueItems": True,
+    }
+
+
 def _event_names() -> list[str]:
     """File-event discriminators, derived from :class:`EventName`."""
     return [e.value for e in EventName]
@@ -218,11 +227,7 @@ def _auth_request() -> dict[str, Any]:
             "token": {"type": "string"},
             "app_version": {"type": "string"},
             "protocol_version": {"const": PROTOCOL_VERSION_WS},
-            "capabilities": {
-                "type": "array",
-                "items": {"enum": _capability_tokens()},
-                "uniqueItems": True,
-            },
+            "capabilities": _capabilities_array(),
         },
         "required": ["type", "token", "app_version", "protocol_version", "capabilities"],
         "additionalProperties": False,
@@ -239,11 +244,7 @@ def _auth_ok() -> dict[str, Any]:
             "status": {"const": "ok"},
             "protocol_version": {"const": PROTOCOL_VERSION_WS},
             "app_version": {"type": "string"},
-            "capabilities": {
-                "type": "array",
-                "items": {"enum": _capability_tokens()},
-                "uniqueItems": True,
-            },
+            "capabilities": _capabilities_array(),
         },
         "required": ["type", "status", "protocol_version", "app_version", "capabilities"],
         "additionalProperties": False,
@@ -331,15 +332,6 @@ def build_ws_schema() -> dict[str, Any]:
     }
 
 
-def _lan_capabilities() -> dict[str, Any]:
-    """LAN-WSS capabilities list (same registry tokens as the WS channel)."""
-    return {
-        "type": "array",
-        "items": {"enum": _capability_tokens()},
-        "uniqueItems": True,
-    }
-
-
 def _lan_auth_required() -> dict[str, Any]:
     """LAN master → slave greeting frame (``LanAuthRequiredFrame``)."""
     return {
@@ -348,7 +340,7 @@ def _lan_auth_required() -> dict[str, Any]:
         "properties": {
             "type": {"const": "auth_required"},
             "protocol_version": {"const": PROTOCOL_VERSION_LAN},
-            "capabilities": _lan_capabilities(),
+            "capabilities": _capabilities_array(),
         },
         "required": ["type", "protocol_version", "capabilities"],
         "additionalProperties": False,
@@ -365,7 +357,7 @@ def _lan_auth() -> dict[str, Any]:
             "token": {"type": "string"},
             "cid": {"type": "string"},
             "protocol_version": {"const": PROTOCOL_VERSION_LAN},
-            "capabilities": _lan_capabilities(),
+            "capabilities": _capabilities_array(),
         },
         "required": ["type", "token", "cid", "protocol_version", "capabilities"],
         "additionalProperties": False,
@@ -382,7 +374,7 @@ def _lan_auth_result(kind: str) -> dict[str, Any]:
     }
     required = ["type", "status", "protocol_version"]
     if success:
-        properties["capabilities"] = _lan_capabilities()
+        properties["capabilities"] = _capabilities_array()
         required.append("capabilities")
     else:
         properties["reason"] = {"type": "string"}
@@ -404,7 +396,7 @@ def _lan_hello() -> dict[str, Any]:
         "properties": {
             "type": {"const": "hello"},
             "protocol_version": {"const": PROTOCOL_VERSION_LAN},
-            "capabilities": _lan_capabilities(),
+            "capabilities": _capabilities_array(),
             "cid": {"type": "string"},
         },
         "required": ["type", "protocol_version", "capabilities"],

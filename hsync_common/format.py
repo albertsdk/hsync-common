@@ -36,25 +36,14 @@ def format_bytes(n: float, *, decimals: int = 1) -> str:
         Human-readable string such as ``"1.5MB"`` or ``"500B"``.
     """
     value = float(n)
-    # Fast path: the overwhelmingly common call uses the default single
-    # decimal place, rendered with a static format string (no dynamic
-    # precision resolution per call).
-    if decimals == 1:
-        for unit in _BYTE_UNITS[:-1]:
-            if abs(value) < 1024:
-                if unit == "B":
-                    return f"{int(value)}{unit}"
-                return f"{value:.1f}{unit}"
-            value /= 1024
-        return f"{value:.1f}{_BYTE_UNITS[-1]}"
-
+    fmt = f".{decimals}f"
     for unit in _BYTE_UNITS[:-1]:
         if abs(value) < 1024:
             if unit == "B":
                 return f"{int(value)}{unit}"
-            return f"{value:.{decimals}f}{unit}"
+            return format(value, fmt) + unit
         value /= 1024
-    return f"{value:.{decimals}f}{_BYTE_UNITS[-1]}"
+    return format(value, fmt) + _BYTE_UNITS[-1]
 
 
 def format_duration(

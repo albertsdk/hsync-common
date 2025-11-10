@@ -14,7 +14,12 @@ Based on Microsoft documentation:
 https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file
 """
 
+import os
 import re
+import unicodedata
+from pathlib import Path
+
+from hsync_common.constants import PARTIAL_DOWNLOAD_SUFFIX
 
 # =============================================================================
 # Forbidden Characters
@@ -107,6 +112,22 @@ _SANITIZE_TABLE = str.maketrans({ord(c): "_" for c in FORBIDDEN_FILENAME_CHARS |
 # =============================================================================
 # Validation Functions
 # =============================================================================
+
+
+def basename(path: str) -> str:
+    """Return the last path component without allocating a :class:`Path`.
+
+    Trailing slashes are stripped first so ``"foo/"`` yields ``"foo"``,
+    matching :attr:`pathlib.Path.name`. Empty / slash-only input yields ``""``.
+
+    Consumers: ``hsync-common`` (``File``, ``is_partial_file``,
+    ``IgnoreMatcher.matches``) — hot path, once per scanned entry.
+    """
+    stripped = path.rstrip("/")
+    if not stripped:
+        return ""
+    sep = stripped.rfind("/")
+    return stripped if sep < 0 else stripped[sep + 1 :]
 
 
 def has_forbidden_chars(name: str, chars: frozenset[str]) -> bool:
@@ -353,8 +374,6 @@ def safe_resolve_path(path: str, *, allow_absolute: bool = True) -> str | None:
     Returns:
         The resolved path as a string if safe, or ``None`` otherwise.
     """
-    from pathlib import Path
-
     if not path:
         return None
 
@@ -423,8 +442,6 @@ def is_internal_name(name: str) -> bool:
     Returns:
         True when the basename is an engine-owned artifact.
     """
-    from hsync_common.constants import PARTIAL_DOWNLOAD_SUFFIX
-
     base = name.replace("\\", "/").rstrip("/").rsplit("/", 1)[-1].lower()
     return base in _INTERNAL_FILENAMES_LOWER or base.endswith(PARTIAL_DOWNLOAD_SUFFIX.lower())
 
@@ -489,8 +506,6 @@ def validate_remote_relpath(rel: str) -> str | None:
     # fullwidth U+FF0F as "/") cannot bypass the component-level checks
     # below. Normalize BEFORE every subsequent guard so the normalized form
     # is what the filesystem eventually sees.
-    import unicodedata
-
     rel = unicodedata.normalize("NFC", rel)
 
     # Absolute paths and drive letters are never acceptable on the wire.
@@ -548,8 +563,6 @@ def resolve_within(base_dir: str, rel: str, *, resolve_final: bool = True) -> st
     Returns:
         The confined absolute path, or ``None`` when the path is unsafe.
     """
-    from pathlib import Path
-
     clean = validate_remote_relpath(rel)
     if clean is None:
         return None
@@ -587,8 +600,6 @@ def wire_symlink_target(symlink_path: str, target: str, bucket_dir: str) -> str 
     Returns:
         The wire-safe target string, or ``None`` when escaping the bucket.
     """
-    from pathlib import Path
-
     if not target:
         return None
     try:
@@ -597,8 +608,6 @@ def wire_symlink_target(symlink_path: str, target: str, bucket_dir: str) -> str 
         target_resolved = Path(target).resolve()
         target_resolved.relative_to(Path(bucket_dir).resolve())
         link_parent = Path(symlink_path).resolve().parent
-        import os
-
         return os.path.relpath(target_resolved, link_parent)
     except (OSError, ValueError):
         return None
@@ -618,8 +627,6 @@ def is_safe_symlink_target(symlink_path: str, target: str, bucket_dir: str) -> b
     Returns:
         True if the resolved target is within the bucket, False otherwise.
     """
-    from pathlib import Path
-
     if not target:
         return False
 

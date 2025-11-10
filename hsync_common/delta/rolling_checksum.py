@@ -70,6 +70,15 @@ class DeltaError(HSyncError):
     default_message = "Delta transfer operation failed"
 
 
+def _require_positive_block_size(block_size: int) -> None:
+    """Raise :class:`DeltaError` when *block_size* is not strictly positive."""
+    if block_size <= 0:
+        raise DeltaError(
+            "block_size must be positive",
+            details={"block_size": block_size},
+        )
+
+
 def adler32_roll(
     prev_a: int,
     prev_b: int,
@@ -118,11 +127,7 @@ def compute_signatures(filepath: str, block_size: int) -> list[BlockSignature]:
     block (``length < block_size``) is included with its real length. The file
     is streamed chunk-by-chunk so memory stays bounded for large bases.
     """
-    if block_size <= 0:
-        raise DeltaError(
-            "block_size must be positive",
-            details={"block_size": block_size},
-        )
+    _require_positive_block_size(block_size)
     signatures: list[BlockSignature] = []
     sig_for_chunk = _signature_for_chunk  # bind locally: hot loop, one lookup saved per block
     with open(filepath, "rb") as f:
@@ -157,11 +162,7 @@ def signatures_for_data(data: bytes, block_size: int) -> list[BlockSignature]:
     Consumers: ``hsync-common`` (``protocol.fixtures`` delta fixtures) and
     the shared delta test suite.
     """
-    if block_size <= 0:
-        raise DeltaError(
-            "block_size must be positive",
-            details={"block_size": block_size},
-        )
+    _require_positive_block_size(block_size)
     signatures: list[BlockSignature] = []
     sig_for_chunk = _signature_for_chunk  # hot loop: avoid a global lookup per block
     view = memoryview(data)  # zero-copy: slice views are hashed without copying bytes
@@ -204,11 +205,7 @@ def find_matches(
     the shared literal buffer via ``data_offset``. The partial tail signature
     is ignored (see module docstring).
     """
-    if block_size <= 0:
-        raise DeltaError(
-            "block_size must be positive",
-            details={"block_size": block_size},
-        )
+    _require_positive_block_size(block_size)
     table = build_signature_index(signatures, block_size)
     table_get = table.get  # bind locally: O(1) lookup, one attribute resolution saved per window
     strong_hash = sha256  # bind locally: called once per candidate window (hot loop)

@@ -26,10 +26,9 @@ import path.
 import json
 import sqlite3
 import time
-from pathlib import Path
 
+from ._store_base import CausalStoreBase
 from ._util import _parse_wire_timestamp, _vclock_to_json, tombstone_key
-from .sqlstore import StateDb, get_state_db
 from .version import FileVersion, new_version_id, parse_vclock
 
 __all__ = ["SyncStateStore"]
@@ -75,22 +74,8 @@ def _file_version_from_row(row: sqlite3.Row) -> FileVersion | None:
     )
 
 
-class SyncStateStore:
+class SyncStateStore(CausalStoreBase[FileVersion]):
     """In-memory path→version map persisted in the installation SQLite DB."""
-
-    def __init__(
-        self,
-        db_path: str | Path | None = None,
-        folder_id: str | None = None,
-        *,
-        canonical_path: str = "",
-    ):
-        self.db_path = str(db_path) if db_path is not None else None
-        self.folder_id = folder_id
-        self.canonical_path = canonical_path
-        self._data: dict[str, FileVersion] = {}
-        self._db: StateDb | None = None
-        self._dirty = False
 
     # ── mutation ────────────────────────────────────────────────────
     def record(
@@ -115,13 +100,6 @@ class SyncStateStore:
         )
         self._dirty = True
 
-    def clear(self, relpath: str) -> bool:
-        """Drop the recorded version for a path (e.g. on deletion)."""
-        dropped = self._data.pop(tombstone_key(relpath), None) is not None
-        if dropped:
-            self._dirty = True
-        return dropped
-
     def retain(self, relpaths: list[str]) -> int:
         """Drop entries for paths not in ``relpaths``; return the drop count.
 
@@ -137,10 +115,6 @@ class SyncStateStore:
         return len(stale)
 
     # ── query ───────────────────────────────────────────────────────
-    def get(self, relpath: str) -> FileVersion | None:
-        """Return the recorded version for a relative path, if any."""
-        return self._data.get(tombstone_key(relpath))
-
     def base_hash(self, relpath: str) -> str | None:
         """Return just the recorded base content hash for a path, if any."""
         entry = self.get(relpath)
@@ -156,18 +130,7 @@ class SyncStateStore:
         """
         return list(self._data.items())
 
-    def __len__(self) -> int:
-        return len(self._data)
-
     # ── persistence ─────────────────────────────────────────────────
-    def _backend(self) -> StateDb | None:
-        """Return the shared DB handle when ``db_path`` + ``folder_id`` are set."""
-        if not self.db_path or not self.folder_id:
-            return None
-        if self._db is None:
-            self._db = get_state_db(self.db_path)
-        return self._db
-
     def load(self) -> None:
         """Load recorded versions from the installation DB, if configured.
 
