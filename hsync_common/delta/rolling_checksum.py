@@ -190,7 +190,12 @@ def build_signature_index(
     for sig in signatures:
         if sig.length < block_size:
             continue
-        table.setdefault(sig.weak, []).append((sig.offset, sig.strong))
+        key = sig.weak
+        lst = table.get(key)
+        if lst is None:
+            table[key] = [(sig.offset, sig.strong)]
+        else:
+            lst.append((sig.offset, sig.strong))
     return table
 
 
