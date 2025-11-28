@@ -21,6 +21,7 @@ Android mirrors the schema in ``SQLiteOpenHelper``, not this module.
 from __future__ import annotations
 
 import sqlite3
+import threading
 import time
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
@@ -44,6 +45,8 @@ CREATE TABLE IF NOT EXISTS folders (
   canonical_path TEXT NOT NULL,
   created_at     INTEGER NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_folders_canonical_path ON folders(canonical_path);
 
 CREATE TABLE IF NOT EXISTS buckets (
   bucket_name TEXT PRIMARY KEY,
@@ -138,12 +141,17 @@ class StateDb:
     """Thin wrapper around a shared ``syncstate.db`` connection.
 
     One instance is typically cached per ``db_path``. Folder rows are
-    ensured on first use. Consumers: ``SyncStateStore``, ``TombstoneStore``.
+    ensured on first use. Access to the underlying connection is
+    serialized with an instance-level lock so independent stores
+    (:class:`SyncStateStore`, :class:`TombstoneStore`) that share the
+    same file do not interleave statements (temp-table collision, etc.).
+    Consumers: ``SyncStateStore``, ``TombstoneStore``.
     """
 
     def __init__(self, db_path: str | Path, conn: sqlite3.Connection | None = None):
         self.db_path = Path(db_path)
         self._conn = conn if conn is not None else open_state_db(self.db_path)
+        self._lock = threading.RLock()
 
     @property
     def conn(self) -> sqlite3.Connection:
@@ -151,22 +159,26 @@ class StateDb:
 
     def close(self) -> None:
         """Close the underlying connection."""
-        self._conn.close()
+        with self._lock:
+            self._conn.close()
 
     def begin_immediate(self) -> None:
         """Start a reserved write transaction (one per sync-cycle flush)."""
-        self._conn.execute("BEGIN IMMEDIATE")
+        with self._lock:
+            self._conn.execute("BEGIN IMMEDIATE")
 
     def commit(self) -> None:
         """Commit the current transaction."""
-        self._conn.execute("COMMIT")
+        with self._lock:
+            self._conn.execute("COMMIT")
 
     def rollback(self) -> None:
         """Roll back the current transaction, ignoring 'no transaction'."""
-        try:
-            self._conn.execute("ROLLBACK")
-        except sqlite3.Error:
-            pass
+        with self._lock:
+            try:
+                self._conn.execute("ROLLBACK")
+            except sqlite3.Error:
+                pass
 
     @contextmanager
     def transaction(self) -> Iterator[None]:
@@ -179,73 +191,78 @@ class StateDb:
 
         Consumers: ``SyncStateStore.save``, ``TombstoneStore.save``.
         """
-        own_txn = False
-        try:
-            self.begin_immediate()
-            own_txn = True
-        except sqlite3.OperationalError:
+        with self._lock:
             own_txn = False
-        try:
-            yield
-            if own_txn:
-                self.commit()
-        except Exception:
-            if own_txn:
-                self.rollback()
-            raise
+            try:
+                self.begin_immediate()
+                own_txn = True
+            except sqlite3.OperationalError:
+                own_txn = False
+            try:
+                yield
+                if own_txn:
+                    self.commit()
+            except Exception:
+                if own_txn:
+                    self.rollback()
+                raise
 
     def ensure_folder(self, folder_id: str, canonical_path: str = "") -> None:
         """Insert the ``folders`` row if missing; refresh ``canonical_path``."""
-        now = int(time.time())
-        self._conn.execute(
-            """
-            INSERT INTO folders (folder_id, canonical_path, created_at)
-            VALUES (?, ?, ?)
-            ON CONFLICT(folder_id) DO UPDATE SET
-              canonical_path = CASE
-                WHEN excluded.canonical_path = '' THEN folders.canonical_path
-                ELSE excluded.canonical_path
-              END
-            """,
-            (folder_id, canonical_path, now),
-        )
+        with self._lock:
+            now = int(time.time())
+            self._conn.execute(
+                """
+                INSERT INTO folders (folder_id, canonical_path, created_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(folder_id) DO UPDATE SET
+                  canonical_path = CASE
+                    WHEN excluded.canonical_path = '' THEN folders.canonical_path
+                    ELSE excluded.canonical_path
+                  END
+                """,
+                (folder_id, canonical_path, now),
+            )
 
     def folder_canonical_path(self, folder_id: str) -> str | None:
         """Return the stored canonical path for *folder_id*, if any."""
-        row = self._conn.execute(
-            "SELECT canonical_path FROM folders WHERE folder_id = ?",
-            (folder_id,),
-        ).fetchone()
-        return None if row is None else str(row["canonical_path"])
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT canonical_path FROM folders WHERE folder_id = ?",
+                (folder_id,),
+            ).fetchone()
+            return None if row is None else str(row["canonical_path"])
 
     def find_folder_by_path(self, canonical_path: str) -> str | None:
         """Return the folder_id registered for *canonical_path*, if any."""
-        row = self._conn.execute(
-            "SELECT folder_id FROM folders WHERE canonical_path = ?",
-            (canonical_path,),
-        ).fetchone()
-        return None if row is None else str(row["folder_id"])
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT folder_id FROM folders WHERE canonical_path = ?",
+                (canonical_path,),
+            ).fetchone()
+            return None if row is None else str(row["folder_id"])
 
     def ensure_bucket_id(self, bucket_name: str) -> str:
         """Return the server-side folder UUID for *bucket_name*, creating one.
 
         Consumers: ``hsync-server`` (``versions.py`` / ``tombstones.py``).
         """
-        row = self._conn.execute(
-            "SELECT folder_id FROM buckets WHERE bucket_name = ?",
-            (bucket_name,),
-        ).fetchone()
-        if row is not None:
-            return str(row["folder_id"])
-        import uuid
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT folder_id FROM buckets WHERE bucket_name = ?",
+                (bucket_name,),
+            ).fetchone()
+            if row is not None:
+                return str(row["folder_id"])
+            import uuid
 
-        folder_id = str(uuid.uuid4())
-        self.ensure_folder(folder_id, canonical_path=f"bucket:{bucket_name}")
-        self._conn.execute(
-            "INSERT INTO buckets (bucket_name, folder_id) VALUES (?, ?)",
-            (bucket_name, folder_id),
-        )
-        return folder_id
+            folder_id = str(uuid.uuid4())
+            self.ensure_folder(folder_id, canonical_path=f"bucket:{bucket_name}")
+            self._conn.execute(
+                "INSERT INTO buckets (bucket_name, folder_id) VALUES (?, ?)",
+                (bucket_name, folder_id),
+            )
+            return folder_id
 
     # ── versions ────────────────────────────────────────────────────
     def upsert_version(
@@ -261,33 +278,43 @@ class StateDb:
         corrected_mtime: float | None,
     ) -> None:
         """Insert or replace one version row."""
-        self._conn.execute(
-            """
+        with self._lock:
+            self._conn.execute(
+                """
             INSERT OR REPLACE INTO versions
               (folder_id, key, base_hash, version_id, origin_cid, ts, vclock, corrected_mtime)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (folder_id, key, base_hash, version_id, origin_cid, ts, vclock, corrected_mtime),
-        )
+                (folder_id, key, base_hash, version_id, origin_cid, ts, vclock, corrected_mtime),
+            )
 
-    def iter_versions(self, folder_id: str) -> Iterator[sqlite3.Row]:
-        """Yield every version row for *folder_id*."""
-        return self._conn.execute(
-            "SELECT * FROM versions WHERE folder_id = ?",
-            (folder_id,),
-        )
+    def iter_versions(self, folder_id: str) -> list[sqlite3.Row]:
+        """Return every version row for *folder_id* as a list.
+
+        The result set is fully consumed inside the instance lock so the
+        cursor cannot outlive the critical section.
+        """
+        with self._lock:
+            return list(
+                self._conn.execute(
+                    "SELECT * FROM versions WHERE folder_id = ?",
+                    (folder_id,),
+                )
+            )
 
     def count_versions(self, folder_id: str) -> int:
         """Return the number of version rows for *folder_id*."""
-        row = self._conn.execute(
-            "SELECT COUNT(*) AS n FROM versions WHERE folder_id = ?",
-            (folder_id,),
-        ).fetchone()
-        return 0 if row is None else int(row["n"])
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT COUNT(*) AS n FROM versions WHERE folder_id = ?",
+                (folder_id,),
+            ).fetchone()
+            return 0 if row is None else int(row["n"])
 
     def retain_versions(self, folder_id: str, keep: Sequence[str]) -> int:
         """Drop version rows whose key is not in *keep*; return drop count."""
-        return self._retain("versions", folder_id, keep)
+        with self._lock:
+            return self._retain("versions", folder_id, keep)
 
     # ── tombstones ──────────────────────────────────────────────────
     def upsert_tombstone(
@@ -302,51 +329,64 @@ class StateDb:
         vclock: str,
     ) -> None:
         """Insert or replace one tombstone row."""
-        self._conn.execute(
-            """
+        with self._lock:
+            self._conn.execute(
+                """
             INSERT OR REPLACE INTO tombstones
               (folder_id, key, sha256sum, version_id, origin_cid, ts, vclock)
             VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (folder_id, key, sha256sum, version_id, origin_cid, ts, vclock),
-        )
+                (folder_id, key, sha256sum, version_id, origin_cid, ts, vclock),
+            )
 
-    def iter_tombstones(self, folder_id: str) -> Iterator[sqlite3.Row]:
-        """Yield every tombstone row for *folder_id*."""
-        return self._conn.execute(
-            "SELECT * FROM tombstones WHERE folder_id = ?",
-            (folder_id,),
-        )
+    def iter_tombstones(self, folder_id: str) -> list[sqlite3.Row]:
+        """Return every tombstone row for *folder_id* as a list.
+
+        The result set is fully consumed inside the instance lock so the
+        cursor cannot outlive the critical section.
+        """
+        with self._lock:
+            return list(
+                self._conn.execute(
+                    "SELECT * FROM tombstones WHERE folder_id = ?",
+                    (folder_id,),
+                )
+            )
 
     def retain_tombstones(self, folder_id: str, keep: Sequence[str]) -> int:
         """Drop tombstone rows whose key is not in *keep*; return drop count."""
-        return self._retain("tombstones", folder_id, keep)
+        with self._lock:
+            return self._retain("tombstones", folder_id, keep)
 
     def _retain(self, table: str, folder_id: str, keep: Sequence[str]) -> int:
         """Temp-table anti-join retain; empty *keep* deletes every row."""
         if table not in {"versions", "tombstones"}:
             raise ValueError(f"unknown retain table: {table}")
-        if not keep:
-            cur = self._conn.execute(
-                f"DELETE FROM {table} WHERE folder_id = ?",
-                (folder_id,),
+        with self._lock:
+            if not keep:
+                cur = self._conn.execute(
+                    f"DELETE FROM {table} WHERE folder_id = ?",
+                    (folder_id,),
+                )
+                return cur.rowcount
+            temp_table = f"_retain_keep_{table}"
+            self._conn.execute(
+                f"CREATE TEMP TABLE IF NOT EXISTS {temp_table} (key TEXT PRIMARY KEY)"
             )
-            return cur.rowcount
-        self._conn.execute("CREATE TEMP TABLE IF NOT EXISTS _retain_keep (key TEXT PRIMARY KEY)")
-        try:
-            self._conn.execute("DELETE FROM _retain_keep")
-            self._conn.executemany(
-                "INSERT OR IGNORE INTO _retain_keep (key) VALUES (?)",
-                ((k,) for k in keep),
-            )
-            cur = self._conn.execute(
-                f"""
-                DELETE FROM {table}
-                WHERE folder_id = ?
-                  AND key NOT IN (SELECT key FROM _retain_keep)
-                """,
-                (folder_id,),
-            )
-            return cur.rowcount
-        finally:
-            self._conn.execute("DROP TABLE IF EXISTS _retain_keep")
+            try:
+                self._conn.execute(f"DELETE FROM {temp_table}")
+                self._conn.executemany(
+                    f"INSERT OR IGNORE INTO {temp_table} (key) VALUES (?)",
+                    ((k,) for k in keep),
+                )
+                cur = self._conn.execute(
+                    f"""
+                    DELETE FROM {table}
+                    WHERE folder_id = ?
+                      AND key NOT IN (SELECT key FROM {temp_table})
+                    """,
+                    (folder_id,),
+                )
+                return cur.rowcount
+            finally:
+                self._conn.execute(f"DROP TABLE IF EXISTS {temp_table}")
