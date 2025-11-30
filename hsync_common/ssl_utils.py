@@ -15,15 +15,12 @@ file-backed server certs in the server) live in the consumer projects.
 from __future__ import annotations
 
 import hashlib
-import socket
-import ssl
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from loguru import logger as log
 
 # Default RSA key size in bits (good security/performance balance).
 DEFAULT_KEY_SIZE = 2048
@@ -131,29 +128,3 @@ def verify_cert_fingerprint(cert_der: bytes, expected_fingerprint: str) -> bool:
     """Compare a DER-encoded certificate's SHA-256 fingerprint to the expected one."""
     actual = hashlib.sha256(cert_der).hexdigest()
     return actual.lower() == expected_fingerprint.lower()
-
-
-def get_server_cert_fingerprint(
-    host: str,
-    port: int,
-    timeout: float = 5.0,
-) -> str | None:
-    """
-    Fetch the SHA-256 fingerprint of a remote server's TLS certificate.
-
-    Returns ``None`` on any connection or handshake error.
-    """
-    try:
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-
-        with socket.create_connection((host, port), timeout=timeout) as sock:
-            with ctx.wrap_socket(sock, server_hostname=host) as ssock:
-                cert_der = ssock.getpeercert(binary_form=True)
-                if cert_der:
-                    return hashlib.sha256(cert_der).hexdigest()
-    except Exception as e:
-        log.debug(f"Error getting server certificate: {e}")
-
-    return None

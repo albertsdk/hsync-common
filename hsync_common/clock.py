@@ -356,14 +356,12 @@ class ClockOffsetStore:
 
     def __init__(self) -> None:
         self._offset: float | None = None
-        self._source: str | None = None
         self._epoch_active = False
         self._epoch_offset: float | None = None
 
-    def record(self, offset: float, source: str) -> None:
-        """Store the measured offset and its provenance (e.g. host/URL)."""
+    def record(self, offset: float) -> None:
+        """Store the measured offset."""
         self._offset = float(offset)
-        self._source = source
 
     def begin_epoch(self) -> None:
         """Freeze the offset used by ``correct_mtime`` until :meth:`end_epoch`.
@@ -385,19 +383,9 @@ class ClockOffsetStore:
         """Return the stored offset (``None`` before any measurement)."""
         return self._offset
 
-    @property
-    def source(self) -> str | None:
-        """Provenance of the stored offset (host/URL, or ``None``)."""
-        return self._source
-
-    def resolved(self) -> bool:
-        """True once a measurement (even zero) has been recorded."""
-        return self._offset is not None
-
     def clear(self) -> None:
         """Forget the stored offset (used by tests and mode switches)."""
         self._offset = None
-        self._source = None
         self.end_epoch()
 
     def correct_mtime(self, mtime: int | float) -> int:

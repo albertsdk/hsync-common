@@ -149,6 +149,7 @@ def build_record_formatter(
     colored: bool,
     extra_fields: Iterable[str] = (),
     message_transform: Callable[[Mapping[str, Any], str], str] | None = None,
+    timestamp_formatter: Callable[[Mapping[str, Any]], str] | None = None,
 ) -> Callable[[Mapping[str, Any]], str]:
     """Build a loguru format function shared across projects.
 
@@ -166,14 +167,18 @@ def build_record_formatter(
         message_transform: Optional callback ``(record, message) -> message``
             applied to the message before rendering (e.g. to colorize action
             labels or append a JSON payload).
+        timestamp_formatter: Optional callback ``record -> timestamp`` used
+            instead of :func:`format_timestamp` (e.g. to render the timestamp
+            in a configured local timezone). Defaults to UTC.
 
     Returns:
         A callable suitable for the ``format`` argument of ``logger.add``.
     """
     fields = tuple(extra_fields)
+    render_timestamp = timestamp_formatter or format_timestamp
 
     def _formatter(record: Mapping[str, Any]) -> str:
-        timestamp = format_timestamp(record)
+        timestamp = render_timestamp(record)
         level = record["level"].name
         message = record["message"]
         if message_transform is not None:
