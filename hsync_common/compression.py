@@ -15,6 +15,7 @@ compression functionality, and may extend it with project-specific logic.
 """
 
 from collections.abc import Iterator
+from io import BytesIO
 from os.path import splitext
 from typing import BinaryIO
 
@@ -24,7 +25,9 @@ from loguru import logger as log
 # Compression level (1-22, default 3 is a good balance of speed/ratio)
 COMPRESSION_LEVEL = 3
 
-# Content-Encoding header value for zstd compression
+# Content-Encoding header value for zstd compression.
+# Consumed by hsync-server (api/files/download.py) for the HTTP Content-Encoding
+# response header when serving compressed file downloads.
 CONTENT_ENCODING_ZSTD = "zstd"
 
 # =============================================================================
@@ -242,8 +245,6 @@ def decompress_data(data: bytes, max_output_size: int = 100 * 1024 * 1024) -> by
     """
     if max_output_size < 0:
         raise ValueError("max_output_size must be >= 0")
-
-    from io import BytesIO
 
     with _decompressor.stream_reader(BytesIO(data)) as reader:
         out = reader.read(max_output_size + 1)

@@ -30,7 +30,7 @@ from typing import Protocol
 CLOCK_SKEW_THRESHOLD = 5.0
 
 
-class _TimeResponse(Protocol):
+class TimeResponse(Protocol):
     """Minimal HTTP response shape required by :func:`measure_clock_offset`."""
 
     status_code: int
@@ -38,10 +38,10 @@ class _TimeResponse(Protocol):
     def json(self) -> dict: ...
 
 
-class _HttpGet(Protocol):
+class HttpGet(Protocol):
     """Callable performing an HTTP GET (e.g. ``requests.get``)."""
 
-    def __call__(self, url: str, **kwargs) -> _TimeResponse: ...
+    def __call__(self, url: str, **kwargs) -> TimeResponse: ...
 
 
 def compute_clock_offset(t1: float, t2: float, t3: float) -> tuple[float, float]:
@@ -65,7 +65,7 @@ def compute_clock_offset(t1: float, t2: float, t3: float) -> tuple[float, float]
 def measure_clock_offset(
     time_url: str,
     *,
-    http_get: _HttpGet,
+    http_get: HttpGet,
     headers: dict | None = None,
     verify: bool = True,
     timeout: float = 30,

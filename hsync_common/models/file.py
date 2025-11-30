@@ -8,7 +8,7 @@ This module defines the File class representing a file with its metadata
 from collections import OrderedDict
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional, TypedDict
+from typing import TypedDict
 
 from hsync_common.constants import (
     PARTIAL_DELTA_SUFFIX,
@@ -218,7 +218,7 @@ class File:
         )
 
     @classmethod
-    def get(cls, file_path: str, buckets_dir: str | None = None) -> Optional["File"]:
+    def get(cls, file_path: str, buckets_dir: str | None = None) -> "File | None":
         """Get a File instance for an existing file."""
         file_path = str(Path(buckets_dir) / file_path.lstrip("/")) if buckets_dir else file_path
         file = Path(file_path)
