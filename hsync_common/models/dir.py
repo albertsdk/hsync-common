@@ -94,7 +94,7 @@ class Dir:
         return cls(
             path=path,
             permissions=data.get("permissions"),
-            recursive=bool(data.get("recursive", False)) or None,
+            recursive=True if data.get("recursive") else None,
         )
 
     @classmethod

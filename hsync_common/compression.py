@@ -295,6 +295,14 @@ def decompress_stream(
 
 
 def compress_file(filepath: str) -> bytes:
-    """Read and compress a file."""
+    """Read and compress a file.
+
+    Test-only parity oracle: this one-shot, whole-file compressor has no
+    production caller. It is retained as the synchronous reference against which
+    ``hsync_server.compression.async_compress_stream`` (the real streaming,
+    memory-bounded implementation) is validated — see
+    ``hsync-server/tests/test_compression.py``. Production code must use
+    ``compress_data`` or the server's ``async_compress_stream`` instead.
+    """
     with open(filepath, "rb") as f:
         return compress_data(f.read())

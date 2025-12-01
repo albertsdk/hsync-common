@@ -16,8 +16,8 @@ This is the single source of truth shared by hsync-common, hsync-server and
 hsync-client; the Android client mirrors the same format.
 """
 
+import re
 from os import stat as os_stat
-from re import compile as _re_compile
 
 # Permission bits we preserve: the standard rwx triplets plus the special bits
 # (setuid/setgid/sticky). This mirrors the low 12 bits of ``st_mode``.
@@ -39,7 +39,7 @@ OWNER_DIRECTORY_ACCESS = 0o700
 # Precompiled octal-permission shape gate (3 or 4 octal digits): a single
 # C-level regex object instead of recompiling (or cache-looking-up) the
 # pattern on every validation call.
-_OCTAL_PERMISSIONS_RE = _re_compile(r"[0-7]{3,4}")
+_OCTAL_PERMISSIONS_RE = re.compile(r"[0-7]{3,4}")
 
 
 def mode_to_octal(mode: int) -> str:
@@ -99,7 +99,7 @@ def sanitize_remote_permissions(permissions: str) -> str:
     """
     if not is_valid_octal_permissions(permissions):
         raise ValueError(f"Invalid octal permissions: {permissions!r}")
-    return format(octal_to_mode(permissions) & REMOTE_PERMISSION_MASK, "o").zfill(3)
+    return format(int(permissions, 8) & REMOTE_PERMISSION_MASK, "o").zfill(3)
 
 
 def get_permissions(obj_path: str) -> str:
