@@ -55,9 +55,20 @@ formatting/hashing/parsing helper (DRY rule in `CLAUDE.md`).
   `is_valid_octal_permissions` (`:59`), `get_permissions` (`:97`);
   `PERMISSION_MASK = 0o7777` (`:24`). Used by `File`/`Dir` and the server upload
   form.
-- Wire-facing: `REMOTE_PERMISSION_MASK = 0o777` (`:31`) and
-  `sanitize_remote_permissions` (`:74`) strip setuid/setgid/sticky bits from
-  peer-supplied permission strings before they are applied locally.
+- **Asymmetric special-bits policy** (ADR-0026, `../docs/internal/adr/0026-permission-special-bits-policy.md`):
+  - *Read/serialize* keeps the full 12 bits — `mode_to_octal` masks to
+    `PERMISSION_MASK = 0o7777`, so a local `setuid` file is transmitted as
+    `"4755"` and a special-bit chmod is detected as a permission change (client
+    snapshot key uses `st_mode & 0o7777`).
+  - *Apply* strips them: `REMOTE_PERMISSION_MASK = 0o777` (`:31`) and
+    `sanitize_remote_permissions` (`:74`) drop setuid/setgid/sticky from
+    peer-supplied strings, so `"4755"` is applied as `"755"`. A remote peer can
+    never create a setuid/setgid/sticky object on this host.
+  - *Directory floor*: `OWNER_DIRECTORY_ACCESS = 0o700` (`:37`) is OR-ed onto
+    peer-supplied directory modes by the apply helpers (client
+    `set_permissions_on_dir`, server `set_directory_permissions`) so a peer
+    `000` can never lock the storage owner out of its own tree.
+- Apply wiring: client `hsync_client/utils.py` `_apply_permissions`/`set_permissions`/`set_permissions_on_dir`; server `hsync_server/api/utils.py` `set_permissions`/`set_directory_permissions`; metadata-only `PATCH …/files/permissions` (client `patch_permissions_remote`, server `api/files/permissions.py`). Tests: `hsync-common/tests/test_permissions.py`, `hsync-client/tests/test_security_inbound.py`.
 
 ## path_validation.py
 
