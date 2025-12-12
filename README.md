@@ -2,7 +2,7 @@
   <img src="docs/assets/hsync-logo-horizontal.svg" alt="HSYNC logo" width="480">
 </p>
 
-HSYNC Common Library —
+# HSYNC Common Library
 
 **hsync-common** is the shared foundation that all other HSYNC projects build
 upon — data formats, compression, file exclusion rules, and security utilities.
@@ -20,14 +20,6 @@ desktop application.
 **Quick navigation:**
 - **Want to contribute?** See [Contributing](CONTRIBUTING.md)
 - **Looking for detailed documentation?** Navigate to [docs/README.md](docs/README.md)
-
-## Table of Contents
-
-- [Key modules](#key-modules)
-- [Ignore file (`.hsyncignore`)](#ignore-file-hsyncignore)
-- [Documentation](#documentation)
-- [License](#license)
-- [Disclaimer](#disclaimer)
 
 ---
 
@@ -50,45 +42,24 @@ desktop application.
 | `hsync_common.format` | Human-readable bytes/duration formatting |
 | `hsync_common.env` | Environment-variable parsing helpers |
 | `hsync_common.text` | Text utilities (e.g. `escape_loguru_braces`) |
+| `hsync_common.labels` | `ActionLabel` enum, log-label colorization, two-level origin rule (`[LOCAL …]` / `[REMOTE …]`) |
+| `hsync_common.runtime` | Container runtime detection (Docker, Podman, Kubernetes), TTY detection, cgroup resource limits |
 | `hsync_common.exceptions` | `HSyncError` base class |
-
-## Ignore file (`.hsyncignore`)
-
-Place a `.hsyncignore` file in the root of a bucket to control which files are
-excluded from sync.  The syntax is identical to `.gitignore`:
-
-```
-# Ignore build artefacts
-/dist/
-*.pyc
-
-# Re-include a specific file
-!important.log
-```
-
-`IgnoreMatcher` combines three layers:
-
-1. **Default hidden patterns** (files/dirs starting with `.`, swap files, …)
-2. **Per-bucket `.hsyncignore`** file
-3. **Extra patterns** provided programmatically (e.g. from CLI `--ignore-patterns`)
-
-The sentinel `.hsynckeep` is always preserved regardless of any pattern.
-
-Use `set_active_matcher()` / `get_active_matcher()` to install a process-wide
-matcher; `should_skip(rel_path, is_dir)` is a convenience wrapper that falls
-back to the legacy hidden-file check when no matcher is active.
 
 ## Documentation
 
-- [Usage](docs/usage.md) - How to integrate hsync-common as a dependency
-- [Models](docs/models.md) - Shared data models reference
-- [Utilities](docs/utilities.md) - Cross-cutting utilities guide
-- [Protocol](docs/protocol.md) - Versioned wire protocol reference
-- [Android Mirroring](docs/android-mirroring.md) - How Python models are mirrored in Kotlin
-- [Internal Architecture](docs/internal/architecture.md) - Shared models, utilities, and how they fit the HSYNC ecosystem
-- [Architecture Decision Records](docs/internal/adr/README.md) - Why the stable, cross-project decisions were made
-- [Contributing](CONTRIBUTING.md) - Development setup and contribution guidelines
-- [Security Policy](SECURITY.md) - Supported versions and how to report vulnerabilities
+| Document | What it covers |
+| -------- | -------------- |
+| [Usage](docs/usage.md) | How to integrate hsync-common as a dependency |
+| [Models](docs/models.md) | Shared data models reference |
+| [Utilities](docs/utilities.md) | Cross-cutting utilities guide |
+| [Protocol](docs/protocol.md) | Versioned wire protocol reference |
+| [Ignore file](docs/ignore-file.md) | `.hsyncignore` syntax, `IgnoreMatcher` layers, and API |
+| [Android Mirroring](docs/android-mirroring.md) | How Python models are mirrored in Kotlin |
+| [Internal Architecture](docs/internal/architecture.md) | Shared models, utilities, and how they fit the HSYNC ecosystem |
+| [Architecture Decision Records](docs/internal/adr/README.md) | Why the stable, cross-project decisions were made |
+| [Contributing](CONTRIBUTING.md) | Development setup and contribution guidelines |
+| [Security Policy](SECURITY.md) | Supported versions and how to report vulnerabilities |
 
 ### Related projects
 
