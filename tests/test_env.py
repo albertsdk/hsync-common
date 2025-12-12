@@ -20,6 +20,7 @@ class TestLoadEnvFileBasic:
         monkeypatch.delenv("TEST_VAR_UNIQUE", raising=False)
         load_env_file(env_file)
         assert os.environ.get("TEST_VAR_UNIQUE") == "hello123"
+        monkeypatch.delenv("TEST_VAR_UNIQUE", raising=False)
 
     def test_ignores_comments(self, tmp_path, monkeypatch):
         env_file = tmp_path / "test.env"
@@ -27,6 +28,7 @@ class TestLoadEnvFileBasic:
         monkeypatch.delenv("VAR_NO_COMMENT", raising=False)
         load_env_file(env_file)
         assert os.environ.get("VAR_NO_COMMENT") == "yes"
+        monkeypatch.delenv("VAR_NO_COMMENT", raising=False)
 
     def test_does_not_override_existing_env(self, tmp_path, monkeypatch):
         env_file = tmp_path / "test.env"
@@ -34,6 +36,7 @@ class TestLoadEnvFileBasic:
         monkeypatch.setenv("EXISTING_VAR", "from_env")
         load_env_file(env_file)
         assert os.environ.get("EXISTING_VAR") == "from_env"
+        # monkeypatch ripristinerà automaticamente EXISTING_VAR al valore originale
 
     def test_accepts_path_object(self, tmp_path, monkeypatch):
         env_file = tmp_path / "test.env"
@@ -41,6 +44,7 @@ class TestLoadEnvFileBasic:
         monkeypatch.delenv("PATH_OBJ_VAR", raising=False)
         load_env_file(env_file)
         assert os.environ.get("PATH_OBJ_VAR") == "works"
+        monkeypatch.delenv("PATH_OBJ_VAR", raising=False)
 
     def test_accepts_string_path(self, tmp_path, monkeypatch):
         env_file = tmp_path / "test.env"
@@ -48,21 +52,26 @@ class TestLoadEnvFileBasic:
         monkeypatch.delenv("STR_PATH_VAR", raising=False)
         load_env_file(str(env_file))
         assert os.environ.get("STR_PATH_VAR") == "ok"
+        monkeypatch.delenv("STR_PATH_VAR", raising=False)
 
 
 class TestLoadEnvFileCallback:
-    def test_on_loaded_callback_called(self, tmp_path):
+    def test_on_loaded_callback_called(self, tmp_path, monkeypatch):
         env_file = tmp_path / "test.env"
         env_file.write_text("X=1\n")
+        monkeypatch.delenv("X", raising=False)
         called = []
         load_env_file(env_file, on_loaded=lambda: called.append(True))
         assert called == [True]
+        monkeypatch.delenv("X", raising=False)
 
-    def test_on_loaded_not_called_when_none(self, tmp_path):
+    def test_on_loaded_not_called_when_none(self, tmp_path, monkeypatch):
         env_file = tmp_path / "test.env"
         env_file.write_text("Y=2\n")
+        monkeypatch.delenv("Y", raising=False)
         # Should not raise even when on_loaded is None
         load_env_file(env_file, on_loaded=None)
+        monkeypatch.delenv("Y", raising=False)
 
     def test_on_loaded_not_called_on_file_not_found(self, tmp_path):
         called = []
@@ -84,3 +93,4 @@ class TestLoadEnvFileEdgeCases:
         monkeypatch.delenv("QUOTED_VAR", raising=False)
         load_env_file(env_file)
         assert os.environ.get("QUOTED_VAR") == "hello world"
+        monkeypatch.delenv("QUOTED_VAR", raising=False)
