@@ -6,8 +6,11 @@ from hsync_common.models.sqlstore import (
     SCHEMA_USER_VERSION,
     StateDb,
     get_state_db,
+    incremental_vacuum_state_db,
     open_state_db,
     reset_state_db_cache,
+    state_db_freelist_count,
+    vacuum_state_db,
 )
 
 
@@ -99,3 +102,76 @@ class TestStateDb:
         mem_b = get_state_db(":memory:")
         assert mem_a is not mem_b
         reset_state_db_cache()
+
+
+class TestStateDbMaintenance:
+    def _fill_and_prune(self, db: StateDb, folder_id: str, n: int = 1200) -> None:
+        db.ensure_folder(folder_id, "/b")
+        for i in range(n):
+            db.upsert_version(
+                folder_id,
+                f"k{i}",
+                base_hash="h",
+                version_id="v",
+                origin_cid=None,
+                ts=1.0,
+                vclock="{}",
+                corrected_mtime=0.0,
+            )
+        # Keep 100 rows, prune the rest -> leaves free pages in the file.
+        db.retain_versions(folder_id, [f"k{i}" for i in range(100)])
+
+    def test_fresh_db_is_incremental_auto_vacuum(self, tmp_path):
+        conn = open_state_db(tmp_path / "syncstate.db")
+        try:
+            assert conn.execute("PRAGMA auto_vacuum").fetchone()[0] == 2
+        finally:
+            conn.close()
+
+    def test_incremental_vacuum_reclaims_freelist(self, tmp_path):
+        db = StateDb(tmp_path / "syncstate.db")
+        folder_id = "11111111-1111-4111-8111-111111111111"
+        self._fill_and_prune(db, folder_id)
+        freelist_before = db.conn.execute("PRAGMA freelist_count").fetchone()[0]
+        assert freelist_before > 0
+        freed = db.incremental_vacuum(1000)
+        assert freed > 0
+        freelist_after = db.conn.execute("PRAGMA freelist_count").fetchone()[0]
+        assert freelist_after < freelist_before
+
+    def test_vacuum_clears_freelist(self, tmp_path):
+        db = StateDb(tmp_path / "syncstate.db")
+        folder_id = "11111111-1111-4111-8111-111111111111"
+        self._fill_and_prune(db, folder_id)
+        assert db.conn.execute("PRAGMA freelist_count").fetchone()[0] > 0
+        db.vacuum()
+        assert db.conn.execute("PRAGMA freelist_count").fetchone()[0] == 0
+
+    def test_module_helpers_skip_missing_file(self, tmp_path):
+        missing = tmp_path / "nested" / "syncstate.db"
+        assert incremental_vacuum_state_db(missing) == 0
+        vacuum_state_db(missing)  # no-op, no exception
+        assert not missing.exists()
+
+    def test_module_helpers_operate_on_existing_file(self, tmp_path):
+        db = StateDb(tmp_path / "syncstate.db")
+        folder_id = "11111111-1111-4111-8111-111111111111"
+        self._fill_and_prune(db, folder_id)
+        freed = incremental_vacuum_state_db(db.db_path, pages=1000)
+        assert freed > 0
+        vacuum_state_db(db.db_path)
+        assert db.conn.execute("PRAGMA freelist_count").fetchone()[0] == 0
+        reset_state_db_cache()
+
+    def test_incremental_vacuum_nonpositive_is_noop(self, tmp_path):
+        db = StateDb(tmp_path / "syncstate.db")
+        folder_id = "11111111-1111-4111-8111-111111111111"
+        self._fill_and_prune(db, folder_id)
+        freelist = db.freelist_count()
+        assert freelist > 0
+        assert db.incremental_vacuum(0) == 0
+        assert db.incremental_vacuum(-5) == 0
+        assert db.freelist_count() == freelist
+
+    def test_state_db_freelist_count_guard_missing_file(self, tmp_path):
+        assert state_db_freelist_count(tmp_path / "missing" / "syncstate.db") == 0

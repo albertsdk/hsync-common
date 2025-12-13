@@ -83,10 +83,36 @@ Android).
   ``BEGIN IMMEDIATE … COMMIT``. Realtime single-row flushes (LAN delete)
   are one statement + commit.
 - ``journal_mode=WAL``, ``synchronous=FULL``, ``busy_timeout=5000``,
-  ``foreign_keys=ON``, ``user_version=1``. WAL probe falls back to
-  ``journal_mode=DELETE`` on filesystems that reject WAL.
+  ``foreign_keys=ON``, ``auto_vacuum=INCREMENTAL``, ``user_version=1``. WAL
+  probe falls back to ``journal_mode=DELETE`` on filesystems that reject WAL.
 - ``retain()`` uses a temp-table anti-join so SQLite's parameter limit is
   never hit.
+
+### Maintenance
+
+Row pruning (``retain`` and tombstone TTL) deletes rows but the freed pages
+would linger in the file without auto-vacuum. ``auto_vacuum=INCREMENTAL`` is
+set before the schema is created, and the freed space is reclaimed by:
+
+- **Incremental vacuum** — ``StateDb.incremental_vacuum(pages)`` (and the
+  best-effort ``incremental_vacuum_state_db`` / ``vacuum_state_db`` /
+  ``state_db_freelist_count`` module helpers in ``models/sqlstore.py``) removes
+  up to *pages* free pages per call in place (no-op for ``pages <= 0``). The
+  client invokes it throttled at the end of every sync cycle; the server runs
+  it from a periodic background task
+  (``hsync-server/hsync_server/state_maintenance.py``).
+- **Full VACUUM at process boundaries** — ``StateDb.vacuum()`` rebuilds the
+  file (autocommit, no in-flight statements). The server runs it at startup
+  and graceful shutdown; the client at shutdown
+  (``hsync-client/hsync_client/state_maintenance.py``). The server's startup
+  VACUUM is **gated on the freelist size** (``state_db_freelist_count``) so a
+  clean restart — whose shutdown VACUUM already reclaimed to zero — skips the
+  redundant rebuild, and the boundary VACUUM is **single-flight across
+  uvicorn workers** via a non-blocking ``flock`` on a sidecar lock file.
+
+The cadence is a single policy in ``models/sqlstore.py``
+(``INCREMENTAL_VACUUM_INTERVAL_S`` / ``INCREMENTAL_VACUUM_PAGES``); pruning
+correctness never depends on it (space reclamation is purely a storage bound).
 
 ### Wire hardening
 
