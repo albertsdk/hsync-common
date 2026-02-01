@@ -374,6 +374,12 @@ class TestDecision:
         assert changed_block_ratio([], 0, BLOCK) == 1.0
         assert changed_block_ratio([], 100, 0) == 1.0
 
+    def test_changed_ratio_partial_block_reuse(self):
+        """A partially copied block contributes only its bytes, not the whole block."""
+        ops = [DeltaOp.copy(0, BLOCK // 2)]  # copy only half of the first block
+        ratio = changed_block_ratio(ops, 4 * BLOCK, BLOCK)
+        assert ratio == pytest.approx(1.0 - (BLOCK // 2) / (4 * BLOCK))
+
     def test_worthwhile_within_thresholds(self):
         ops = [DeltaOp.copy(i * BLOCK, BLOCK) for i in range(7)] + [DeltaOp.data(0, BLOCK)]
         assert is_delta_worthwhile(ops, 8 * BLOCK, BLOCK, BLOCK)
