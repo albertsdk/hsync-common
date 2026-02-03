@@ -29,6 +29,11 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+filterwarnings = [
+    "default::Warning:hsync_common.*",
+    "default::Warning:tests.*",
+    "ignore::Warning",
+]
 
 [tool.ruff]
 line-length = 100
