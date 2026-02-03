@@ -21,7 +21,7 @@ is created during the upload window but deleted on success. This means:
   with no trace.
 - The server has no way to signal to any client that a conflict occurred.
 
-This is documented as **DI-01** in `hsync-server/llm-wiki/deferred-design-issues.md`.
+This gap was identified during the 2026-08-11 test audit of `hsync-server`.
 
 ## Decision
 
@@ -77,6 +77,6 @@ We will implement **server-side conflicted copies (Dropbox-style)**:
 ## Related
 
 - [ADR-0006](0006-master-authoritative-conflict-model.md) — Client-side conflict model
-- `hsync-server/llm-wiki/deferred-design-issues.md` — DI-01 (original issue)
-- `hsync_server/api/files/upload.py:262-267, 451-453` — Backup creation and cleanup
+- `hsync_server/api/files/upload.py:262-267` — Backup creation (now repurposed for conflicted copies)
+- `hsync_server/api/files/upload.py:451-476` — Conflicted copy logic (new)
 - `hsync-common/tests/test_version.py` — Three-way merge tests
