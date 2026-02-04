@@ -45,8 +45,8 @@ We will define one coherent capability-negotiation policy across every channel:
    The central-server auth reply and the LAN handshake use the same
    runtime-derived set (`hsync_client.capabilities.local_capabilities`).
 6. **The desktop `CapabilitiesDoc` is NOT a wire mechanism**: it crosses a
-   process boundary (binary → GUI) and carries `cli_options`; it is not extended
-   into the network handshakes.
+   process boundary (binary → GUI) and carries `subcommands` plus the
+   per-subcommand `cli_options`; it is not extended into the network handshakes.
 
 Alternatives rejected: negotiating across protocol versions (contradicts
 ADR-0005 — versions hard-fail, only capabilities are flags); trusting the TXT

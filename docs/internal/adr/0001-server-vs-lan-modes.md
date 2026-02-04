@@ -31,8 +31,10 @@ We support **two explicit sync modes** behind a shared data/protocol core:
 
 Both modes reuse the same `hsync-common` models, the same causal conflict model
 ([ADR-0022](0022-causal-vector-clock-conflict-model.md)) and the same versioned
-protocol contract ([ADR-0005](0005-protocol-versioning.md)). LAN mode is opt-in
-(`--lan-mode`); server mode is the default.
+protocol contract ([ADR-0005](0005-protocol-versioning.md)). The client CLI
+selects the mode with two explicit, mutually exclusive subcommands:
+`hsync server …` for the central server and `hsync lan …` for P2P — there is no
+implicit default mode.
 
 ## Consequences
 

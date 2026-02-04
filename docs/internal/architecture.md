@@ -318,7 +318,7 @@ files from synchronization. It supports the full gitignore specification:
    OneDrive). Dotfiles in general (`.env`, `.config`, `.git/` ...) are **not**
    excluded: they are synchronised normally.
 2. **Per-bucket `.hsyncignore`** — user-defined rules in the bucket root.
-3. **Extra patterns** — programmatic patterns from `--ignore-patterns` CLI flag.
+3. **Extra patterns** — programmatic patterns from `--ignore-pattern` CLI flag.
 
 The sentinel `.hsynckeep` file is always preserved regardless of any pattern.
 Engine-owned artifacts (`.hsyncignore`, `.hsyncfolder`, leftover
