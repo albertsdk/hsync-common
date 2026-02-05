@@ -54,7 +54,10 @@ _SKIP_PREFIXES = ("http://", "https://", "mailto:", "tel:", "#", "//")
 
 # Projects whose documentation is referenced across the monorepo. Relative
 # links pointing into these projects are broken when a single repo is checked
-# out in isolation (CI / GitHub browsing) — they must use absolute GitHub URLs.
+# out in isolation (CI / GitHub browsing). In user-facing docs (``docs/``)
+# they must use absolute GitHub URLs; in the agent wiki (``llm-wiki/``) they
+# are allowed to stay relative because the monorepo is always checked out
+# together when agents run.
 _HSYNC_PROJECTS = {
     "hsync-common",
     "hsync-client",
@@ -73,6 +76,17 @@ def _is_cross_project_link(target: str) -> bool:
     """
     first = target.lstrip("./").split("/", 1)[0]
     return first in _HSYNC_PROJECTS
+
+
+def _is_user_docs(md_file: Path, root: Path) -> bool:
+    """Return True when *md_file* lives under a user-facing ``docs/`` tree.
+
+    Cross-project relative links are forbidden here (they break on GitHub when
+    a single repo is checked out) and must be absolute GitHub URLs instead.
+    The agent wiki (``llm-wiki/``) is exempt: it is only consumed inside the
+    monorepo, where relative cross-project paths always resolve.
+    """
+    return "docs" in md_file.relative_to(root).parts
 
 
 def iter_markdown_files(root: Path) -> list[Path]:
@@ -125,16 +139,16 @@ def find_broken_links(root: Path) -> tuple[list[tuple[Path, str]], int]:
         for target in extract_targets(text):
             if not is_checkable(target):
                 continue
-            resolved = resolve(md_file, target)
-            # Cross-project links escape the scanned root. They are valid when
-            # this scanner is invoked from the monorepo root (the workspace
-            # ``Makefile`` passes `.` which contains every project), but they
-            # are BROKEN when a single repo is checked out in isolation (per-
-            # repo CI or GitHub browsing).  Flag them so authors replace the
-            # relative path with an absolute GitHub URL.
-            if not resolved.is_relative_to(root):
-                if _is_cross_project_link(target):
+            # Cross-project relative links: forbidden in user-facing docs
+            # (they break on GitHub when a single repo is checked out and
+            # must be absolute GitHub URLs), allowed in the agent wiki
+            # (``llm-wiki/``), which is only consumed inside the monorepo.
+            if _is_cross_project_link(target):
+                if _is_user_docs(md_file, root):
                     broken.append((md_file, target))
+                continue
+            resolved = resolve(md_file, target)
+            if not resolved.is_relative_to(root):
                 continue
             checked += 1
             if not resolved.exists():
