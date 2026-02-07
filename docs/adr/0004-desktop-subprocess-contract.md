@@ -1,7 +1,7 @@
 # ADR 0004 — Desktop ↔ client subprocess contract
 
 - **Status:** Accepted
-- **Date:** 2026-06-22
+- **Date:** 2026-06-21
 
 ## Context
 

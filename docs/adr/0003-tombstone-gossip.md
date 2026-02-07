@@ -1,7 +1,7 @@
 # ADR 0003 — Tombstone gossip for deletions
 
 - **Status:** Accepted
-- **Date:** 2026-06-22
+- **Date:** 2026-06-21
 
 ## Context
 

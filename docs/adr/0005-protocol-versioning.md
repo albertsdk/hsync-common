@@ -1,7 +1,7 @@
 # ADR 0005 — Protocol versioning & capability negotiation
 
 - **Status:** Accepted
-- **Date:** 2026-06-22
+- **Date:** 2026-06-21
 
 ## Context
 

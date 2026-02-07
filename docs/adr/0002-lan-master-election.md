@@ -1,7 +1,7 @@
 # ADR 0002 — Deterministic LAN master election
 
 - **Status:** Accepted
-- **Date:** 2026-06-22
+- **Date:** 2026-06-21
 
 ## Context
 

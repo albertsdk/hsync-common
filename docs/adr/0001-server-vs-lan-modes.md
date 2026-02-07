@@ -1,7 +1,7 @@
 # ADR 0001 — Two sync modes: central server vs LAN P2P
 
 - **Status:** Accepted
-- **Date:** 2026-06-22
+- **Date:** 2026-06-21
 
 ## Context
 

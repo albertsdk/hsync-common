@@ -1,7 +1,7 @@
 # ADR 0006 — Master-authoritative conflict model
 
 - **Status:** Accepted
-- **Date:** 2026-06-22
+- **Date:** 2026-06-21
 
 ## Context
 
