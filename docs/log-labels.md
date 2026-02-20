@@ -149,7 +149,10 @@ notification in desktop/Android.
 | `[PAIRING NEEDED]` | warning | Strict pairing: master cert is unpinned; out-of-band confirmation required | ✓ | | ✓ | ✓ |
 | `[FINGERPRINT CHANGED]` | warning | Master cert no longer matches the pinned fingerprint (possible MITM); refused | ✓ | | ✓ | ✓ |
 | `[AUTH REQUIRED]` | warning | Non-interactive LAN write lacks `HSYNC_LAN_KEY`; set it or run interactively | ✓ | | ✓ | ✓ |
-| `[WATCHER ERROR]` | warning | Local file watcher could not start: the kernel inotify limits are exhausted (Errno 24 instances / Errno 28 watches); raise `fs.inotify.max_user_instances` or `max_user_watches` (see the client troubleshooting guide) | ✓ | | | |
+| `[WATCHER ERROR]` | warning | Local file watcher could not start even with the polling fallback: the kernel inotify limits are exhausted (Errno 24 instances / Errno 28 watches) or descriptors are exhausted | ✓ | | | |
+| `[WATCHER FALLBACK]` | warning | File watcher degraded from inotify to polling because an inotify limit was exhausted (higher CPU, ~1 s event latency) | ✓ | | | |
+| `[WATCHER RESTORE]` | create | File watcher restored to inotify after the limits freed up | ✓ | | | |
+| `[FD EXHAUSTED]` | warning | File-descriptor limit reached (`RLIMIT_NOFILE` / `fs.file-max`): raise the limit or reduce concurrent connections/transfers | ✓ | | | |
 
 ## Infrastructure (transport-level)
 
