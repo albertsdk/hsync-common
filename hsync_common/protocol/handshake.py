@@ -51,6 +51,14 @@ class Capability(StrEnum):
 
     Values are the exact on-the-wire tokens shared across REST/WS/LAN and the
     Android client; treat them as stable identifiers, not display strings.
+
+    Consumers: server (WS auth reply, ``build_ws_auth_ok``), clients
+    (``decode_capabilities`` on the auth reply and LAN TXT record), Android
+    (``Protocol.kt`` ``KNOWN_CAPABILITIES`` mirror), desktop (``--capabilities-json``
+    output parsing). ``vector_clocks`` advertises causal version-metadata support
+    (ADR-0022): peers that do not advertise it simply omit the ``version`` field
+    on file payloads and the receiver treats it as an empty clock — no legacy
+    fallback path.
     """
 
     compression = "compression"  # zstd-compressed file transfers
@@ -58,6 +66,7 @@ class Capability(StrEnum):
     never_master = "never_master"  # node refuses LAN master election
     https = "https"  # TLS-secured master endpoint
     delta = "delta"  # rsync-style delta transfer (block-level sync)
+    vector_clocks = "vector_clocks"  # causal version metadata exchanged on file payloads (ADR-0022)
 
 
 ALL_CAPABILITIES: frozenset[Capability] = frozenset(Capability)

@@ -1,12 +1,24 @@
-"""Tests for hsync_common.models.version."""
+"""Tests for hsync_common.models.version (causal vector-clock model, ADR-0022)."""
 
 from hsync_common.models.version import (
     FileVersion,
     SyncDecision,
     SyncStateStore,
+    VClockOrder,
+    VersionInfo,
+    compare_vclocks,
+    merge_vclocks,
     new_version_id,
+    parse_version_info,
     resolve_three_way,
+    tick_vclock,
 )
+
+# Well-formed 21-char cids used across scenarios (is_valid_cid-compliant).
+CID_A = "TestClientA1234567890"
+CID_B = "TestClientB1234567890"
+CID_C = "TestClientC1234567890"
+CID_S = "TestClientX1234567890"  # server/seed node
 
 
 class TestNewVersionId:
@@ -19,48 +31,196 @@ class TestNewVersionId:
         assert new_version_id() != new_version_id()
 
 
+class TestCompareVclocks:
+    def test_equal(self):
+        assert compare_vclocks({CID_A: 3}, {CID_A: 3}) is VClockOrder.equal
+
+    def test_dominates(self):
+        assert compare_vclocks({CID_A: 3, CID_B: 2}, {CID_A: 3}) is VClockOrder.dominates
+
+    def test_dominated(self):
+        assert compare_vclocks({CID_A: 3}, {CID_A: 3, CID_B: 2}) is VClockOrder.dominated
+
+    def test_concurrent(self):
+        assert compare_vclocks({CID_A: 2}, {CID_B: 2}) is VClockOrder.concurrent
+
+    def test_none_treated_as_empty(self):
+        assert compare_vclocks(None, None) is VClockOrder.equal
+        assert compare_vclocks({CID_A: 1}, None) is VClockOrder.dominates
+        assert compare_vclocks(None, {CID_A: 1}) is VClockOrder.dominated
+
+    def test_empty_dict_equals_none(self):
+        assert compare_vclocks({}, None) is VClockOrder.equal
+
+
+class TestTickVclock:
+    def test_increments_own_counter(self):
+        assert tick_vclock({CID_A: 3}, CID_A) == {CID_A: 4}
+
+    def test_seeds_absent_author(self):
+        assert tick_vclock(None, CID_A) == {CID_A: 1}
+
+    def test_preserves_foreign_keys(self):
+        result = tick_vclock({CID_A: 3, CID_B: 2}, CID_A)
+        assert result == {CID_A: 4, CID_B: 2}
+
+    def test_does_not_mutate_input(self):
+        original = {CID_A: 3}
+        tick_vclock(original, CID_A)
+        assert original == {CID_A: 3}
+
+    def test_monotonic_across_two_edits(self):
+        c1 = tick_vclock({CID_A: 3}, CID_A)
+        c2 = tick_vclock(c1, CID_A)
+        assert compare_vclocks(c2, c1) is VClockOrder.dominates
+
+
+class TestMergeVclocks:
+    def test_componentwise_max(self):
+        assert merge_vclocks({CID_A: 3, CID_B: 1}, {CID_A: 1, CID_C: 5}) == {
+            CID_A: 3,
+            CID_B: 1,
+            CID_C: 5,
+        }
+
+    def test_none_operands(self):
+        assert merge_vclocks(None, {CID_A: 1}) == {CID_A: 1}
+        assert merge_vclocks(None, None) == {}
+
+
+class TestParseVersionInfo:
+    def test_well_formed(self):
+        info = parse_version_info(
+            {"vclock": {CID_A: 3}, "version_id": "vid", "origin_cid": CID_A, "ts": 7}
+        )
+        assert info is not None
+        assert info["vclock"] == {CID_A: 3}
+        assert info["version_id"] == "vid"
+        assert info["origin_cid"] == CID_A
+        assert info["ts"] == 7
+
+    def test_non_dict_returns_none(self):
+        assert parse_version_info("nope") is None
+        assert parse_version_info(None) is None
+
+    def test_vclock_not_dict_returns_none(self):
+        assert parse_version_info({"vclock": [1, 2]}) is None
+
+    def test_invalid_cid_key_returns_none(self):
+        assert parse_version_info({"vclock": {"bad-key!": 1}}) is None
+
+    def test_bool_value_rejected(self):
+        # bool is a subclass of int; it must not silently parse as 1.
+        assert parse_version_info({"vclock": {CID_A: True}}) is None
+
+    def test_negative_value_rejected(self):
+        assert parse_version_info({"vclock": {CID_A: -1}}) is None
+
+    def test_invalid_origin_cid_returns_none(self):
+        assert parse_version_info({"vclock": {}, "origin_cid": "not-a-cid"}) is None
+
+    def test_missing_version_id_defaults_to_empty(self):
+        info = parse_version_info({"vclock": {}, "ts": 0})
+        assert info is not None
+        assert info["version_id"] == ""
+
+    def test_oversize_vclock_rejected(self):
+        huge = {f"TestClientX1234567890{i:02d}": 1 for i in range(300)}
+        # All keys are valid 21-char cids but there are too many entries.
+        assert parse_version_info({"vclock": huge, "ts": 0}) is None
+
+    def test_malformed_ts_returns_none(self):
+        assert parse_version_info({"vclock": {}, "ts": "abc"}) is None
+
+
 class TestResolveThreeWay:
+    """The causal decision matrix (§3.2 of ADR-0022)."""
+
     def test_identical_content_is_in_sync(self):
-        assert resolve_three_way("h", "h", None) is SyncDecision.in_sync
-        assert resolve_three_way("h", "h", "h") is SyncDecision.in_sync
+        assert resolve_three_way("h", {CID_A: 1}, "h", {CID_A: 1}, "h") is SyncDecision.in_sync
+        assert resolve_three_way("h", None, "h", None, None) is SyncDecision.in_sync
 
-    def test_unknown_base_when_differ(self):
-        assert resolve_three_way("a", "b", None) is SyncDecision.unknown_base
+    # ── base-hash fast paths (content identity, clock-independent) ──────────
+    def test_local_at_base_downloads(self):
+        assert resolve_three_way("base", {CID_A: 1}, "remote", {CID_A: 2}, "base") is (
+            SyncDecision.download
+        )
 
-    def test_only_local_changed_uploads(self):
-        # base == remote, local moved on
-        assert resolve_three_way("local", "base", "base") is SyncDecision.upload
+    def test_remote_at_base_uploads(self):
+        assert resolve_three_way("local", {CID_A: 2}, "base", {CID_A: 1}, "base") is (
+            SyncDecision.upload
+        )
 
-    def test_only_remote_changed_downloads(self):
-        # base == local, remote moved on
-        assert resolve_three_way("base", "remote", "base") is SyncDecision.download
+    # ── vector-clock dominance ──────────────────────────────────────────────
+    def test_remote_dominates_downloads(self):
+        assert resolve_three_way("h1", {CID_A: 1}, "h2", {CID_A: 2}, "h0") is (
+            SyncDecision.download
+        )
 
-    def test_both_changed_is_conflict(self):
-        assert resolve_three_way("a", "b", "base") is SyncDecision.conflict
+    def test_local_dominates_uploads(self):
+        assert resolve_three_way("h2", {CID_A: 2}, "h1", {CID_A: 1}, "h0") is (SyncDecision.upload)
 
-    def test_unknown_base_when_local_absent_and_remote_present(self):
-        # No recorded base: a missing local file vs a present remote one is
-        # indistinguishable from a first-ever sync, so the caller must fall
-        # back to its legacy heuristic (unknown_base), not auto-download.
-        assert resolve_three_way(None, "remote", None) is SyncDecision.unknown_base
+    # ── true divergence (concurrent) → deterministic tie-break ──────────────
+    def test_concurrent_local_wins_tie_break_uploads(self):
+        # Both changed since base, clocks concurrent; higher hash wins.
+        assert resolve_three_way("zzz", {CID_A: 2}, "aaa", {CID_B: 2}, "base") is (
+            SyncDecision.conflict_upload
+        )
+
+    def test_concurrent_remote_wins_tie_break_downloads(self):
+        assert resolve_three_way("aaa", {CID_A: 2}, "zzz", {CID_B: 2}, "base") is (
+            SyncDecision.conflict_download
+        )
+
+    def test_concurrent_equal_hashes_impossible_in_sync(self):
+        # Equal hashes would have hit rule 1 (in_sync) before reaching tie-break.
+        assert resolve_three_way("h", {CID_A: 1}, "h", {CID_B: 1}, "base") is (SyncDecision.in_sync)
+
+    # ── unknown base, no clocks (replaces the old unknown_base legacy tie) ──
+    def test_no_base_no_clocks_different_content_is_concurrent_tie_break(self):
+        # First-ever contact with differing content: concurrent ⇒ tie-break,
+        # never a legacy mtime fallback.
+        assert resolve_three_way("zzz", None, "aaa", None, None) is (SyncDecision.conflict_upload)
+        assert resolve_three_way("aaa", None, "zzz", None, None) is (SyncDecision.conflict_download)
+
+    def test_no_base_remote_has_clock_remote_dominates(self):
+        # Remote has causal history, local has none (empty clock) ⇒ dominated.
+        assert resolve_three_way("h1", None, "h2", {CID_B: 1}, None) is (SyncDecision.download)
+
+    def test_no_base_local_has_clock_local_dominates(self):
+        assert resolve_three_way("h2", {CID_A: 1}, "h1", None, None) is SyncDecision.upload
+
+    # ── equal-clock anomaly (defensive: treated as concurrent) ──────────────
+    def test_equal_clocks_different_hashes_concurrent(self):
+        assert resolve_three_way("zzz", {CID_A: 1}, "aaa", {CID_A: 1}, "base") is (
+            SyncDecision.conflict_upload
+        )
+
+    # ── relay scenario (core motivation: no false conflict via relay) ───────
+    def test_relayed_version_dominates_no_false_conflict(self):
+        # C holds the base {S:3}; A's edit {S:3,A:1} relays to C via B.
+        # C compares its {S:3} against the relayed {S:3,A:1} ⇒ dominated ⇒
+        # download, NOT a conflict.
+        assert (
+            resolve_three_way(
+                "h0",
+                {CID_S: 3},
+                "h1",
+                {CID_S: 3, CID_A: 1},
+                "h0",
+            )
+            is SyncDecision.download
+        )
+
+    # ── absent-file (deletion) cases flow through hash logic ────────────────
+    def test_both_absent_is_in_sync(self):
+        assert resolve_three_way(None, None, None, None, "base") is SyncDecision.in_sync
 
     def test_local_deleted_remote_unchanged_uploads(self):
-        # None means "absent": local went from base to deleted, remote still
-        # matches base -> propagate the local change (deletion) upstream.
-        assert resolve_three_way(None, "base", "base") is SyncDecision.upload
+        assert resolve_three_way(None, None, "base", {CID_A: 1}, "base") is (SyncDecision.upload)
 
     def test_remote_deleted_local_unchanged_downloads(self):
-        # Remote went from base to deleted, local still matches base ->
-        # propagate the remote change (deletion) locally.
-        assert resolve_three_way("base", None, "base") is SyncDecision.download
-
-    def test_delete_vs_edit_is_conflict(self):
-        # One side deleted, the other edited since base: genuine divergence.
-        assert resolve_three_way(None, "remote", "base") is SyncDecision.conflict
-        assert resolve_three_way("local", None, "base") is SyncDecision.conflict
-
-    def test_both_absent_is_in_sync(self):
-        assert resolve_three_way(None, None, "base") is SyncDecision.in_sync
+        assert resolve_three_way("base", {CID_A: 1}, None, None, "base") is (SyncDecision.download)
 
 
 class TestSyncStateStoreMutation:
@@ -70,17 +230,19 @@ class TestSyncStateStoreMutation:
             "a/b.txt",
             base_hash="hh",
             version_id="vid",
-            origin_cid="TestClientPeer1111111",
+            origin_cid=CID_A,
             timestamp=42,
+            vclock={CID_A: 3},
         )
         entry = store.get("a/b.txt")
         assert entry is not None
         assert entry["base_hash"] == "hh"
         assert entry["version_id"] == "vid"
-        assert entry["origin_cid"] == "TestClientPeer1111111"
+        assert entry["origin_cid"] == CID_A
         assert entry["ts"] == 42
+        assert entry["vclock"] == {CID_A: 3}
 
-    def test_record_defaults_version_id_and_ts(self):
+    def test_record_defaults_version_id_ts_and_empty_vclock(self):
         store = SyncStateStore()
         store.record("x.txt", base_hash="hh")
         entry = store.get("x.txt")
@@ -88,6 +250,7 @@ class TestSyncStateStoreMutation:
         assert entry["version_id"]  # auto-minted, non-empty
         assert entry["origin_cid"] is None
         assert entry["ts"] > 0
+        assert entry["vclock"] == {}
 
     def test_base_hash_helper(self):
         store = SyncStateStore()
@@ -97,9 +260,10 @@ class TestSyncStateStoreMutation:
 
     def test_record_overwrites(self):
         store = SyncStateStore()
-        store.record("x.txt", base_hash="old")
-        store.record("x.txt", base_hash="new")
+        store.record("x.txt", base_hash="old", vclock={CID_A: 1})
+        store.record("x.txt", base_hash="new", vclock={CID_A: 2})
         assert store.base_hash("x.txt") == "new"
+        assert store.get("x.txt")["vclock"] == {CID_A: 2}
         assert len(store) == 1
 
     def test_clear(self):
@@ -123,7 +287,14 @@ class TestSyncStateStorePersistence:
     def test_save_and_load(self, tmp_path):
         path = str(tmp_path / "sub" / ".hsyncstate")
         store = SyncStateStore(path=path)
-        store.record("a/b.txt", base_hash="hh", version_id="vid", origin_cid="peer", timestamp=7)
+        store.record(
+            "a/b.txt",
+            base_hash="hh",
+            version_id="vid",
+            origin_cid=CID_A,
+            timestamp=7,
+            vclock={CID_A: 3, CID_B: 1},
+        )
         store.save()
 
         reloaded = SyncStateStore(path=path)
@@ -132,8 +303,9 @@ class TestSyncStateStorePersistence:
         assert entry is not None
         assert entry["base_hash"] == "hh"
         assert entry["version_id"] == "vid"
-        assert entry["origin_cid"] == "peer"
+        assert entry["origin_cid"] == CID_A
         assert entry["ts"] == 7
+        assert entry["vclock"] == {CID_A: 3, CID_B: 1}
 
     def test_load_missing_file_is_noop(self, tmp_path):
         store = SyncStateStore(path=str(tmp_path / "absent.json"))
@@ -152,6 +324,36 @@ class TestSyncStateStorePersistence:
         store.record("x.txt", base_hash="hh")
         store.save()  # must not raise
 
+    def test_load_tolerates_pre_vclock_sidecar(self, tmp_path):
+        # A side-car written before vector clocks existed has no "vclock" key.
+        # It must load with an empty clock (base_hash fast paths stay valid).
+        import json
+
+        path = tmp_path / ".hsyncstate"
+        path.write_text(
+            json.dumps(
+                {
+                    "versions": {
+                        "k": {
+                            "base_hash": "h",
+                            "version_id": "v",
+                            "origin_cid": None,
+                            "ts": 7,
+                        }
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        store = SyncStateStore(path=str(path))
+        store.load()
+        # Side-car keys are raw tombstone keys; inspect via the entry snapshot.
+        entries = store.iter_entries()
+        assert len(entries) == 1
+        _, entry = entries[0]
+        assert entry["base_hash"] == "h"
+        assert entry["vclock"] == {}
+
     def test_load_skips_entries_without_base_hash(self, tmp_path):
         import json
 
@@ -165,8 +367,6 @@ class TestSyncStateStorePersistence:
         assert len(store) == 1
 
     def test_load_skips_entries_with_malformed_ts(self, tmp_path):
-        # A hand-edited/corrupt side-car must degrade entry-by-entry instead
-        # of crashing the whole load with TypeError/ValueError.
         import json
 
         path = tmp_path / ".hsyncstate"
@@ -179,6 +379,7 @@ class TestSyncStateStorePersistence:
                             "version_id": "v",
                             "origin_cid": None,
                             "ts": 7,
+                            "vclock": {},
                         },
                         "bad-ts": {"base_hash": "h", "ts": "abc"},
                         "null-ts": {"base_hash": "h", "ts": None},
@@ -190,9 +391,36 @@ class TestSyncStateStorePersistence:
         )
         store = SyncStateStore(path=str(path))
         store.load()
-        # Only the well-formed entry survives (keys in the file are raw
-        # tombstone keys, so membership is checked via the store size).
         assert len(store) == 1
+
+    def test_load_sanitizes_malformed_vclock_entries(self, tmp_path):
+        # A hand-edited side-car with a non-int vclock value is sanitized
+        # entry-by-entry: the bad sub-value is dropped and the entry keeps an
+        # empty vclock (base_hash/version_id remain useful), rather than
+        # dropping the whole entry or crashing the load.
+        import json
+
+        path = tmp_path / ".hsyncstate"
+        path.write_text(
+            json.dumps(
+                {
+                    "versions": {
+                        "ok": {"base_hash": "h", "ts": 7, "vclock": {CID_A: 1}},
+                        "bad-vclock": {"base_hash": "h", "ts": 7, "vclock": {"x": "not-int"}},
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        store = SyncStateStore(path=str(path))
+        store.load()
+        assert len(store) == 2
+        ok = (
+            store.iter_entries()[0][1]
+            if store.iter_entries()[0][0] == "ok"
+            else store.iter_entries()[1][1]
+        )
+        assert ok["vclock"] == {CID_A: 1}
 
     def test_load_malformed_versions_member_is_noop(self, tmp_path):
         import json
@@ -223,5 +451,15 @@ class TestFileVersionTypedDict:
             "version_id": "v",
             "origin_cid": None,
             "ts": 1,
+            "vclock": {},
         }
         assert v["base_hash"] == "h"
+
+    def test_version_info_construct(self):
+        vi: VersionInfo = {
+            "vclock": {CID_A: 1},
+            "version_id": "v",
+            "origin_cid": CID_A,
+            "ts": 1,
+        }
+        assert vi["vclock"] == {CID_A: 1}

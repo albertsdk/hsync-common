@@ -61,19 +61,28 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
   (JSON `Infinity`/`NaN` are accepted by `json.loads`).
 - Persisted to the `.hsynctombstones` side-car (`constants.py:43`).
 
-## Version / three-way merge
+## Version / causal merge
 
-- `FileVersion` TypedDict (`models/version.py:46`) + `SyncDecision` enum
-  (`models/version.py:55`).
-- Core resolver: `resolve_three_way` (`models/version.py:70`) — compares
-  base/local/remote hashes to pick keep/overwrite/conflict.
-- Version-id minting: `new_version_id` (`models/version.py:65`,
-  `_VERSION_ID_BYTES = 16`).
-- `SyncStateStore` (`models/version.py:100`) persists per-file base versions for
-  the next reconciliation; backs the `.hsyncstate` side-car (`constants.py:51`).
-  `load()` is hardened like `TombstoneStore.load()`: a non-dict `versions`
-  member, non-dict entries, and `ts` values that are bool/non-numeric/non-finite
-  are skipped instead of crashing startup.
+- `FileVersion` TypedDict (`models/version.py`) carries per-file `base_hash`,
+  `version_id`, `origin_cid`, `ts` (informational) and the causal `vclock`
+  (`dict[str, int]` mapping node cid → logical counter).
+- `VersionInfo` TypedDict is the wire form (carried in `FileDict["version"]`):
+  `vclock`, `version_id`, `origin_cid`, `ts` — no `base_hash` (the content hash
+  is the enclosing `sha256sum`). `parse_version_info` tolerantly drops malformed
+  payloads (treated as absent ⇒ empty clock).
+- Vector-clock ops: `compare_vclocks` (`VClockOrder`), `tick_vclock`,
+  `merge_vclocks`.
+- Core resolver: `resolve_three_way(local_hash, local_vclock, remote_hash,
+  remote_vclock, base_hash)` — content identity first, then causal dominance,
+  then a deterministic SHA-256 tie-break; never wall clock
+  ([ADR-0022](../docs/internal/adr/0022-causal-vector-clock-conflict-model.md)).
+- `SyncDecision`: `in_sync`, `upload`, `download`, `conflict_upload`,
+  `conflict_download` (tie-break loser preserved as a conflicted copy).
+- Version-id minting: `new_version_id` (`_VERSION_ID_BYTES = 16`).
+- `SyncStateStore` persists per-file versions for the next reconciliation; backs
+  the `.hsyncstate` side-car (`constants.py`). `load()` tolerates side-cars
+  written before vector clocks (entries without `vclock` ⇒ empty clock) and
+  drops malformed `vclock` sub-values entry-by-entry.
 
 ## Delta Transfer Models (`models/delta.py`)
 

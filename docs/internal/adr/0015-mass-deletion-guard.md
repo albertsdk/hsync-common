@@ -34,7 +34,7 @@ wipe every local file** on every connected peer — a mass data-loss event.
 |-------------|-----------------|
 | **Two-phase delete confirmation** (ask user each cycle) | Interrupts non-interactive daemon runs; impossible on embedded/NAS targets (WD OS5, systemd service) |
 | **Trash/recycle-bin by default** | Adds storage complexity; doesn't solve the root cause (the master is wrong); trash must be cleaned eventually |
-| **CRDT-based conflict resolution** | Violates the fundamental architecture decision ([ADR-0006](0006-master-authoritative-conflict-model.md): master authoritative); requires per-file version vectors; incompatible with the existing protocol |
+| **CRDT-based conflict resolution** | Requires per-file version vectors; incompatible with the existing protocol (content decisions use hashes + vector clocks, not deletion-time LWW) |
 | **Per-file tombstone grace period** | Protects against spurious individual deletions but not a bulk wipe — 50 deleted files look the same as 1 deleted file to a tombstone check |
 | **Threshold-based guard (chosen)** | A simple, configurable, zero-maintenance safety net that catches the bulk-wipe scenario before any data is touched |
 
@@ -119,7 +119,7 @@ effectively an automatic circuit breaker.
 
 ## References
 
-- [ADR-0006](0006-master-authoritative-conflict-model.md) — Master-Authoritative Conflict Model
+- [ADR-0022](0022-causal-vector-clock-conflict-model.md) — Causal vector-clock conflict model
 - [ADR-0003](0003-tombstone-gossip.md) — Tombstone Gossip
 - [ADR-0012](0012-rate-limiting.md) — Rate Limiting (similar threshold/bucket pattern)
 - Implementation: `hsync_client.sync._mass_deletion_blocked()` in `hsync-client/hsync_client/sync.py`

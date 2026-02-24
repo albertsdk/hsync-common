@@ -1,0 +1,171 @@
+{
+  "scenarios": [
+    {
+      "base_hash": "h",
+      "expected_decision": "in_sync",
+      "local_hash": "h",
+      "local_vclock": {
+        "TestClientA1234567890": 1
+      },
+      "name": "identical-content-in-sync",
+      "remote_hash": "h",
+      "remote_vclock": {
+        "TestClientA1234567890": 1
+      }
+    },
+    {
+      "base_hash": "base",
+      "expected_decision": "in_sync",
+      "local_hash": null,
+      "local_vclock": null,
+      "name": "both-absent-in-sync",
+      "remote_hash": null,
+      "remote_vclock": null
+    },
+    {
+      "base_hash": "base",
+      "expected_decision": "download",
+      "local_hash": "base",
+      "local_vclock": {
+        "TestClientA1234567890": 1
+      },
+      "name": "local-at-base-downloads",
+      "remote_hash": "remote",
+      "remote_vclock": {
+        "TestClientA1234567890": 2
+      }
+    },
+    {
+      "base_hash": "base",
+      "expected_decision": "upload",
+      "local_hash": "local",
+      "local_vclock": {
+        "TestClientA1234567890": 2
+      },
+      "name": "remote-at-base-uploads",
+      "remote_hash": "base",
+      "remote_vclock": {
+        "TestClientA1234567890": 1
+      }
+    },
+    {
+      "base_hash": "h0",
+      "expected_decision": "download",
+      "local_hash": "h1",
+      "local_vclock": {
+        "TestClientA1234567890": 1
+      },
+      "name": "remote-dominates-downloads",
+      "remote_hash": "h2",
+      "remote_vclock": {
+        "TestClientA1234567890": 2
+      }
+    },
+    {
+      "base_hash": "h0",
+      "expected_decision": "upload",
+      "local_hash": "h2",
+      "local_vclock": {
+        "TestClientA1234567890": 2
+      },
+      "name": "local-dominates-uploads",
+      "remote_hash": "h1",
+      "remote_vclock": {
+        "TestClientA1234567890": 1
+      }
+    },
+    {
+      "base_hash": "base",
+      "expected_decision": "conflict_upload",
+      "local_hash": "zzz",
+      "local_vclock": {
+        "TestClientA1234567890": 2
+      },
+      "name": "concurrent-local-wins-tie-break",
+      "remote_hash": "aaa",
+      "remote_vclock": {
+        "TestClientB1234567890": 2
+      }
+    },
+    {
+      "base_hash": "base",
+      "expected_decision": "conflict_download",
+      "local_hash": "aaa",
+      "local_vclock": {
+        "TestClientA1234567890": 2
+      },
+      "name": "concurrent-remote-wins-tie-break",
+      "remote_hash": "zzz",
+      "remote_vclock": {
+        "TestClientB1234567890": 2
+      }
+    },
+    {
+      "base_hash": null,
+      "expected_decision": "conflict_upload",
+      "local_hash": "zzz",
+      "local_vclock": null,
+      "name": "no-base-no-clocks-local-wins",
+      "remote_hash": "aaa",
+      "remote_vclock": null
+    },
+    {
+      "base_hash": null,
+      "expected_decision": "conflict_download",
+      "local_hash": "aaa",
+      "local_vclock": null,
+      "name": "no-base-no-clocks-remote-wins",
+      "remote_hash": "zzz",
+      "remote_vclock": null
+    },
+    {
+      "base_hash": null,
+      "expected_decision": "download",
+      "local_hash": "h1",
+      "local_vclock": null,
+      "name": "no-base-remote-has-clock-dominates",
+      "remote_hash": "h2",
+      "remote_vclock": {
+        "TestClientB1234567890": 1
+      }
+    },
+    {
+      "base_hash": null,
+      "expected_decision": "upload",
+      "local_hash": "h2",
+      "local_vclock": {
+        "TestClientA1234567890": 1
+      },
+      "name": "no-base-local-has-clock-dominates",
+      "remote_hash": "h1",
+      "remote_vclock": null
+    },
+    {
+      "base_hash": "base",
+      "expected_decision": "conflict_upload",
+      "local_hash": "zzz",
+      "local_vclock": {
+        "TestClientA1234567890": 1
+      },
+      "name": "equal-clocks-different-hashes-concurrent",
+      "remote_hash": "aaa",
+      "remote_vclock": {
+        "TestClientA1234567890": 1
+      }
+    },
+    {
+      "base_hash": "h0",
+      "expected_decision": "download",
+      "local_hash": "h0",
+      "local_vclock": {
+        "TestClientA1234567890": 3
+      },
+      "name": "relay-dominates-no-false-conflict",
+      "remote_hash": "h1",
+      "remote_vclock": {
+        "TestClientA1234567890": 3,
+        "TestClientB1234567890": 1
+      }
+    }
+  ]
+}

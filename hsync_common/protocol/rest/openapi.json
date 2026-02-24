@@ -97,6 +97,16 @@
             "default": 0,
             "title": "Size",
             "type": "integer"
+          },
+          "vclock": {
+            "default": "",
+            "title": "Vclock",
+            "type": "string"
+          },
+          "version_id": {
+            "default": "",
+            "title": "Version Id",
+            "type": "string"
           }
         },
         "required": [

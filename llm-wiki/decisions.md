@@ -12,7 +12,6 @@ each ADR to the code it governs.
 | [0003 tombstone-gossip](../docs/internal/adr/0003-tombstone-gossip.md) | `models/tombstone.py:49` (LWW merge, TTL, hashed keys) |
 | [0004 desktop-subprocess-contract](../docs/internal/adr/0004-desktop-subprocess-contract.md) | `protocol/events.py` event stream; `protocol/capabilities.py` |
 | [0005 protocol-versioning](../docs/internal/adr/0005-protocol-versioning.md) | `protocol/handshake.py:44` (versions + hard-fail handshake) |
-| [0006 master-authoritative-conflict-model](../docs/internal/adr/0006-master-authoritative-conflict-model.md) | `models/version.py:70` (`resolve_three_way`) |
 | [0007 integrity-verification](../docs/internal/adr/0007-content-addressed-storage.md) | `hsync_server/hashes.py` (`FILE_HASHES`: `SHA256(filepath)→SHA256(content)`, idempotent upload detection); `models/file.py` (content hash model) |
 | [0008 single-api-key-auth](../docs/internal/adr/0008-single-api-key-auth.md) | `hsync_server/routers.py` (Bearer token, HMAC compare); server-only, common defines no auth code |
 | [0009 rest-websocket-transport](../docs/internal/adr/0009-rest-websocket-transport.md) | `protocol/schemas.py` (REST schema SSOT); `protocol/ws/ws-schema.json` (WS schema); `hsync_server` implements endpoints |
@@ -25,8 +24,9 @@ each ADR to the code it governs.
 | [0016 delta-transfer](../docs/internal/adr/0016-delta-transfer.md) | `delta/decision.py` (Adler32 + SHA-256 matching); `delta/rolling_checksum.py`; `models/delta.py` (wire shapes) |
 | [0017 lan-slave-outbound-event-reliability](../docs/internal/adr/0017-lan-slave-outbound-event-reliability.md) | `hsync_client/lan_websocket.py` (defer-to-close, echo-pair cache); Android mirror |
 | [0018 origin-based-log-labels](../docs/internal/adr/0018-origin-based-log-labels.md) | `labels.py` (`ActionLabel`, `resolve_label`, `LOCAL`/`REMOTE` prefix); Kotlin mirror `LogManager.kt` |
-| [0019 tombstone-clock-model](../docs/internal/adr/0019-tombstone-clock-model.md) | justification only — no code change; cross-references [ADR-0003](../docs/internal/adr/0003-tombstone-gossip.md) and [ADR-0006](../docs/internal/adr/0006-master-authoritative-conflict-model.md) |
+| [0019 tombstone-clock-model](../docs/internal/adr/0019-tombstone-clock-model.md) | justification only — no code change; cross-references [ADR-0003](../docs/internal/adr/0003-tombstone-gossip.md) |
 | [0020 lan-security-model](../docs/internal/adr/0020-lan-security-model.md) | `protocol/pairing.py` (pairing); `ssl_utils.py` (self-signed cert); `hsync_client/pinning.py` (TOFU pinning); Android `PinStore.kt` |
+| [0022 causal-vector-clock-conflict-model](../docs/internal/adr/0022-causal-vector-clock-conflict-model.md) | `models/version.py` (`resolve_three_way`, `compare_vclocks`, `tick_vclock`, `merge_vclocks`, `SyncStateStore`); `Capability.vector_clocks`; `FileDict.version` |
 
 LAN transport/security specifics (TOFU pinning, LAN-key policy, threat model)
 live in [`../docs/lan-protocol.md`](../docs/lan-protocol.md) and map to

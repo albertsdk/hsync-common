@@ -150,8 +150,9 @@ class TestFileToDict:
         f = File(filepath="/tmp/a.txt", size=10)
         d = f.to_dict()
         # FileDict is the wire contract (its keys drive the WS schema): the
-        # serialized dict must contain exactly those keys, no more, no less.
-        assert set(d) == set(FileDict.__annotations__)
+        # serialized dict must contain exactly the required keys (the optional
+        # ``version`` is attached only when set).
+        assert set(d) == set(FileDict.__required_keys__)
 
     def test_to_dict_values(self):
         f = File(filepath="/tmp/a.txt", size=10, sha256sum="ab" * 32, permissions="644")
