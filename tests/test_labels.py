@@ -223,6 +223,7 @@ class TestLabelValueFormat:
         assert str(ActionLabel.NO_MASTER) == "[NO MASTER]"
         assert str(ActionLabel.MASTER_CONFLICT) == "[MASTER CONFLICT]"
         assert str(ActionLabel.MASTER_TAKEOVER) == "[MASTER TAKEOVER]"
+        assert str(ActionLabel.MASTER_YIELD) == "[MASTER YIELD]"
         assert str(ActionLabel.INSECURE_MASTER) == "[INSECURE MASTER]"
         assert str(ActionLabel.PAIRING_NEEDED) == "[PAIRING NEEDED]"
         assert str(ActionLabel.FINGERPRINT_CHANGED) == "[FINGERPRINT CHANGED]"
