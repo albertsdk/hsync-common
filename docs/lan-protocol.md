@@ -177,14 +177,16 @@ place, so the surviving peers do not split-brain.
 ### Leadership lease and yield (ADR-0027)
 
 Serving is a **lease**: a node holds the right to serve only while it is the
-elected master *and* actually serving. When a master **loses** the election (a
-`force_master` peer becomes `server_ready`, or the incumbent restarts and
-re-joins) it **yields immediately**: it stops its HTTP/WSS servers, revokes its
-incumbency by clearing the local `server_ready` flag and re-registering its
-mDNS record without `server_ready`/`connected`, and logs `[MASTER YIELD]`. A
-yielded node is therefore no longer an incumbent in any peer's election,
-closing the *zombie incumbent* window (a node that had stopped serving but
-still advertised `server_ready=true`).
+elected master *and* actually serving. When a live master **loses** the
+election — which, because exactly one node serves per healthy partition, only
+happens on **network-partition heal** (the two sides elected different masters,
+and a `force_master` peer wins at parity when they converge) — it **yields
+immediately**: it stops its HTTP/WSS servers, revokes its incumbency by
+clearing the local `server_ready` flag and re-registering its mDNS record
+without `server_ready`/`connected`, and logs `[MASTER YIELD]`. A yielded node is
+therefore no longer an incumbent in any peer's election, closing the *zombie
+incumbent* window (a node that had stopped serving but still advertised
+`server_ready=true`).
 
 This is a bounded-incumbency lease, **not** a quorum: a full network partition
 can still briefly yield two masters, and the divergence is reconciled causally
