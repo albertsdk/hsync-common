@@ -63,7 +63,7 @@ within a version — intersection semantics, never cross-version negotiation
 
 ## schemas.py — JSON-Schema builders (draft 2020-12)
 
-- Dialect const `schemas.py:45`; LAN TXT key sets `:49`/`:57`/`:66` (includes `delta`, `vector_clocks` and `tombstones` optional keys for their capabilities).
+- Dialect const `schemas.py:45`; LAN TXT key sets `:49`/`:57`/`:66` (includes `delta`, `vector_clocks` and `tombstones` optional keys for their capabilities, plus the `heartbeat` liveness counter).
 - `build_ws_schema` (`schemas.py:297`), `build_lan_wss_schema` (`:407`; pins
   the auth/hello handshake frames, ADR-0024) and
   `build_lan_txt_schema` (`:450`) derive enums/objects from `handshake`,

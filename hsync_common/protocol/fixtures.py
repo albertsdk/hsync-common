@@ -106,6 +106,7 @@ def _lan_txt_record() -> dict[str, Any]:
         "delta": "true",
         "server_ready": "true",
         "connected": "3",
+        "heartbeat": "7",
     }
 
 

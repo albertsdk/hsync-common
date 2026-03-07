@@ -65,6 +65,7 @@ LAN_TXT_OPTIONAL_KEYS: tuple[str, ...] = (
     "force_master",
     "never_master",
     "connected",
+    "heartbeat",
 )
 LAN_TXT_KEYS: tuple[str, ...] = LAN_TXT_REQUIRED_KEYS + LAN_TXT_OPTIONAL_KEYS
 
@@ -477,6 +478,16 @@ def build_lan_txt_schema() -> dict[str, Any]:
                 "Count of clients currently connected to this bucket's share "
                 "(master included). Present only on a serving master; "
                 "informational, never part of the election."
+            ),
+        },
+        "heartbeat": {
+            "type": "string",
+            "pattern": r"^[0-9]+$",
+            "description": (
+                "Monotonic liveness counter, incremented on every periodic "
+                "re-announce. Opaque: receivers only rely on it changing so "
+                "their staleness sweep sees fresh records for otherwise "
+                "quiescent peers. Never part of the election."
             ),
         },
     }
