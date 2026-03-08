@@ -324,9 +324,10 @@ class TestSyncStateStorePersistence:
         store.record("x.txt", base_hash="hh")
         store.save()  # must not raise
 
-    def test_load_tolerates_pre_vclock_sidecar(self, tmp_path):
-        # A side-car written before vector clocks existed has no "vclock" key.
-        # It must load with an empty clock (base_hash fast paths stay valid).
+    def test_load_drops_entries_without_vclock(self, tmp_path):
+        # The conflict model is strictly causal (ADR-0003): an entry without a
+        # valid clock carries no causal history and is dropped, never loaded
+        # with a fabricated empty clock that could flip a sync decision.
         import json
 
         path = tmp_path / ".hsyncstate"
@@ -334,12 +335,19 @@ class TestSyncStateStorePersistence:
             json.dumps(
                 {
                     "versions": {
-                        "k": {
+                        "novclock": {
                             "base_hash": "h",
                             "version_id": "v",
                             "origin_cid": None,
                             "ts": 7,
-                        }
+                        },
+                        "ok": {
+                            "base_hash": "h",
+                            "version_id": "v",
+                            "origin_cid": None,
+                            "ts": 7,
+                            "vclock": {},
+                        },
                     }
                 }
             ),
@@ -347,7 +355,6 @@ class TestSyncStateStorePersistence:
         )
         store = SyncStateStore(path=str(path))
         store.load()
-        # Side-car keys are raw tombstone keys; inspect via the entry snapshot.
         entries = store.iter_entries()
         assert len(entries) == 1
         _, entry = entries[0]
@@ -359,7 +366,14 @@ class TestSyncStateStorePersistence:
 
         path = tmp_path / ".hsyncstate"
         path.write_text(
-            json.dumps({"versions": {"k1": {"version_id": "v"}, "k2": {"base_hash": "h"}}}),
+            json.dumps(
+                {
+                    "versions": {
+                        "k1": {"version_id": "v"},
+                        "k2": {"base_hash": "h", "ts": 7, "vclock": {CID_A: 1}},
+                    }
+                }
+            ),
             encoding="utf-8",
         )
         store = SyncStateStore(path=str(path))
@@ -381,9 +395,9 @@ class TestSyncStateStorePersistence:
                             "ts": 7,
                             "vclock": {},
                         },
-                        "bad-ts": {"base_hash": "h", "ts": "abc"},
-                        "null-ts": {"base_hash": "h", "ts": None},
-                        "bool-ts": {"base_hash": "h", "ts": True},
+                        "bad-ts": {"base_hash": "h", "ts": "abc", "vclock": {}},
+                        "null-ts": {"base_hash": "h", "ts": None, "vclock": {}},
+                        "bool-ts": {"base_hash": "h", "ts": True, "vclock": {}},
                     }
                 }
             ),
@@ -393,11 +407,10 @@ class TestSyncStateStorePersistence:
         store.load()
         assert len(store) == 1
 
-    def test_load_sanitizes_malformed_vclock_entries(self, tmp_path):
-        # A hand-edited side-car with a non-int vclock value is sanitized
-        # entry-by-entry: the bad sub-value is dropped and the entry keeps an
-        # empty vclock (base_hash/version_id remain useful), rather than
-        # dropping the whole entry or crashing the load.
+    def test_load_drops_malformed_vclock_entries(self, tmp_path):
+        # A hand-edited side-car with a structurally invalid vclock makes the
+        # entry unusable: it is dropped whole rather than loaded with an
+        # empty clock, which could mask a corrupted common ancestor.
         import json
 
         path = tmp_path / ".hsyncstate"
@@ -406,7 +419,9 @@ class TestSyncStateStorePersistence:
                 {
                     "versions": {
                         "ok": {"base_hash": "h", "ts": 7, "vclock": {CID_A: 1}},
-                        "bad-vclock": {"base_hash": "h", "ts": 7, "vclock": {"x": "not-int"}},
+                        "bad-value": {"base_hash": "h", "ts": 7, "vclock": {"x": "not-int"}},
+                        "neg-counter": {"base_hash": "h", "ts": 7, "vclock": {CID_A: -1}},
+                        "non-dict": {"base_hash": "h", "ts": 7, "vclock": [1, 2]},
                     }
                 }
             ),
@@ -414,12 +429,8 @@ class TestSyncStateStorePersistence:
         )
         store = SyncStateStore(path=str(path))
         store.load()
-        assert len(store) == 2
-        ok = (
-            store.iter_entries()[0][1]
-            if store.iter_entries()[0][0] == "ok"
-            else store.iter_entries()[1][1]
-        )
+        assert len(store) == 1
+        _, ok = store.iter_entries()[0]
         assert ok["vclock"] == {CID_A: 1}
 
     def test_load_malformed_versions_member_is_noop(self, tmp_path):
@@ -436,7 +447,14 @@ class TestSyncStateStorePersistence:
 
         path = tmp_path / ".hsyncstate"
         path.write_text(
-            json.dumps({"versions": {"ok": {"base_hash": "h"}, "junk": "not-a-dict"}}),
+            json.dumps(
+                {
+                    "versions": {
+                        "ok": {"base_hash": "h", "ts": 7, "vclock": {}},
+                        "junk": "not-a-dict",
+                    }
+                }
+            ),
             encoding="utf-8",
         )
         store = SyncStateStore(path=str(path))

@@ -15,6 +15,16 @@ from hsync_common.models.tombstone import (
     tombstone_key,
 )
 
+# Well-formed 21-char cids for causal tombstone tests (is_valid_cid-compliant).
+_CID_A = "TestClientA1234567890"
+_CID_B = "TestClientB1234567890"
+
+
+def _tomb(sha: str | None, vclock: dict[str, int], ts: int) -> dict:
+    """Build a wire-shaped causal tombstone payload entry for tests."""
+    return {"ts": ts, "sha256": sha, "vclock": vclock, "version_id": "v1", "origin_cid": _CID_A}
+
+
 # SyncAction model
 # =============================================================================
 
@@ -254,48 +264,61 @@ class TestEventModel:
 class TestTombstoneStore:
     def test_record_and_get(self):
         store = TombstoneStore()
-        store.record("a/b.txt", sha256sum="deadbeef", timestamp=1000)
+        store.record("a/b.txt", sha256sum="deadbeef", origin_cid=_CID_A, timestamp=1000)
         entry = store.get("a/b.txt")
         assert entry is not None
         assert entry["ts"] == 1000
         assert entry["sha256"] == "deadbeef"
+        assert entry["origin_cid"] == _CID_A
+        assert entry["vclock"] == {_CID_A: 1}  # deletion tick, not wall clock
 
     def test_get_missing_returns_none(self):
         assert TombstoneStore().get("nope.txt") is None
 
-    def test_record_is_last_writer_wins(self):
+    def test_record_inherits_prev_clock_and_ticks(self):
+        """The recorded clock inherits the path's version clock and is ticked
+        by the deleter, so delete-vs-recreate is causal (ADR-0003)."""
         store = TombstoneStore()
-        store.record("f.txt", sha256sum="old", timestamp=10)
-        store.record("f.txt", sha256sum="new", timestamp=20)
+        store.record(
+            "f.txt",
+            sha256sum="new",
+            origin_cid=_CID_A,
+            prev_vclock={_CID_B: 3},
+            timestamp=20,
+        )
         entry = store.get("f.txt")
         assert entry is not None
-        assert entry["sha256"] == "new"
-        # An older marker must not overwrite a newer one.
-        store.record("f.txt", sha256sum="stale", timestamp=5)
+        assert entry["vclock"] == {_CID_B: 3, _CID_A: 1}
+
+    def test_record_without_origin_keeps_inherited_clock(self):
+        store = TombstoneStore()
+        store.record("f.txt", prev_vclock={_CID_B: 3}, timestamp=20)
+        entry = store.get("f.txt")
+        assert entry is not None
+        assert entry["vclock"] == {_CID_B: 3}
+        assert entry["origin_cid"] is None
+
+    def test_record_replaces_previous_local_marker(self):
+        """A local record is an unconditional mutation (no ts comparison)."""
+        store = TombstoneStore()
+        store.record("f.txt", sha256sum="old", origin_cid=_CID_A, timestamp=10)
+        store.record("f.txt", sha256sum="new", origin_cid=_CID_A, timestamp=5)
         entry = store.get("f.txt")
         assert entry is not None
         assert entry["sha256"] == "new"
 
-    def test_record_same_timestamp_does_not_overwrite(self):
-        """record() and merge() must be consistent: same ts does not overwrite.
-        LWW strict-greater semantics avoid churn when timestamps are equal."""
-        now = int(time.time())
-        store = TombstoneStore()
-        store.record("f.txt", sha256sum="first", timestamp=now)
-        store.record("f.txt", sha256sum="second", timestamp=now)
-        assert store.get("f.txt")["sha256"] == "first"
-
-    def test_lww_tie_consistent_between_record_and_merge(self):
-        """record() and merge() behave the same way with identical timestamps."""
+    def test_record_and_merge_consistent_on_equal_clocks(self):
+        """record() and merge() follow the same causal rule: a local record
+        advances the clock, so a stale remote marker with an equal clock and
+        a lower content hash is kept out by the deterministic tie-break."""
         now = int(time.time())
         key = tombstone_key("f.txt")
         store = TombstoneStore()
-        # Record local
-        store.record("f.txt", sha256sum="local", timestamp=now)
-        # Merge remote with same ts must not overwrite
-        changed = store.merge({key: {"ts": now, "sha256": "remote"}})
+        store.record("f.txt", sha256sum="f" * 64, origin_cid=_CID_A, timestamp=now)
+        # Remote marker with an identical (non-dominating) clock and lower sha.
+        changed = store.merge({key: _tomb("a" * 64, {_CID_A: 1}, now)})
         assert changed == 0
-        assert store.get("f.txt")["sha256"] == "local"
+        assert store.get("f.txt")["sha256"] == "f" * 64
 
     def test_clear(self):
         store = TombstoneStore()
@@ -319,18 +342,21 @@ class TestTombstoneStore:
         assert store.prune(now=10**12) == 0
         assert store.get("old.txt") is not None
 
-    def test_merge_lww(self):
+    def test_merge_causal_dominance(self):
+        """The merge keeps the causally dominant clock, never the newest ts."""
         now = int(time.time())
         sha_local = "a" * 64
         sha_remote = "b" * 64
         sha_newpath = "c" * 64
         store = TombstoneStore()
-        store.record("a.txt", sha256sum=sha_local, timestamp=now - 10)
+        store.record("a.txt", sha256sum=sha_local, origin_cid=_CID_A, timestamp=now - 10)
+        # a.txt: remote clock {A:2} dominates local {A:1} → adopt even though
+        # its ts (now - 20) is OLDER than the local one (now - 10).
         payload = {
-            tombstone_key("a.txt"): {"ts": now, "sha256": sha_remote},
-            tombstone_key("b.txt"): {"ts": now - 20, "sha256": sha_newpath},
+            tombstone_key("a.txt"): _tomb(sha_remote, {_CID_A: 2}, now - 20),
+            tombstone_key("b.txt"): _tomb(sha_newpath, {_CID_B: 1}, now - 20),
         }
-        changed = store.merge(payload)  # type: ignore[reportArgumentType]
+        changed = store.merge(payload)
         assert changed == 2
         entry_a = store.get("a.txt")
         assert entry_a is not None
@@ -338,16 +364,44 @@ class TestTombstoneStore:
         entry_b = store.get("b.txt")
         assert entry_b is not None
         assert entry_b["sha256"] == sha_newpath
-        # Older remote entry must not override newer local one.
-        assert store.merge({tombstone_key("a.txt"): {"ts": now - 30, "sha256": "d" * 64}}) == 0  # type: ignore[reportArgumentType]
+        # A dominated (ancestor) remote marker must be kept out, regardless of
+        # a newer ts.
+        assert store.merge({tombstone_key("a.txt"): _tomb("d" * 64, {_CID_A: 1}, now + 1000)}) == 0  # type: ignore[reportArgumentType]
         entry_a = store.get("a.txt")
         assert entry_a is not None
         assert entry_a["sha256"] == sha_remote
+
+    def test_merge_concurrent_tie_break_deterministic(self):
+        """Concurrent delete-delete decides by content lineage, never by ts."""
+        now = int(time.time())
+        store = TombstoneStore()
+        store.record("f.txt", sha256sum="a" * 64, origin_cid=_CID_A, timestamp=now)
+        # Concurrent clock {B:1} vs {A:1}; incoming sha "f"*64 sorts higher.
+        changed = store.merge({tombstone_key("f.txt"): _tomb("f" * 64, {_CID_B: 1}, now - 500)})
+        assert changed == 1
+        assert store.get("f.txt")["sha256"] == "f" * 64
+        # And a concurrent marker with a lower sha is kept out (its newer ts
+        # must not matter).
+        assert store.merge({tombstone_key("f.txt"): _tomb("a" * 64, {_CID_A: 1}, now + 250)}) == 0
+        assert store.get("f.txt")["sha256"] == "f" * 64
 
     def test_merge_ignores_malformed_entries(self):
         store = TombstoneStore()
         assert store.merge({"k": {"sha256": "no-ts"}}) == 0  # type: ignore[reportArgumentType]
         assert store.merge(None) == 0
+
+    def test_merge_rejects_entries_without_vclock(self):
+        """A marker without a valid causal clock is not a legal deletion."""
+        now = int(time.time())
+        key = tombstone_key("victim.txt")
+        store = TombstoneStore()
+        # ts + sha present but vclock missing → dropped.
+        assert store.merge({key: {"ts": now, "sha256": None}}) == 0  # type: ignore[reportArgumentType]
+        # Malformed vclock shapes → dropped.
+        assert store.merge({key: _tomb(None, {}, now) | {"vclock": [{"a": 1}]}}) == 0  # type: ignore[reportArgumentType]
+        assert store.merge({key: _tomb(None, {_CID_A: -1}, now)}) == 0  # type: ignore[reportArgumentType]
+        assert store.merge({key: _tomb(None, {"bad-key!": 1}, now)}) == 0  # type: ignore[reportArgumentType]
+        assert len(store) == 0
 
     def test_merge_rejects_poisoned_entries(self):
         """Anti-poisoning: gossip payloads are untrusted input."""
@@ -355,16 +409,16 @@ class TestTombstoneStore:
         key = tombstone_key("victim.txt")
         store = TombstoneStore()
         # Far-future timestamp (permanent poison) is rejected.
-        assert store.merge({key: {"ts": now + 10_000_000, "sha256": None}}) == 0  # type: ignore[reportArgumentType]
+        assert store.merge({key: _tomb(None, {_CID_A: 1}, now + 10_000_000)}) == 0
         assert store.get("victim.txt") is None
         # Non-hex / short keys are rejected.
-        assert store.merge({"not-a-sha": {"ts": now, "sha256": None}}) == 0  # type: ignore[reportArgumentType]
+        assert store.merge({"not-a-sha": _tomb(None, {_CID_A: 1}, now)}) == 0  # type: ignore[reportArgumentType]
         # Malformed content hash is rejected.
-        assert store.merge({key: {"ts": now, "sha256": "not-hex"}}) == 0  # type: ignore[reportArgumentType]
+        assert store.merge({key: _tomb("not-hex", {_CID_A: 1}, now)}) == 0  # type: ignore[reportArgumentType]
         # Missing/non-numeric/zero timestamps are rejected.
-        assert store.merge({key: {"sha256": None}}) == 0  # type: ignore[reportArgumentType]
-        assert store.merge({key: {"ts": "soon", "sha256": None}}) == 0  # type: ignore[reportArgumentType]
-        assert store.merge({key: {"ts": 0, "sha256": None}}) == 0  # type: ignore[reportArgumentType]
+        assert store.merge({key: {"sha256": None, "vclock": {_CID_A: 1}}}) == 0  # type: ignore[reportArgumentType]
+        assert store.merge({key: _tomb(None, {_CID_A: 1}, 0)}) == 0  # type: ignore[reportArgumentType]
+        assert store.merge({key: {"ts": "soon", "sha256": None, "vclock": {_CID_A: 1}}}) == 0  # type: ignore[reportArgumentType]
         assert len(store) == 0
 
     def test_merge_rejects_non_finite_and_bool_timestamps(self):
@@ -373,13 +427,13 @@ class TestTombstoneStore:
         now = int(time.time())
         key = tombstone_key("victim.txt")
         store = TombstoneStore()
-        assert store.merge({key: {"ts": float("inf"), "sha256": None}}) == 0  # type: ignore[reportArgumentType]
-        assert store.merge({key: {"ts": float("-inf"), "sha256": None}}) == 0  # type: ignore[reportArgumentType]
-        assert store.merge({key: {"ts": float("nan"), "sha256": None}}) == 0  # type: ignore[reportArgumentType]
-        assert store.merge({key: {"ts": True, "sha256": None}}) == 0  # type: ignore[reportArgumentType]
+        assert store.merge({key: _tomb(None, {_CID_A: 1}, float("inf"))}) == 0  # type: ignore[reportArgumentType]
+        assert store.merge({key: _tomb(None, {_CID_A: 1}, float("-inf"))}) == 0  # type: ignore[reportArgumentType]
+        assert store.merge({key: _tomb(None, {_CID_A: 1}, float("nan"))}) == 0  # type: ignore[reportArgumentType]
+        assert store.merge({key: _tomb(None, {_CID_A: 1}, True)}) == 0  # type: ignore[reportArgumentType]
         assert len(store) == 0
         # A legitimate float timestamp still converts cleanly.
-        assert store.merge({key: {"ts": float(now), "sha256": None}}) == 1  # type: ignore[reportArgumentType]
+        assert store.merge({key: _tomb(None, {_CID_A: 1}, float(now))}) == 1
         assert store.get("victim.txt") is not None
 
     def test_merge_accepts_timestamp_within_clock_skew(self):
@@ -387,21 +441,21 @@ class TestTombstoneStore:
         key = tombstone_key("victim.txt")
         store = TombstoneStore()
         # A timestamp within the clock-skew tolerance is accepted.
-        assert store.merge({key: {"ts": now + 60, "sha256": None}}) == 1  # type: ignore[reportArgumentType]
+        assert store.merge({key: _tomb(None, {_CID_A: 1}, now + 60)}) == 1
         assert store.get("victim.txt") is not None
 
     def test_merge_caps_store_size(self, monkeypatch):
         monkeypatch.setattr("hsync_common.models.tombstone.TOMBSTONE_MAX_ENTRIES", 2)
         now = int(time.time())
         store = TombstoneStore()
-        payload = {tombstone_key(f"f{i}.txt"): {"ts": now, "sha256": None} for i in range(5)}
-        store.merge(payload)  # type: ignore[reportArgumentType]
+        payload = {tombstone_key(f"f{i}.txt"): _tomb(None, {_CID_A: i + 1}, now) for i in range(5)}
+        store.merge(payload)
         assert len(store) == 2
 
     def test_to_payload_roundtrips_through_merge(self):
         now = int(time.time())
         src = TombstoneStore()
-        src.record("a/b.txt", sha256sum="e" * 64, timestamp=now)
+        src.record("a/b.txt", sha256sum="e" * 64, origin_cid=_CID_A, timestamp=now)
         dst = TombstoneStore()
         dst.merge(src.to_payload())
         assert dst.get("a/b.txt") == src.get("a/b.txt")
@@ -409,16 +463,17 @@ class TestTombstoneStore:
     def test_save_and_load(self, tmp_path):
         now = int(time.time())
         path = str(tmp_path / "sub" / ".hsynctombstones")
-        store = TombstoneStore(path=path, ttl_days=30)
-        store.record("a/b.txt", sha256sum="f" * 64, timestamp=now)
+        store = TombstoneStore(path=path, ttl_days=90)
+        store.record("a/b.txt", sha256sum="f" * 64, origin_cid=_CID_A, timestamp=now)
         store.save()
 
-        reloaded = TombstoneStore(path=path, ttl_days=30)
+        reloaded = TombstoneStore(path=path, ttl_days=90)
         reloaded.load()
         entry = reloaded.get("a/b.txt")
         assert entry is not None
         assert entry["ts"] == now
         assert entry["sha256"] == "f" * 64
+        assert entry["vclock"] == {_CID_A: 1}
 
     def test_load_drops_poisoned_entries(self, tmp_path):
         now = int(time.time())
@@ -427,10 +482,12 @@ class TestTombstoneStore:
             json.dumps(
                 {
                     "tombstones": {
-                        tombstone_key("ok.txt"): {"ts": now, "sha256": None},
-                        tombstone_key("future.txt"): {"ts": now + 10_000_000, "sha256": None},
-                        "bad-key": {"ts": now, "sha256": None},
-                        tombstone_key("badsha.txt"): {"ts": now, "sha256": "xyz"},
+                        tombstone_key("ok.txt"): _tomb(None, {_CID_A: 1}, now),
+                        tombstone_key("future.txt"): _tomb(None, {_CID_A: 1}, now + 10_000_000),
+                        "bad-key": _tomb(None, {_CID_A: 1}, now),
+                        tombstone_key("badsha.txt"): _tomb("xyz", {_CID_A: 1}, now),
+                        tombstone_key("novclock.txt"): {"ts": now, "sha256": None},
+                        tombstone_key("negclock.txt"): _tomb(None, {_CID_A: -1}, now),
                     }
                 }
             ),

@@ -73,6 +73,7 @@ handled natively by the same matrix.
 - Conflict copies appear only on true causal divergence.
 - The wall clock is informational only (`ts`); content decisions use hashes and
   vector clocks.
-- Deletions are ts-based via tombstones (ADR 0003/0019).
+- Deletions follow the same causal model: tombstones carry vector clocks
+  inherited from the deleted version and ticked by the deleter (ADR 0003).
 - All consumers (server, client, Android) mirror the algorithm; cross-language
   parity is enforced by `causal-resolution-scenarios.json` golden fixtures.

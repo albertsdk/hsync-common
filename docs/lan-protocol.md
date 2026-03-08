@@ -113,6 +113,38 @@ then copy the regenerated `protocol/fixtures/*.json` into
 `hsync-android/app/src/test/resources/protocol/fixtures/` (the
 `TestAndroidFixtureParity` test enforces byte-for-byte equality).
 
+## Causal tombstones (deletion gossip)
+
+Deletion markers exchanged over the LAN gossip channel (`/tombstones` on the
+master, see `hsync-client/lan_server.py`) are **causal** ([ADR-0003](../internal/adr/0003-tombstone-gossip.md)):
+each entry carries `sha256`, `version_id`, `origin_cid`, the informational `ts`
+and a `vclock` — the stored version clock for the path, merged and ticked by
+the deleter. The merge between peers is decided by **causal dominance** of the
+clocks, with a deterministic content-based tie-break (content hash, then
+version id, then author cid) on true divergence. The deletion timestamp is
+never consulted for decisions.
+
+Consequences for the wire protocol:
+
+- A receiving peer **must** validate each entry strictly: without a structurally
+  valid `vclock` (non-negative int counters, valid cids, ≤ 256 entries) a marker
+  is not a legal deletion and is dropped — it must never be loaded with a
+  fabricated empty clock.
+- A tombstone causally dominating the local version is positive proof the
+  deletion descends from the common history: the deleting peer applies it
+  unconditionally (the mass-deletion guard, ADR-0015, exempts these).
+- An edit concurrent with (not dominated by) a tombstone resurrects the file:
+  the re-created content wins and the tombstone is dropped by the new clock.
+- Retransmission of stale markers is harmless: the causal merge keeps the
+  dominant clock, so a peer that re-gossips an older entry cannot regress the
+  store.
+
+The tombstone **TTL (default 90 days) is a storage bound only**: correctness
+never depends on pruning, because deletion decisions are causal. The
+`causal-tombstone-scenarios.json` fixture (generated from the shared algorithm
+and copied into the Android test resources) is replayed by the Python and
+Android parity tests to guarantee both sides reach the same merge decisions.
+
 ## Event propagation and timing
 
 Once roles are settled, file changes flow over the WSS event channel, but the
