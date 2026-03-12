@@ -34,10 +34,14 @@ within a version — intersection semantics, never cross-version negotiation
 ## lan.py — master election SSOT
 
 - `ElectionCandidate` dataclass (`lan.py:52`).
-- Ordering key `election_sort_key` (`lan.py:67`) and `elect_master`
-  (`lan.py:82`); `SYNC_DIRECTION_BIDIRECTIONAL` (`lan.py:48`).
-- Mirrored by client `hsync_client/lan.py` and android `Election.kt`; parity is
-  pinned by the `lan-election-scenarios` fixture.
+- Ordering key `election_sort_key` (`lan.py:67`); SSOT ranking
+  `rank_election_candidates` (`lan.py:83`) returns the full ranked list
+  (never_master filtered out); `elect_master` (`lan.py:97`) is its
+  winner-only projection; `SYNC_DIRECTION_BIDIRECTIONAL` (`lan.py:48`).
+- The client `hsync_client/lan.py` consumes `rank_election_candidates` for
+  master, successor and the force_master conflict subset; android
+  `Election.kt` mirrors the ordering; parity is pinned by the
+  `lan-election-scenarios` fixture.
 
 ## pairing.py — TOFU pin + LAN-key policy
 
