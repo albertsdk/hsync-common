@@ -77,7 +77,7 @@ hsync-common/
 ├── llm-wiki/                   # Agent-optimized knowledge base
 └── hsync_common/
     ├── __init__.py
-    ├── constants.py             # HSYNC_VERSION, wire headers, sentinel/ignore/tombstone filenames, chunk sizes, delta constants
+    ├── constants.py             # HSYNC_VERSION, wire/checksum headers, sentinel/ignore/tombstone filenames, chunk sizes, delta constants
     ├── hashing.py               # SHA-256 helpers, adaptive chunk sizing, hex digest validation
     ├── compression.py           # Zstandard compress/decompress utilities
     ├── permissions.py           # Octal permission SSOT, remote permission sanitization
@@ -113,12 +113,13 @@ hsync-common/
         ├── events.py            # UiEventName enum, event build/serialize/parse
         ├── lan.py               # elect_master, election_sort_key
         ├── pairing.py           # evaluate_pin, lan_write_requires_key
-        ├── schemas.py           # JSON-Schema builders (WS, LAN TXT)
+        ├── peer_download.py     # Strict LAN source/inventory models and validators
+        ├── schemas.py           # JSON-Schema builders (WS, LAN TXT/WSS/sources)
         ├── fixtures.py          # Cross-language golden fixture generation
         ├── fixtures/             # Committed test scenarios (JSON)
         ├── rest/                # Generated OpenAPI snapshot (REST contract)
         ├── ws/                  # Generated WS JSON-Schema snapshot
-        └── lan/                 # Generated LAN TXT JSON-Schema snapshot
+        └── lan/                 # Generated LAN TXT, WSS, and source JSON-Schemas
 ```
 
 ## Models
@@ -330,6 +331,7 @@ Engine-owned artifacts (`.hsyncignore`, `.hsyncfolder`, leftover
 |------------------------------|----------------------|------------------------------------------|
 | `HSYNC_VERSION`              | `"1.0.0"`            | HSYNC application version (single source) |
 | `HEADER_CLIENT_NAME`         | `"X-Client-Name"`    | REST header identifying the client product |
+| `HEADER_CHECKSUM_SHA256`     | `"X-Checksum-SHA256"` | Full-file response checksum header |
 | `HSYNCKEEP_FILENAME`         | `".hsynckeep"`       | Sentinel file for empty-directory sync   |
 | `HSYNCIGNORE_FILENAME`       | `".hsyncignore"`     | Per-bucket gitignore-style ignore file   |
 | `HSYNCFOLDER_FILENAME`       | `".hsyncfolder"`     | Folder-identity marker (UUIDv4)          |

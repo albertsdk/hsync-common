@@ -10,6 +10,7 @@
               "delta",
               "https",
               "never_master",
+              "peer_download",
               "tombstones",
               "vector_clocks"
             ]
@@ -75,6 +76,7 @@
               "delta",
               "https",
               "never_master",
+              "peer_download",
               "tombstones",
               "vector_clocks"
             ]
@@ -111,6 +113,7 @@
               "delta",
               "https",
               "never_master",
+              "peer_download",
               "tombstones",
               "vector_clocks"
             ]
@@ -321,6 +324,7 @@
               "delta",
               "https",
               "never_master",
+              "peer_download",
               "tombstones",
               "vector_clocks"
             ]
@@ -344,6 +348,294 @@
         "capabilities"
       ],
       "title": "LanHello",
+      "type": "object"
+    },
+    "inventory": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/inventorySnapshot"
+        },
+        {
+          "$ref": "#/$defs/inventoryDelta"
+        }
+      ]
+    },
+    "inventoryAck": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/inventoryAckOk"
+        },
+        {
+          "$ref": "#/$defs/inventoryAckResync"
+        },
+        {
+          "$ref": "#/$defs/inventoryAckRejected"
+        }
+      ]
+    },
+    "inventoryAckOk": {
+      "additionalProperties": false,
+      "properties": {
+        "gen": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "seq": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "status": {
+          "const": "ok"
+        },
+        "type": {
+          "const": "inventory_ack"
+        }
+      },
+      "required": [
+        "type",
+        "gen",
+        "seq",
+        "status"
+      ],
+      "title": "LanInventoryAckOk",
+      "type": "object"
+    },
+    "inventoryAckRejected": {
+      "additionalProperties": false,
+      "properties": {
+        "gen": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "reason": {
+          "maxLength": 64,
+          "pattern": "^[a-z][a-z0-9_]{0,63}$",
+          "type": "string"
+        },
+        "seq": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "status": {
+          "const": "rejected"
+        },
+        "type": {
+          "const": "inventory_ack"
+        }
+      },
+      "required": [
+        "type",
+        "gen",
+        "seq",
+        "status",
+        "reason"
+      ],
+      "title": "LanInventoryAckRejected",
+      "type": "object"
+    },
+    "inventoryAckResync": {
+      "additionalProperties": false,
+      "properties": {
+        "gen": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "seq": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "status": {
+          "const": "resync"
+        },
+        "type": {
+          "const": "inventory_ack"
+        }
+      },
+      "required": [
+        "type",
+        "gen",
+        "seq",
+        "status"
+      ],
+      "title": "LanInventoryAckResync",
+      "type": "object"
+    },
+    "inventoryDelete": {
+      "additionalProperties": false,
+      "properties": {
+        "deleted": {
+          "const": true
+        },
+        "path": {
+          "description": "Canonical bucket-relative path. Implementations additionally apply validate_remote_relpath, including its UTF-8 byte and component limits.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string",
+          "x-maxUtf8Bytes": 4096
+        }
+      },
+      "required": [
+        "path",
+        "deleted"
+      ],
+      "title": "LanInventoryDeleteEntry",
+      "type": "object"
+    },
+    "inventoryDelta": {
+      "additionalProperties": false,
+      "properties": {
+        "entries": {
+          "description": "Each normalized path occurs exactly once in the frame.",
+          "items": {
+            "$ref": "#/$defs/inventoryEntry"
+          },
+          "maxItems": 500,
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "gen": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "mode": {
+          "const": "delta"
+        },
+        "more": {
+          "const": false
+        },
+        "seq": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "type": {
+          "const": "inventory"
+        }
+      },
+      "required": [
+        "type",
+        "gen",
+        "seq",
+        "mode",
+        "more",
+        "entries"
+      ],
+      "title": "LanInventoryDelta",
+      "type": "object"
+    },
+    "inventoryEntry": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/inventoryUpsert"
+        },
+        {
+          "$ref": "#/$defs/inventoryDelete"
+        }
+      ]
+    },
+    "inventorySnapshot": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "entries": {
+                "maxItems": 0
+              }
+            },
+            "required": [
+              "entries"
+            ]
+          },
+          "then": {
+            "properties": {
+              "more": {
+                "const": false
+              },
+              "seq": {
+                "const": 0
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "entries": {
+          "description": "Each normalized path occurs exactly once in the frame.",
+          "items": {
+            "$ref": "#/$defs/inventoryUpsert"
+          },
+          "maxItems": 500,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "gen": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "mode": {
+          "const": "snapshot"
+        },
+        "more": {
+          "type": "boolean"
+        },
+        "seq": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "type": {
+          "const": "inventory"
+        }
+      },
+      "required": [
+        "type",
+        "gen",
+        "seq",
+        "mode",
+        "more",
+        "entries"
+      ],
+      "title": "LanInventorySnapshot",
+      "type": "object"
+    },
+    "inventoryUpsert": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "description": "Canonical bucket-relative path. Implementations additionally apply validate_remote_relpath, including its UTF-8 byte and component limits.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string",
+          "x-maxUtf8Bytes": 4096
+        },
+        "sha256": {
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "size": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "path",
+        "sha256",
+        "size"
+      ],
+      "title": "LanInventoryUpsertEntry",
       "type": "object"
     },
     "symlink": {
@@ -395,7 +687,7 @@
   },
   "$id": "https://hsync.dev/protocol/lan/1/wss",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "Wire contract for the LAN master⇄slave WebSocket handshake (ADR-0024). Generated from hsync_common.protocol.schemas; do not hand-edit.",
+  "description": "Wire contract for the LAN master⇄slave WebSocket handshake and peer inventory channel (ADR-0024, ADR-0028). Generated from hsync_common.protocol.schemas; do not hand-edit.",
   "masterToSlave": {
     "oneOf": [
       {
@@ -412,6 +704,9 @@
       },
       {
         "$ref": "#/$defs/fileEvent"
+      },
+      {
+        "$ref": "#/$defs/inventoryAck"
       }
     ]
   },
@@ -425,8 +720,12 @@
       },
       {
         "$ref": "#/$defs/fileEvent"
+      },
+      {
+        "$ref": "#/$defs/inventory"
       }
     ]
   },
-  "title": "HSYNC LAN WebSocket handshake (lan/1)"
+  "title": "HSYNC LAN WebSocket protocol (lan/1)",
+  "x-maxMessageBytes": 2097152
 }

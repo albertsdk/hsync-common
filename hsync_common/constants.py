@@ -34,6 +34,9 @@ HEADER_CLIENT_NAME: Final[Literal["X-Client-Name"]] = "X-Client-Name"
 HEADER_CLIENT_VERSION: Final[Literal["X-Client-Version"]] = "X-Client-Version"
 HEADER_SERVER_VERSION: Final[Literal["X-Server-Version"]] = "X-Server-Version"
 HEADER_PROTOCOL_VERSION: Final[Literal["X-Protocol-Version"]] = "X-Protocol-Version"
+# Canonical response checksum header for full-file downloads. Consumers:
+# hsync-client LAN master/seeder, hsync-server, and the Android Protocol mirror.
+HEADER_CHECKSUM_SHA256: Final[Literal["X-Checksum-SHA256"]] = "X-Checksum-SHA256"
 
 # Shape of a well-formed X-Client-Name value: a lowercase product slug
 # ("hsync-client", "hsync-android"). It identifies the originating product,

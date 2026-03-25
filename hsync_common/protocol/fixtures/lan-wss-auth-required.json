@@ -1,6 +1,7 @@
 {
   "capabilities": [
-    "compression"
+    "compression",
+    "peer_download"
   ],
   "protocol_version": "lan/1",
   "type": "auth_required"

@@ -23,11 +23,16 @@ causes the connection to be refused.
 
 Peers advertise capabilities during the handshake:
 
-- **Compression** — `zstd` support (via HTTP header or mDNS TXT record)
-- **Delta transfer** — rsync-style block sync support
-- **Protocol version** — REST, WebSocket, and LAN protocol versions
+- `compression` — zstd transfer support
+- `delta` — rsync-style block sync support
+- `vector_clocks` and `tombstones` — causal synchronization metadata
+- `https` and `never_master` — LAN transport/election behavior
+- `peer_download` — LAN inventory, batch source lookup, and read-only seeder
+  semantics
 
-The canonical capability document is in `hsync_common.protocol.capabilities`.
+The registry is `hsync_common.protocol.handshake.Capability`; the desktop-facing
+capability document is in `hsync_common.protocol.capabilities`. Capabilities are
+additive within a protocol version and are used only by intersection.
 
 ## WebSocket authentication
 
@@ -60,9 +65,11 @@ fixtures:
 | REST | `protocol/rest/openapi.json` |
 | WebSocket | `protocol/ws/ws-schema.json` |
 | LAN TXT | `protocol/lan/txt-schema.json` |
+| LAN WebSocket | `protocol/lan/wss-schema.json` |
+| LAN peer-source request/response | `protocol/lan/sources-schema.json` |
 
-Cross-language parity tests (Python + Kotlin) validate that both implementations
-produce identical results.
+Cross-language parity tests (Python + Kotlin) require both implementations to
+produce identical results before an ecosystem protocol change is complete.
 
 ## See also
 

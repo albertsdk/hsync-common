@@ -40,13 +40,15 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0016](0016-delta-transfer.md) | Delta transfer (rsync-style block sync) | Accepted |
 | [0017](0017-lan-slave-outbound-event-reliability.md) | LAN slave outbound event reliability (defer-to-close uploads, echo-pair rename caching) | Accepted (uses the origin-based log labels of [ADR-0018](0018-origin-based-log-labels.md)) |
 | [0018](0018-origin-based-log-labels.md) | Origin-based log labels (`LOCAL ` / `REMOTE `) with unified verbs | Accepted |
-| [0020](0020-lan-security-model.md) | LAN security model: TOFU pinning, LAN key, and strict pairing | Accepted |
+| [0020](0020-lan-security-model.md) | LAN security model: TOFU pinning, LAN key, and strict pairing | Accepted (unauthenticated-write policy superseded by [ADR-0029](0029-explicit-opt-in-unauthenticated-lan-writes.md)) |
 | [0022](0022-causal-vector-clock-conflict-model.md) | Causal vector-clock conflict model | Accepted (tie-break defined by [ADR-0023](0023-corrected-mtime-tie-break.md)) |
 | [0023](0023-corrected-mtime-tie-break.md) | Corrected-mtime chronological tie-break | Accepted |
 | [0024](0024-capability-negotiation.md) | Capability negotiation (registry, channels, intersection) | Accepted |
 | [0025](0025-sqlite-external-state-store.md) | SQLite external state store (folder UUID + ``syncstate.db``) | Accepted |
 | [0026](0026-permission-special-bits-policy.md) | Special permission bits (setuid/setgid/sticky) policy | Accepted |
 | [0027](0027-lan-leadership-lease.md) | LAN leadership lease: bounded incumbency and immediate yield | Accepted |
+| [0028](0028-lan-peer-assisted-download.md) | LAN peer-assisted download | Accepted |
+| [0029](0029-explicit-opt-in-unauthenticated-lan-writes.md) | Explicit opt-in for unauthenticated LAN writes | Accepted |
 
 ## Related documents
 

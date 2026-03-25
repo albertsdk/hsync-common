@@ -1,6 +1,7 @@
 {
   "capabilities": [
-    "compression"
+    "compression",
+    "peer_download"
   ],
   "cid": "TestClientX1234567890",
   "protocol_version": "lan/1",

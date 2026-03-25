@@ -34,6 +34,8 @@ REST_OPENAPI_PATH = PROTOCOL_DIR / "rest" / "openapi.json"
 WS_SCHEMA_PATH = PROTOCOL_DIR / "ws" / "ws-schema.json"
 LAN_TXT_SCHEMA_PATH = PROTOCOL_DIR / "lan" / "txt-schema.json"
 LAN_WSS_SCHEMA_PATH = PROTOCOL_DIR / "lan" / "wss-schema.json"
+# Consumed by hsync-client source lookup, the Android mirror, and drift tests.
+LAN_SOURCES_SCHEMA_PATH = PROTOCOL_DIR / "lan" / "sources-schema.json"
 
 # Canonical directory of the committed golden protocol fixtures (generated from
 # hsync_common.protocol.fixtures; consumed as cross-language test inputs).
@@ -83,6 +85,7 @@ __all__ = [
     "WS_SCHEMA_PATH",
     "LAN_TXT_SCHEMA_PATH",
     "LAN_WSS_SCHEMA_PATH",
+    "LAN_SOURCES_SCHEMA_PATH",
     "FIXTURES_DIR",
     "ANDROID_FIXTURES_DIR",
     "dump_contract",

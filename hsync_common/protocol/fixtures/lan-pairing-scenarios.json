@@ -47,33 +47,52 @@
   ],
   "write_policy_scenarios": [
     {
+      "allow_unauthenticated_writes": false,
       "expected_requires_key": true,
       "interactive": false,
       "name": "non-interactive-bidirectional-requires-key",
       "sync_direction": "bidirectional"
     },
     {
+      "allow_unauthenticated_writes": false,
       "expected_requires_key": true,
       "interactive": false,
       "name": "non-interactive-upload-only-requires-key",
       "sync_direction": "upload-only"
     },
     {
+      "allow_unauthenticated_writes": false,
       "expected_requires_key": false,
       "interactive": false,
       "name": "non-interactive-download-only-no-key",
       "sync_direction": "download-only"
     },
     {
-      "expected_requires_key": false,
+      "allow_unauthenticated_writes": false,
+      "expected_requires_key": true,
       "interactive": true,
-      "name": "interactive-bidirectional-no-key",
+      "name": "interactive-bidirectional-requires-key",
       "sync_direction": "bidirectional"
     },
     {
+      "allow_unauthenticated_writes": false,
+      "expected_requires_key": true,
+      "interactive": true,
+      "name": "interactive-upload-only-requires-key",
+      "sync_direction": "upload-only"
+    },
+    {
+      "allow_unauthenticated_writes": true,
+      "expected_requires_key": false,
+      "interactive": false,
+      "name": "explicit-opt-in-bidirectional-no-key",
+      "sync_direction": "bidirectional"
+    },
+    {
+      "allow_unauthenticated_writes": true,
       "expected_requires_key": false,
       "interactive": true,
-      "name": "interactive-upload-only-no-key",
+      "name": "explicit-opt-in-upload-only-no-key",
       "sync_direction": "upload-only"
     }
   ]

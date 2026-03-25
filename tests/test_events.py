@@ -41,6 +41,15 @@ class TestBuildEvent:
         ev2 = build_event(UiEventName.progress, transferred=0, total=10)
         assert ev2["transferred"] == 0  # type: ignore[reportTypedDictNotRequiredAccess]
 
+    def test_transfer_accepts_optional_source_cid(self):
+        ev = build_event(
+            UiEventName.transfer,
+            op="download",
+            file="a.bin",
+            source_cid="TestClientA1234567890",
+        )
+        assert ev["source_cid"] == "TestClientA1234567890"  # type: ignore[reportTypedDictNotRequiredAccess]
+
 
 class TestSerializeEvent:
     def test_round_trips_through_json(self):

@@ -64,8 +64,16 @@ class TestCapabilities:
         assert decode_capabilities(42) == set()
 
     def test_round_trip(self):
-        caps = {Capability.compression, Capability.tombstones, Capability.never_master}
+        caps = {
+            Capability.compression,
+            Capability.tombstones,
+            Capability.never_master,
+            Capability.peer_download,
+        }
         assert decode_capabilities(encode_capabilities(caps)) == caps
+
+    def test_peer_download_wire_token(self):
+        assert Capability.peer_download.value == "peer_download"
 
 
 class TestWsAuthBuilders:

@@ -1,6 +1,6 @@
 # ADR 0020 — LAN security model: TOFU pinning, LAN key, and strict pairing
 
-- **Status:** Accepted
+- **Status:** Accepted; unauthenticated-write policy superseded by [ADR-0029](0029-explicit-opt-in-unauthenticated-lan-writes.md)
 - **Date:** 2026-10-15
 
 ## Context
@@ -50,6 +50,11 @@ impersonate the master permanently. Mitigation: strict pairing mode (see §3)
 eliminates even this window.
 
 ### 2. LAN key write authorization
+
+> **Superseded in part by [ADR-0029](0029-explicit-opt-in-unauthenticated-lan-writes.md).**
+> Keyless peers remain read-only by default, but mutation may be enabled only by
+> an explicit dangerous opt-in on both the writing client and the master.
+> Interactivity is no longer an authorization exception.
 
 **Decision**: a shared secret (LAN key, distinct from the server's per-account
 tokens) gates write access in LAN mode. Peers that know the key can push
@@ -118,5 +123,6 @@ untrusted bulletin board and moves all trust decisions to the TLS+key layer.
 - [ADR-0001](0001-server-vs-lan-modes.md) — LAN P2P mode overview
 - [ADR-0002](0002-lan-master-election.md) — Deterministic master election
 - [ADR-0008](0008-client-accounts.md) — Server-side account token model
+- [ADR-0029](0029-explicit-opt-in-unauthenticated-lan-writes.md) — Explicit opt-in for unauthenticated LAN writes (supersedes only that policy)
 - [`docs/lan-protocol.md`](../../lan-protocol.md) — Full LAN protocol specification
 - Implementation: `hsync_client/pinning.py`, `protocol/pairing.py`, `ssl_utils.py`

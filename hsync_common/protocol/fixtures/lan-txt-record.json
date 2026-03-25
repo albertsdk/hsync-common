@@ -1,10 +1,13 @@
 {
   "bucket": "bucket-1",
+  "cert_fp": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
   "cid": "TestClientX1234567890",
   "compression": "true",
   "connected": "3",
   "delta": "true",
   "heartbeat": "7",
+  "https": "true",
+  "peer_download": "true",
   "protocol": "lan/1",
   "server_ready": "true",
   "startup_time": "1700000000.5",

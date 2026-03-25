@@ -9,13 +9,13 @@ Canonical LAN security policy (single source of truth).
 
 The LAN channel is **HTTPS/WSS-only**: every master serves over a self-signed
 certificate whose fingerprint (``cert_fp``) travels in the mDNS TXT record, and
-may authenticate writes with a shared ``HSYNC_LAN_KEY``. Neither, on its own,
-proves *identity*: a self-signed certificate is trusted only because it is the
-first one seen for a given peer (Trust On First Use). Because the transport is
-mandatory, a peer always presents a fingerprint; there is no plain-HTTP mode and
-therefore no "nothing to pin" outcome. This module owns the two pure decisions
-that follow from that model so the Python client and the Android client cannot
-drift:
+write authorization uses either a shared ``HSYNC_LAN_KEY`` or the explicit
+dangerous keyless-write opt-in from ADR-0029. A self-signed certificate does not,
+on its own, prove *identity*: it is trusted only because it is the first one seen
+for a given peer (Trust On First Use). Because the transport is mandatory, a peer
+always presents a fingerprint; there is no plain-HTTP mode and therefore no
+"nothing to pin" outcome. This module owns the two pure decisions that follow
+from that model so the Python client and the Android client cannot drift:
 
 * :func:`evaluate_pin` — compare an observed certificate fingerprint against the
   one previously pinned for a ``(cid, bucket)`` and classify the outcome.
@@ -50,8 +50,9 @@ __all__ = [
 SYNC_DIRECTION_UPLOAD_ONLY = "upload-only"
 SYNC_DIRECTION_DOWNLOAD_ONLY = "download-only"
 
-# Directions that upload to (write on) the master and therefore require auth when
-# running unattended. ``download-only`` is read-only against the master.
+# Directions that upload to (write on) the master and therefore require a LAN
+# key unless the explicit ADR-0029 keyless-write opt-in is enabled.
+# ``download-only`` is read-only against the master.
 _WRITE_DIRECTIONS = frozenset({SYNC_DIRECTION_BIDIRECTIONAL, SYNC_DIRECTION_UPLOAD_ONLY})
 
 
@@ -136,20 +137,28 @@ def is_write_direction(sync_direction: str) -> bool:
     return sync_direction in _WRITE_DIRECTIONS
 
 
-def lan_write_requires_key(sync_direction: str, *, interactive: bool) -> bool:
+def lan_write_requires_key(
+    sync_direction: str,
+    *,
+    interactive: bool,
+    allow_unauthenticated_writes: bool = False,
+) -> bool:
     """Whether a shared LAN key is mandatory before writing to the master.
 
     A self-signed transport hides traffic from passive eavesdroppers but does
-    not prove the master's identity, so an unattended client that uploads data
-    must authenticate with a shared secret. In interactive use the operator can
-    vouch for the peer out of band, so the key stays recommended, not required.
+    not authorize mutation. A write-capable no-key run is therefore rejected by
+    default and is enabled only by the explicit dangerous opt-in from ADR-0029.
+    Interactivity is retained as call-context information for current consumers,
+    but no longer weakens the authorization policy.
 
     Args:
         sync_direction: This client's configured direction.
-        interactive: ``True`` when a human can confirm trust (a TTY / no
-            ``--yes``); ``False`` for unattended/non-interactive runs.
+        interactive: Whether the current invocation is interactive. This does
+            not grant write authorization under ADR-0029.
+        allow_unauthenticated_writes: Explicit local opt-in to no-key mutation.
 
     Returns:
-        ``True`` when the run is non-interactive *and* write-capable.
+        ``True`` when the run is write-capable without the explicit opt-in.
     """
-    return not interactive and is_write_direction(sync_direction)
+    _ = interactive
+    return is_write_direction(sync_direction) and not allow_unauthenticated_writes

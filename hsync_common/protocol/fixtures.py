@@ -50,6 +50,17 @@ from .pairing import (
     lan_write_requires_key,
     requires_pairing_confirmation,
 )
+from .peer_download import (
+    LanInventoryDeleteEntry,
+    LanInventoryUpsertEntry,
+    LanSourceCandidate,
+    LanSourceFile,
+    LanSourcesResponseFile,
+    build_lan_inventory_ack,
+    build_lan_inventory_frame,
+    build_lan_sources_request,
+    build_lan_sources_response,
+)
 
 __all__ = ["FIXTURE_TOKEN", "FIXTURE_APP_VERSION", "build_fixtures"]
 
@@ -61,10 +72,13 @@ FIXTURE_APP_VERSION = "1.0.0"
 # Fixed capability advertised by the sample client/server (kept minimal so the
 # fixture exercises a non-empty list without coupling to the full registry).
 _FIXTURE_CAPS = frozenset({Capability.compression})
+_FIXTURE_LAN_CAPS = frozenset({Capability.compression, Capability.peer_download})
 
 # Stable timestamps for the sample file event (Unix seconds, UTC).
 _FIXTURE_CTIME = 1_700_000_000
 _FIXTURE_MTIME = 1_700_000_500
+_FIXTURE_SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+_FIXTURE_CERT_FP = "0123456789abcdef" * 4
 
 
 def _file_event() -> dict[str, Any]:
@@ -79,7 +93,7 @@ def _file_event() -> dict[str, Any]:
             ctime=_FIXTURE_CTIME,
             mtime=_FIXTURE_MTIME,
             size=42,
-            sha256sum="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            sha256sum=_FIXTURE_SHA256,
             permissions="644",
             version=VersionInfo(
                 vclock={"TestClientX1234567890": 3},
@@ -104,10 +118,86 @@ def _lan_txt_record() -> dict[str, Any]:
         "sync_direction": "bidirectional",
         "compression": "true",
         "delta": "true",
+        "https": "true",
+        "cert_fp": _FIXTURE_CERT_FP,
+        "peer_download": "true",
         "server_ready": "true",
         "connected": "3",
         "heartbeat": "7",
     }
+
+
+def _lan_txt_seeder_record() -> dict[str, Any]:
+    """Sample bound slave seeder: endpoint material is present without mastership."""
+    return {
+        "cid": "TestClientA1234567890",
+        "bucket": "bucket-1",
+        "version": FIXTURE_APP_VERSION,
+        "protocol": PROTOCOL_VERSION_LAN,
+        "startup_time": "1700000001",
+        "sync_direction": "download-only",
+        "https": "true",
+        "cert_fp": _FIXTURE_CERT_FP,
+        "peer_download": "true",
+        "seed": "true",
+        "heartbeat": "8",
+    }
+
+
+def _lan_sources_request() -> dict[str, Any]:
+    """Canonical one-file batch source lookup request."""
+    return dict(
+        build_lan_sources_request(
+            cid="TestClientX1234567890",
+            files=[LanSourceFile(path="docs/report.bin", sha256=_FIXTURE_SHA256)],
+        )
+    )
+
+
+def _lan_sources_response() -> dict[str, Any]:
+    """Canonical source lookup response with one exact-hash seeder."""
+    source = LanSourceCandidate(
+        cid="TestClientA1234567890",
+        download_url="https://192.0.2.10:8443/api/v1/buckets/bucket-1/files/download",
+        cert_fp=_FIXTURE_CERT_FP,
+        compression=True,
+    )
+    return dict(
+        build_lan_sources_response(
+            files=[
+                LanSourcesResponseFile(
+                    path="docs/report.bin",
+                    sha256=_FIXTURE_SHA256,
+                    sources=[source],
+                )
+            ]
+        )
+    )
+
+
+def _lan_inventory_snapshot() -> dict[str, Any]:
+    """Terminal snapshot containing one serveable regular file."""
+    entry = LanInventoryUpsertEntry(path="docs/report.bin", sha256=_FIXTURE_SHA256, size=42)
+    return dict(
+        build_lan_inventory_frame(gen=1, seq=0, mode="snapshot", more=False, entries=[entry])
+    )
+
+
+def _lan_inventory_empty_snapshot() -> dict[str, Any]:
+    """An empty inventory is represented by one terminal snapshot frame."""
+    return dict(build_lan_inventory_frame(gen=2, seq=0, mode="snapshot", more=False, entries=[]))
+
+
+def _lan_inventory_delta_upsert() -> dict[str, Any]:
+    """Independent delta transaction adding or replacing one file identity."""
+    entry = LanInventoryUpsertEntry(path="media/video.bin", sha256=_FIXTURE_SHA256, size=1_048_576)
+    return dict(build_lan_inventory_frame(gen=1, seq=1, mode="delta", more=False, entries=[entry]))
+
+
+def _lan_inventory_delta_delete() -> dict[str, Any]:
+    """Independent delta transaction deleting one inventory path."""
+    entry = LanInventoryDeleteEntry(path="docs/report.bin", deleted=True)
+    return dict(build_lan_inventory_frame(gen=1, seq=2, mode="delta", more=False, entries=[entry]))
 
 
 # Cross-language master-election scenarios. Each scenario lists its candidates
@@ -202,14 +292,16 @@ _PIN_SCENARIOS: tuple[tuple[str, str | None, str], ...] = (
 )
 
 # Cross-language LAN write-policy scenarios. ``expected_requires_key`` is computed
-# from the shared ``lan_write_requires_key`` so Python and Android agree on when
-# an unattended, write-capable client must present ``HSYNC_LAN_KEY``.
-_WRITE_POLICY_SCENARIOS: tuple[tuple[str, str, bool], ...] = (
-    ("non-interactive-bidirectional-requires-key", "bidirectional", False),
-    ("non-interactive-upload-only-requires-key", "upload-only", False),
-    ("non-interactive-download-only-no-key", "download-only", False),
-    ("interactive-bidirectional-no-key", "bidirectional", True),
-    ("interactive-upload-only-no-key", "upload-only", True),
+# from the shared ``lan_write_requires_key`` so Python and Android agree that
+# no-key mutation requires an explicit opt-in, regardless of interactivity.
+_WRITE_POLICY_SCENARIOS: tuple[tuple[str, str, bool, bool], ...] = (
+    ("non-interactive-bidirectional-requires-key", "bidirectional", False, False),
+    ("non-interactive-upload-only-requires-key", "upload-only", False, False),
+    ("non-interactive-download-only-no-key", "download-only", False, False),
+    ("interactive-bidirectional-requires-key", "bidirectional", True, False),
+    ("interactive-upload-only-requires-key", "upload-only", True, False),
+    ("explicit-opt-in-bidirectional-no-key", "bidirectional", False, True),
+    ("explicit-opt-in-upload-only-no-key", "upload-only", True, True),
 )
 
 # Cross-language explicit-pairing scenarios. Each lists the stored/observed
@@ -242,9 +334,14 @@ def _pairing_scenarios() -> dict[str, Any]:
                 "name": name,
                 "sync_direction": direction,
                 "interactive": interactive,
-                "expected_requires_key": lan_write_requires_key(direction, interactive=interactive),
+                "allow_unauthenticated_writes": allow_unauthenticated_writes,
+                "expected_requires_key": lan_write_requires_key(
+                    direction,
+                    interactive=interactive,
+                    allow_unauthenticated_writes=allow_unauthenticated_writes,
+                ),
             }
-            for name, direction, interactive in _WRITE_POLICY_SCENARIOS
+            for name, direction, interactive, allow_unauthenticated_writes in _WRITE_POLICY_SCENARIOS
         ],
         "pairing_scenarios": [
             {
@@ -570,17 +667,33 @@ def build_fixtures() -> dict[str, dict[str, Any]]:
         "ws-presence": dict(build_ws_presence(connected=3, total=5)),
         "ws-file-event": _file_event(),
         "lan-txt-record": _lan_txt_record(),
-        "lan-wss-auth-required": dict(build_lan_auth_required(capabilities=_FIXTURE_CAPS)),
+        "lan-txt-seeder-record": _lan_txt_seeder_record(),
+        "lan-sources-request": _lan_sources_request(),
+        "lan-sources-response": _lan_sources_response(),
+        "lan-wss-auth-required": dict(build_lan_auth_required(capabilities=_FIXTURE_LAN_CAPS)),
         "lan-wss-auth": dict(
             build_lan_auth(
-                token=FIXTURE_TOKEN, cid="TestClientX1234567890", capabilities=_FIXTURE_CAPS
+                token=FIXTURE_TOKEN,
+                cid="TestClientX1234567890",
+                capabilities=_FIXTURE_LAN_CAPS,
             )
         ),
-        "lan-wss-auth-ok": dict(build_lan_auth_ok(capabilities=_FIXTURE_CAPS)),
+        "lan-wss-auth-ok": dict(build_lan_auth_ok(capabilities=_FIXTURE_LAN_CAPS)),
         "lan-wss-auth-failed": dict(build_lan_auth_failed(reason="invalid_token")),
-        "lan-wss-hello-master": dict(build_lan_hello(capabilities=_FIXTURE_CAPS)),
+        "lan-wss-hello-master": dict(build_lan_hello(capabilities=_FIXTURE_LAN_CAPS)),
         "lan-wss-hello-slave": dict(
-            build_lan_hello(capabilities=_FIXTURE_CAPS, cid="TestClientX1234567890")
+            build_lan_hello(capabilities=_FIXTURE_LAN_CAPS, cid="TestClientX1234567890")
+        ),
+        "lan-wss-inventory-snapshot": _lan_inventory_snapshot(),
+        "lan-wss-inventory-empty-snapshot": _lan_inventory_empty_snapshot(),
+        "lan-wss-inventory-delta-upsert": _lan_inventory_delta_upsert(),
+        "lan-wss-inventory-delta-delete": _lan_inventory_delta_delete(),
+        "lan-wss-inventory-ack-ok": dict(build_lan_inventory_ack(gen=1, seq=0, status="ok")),
+        "lan-wss-inventory-ack-resync": dict(
+            build_lan_inventory_ack(gen=1, seq=3, status="resync")
+        ),
+        "lan-wss-inventory-ack-rejected": dict(
+            build_lan_inventory_ack(gen=1, seq=1, status="rejected", reason="quota")
         ),
         "lan-election-scenarios": _election_scenarios(),
         "lan-pairing-scenarios": _pairing_scenarios(),

@@ -83,6 +83,7 @@ class Capability(StrEnum):
     https = "https"  # TLS-secured master endpoint
     delta = "delta"  # rsync-style delta transfer (block-level sync)
     vector_clocks = "vector_clocks"  # causal version metadata exchanged on file payloads (ADR-0022)
+    peer_download = "peer_download"  # LAN inventory, source lookup and seeder semantics (ADR-0028)
 
 
 ALL_CAPABILITIES: frozenset[Capability] = frozenset(Capability)

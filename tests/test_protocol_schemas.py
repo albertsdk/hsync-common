@@ -11,9 +11,10 @@ of truth and assert that the handshake builders and shared models actually
 conform to the published contract.
 """
 
-from hsync_common.models.event import Event, EventName
+from hsync_common.models.event import CID_PATTERN, Event, EventName
 from hsync_common.models.file import File, FileDict
 from hsync_common.protocol import (
+    LAN_SOURCES_SCHEMA_PATH,
     LAN_TXT_SCHEMA_PATH,
     LAN_WSS_SCHEMA_PATH,
     WS_SCHEMA_PATH,
@@ -36,6 +37,7 @@ from hsync_common.protocol.handshake import (
 from hsync_common.protocol.schemas import (
     LAN_TXT_KEYS,
     LAN_TXT_REQUIRED_KEYS,
+    build_lan_sources_schema,
     build_lan_txt_schema,
     build_lan_wss_schema,
     build_ws_schema,
@@ -56,6 +58,11 @@ class TestSnapshotDrift:
     def test_lan_wss_snapshot_exists(self):
         assert LAN_WSS_SCHEMA_PATH.is_file(), f"Missing {LAN_WSS_SCHEMA_PATH}. {_REGEN_HINT}"
 
+    def test_lan_sources_snapshot_exists(self):
+        assert LAN_SOURCES_SCHEMA_PATH.is_file(), (
+            f"Missing {LAN_SOURCES_SCHEMA_PATH}. {_REGEN_HINT}"
+        )
+
     def test_ws_snapshot_matches_source(self):
         committed = WS_SCHEMA_PATH.read_text(encoding="utf-8")
         assert dump_contract(build_ws_schema()) == committed, f"WS schema drift. {_REGEN_HINT}"
@@ -70,6 +77,12 @@ class TestSnapshotDrift:
         committed = LAN_WSS_SCHEMA_PATH.read_text(encoding="utf-8")
         assert dump_contract(build_lan_wss_schema()) == committed, (
             f"LAN/WSS schema drift. {_REGEN_HINT}"
+        )
+
+    def test_lan_sources_snapshot_matches_source(self):
+        committed = LAN_SOURCES_SCHEMA_PATH.read_text(encoding="utf-8")
+        assert dump_contract(build_lan_sources_schema()) == committed, (
+            f"LAN sources schema drift. {_REGEN_HINT}"
         )
 
 
@@ -112,6 +125,13 @@ class TestLanSchemaSource:
         schema = build_lan_txt_schema()
         assert set(schema["properties"]) == set(LAN_TXT_KEYS)
 
+    def test_peer_download_flags_are_optional_true_only(self):
+        schema = build_lan_txt_schema()
+        assert "peer_download" not in schema["required"]
+        assert "seed" not in schema["required"]
+        assert schema["properties"]["peer_download"]["enum"] == ["true"]
+        assert schema["properties"]["seed"]["enum"] == ["true"]
+
 
 class TestLanWssSchemaSource:
     """The LAN/WSS handshake schema pins the handshake frames (ADR-0024)."""
@@ -133,6 +153,70 @@ class TestLanWssSchemaSource:
     def test_auth_failed_carries_reason(self):
         assert self._defs()["authFailed"]["properties"]["status"]["const"] == "failed"
         assert "reason" in self._defs()["authFailed"]["required"]
+
+    def test_inventory_extends_lan_one_additively(self):
+        schema = build_lan_wss_schema()
+        assert {"$ref": "#/$defs/inventory"} in schema["slaveToMaster"]["oneOf"]
+        assert {"$ref": "#/$defs/inventoryAck"} in schema["masterToSlave"]["oneOf"]
+        assert {"$ref": "#/$defs/fileEvent"} in schema["slaveToMaster"]["oneOf"]
+
+    def test_inventory_limits_and_modes(self):
+        defs = self._defs()
+        snapshot = defs["inventorySnapshot"]
+        delta = defs["inventoryDelta"]
+        assert snapshot["properties"]["entries"]["maxItems"] == 500
+        assert delta["properties"]["entries"]["maxItems"] == 500
+        assert delta["properties"]["entries"]["minItems"] == 1
+        assert delta["properties"]["more"]["const"] is False
+        assert snapshot["properties"]["gen"]["maximum"] == (1 << 63) - 1
+
+    def test_empty_snapshot_is_terminal_sequence_zero(self):
+        empty_rule = self._defs()["inventorySnapshot"]["allOf"][0]
+        assert empty_rule["if"]["properties"]["entries"]["maxItems"] == 0
+        assert empty_rule["then"]["properties"]["seq"]["const"] == 0
+        assert empty_rule["then"]["properties"]["more"]["const"] is False
+
+    def test_inventory_ack_statuses(self):
+        defs = self._defs()
+        assert defs["inventoryAckOk"]["properties"]["status"]["const"] == "ok"
+        assert defs["inventoryAckResync"]["properties"]["status"]["const"] == "resync"
+        rejected = defs["inventoryAckRejected"]
+        assert rejected["properties"]["status"]["const"] == "rejected"
+        assert "reason" in rejected["required"]
+
+
+class TestLanSourcesSchemaSource:
+    """The sources schema pins strict objects and batch/candidate limits."""
+
+    def _defs(self):
+        return build_lan_sources_schema()["$defs"]
+
+    def test_request_contract(self):
+        schema = build_lan_sources_schema()
+        request = schema["$defs"]["request"]
+        assert schema["x-contentType"] == "application/json"
+        assert schema["x-maxBodyBytes"] == 2 * 1024 * 1024
+        assert request["additionalProperties"] is False
+        assert request["properties"]["files"]["minItems"] == 1
+        assert request["properties"]["files"]["maxItems"] == 500
+        assert request["properties"]["cid"]["pattern"] == CID_PATTERN
+
+    def test_response_contract(self):
+        defs = self._defs()
+        assert defs["response"]["additionalProperties"] is False
+        assert defs["responseFile"]["properties"]["sources"]["maxItems"] == 8
+        assert defs["sourceCandidate"]["additionalProperties"] is False
+        download_url = defs["sourceCandidate"]["properties"]["download_url"]
+        assert download_url["x-host"] == "ip-literal"
+        assert download_url["x-explicitPort"] is True
+
+    def test_hashes_are_canonical_lowercase(self):
+        assert self._defs()["requestFile"]["properties"]["sha256"]["pattern"] == ("^[0-9a-f]{64}$")
+
+    def test_paths_publish_utf8_byte_bound(self):
+        path = self._defs()["requestFile"]["properties"]["path"]
+        assert path["maxLength"] == 4096
+        assert path["x-maxUtf8Bytes"] == 4096
 
 
 class TestLanWssHandshakeConformance:

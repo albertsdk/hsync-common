@@ -23,7 +23,7 @@ contract is mechanically tied to the in-code types.
 
 | Path | Responsibility | Wiki |
 | ---- | -------------- | ---- |
-| `hsync_common/constants.py:24` | `HSYNC_VERSION`, wire header names + client-name validator, content types, sentinel filenames, chunk-size tiers, `.part` suffix | [utilities](modules/utilities.md) |
+| `hsync_common/constants.py:24` | `HSYNC_VERSION`, wire/checksum header names + client-name validator, content types, sentinel filenames, chunk-size tiers, `.part` suffix | [utilities](modules/utilities.md) |
 | `hsync_common/models/` | Canonical sync data types; `folder.py` (`.hsyncfolder` + state dir), `sqlstore.py` (`syncstate.db`) | [data-models](data-models.md) |
 | `hsync_common/protocol/` | Versioned wire protocol + contract artifacts | [protocol](modules/protocol.md) |
 | `hsync_common/{hashing,compression,permissions,path_validation,ignore,ssl_utils,logger,env,text,clock,format,exceptions}.py` | Cross-cutting helpers | [utilities](modules/utilities.md) |
@@ -35,12 +35,13 @@ these constants:
 
 | SSOT symbol | Location | Consumed by |
 | ----------- | -------- | ----------- |
-| `PROTOCOL_VERSION_REST/WS/LAN` | `protocol/handshake.py:44` | server middleware, client REST/WS, android `Protocol.kt` |
-| `Capability` enum + `encode/decode_capabilities` | `protocol/handshake.py:49` | WS handshake on all peers |
-| `build_ws_auth_request/ok/error` | `protocol/handshake.py:104` | client/android WS auth, server `events.py` |
-| `UiEventName` + `build_event` | `protocol/events.py:43` | client emits, desktop/android parse |
+| `PROTOCOL_VERSION_REST/WS/LAN` | `protocol/handshake.py:60` | server middleware, client REST/WS, android `Protocol.kt` |
+| `Capability` enum + `encode/decode_capabilities` | `protocol/handshake.py:65` | WS handshake on all peers; includes additive `peer_download` |
+| `build_ws_auth_request/ok/error` | `protocol/handshake.py:136` | client/android WS auth, server `events.py` |
+| `UiEventName` + `build_event` | `protocol/events.py:44` | client emits, desktop/android parse; transfer payload may carry peer `source_cid` |
 | `elect_master` / `election_sort_key` | `protocol/lan.py:67` | client `lan.py`, android `Election.kt` |
-| `evaluate_pin` / `lan_write_requires_key` | `protocol/pairing.py:85` | client `pinning.py`, android `Pairing.kt` |
+| `evaluate_pin` / `lan_write_requires_key` | `protocol/pairing.py:86` | client `pinning.py`, android `Pairing.kt` |
+| LAN source/inventory builders + validators | `protocol/peer_download.py:91` | client master/seeder/source resolver, Android mirror, generated contracts |
 
 ## Causal conflict model (ADR-0022)
 
@@ -68,9 +69,11 @@ these constants:
 | Artifact | Builder | Path constant |
 | -------- | ------- | ------------- |
 | OpenAPI (REST) | server app → `dump_openapi` | `protocol/__init__.py:30` (`REST_OPENAPI_PATH`) |
-| WS JSON Schema | `build_ws_schema` (`protocol/schemas.py:223`) | `protocol/__init__.py:34` (`WS_SCHEMA_PATH`) |
-| LAN TXT JSON Schema | `build_lan_txt_schema` (`protocol/schemas.py:269`) | `protocol/__init__.py:35` (`LAN_TXT_SCHEMA_PATH`) |
-| Cross-language fixtures | `build_fixtures` (`protocol/fixtures.py:241`) | `protocol/__init__.py:39` (`FIXTURES_DIR`) |
+| WS JSON Schema | `build_ws_schema` (`protocol/schemas.py:464`) | `protocol/__init__.py:34` (`WS_SCHEMA_PATH`) |
+| LAN TXT JSON Schema | `build_lan_txt_schema` (`protocol/schemas.py:742`) | `protocol/__init__.py:35` (`LAN_TXT_SCHEMA_PATH`) |
+| LAN WSS JSON Schema | `build_lan_wss_schema` (`protocol/schemas.py:669`) | `protocol/__init__.py:36` (`LAN_WSS_SCHEMA_PATH`) |
+| LAN source JSON Schema | `build_lan_sources_schema` (`protocol/schemas.py:180`) | `protocol/__init__.py:38` (`LAN_SOURCES_SCHEMA_PATH`) |
+| Cross-language fixtures | `build_fixtures` (`protocol/fixtures.py:647`) | `protocol/__init__.py:42` (`FIXTURES_DIR`) |
 
 Regeneration: `scripts/export_protocol_schemas.py` and `scripts/export_openapi.py`.
 Drift is enforced by `tests/test_protocol_schemas.py` (rebuild must equal the
