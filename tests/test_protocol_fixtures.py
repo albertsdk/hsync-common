@@ -22,12 +22,6 @@ from hsync_common.protocol import (
     load_contract,
 )
 from hsync_common.protocol.fixtures import build_fixtures
-from hsync_common.protocol.peer_download import (
-    validate_lan_inventory_ack,
-    validate_lan_inventory_frame,
-    validate_lan_sources_request,
-    validate_lan_sources_response,
-)
 from hsync_common.protocol.schemas import (
     LAN_TXT_REQUIRED_KEYS,
     build_lan_txt_schema,
@@ -122,36 +116,12 @@ class TestLanFixtureConformance:
 
 
 class TestLanPeerDownloadFixtureConformance:
-    """Peer-source and inventory fixtures pass the strict shared validators."""
+    """Peer-download fixtures agree on handshake composition.
 
-    def test_sources_request(self):
-        assert validate_lan_sources_request(_FIXTURES["lan-sources-request"]) is not None
-
-    def test_sources_response(self):
-        assert validate_lan_sources_response(_FIXTURES["lan-sources-response"]) is not None
-
-    @pytest.mark.parametrize(
-        "name",
-        [
-            "lan-wss-inventory-snapshot",
-            "lan-wss-inventory-empty-snapshot",
-            "lan-wss-inventory-delta-upsert",
-            "lan-wss-inventory-delta-delete",
-        ],
-    )
-    def test_inventory_frame(self, name):
-        assert validate_lan_inventory_frame(_FIXTURES[name]) is not None
-
-    @pytest.mark.parametrize(
-        "name",
-        [
-            "lan-wss-inventory-ack-ok",
-            "lan-wss-inventory-ack-resync",
-            "lan-wss-inventory-ack-rejected",
-        ],
-    )
-    def test_inventory_ack(self, name):
-        assert validate_lan_inventory_ack(_FIXTURES[name]) is not None
+    Per-builder fixture validation is already covered exhaustively by
+    ``test_protocol_peer_download.py``, and fixture drift is guarded by
+    ``TestFixtureDrift``, so only the cross-builder composition assertions remain.
+    """
 
     def test_lan_handshake_advertises_peer_download(self):
         for name in (

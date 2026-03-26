@@ -50,9 +50,9 @@ within a version — intersection semantics, never cross-version negotiation
   (`pairing.py:73`); `evaluate_pin` (`pairing.py:86`).
 - `requires_pairing_confirmation` (`pairing.py:115`) — strict out-of-band pairing.
 - `is_write_direction` (`pairing.py:135`) + `lan_write_requires_key`
-  (`pairing.py:140`); write directions set `pairing.py:56`. ADR-0029 makes
-  interactive and unattended writes equivalent: a key is required unless the
-  explicit dangerous `allow_unauthenticated_writes` opt-in is set.
+  (`pairing.py:140`); write directions set `pairing.py:56`. ADR-0029 makes every
+  write-capable run require a key unless the explicit dangerous
+  `allow_unauthenticated_writes` opt-in is set.
 
 ## peer_download.py — strict LAN peer-download wire contract
 

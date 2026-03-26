@@ -195,9 +195,10 @@ builders and validators live in `hsync_common.protocol.peer_download`.
 - The route bucket must exactly match the serving bucket. A response is a list,
   preserving identity as `(path, sha256)` rather than collapsing it into a
   path-keyed map.
-- Each `sources` list has 0–8 unique CIDs. The requester and master are omitted.
-  A candidate is included only for exact indexed hash membership, the current
-  WSS session owner, and a currently alive peer.
+- Each `sources` list has 0–8 unique CIDs. The requester and master are omitted
+  by CID; distinct peers may legitimately share one IP address. A candidate is
+  included only for exact indexed hash membership, a WSS session address that
+  matches its advertised endpoint, and a currently alive peer.
 - `download_url` is the complete HTTPS `.../files/download` endpoint with an
   explicit port in `1..65535`. Hosts are current peer IP literals; IPv6 literals
   are bracketed and zone identifiers are rejected. `cert_fp` is canonical
@@ -283,7 +284,8 @@ Wire and state-machine rules:
 3. Missing or out-of-order snapshot sequence discards that session's staging
    and returns `(gen, expected_seq, resync)`. A terminal commit returns cumulative
    `(gen, N, ok)`. A retransmitted terminal frame after a lost ACK is ACKed
-   idempotently for the same owning session.
+   idempotently only when its canonical payload digest matches the committed
+   terminal frame; a mismatch returns `resync`.
 4. Deltas begin only after the terminal snapshot ACK. Each delta is non-empty,
    has `more=false`, and commits independently. Upserts have exactly
    `path,sha256,size`; deletes exactly `path,deleted=true`. Larger queues are
@@ -657,10 +659,9 @@ closed independently of whether the invocation is interactive:
   enables unauthenticated writes. A write-capable client must independently opt
   in before emitting such a request; its setting cannot override the master.
 
-`lan_write_requires_key(sync_direction, interactive=...,
+`lan_write_requires_key(sync_direction,
 allow_unauthenticated_writes=...)` is the canonical client-side rule. It returns
-true for `bidirectional` and `upload-only` unless the explicit opt-in is set;
-`interactive` is retained as invocation context but grants no authorization.
+true for `bidirectional` and `upload-only` unless the explicit opt-in is set.
 `download-only` never writes and therefore does not require the key.
 
 When a write would have neither a key nor the explicit opt-in, the client logs

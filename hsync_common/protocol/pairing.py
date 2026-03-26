@@ -140,7 +140,6 @@ def is_write_direction(sync_direction: str) -> bool:
 def lan_write_requires_key(
     sync_direction: str,
     *,
-    interactive: bool,
     allow_unauthenticated_writes: bool = False,
 ) -> bool:
     """Whether a shared LAN key is mandatory before writing to the master.
@@ -148,17 +147,12 @@ def lan_write_requires_key(
     A self-signed transport hides traffic from passive eavesdroppers but does
     not authorize mutation. A write-capable no-key run is therefore rejected by
     default and is enabled only by the explicit dangerous opt-in from ADR-0029.
-    Interactivity is retained as call-context information for current consumers,
-    but no longer weakens the authorization policy.
 
     Args:
         sync_direction: This client's configured direction.
-        interactive: Whether the current invocation is interactive. This does
-            not grant write authorization under ADR-0029.
         allow_unauthenticated_writes: Explicit local opt-in to no-key mutation.
 
     Returns:
         ``True`` when the run is write-capable without the explicit opt-in.
     """
-    _ = interactive
     return is_write_direction(sync_direction) and not allow_unauthenticated_writes
