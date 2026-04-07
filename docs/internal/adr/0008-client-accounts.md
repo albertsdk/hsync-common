@@ -91,5 +91,5 @@ Alternatives rejected:
   account tokens.
 - [ADR-0012](0012-rate-limiting.md) — rate limiting is per-IP; admin endpoints
   have a stricter limit.
-- [Deployment Guide](https://github.com/albertobasso/hsync-server/blob/main/docs/deployment.md) —
+- [Deployment Guide](https://github.com/albertosdk/hsync-server/blob/main/docs/deployment.md) —
   key generation and bootstrap instructions.

@@ -14,8 +14,8 @@ desktop application.
 ---
 
 [![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)](LICENSE)
-[![CI](https://github.com/albertobasso/hsync-common/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/albertobasso/hsync-common/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/albertobasso/hsync-common)](https://github.com/albertobasso/hsync-common/releases/latest)
+[![CI](https://github.com/albertosdk/hsync-common/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/albertosdk/hsync-common/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/albertosdk/hsync-common)](https://github.com/albertosdk/hsync-common/releases/latest)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/)
 
 **Quick navigation:**
@@ -67,10 +67,10 @@ desktop application.
 
 `hsync-common` is the shared foundation consumed by the other HSYNC projects:
 
-- [HSYNC Client](https://github.com/albertobasso/hsync-client/blob/main/README.md) - Sync client (Server Mode and LAN/P2P Mode)
-- [HSYNC Server](https://github.com/albertobasso/hsync-server/blob/main/README.md) - Central synchronization server (Server Mode)
-- [HSYNC Desktop](https://github.com/albertobasso/hsync-desktop/blob/main/docs/README.md) — Desktop client GUI front-end *(in development)*.
-- [HSYNC Android](https://github.com/albertobasso/hsync-android/blob/main/docs/README.md) — Android client app *(in development)*.
+- [HSYNC Client](https://github.com/albertosdk/hsync-client/blob/main/README.md) - Sync client (Server Mode and LAN/P2P Mode)
+- [HSYNC Server](https://github.com/albertosdk/hsync-server/blob/main/README.md) - Central synchronization server (Server Mode)
+- [HSYNC Desktop](https://github.com/albertosdk/hsync-desktop/blob/main/docs/README.md) — Desktop client GUI front-end *(in development)*.
+- [HSYNC Android](https://github.com/albertosdk/hsync-android/blob/main/docs/README.md) — Android client app *(in development)*.
 
 > **Note:** The desktop GUI (`HSYNC Desktop`) and the Android app (`HSYNC Android`)
 > are still under active development and are not yet ready for production use.
@@ -79,7 +79,7 @@ desktop application.
 
 To report a vulnerability, please use GitHub's **Private Vulnerability Reporting**:
 
-👉 **[Report a vulnerability](https://github.com/albertobasso/hsync-common/security/advisories/new)**
+👉 **[Report a vulnerability](https://github.com/albertosdk/hsync-common/security/advisories/new)**
 
 See our [Security Policy](SECURITY.md) for supported versions and hardening
 recommendations.

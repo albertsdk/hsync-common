@@ -6,8 +6,8 @@ messages, the client-ID (CID) format, and the protocol-version negotiation.
 Transport-specific flows (Server Mode, LAN P2P with/without `LAN_KEY`) are
 documented in the consuming projects:
 
-- **Server-side**: [`hsync-server/docs/authentication.md`](https://github.com/albertobasso/hsync-server/blob/main/docs/authentication.md)
-- **Client-side**: [`hsync-client/docs/authentication.md`](https://github.com/albertobasso/hsync-client/blob/main/docs/authentication.md)
+- **Server-side**: [`hsync-server/docs/authentication.md`](https://github.com/albertosdk/hsync-server/blob/main/docs/authentication.md)
+- **Client-side**: [`hsync-client/docs/authentication.md`](https://github.com/albertosdk/hsync-client/blob/main/docs/authentication.md)
 
 ## What is a CID?
 
