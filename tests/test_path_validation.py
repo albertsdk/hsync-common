@@ -19,6 +19,7 @@ from hsync_common.path_validation import (
     sanitize_filename,
     validate_remote_relpath,
     wire_relpaths,
+    wire_symlink_target,
 )
 
 
@@ -363,6 +364,42 @@ class TestResolveWithin:
         assert resolve_within(str(tmp_path), ".hsyncignore") is None
 
 
+class TestResolveWithinNoFinalResolve:
+    """``resolve_final=False``: the endpoint component is never dereferenced.
+
+    Structural operations on symlinks (delete the link, replace an existing
+    link) must receive the LINK path, not its target — including a dangling
+    link whose target does not exist. Intermediate directory symlinks are
+    still resolved and confined.
+    """
+
+    def test_final_symlink_returned_as_link(self, tmp_path):
+        (tmp_path / "real.txt").write_text("x")
+        (tmp_path / "link.txt").symlink_to("real.txt")
+        result = resolve_within(str(tmp_path), "link.txt", resolve_final=False)
+        assert result == str(tmp_path / "link.txt")
+
+    def test_dangling_final_symlink_returned_as_link(self, tmp_path):
+        # A dangling link must still resolve lexically: deleting it is a
+        # legitimate operation that must not be treated as "unsafe".
+        (tmp_path / "link.txt").symlink_to("missing-target.txt")
+        result = resolve_within(str(tmp_path), "link.txt", resolve_final=False)
+        assert result == str(tmp_path / "link.txt")
+
+    def test_intermediate_escaping_symlink_still_rejected(self, tmp_path):
+        outside = tmp_path.parent / "outside2"
+        outside.mkdir(exist_ok=True)
+        (tmp_path / "hop").symlink_to(outside, target_is_directory=True)
+        assert resolve_within(str(tmp_path), "hop/secret.txt", resolve_final=False) is None
+
+    def test_final_symlink_to_outside_target_rejected_with_default(self, tmp_path):
+        outside = tmp_path.parent / "outside3.txt"
+        outside.write_text("secret")
+        (tmp_path / "evil").symlink_to(outside)
+        # Default (resolve_final=True) resolves the escaping target -> None.
+        assert resolve_within(str(tmp_path), "evil") is None
+
+
 class TestWireRelpaths:
     """SSOT extraction of every path key carried by an event payload."""
 
@@ -378,6 +415,44 @@ class TestWireRelpaths:
         assert wire_relpaths({"filepath": "", "path": None}) == []
         assert wire_relpaths({"filepath": 123}) == []
         assert wire_relpaths({}) == []
+
+
+class TestWireSymlinkTarget:
+    """``wire_symlink_target``: targets are made portable for wire replication.
+
+    An absolute target refers to the sender's filesystem layout: if sent
+    verbatim, every other peer would recreate a link pointing into the
+    sender's tree. The SSOT converts in-bucket absolute targets to a path
+    relative to the link's directory (rsync ``munge-symlinks`` semantics)
+    and rejects escaping ones.
+    """
+
+    def test_relative_target_verbatim(self, tmp_path):
+        assert wire_symlink_target(str(tmp_path / "sub" / "ln"), "../f.txt", str(tmp_path)) == (
+            "../f.txt"
+        )
+
+    def test_absolute_in_bucket_target_relative_to_link_parent(self, tmp_path):
+        target = tmp_path / "real.txt"
+        target.write_text("x")
+        # Link lives in sub/: relative target must be "../real.txt".
+        link = tmp_path / "sub" / "ln"
+        link.parent.mkdir(exist_ok=True)
+        assert wire_symlink_target(str(link), str(target), str(tmp_path)) == "../real.txt"
+
+    def test_same_directory_absolute_target(self, tmp_path):
+        target = tmp_path / "real.txt"
+        target.write_text("x")
+        link = tmp_path / "ln"
+        assert wire_symlink_target(str(link), str(target), str(tmp_path)) == "real.txt"
+
+    def test_escaping_absolute_target_rejected(self, tmp_path):
+        outside = tmp_path.parent / "outside.txt"
+        outside.write_text("secret")
+        assert wire_symlink_target(str(tmp_path / "ln"), str(outside), str(tmp_path)) is None
+
+    def test_empty_target_rejected(self, tmp_path):
+        assert wire_symlink_target(str(tmp_path / "ln"), "", str(tmp_path)) is None
 
 
 class TestIsSafeSymlinkTarget:

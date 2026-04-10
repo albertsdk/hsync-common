@@ -538,8 +538,9 @@ class TestRelpathInBucket:
         # Path.relative_to of the bucket itself returns ".", normalised to "".
         assert relpath_in_bucket("/bucket", "/bucket") == ""
 
-    def test_path_outside_bucket_returns_empty(self):
+    def test_path_outside_bucket_returns_none(self):
         # A path outside the bucket must never be confused with an
-        # in-bucket path. relative_to raises ValueError -> "" (not the
-        # raw input, which could be smuggled into a tombstone key).
-        assert relpath_in_bucket("/other/a.txt", "/bucket") == ""
+        # in-bucket path. relative_to raises ValueError -> None (never the
+        # bucket-root identity "" nor the raw input, which could be
+        # smuggled into a tombstone key and corrupt the root's state).
+        assert relpath_in_bucket("/other/a.txt", "/bucket") is None

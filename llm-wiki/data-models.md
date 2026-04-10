@@ -18,11 +18,17 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
 ## File
 
 - Attributes: `filepath, name, ctime, mtime, size, sha256sum, permissions`
-  (constructor `models/file.py:178`). `permissions` is an **octal string**
+  (constructor `models/file.py`). `permissions` is an **octal string**
   (e.g. `"644"`), produced via `permissions.get_permissions` (see utilities).
-- SHA-256 cache keyed by `(file_path, mtime)`: `_get_cached_sha256`
-  (`models/file.py:56`), `_set_cached_sha256` (`:67`), invalidation
-  `invalidate_sha256_cache` (`:43`), full clear `clear_sha256_cache` (`:34`).
+- SHA-256 cache keyed by `(file_path, mtime, size)`: `_get_cached_sha256`
+  (`models/file.py`), `_set_cached_sha256`, invalidation
+  `invalidate_sha256_cache`, full clear `clear_sha256_cache`. The **size is
+  part of the validity key**: on filesystems with coarse 1 s mtime
+  granularity a same-second same-size rewrite is indistinguishable, but a
+  size change always drops the stale digest.
+- `File.get` / `Dir.get` are **race-safe**: any `OSError` from
+  stat/hash/permission reads (file vanished mid-scan) degrades to `None`
+  instead of aborting the sync cycle.
 - Partial-download exclusion: `is_partial_file` (`models/file.py:92`) matches the
   `PARTIAL_DOWNLOAD_SUFFIX = ".part"` constant (`constants.py:74`); applied in
   the ignore matcher (`hsync_common.ignore.IgnoreMatcher`).
@@ -39,7 +45,10 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
   `Path.relative_to`: a path merely sharing the string prefix (e.g. `/base2`
   vs `/base`) is kept verbatim instead of being mangled (`2/x`).
 - `SyncActionName` (`models/sync_action.py:14`): `download, upload, delete,
-  delete_remote, nothing`.
+  delete_remote, upload_symlink, download_symlink, nothing`. The two
+  symlink actions replicate the LINK STRUCTURALLY (pair path+target) during
+  the full-sync reconcile — never file content; they are transport-agnostic
+  (server `/symlinks` and LAN master share the same surface).
 - `SyncAction.to_dict` (`models/sync_action.py:72`) serializes
   `file, name, timedelta, conflict` — the `conflict` flag is part of the
   serialized shape so the "preserve the local copy first" signal survives
@@ -49,6 +58,11 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
 
 - Key derivation hashed for privacy: `tombstone_key`/`relpath_in_bucket`
   live in `models/_util.py` and are re-exported from `models/tombstone.py`.
+  `relpath_in_bucket` returns **`None`** for a path outside the bucket
+  (component-aware `relative_to`; a sibling-prefix path like `/base2/x` vs
+  `/base` is never mangled), never the bucket-root identity `""`: mapping an
+  outside path to `tombstone_key("")` would corrupt the root's causal state.
+  Callers skip `None`/`""` relpaths (`if not relpath`).
 - `TombstoneEntry`: `{sha256: str|None, version_id: str, origin_cid: str|None,
   ts: int, vclock: dict[str,int]}` (`models/tombstone.py:76`).
 - **Causal record** (`record`/`record_by_key`): the marker inherits the stored
