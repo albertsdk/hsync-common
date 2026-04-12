@@ -8,9 +8,9 @@
 Delta-transfer worthwhileness decisions (block size, abort thresholds).
 
 Pure functions shared by every component: no I/O, no peer state. The
-direction-aware ``should_use_delta`` gate lives in the client (it needs
-``.hsyncstate`` and peer capabilities) and reuses these helpers for the
-size/change-ratio part of the decision.
+direction-aware ``prepare_delta_upload`` / ``prepare_delta_download`` gates
+live in the client (they need ``.hsyncstate`` and peer capabilities) and reuse
+these helpers for the size/change-ratio part of the decision.
 """
 
 from __future__ import annotations

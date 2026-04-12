@@ -53,7 +53,7 @@ class IgnoreMatcher:
     """gitignore-style matcher with built-in default patterns.
 
     The matcher is built around a *bucket root*; all paths passed to
-    :meth:`match` are normalised relative to that root before being
+    :meth:`matches` are normalised relative to that root before being
     tested against the loaded ``.hsyncignore`` rules.
 
     Attributes:
