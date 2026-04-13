@@ -86,7 +86,10 @@ def elect_master(candidates: Iterable[ElectionCandidate]) -> str | None:
     ranked by :func:`election_sort_key`. Returns the winning ``cid`` or ``None``
     when no node is eligible.
     """
-    eligible = [c for c in candidates if not c.never_master]
-    if not eligible:
+    eligible = (c for c in candidates if not c.never_master)
+    try:
+        return min(eligible, key=election_sort_key).cid
+    except ValueError:
+        # Empty generator: min() raises ValueError, same as the old
+        # empty-list -> None branch. One pass, no intermediate list.
         return None
-    return min(eligible, key=election_sort_key).cid

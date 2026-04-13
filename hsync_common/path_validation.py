@@ -97,6 +97,12 @@ RESERVED_FILENAMES: frozenset[str] = frozenset(
 # Windows shell ignores trailing spaces and periods
 PROBLEMATIC_TRAILING_CHARS: frozenset[str] = frozenset({" ", "."})
 
+# A whole ".." path component (between / separators or at either end).
+_DOTDOT_COMPONENT_RE = re.compile(r"(?:^|/)\.\.(?:/|$)")
+
+# One-pass C-level replacement of every forbidden/control char with "_".
+_SANITIZE_TABLE = str.maketrans({ord(c): "_" for c in FORBIDDEN_FILENAME_CHARS | CONTROL_CHARS})
+
 
 # =============================================================================
 # Validation Functions
@@ -104,13 +110,17 @@ PROBLEMATIC_TRAILING_CHARS: frozenset[str] = frozenset({" ", "."})
 
 
 def has_forbidden_chars(name: str, chars: frozenset[str]) -> bool:
-    """Check if name contains any forbidden characters."""
-    return any(char in name for char in chars)
+    """Check if name contains any forbidden characters.
+
+    ``set.isdisjoint`` walks *name* once with O(1) hash lookups instead of
+    rescanning the whole name for every forbidden char (O(n·m) → O(n)).
+    """
+    return not chars.isdisjoint(name)
 
 
 def has_control_chars(name: str) -> bool:
     """Check if name contains any control characters (ASCII 1-31)."""
-    return any(char in name for char in CONTROL_CHARS)
+    return not CONTROL_CHARS.isdisjoint(name)
 
 
 def is_reserved_name(name: str) -> bool:
@@ -119,8 +129,11 @@ def is_reserved_name(name: str) -> bool:
 
     Handles names with or without extensions (e.g., NUL.txt is also reserved).
     """
-    # Get base name without extension for checking reserved names
-    base_name = name.split(".")[0].upper() if "." in name else name.upper()
+    # Get base name without extension for checking reserved names.
+    # split(".", 1) stops at the first separator: same base name as
+    # split(".")[0] (or the name itself when there is no dot) without
+    # building the full component list.
+    base_name = name.split(".", 1)[0].upper()
     return base_name in RESERVED_FILENAMES
 
 
@@ -181,8 +194,9 @@ def has_dotdot_component(path: str) -> bool:
     Returns:
         True if any component (split on / or \\) is exactly "..".
     """
-    # Normalize separators, then split and look for an exact ".." component
-    return ".." in path.replace("\\", "/").split("/")
+    # Normalize separators, then look for an exact ".." component with a
+    # single C-regex pass (no intermediate split list allocation).
+    return bool(_DOTDOT_COMPONENT_RE.search(path.replace("\\", "/")))
 
 
 def is_safe_path_component(path: str) -> bool:
@@ -243,14 +257,9 @@ def sanitize_filename(filename: str) -> str:
     if "\\" in filename:
         filename = filename.rsplit("\\", 1)[-1]
 
-    # Remove or replace forbidden characters
-    sanitized = []
-    for char in filename:
-        if char in FORBIDDEN_FILENAME_CHARS or char in CONTROL_CHARS:
-            sanitized.append("_")  # Replace with underscore
-        else:
-            sanitized.append(char)
-    filename = "".join(sanitized)
+    # Remove or replace forbidden characters (single C-level translate pass;
+    # every forbidden/control char maps to "_", identical to the old loop).
+    filename = filename.translate(_SANITIZE_TABLE)
 
     # Remove problematic trailing characters
     filename = filename.rstrip(" .")
