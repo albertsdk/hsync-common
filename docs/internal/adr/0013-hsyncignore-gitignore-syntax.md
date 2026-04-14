@@ -59,7 +59,7 @@ Alternatives rejected:
 
 ## See also
 
-- [hsync_common/ignore.py](https://github.com/albertosdk/hsync-common/blob/main/hsync_common/ignore.py) —
+- [hsync_common/ignore.py](https://github.com/albertsdk/hsync-common/blob/main/hsync_common/ignore.py) —
   implementation.
-- [Migration Guide](https://github.com/albertosdk/hsync-client/blob/main/docs/migration.md) —
+- [Migration Guide](https://github.com/albertsdk/hsync-client/blob/main/docs/migration.md) —
   examples of converting `.stignore` and `--exclude` patterns.
