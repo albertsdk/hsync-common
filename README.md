@@ -48,6 +48,20 @@ desktop application.
 | `hsync_common.exceptions` | `HSyncError` base class |
 | `hsync_common.time_utils` | Timestamp formatting/parsing SSOT |
 
+## Benchmarks
+
+Hot-path micro-benchmarks live in [`bench/`](bench/) — L1 only (pure in-process
+measurement), because the library has no process or transport of its own. Five
+scripts cover hashing, compression, delta transfer, `.hsyncignore` matching and
+model serialization; each accepts `--count N` and `--json-out FILE`.
+
+```bash
+cd hsync-common && .venv/bin/python bench/bench_hashing.py --count 2000
+```
+
+See [`bench/README.md`](bench/README.md) for the scope of each script, the
+shared helpers and the measurement methodology.
+
 ## Documentation
 
 | Document | What it covers |
