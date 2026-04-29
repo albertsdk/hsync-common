@@ -3,11 +3,13 @@
     {
       "base_hash": "h",
       "expected_decision": "in_sync",
+      "local_corrected_mtime": 0,
       "local_hash": "h",
       "local_vclock": {
         "TestClientA1234567890": 1
       },
       "name": "identical-content-in-sync",
+      "remote_corrected_mtime": 0,
       "remote_hash": "h",
       "remote_vclock": {
         "TestClientA1234567890": 1
@@ -16,20 +18,24 @@
     {
       "base_hash": "base",
       "expected_decision": "in_sync",
+      "local_corrected_mtime": 0,
       "local_hash": null,
       "local_vclock": null,
       "name": "both-absent-in-sync",
+      "remote_corrected_mtime": 0,
       "remote_hash": null,
       "remote_vclock": null
     },
     {
       "base_hash": "base",
       "expected_decision": "download",
+      "local_corrected_mtime": 0,
       "local_hash": "base",
       "local_vclock": {
         "TestClientA1234567890": 1
       },
       "name": "local-at-base-downloads",
+      "remote_corrected_mtime": 0,
       "remote_hash": "remote",
       "remote_vclock": {
         "TestClientA1234567890": 2
@@ -38,11 +44,13 @@
     {
       "base_hash": "base",
       "expected_decision": "upload",
+      "local_corrected_mtime": 0,
       "local_hash": "local",
       "local_vclock": {
         "TestClientA1234567890": 2
       },
       "name": "remote-at-base-uploads",
+      "remote_corrected_mtime": 0,
       "remote_hash": "base",
       "remote_vclock": {
         "TestClientA1234567890": 1
@@ -51,11 +59,13 @@
     {
       "base_hash": "h0",
       "expected_decision": "download",
+      "local_corrected_mtime": 0,
       "local_hash": "h1",
       "local_vclock": {
         "TestClientA1234567890": 1
       },
       "name": "remote-dominates-downloads",
+      "remote_corrected_mtime": 0,
       "remote_hash": "h2",
       "remote_vclock": {
         "TestClientA1234567890": 2
@@ -64,11 +74,13 @@
     {
       "base_hash": "h0",
       "expected_decision": "upload",
+      "local_corrected_mtime": 0,
       "local_hash": "h2",
       "local_vclock": {
         "TestClientA1234567890": 2
       },
       "name": "local-dominates-uploads",
+      "remote_corrected_mtime": 0,
       "remote_hash": "h1",
       "remote_vclock": {
         "TestClientA1234567890": 1
@@ -77,11 +89,13 @@
     {
       "base_hash": "base",
       "expected_decision": "conflict_upload",
+      "local_corrected_mtime": 0,
       "local_hash": "zzz",
       "local_vclock": {
         "TestClientA1234567890": 2
       },
       "name": "concurrent-local-wins-tie-break",
+      "remote_corrected_mtime": 0,
       "remote_hash": "aaa",
       "remote_vclock": {
         "TestClientB1234567890": 2
@@ -90,11 +104,13 @@
     {
       "base_hash": "base",
       "expected_decision": "conflict_download",
+      "local_corrected_mtime": 0,
       "local_hash": "aaa",
       "local_vclock": {
         "TestClientA1234567890": 2
       },
       "name": "concurrent-remote-wins-tie-break",
+      "remote_corrected_mtime": 0,
       "remote_hash": "zzz",
       "remote_vclock": {
         "TestClientB1234567890": 2
@@ -103,27 +119,33 @@
     {
       "base_hash": null,
       "expected_decision": "conflict_upload",
+      "local_corrected_mtime": 0,
       "local_hash": "zzz",
       "local_vclock": null,
       "name": "no-base-no-clocks-local-wins",
+      "remote_corrected_mtime": 0,
       "remote_hash": "aaa",
       "remote_vclock": null
     },
     {
       "base_hash": null,
       "expected_decision": "conflict_download",
+      "local_corrected_mtime": 0,
       "local_hash": "aaa",
       "local_vclock": null,
       "name": "no-base-no-clocks-remote-wins",
+      "remote_corrected_mtime": 0,
       "remote_hash": "zzz",
       "remote_vclock": null
     },
     {
       "base_hash": null,
       "expected_decision": "download",
+      "local_corrected_mtime": 0,
       "local_hash": "h1",
       "local_vclock": null,
       "name": "no-base-remote-has-clock-dominates",
+      "remote_corrected_mtime": 0,
       "remote_hash": "h2",
       "remote_vclock": {
         "TestClientB1234567890": 1
@@ -132,22 +154,26 @@
     {
       "base_hash": null,
       "expected_decision": "upload",
+      "local_corrected_mtime": 0,
       "local_hash": "h2",
       "local_vclock": {
         "TestClientA1234567890": 1
       },
       "name": "no-base-local-has-clock-dominates",
+      "remote_corrected_mtime": 0,
       "remote_hash": "h1",
       "remote_vclock": null
     },
     {
       "base_hash": "base",
       "expected_decision": "conflict_upload",
+      "local_corrected_mtime": 0,
       "local_hash": "zzz",
       "local_vclock": {
         "TestClientA1234567890": 1
       },
       "name": "equal-clocks-different-hashes-concurrent",
+      "remote_corrected_mtime": 0,
       "remote_hash": "aaa",
       "remote_vclock": {
         "TestClientA1234567890": 1
@@ -156,15 +182,92 @@
     {
       "base_hash": "h0",
       "expected_decision": "download",
+      "local_corrected_mtime": 0,
       "local_hash": "h0",
       "local_vclock": {
         "TestClientA1234567890": 3
       },
       "name": "relay-dominates-no-false-conflict",
+      "remote_corrected_mtime": 0,
       "remote_hash": "h1",
       "remote_vclock": {
         "TestClientA1234567890": 3,
         "TestClientB1234567890": 1
+      }
+    },
+    {
+      "base_hash": "base",
+      "expected_decision": "conflict_upload",
+      "local_corrected_mtime": 200,
+      "local_hash": "aaa",
+      "local_vclock": {
+        "TestClientA1234567890": 2
+      },
+      "name": "corrected-mtime-local-newer-wins",
+      "remote_corrected_mtime": 100,
+      "remote_hash": "zzz",
+      "remote_vclock": {
+        "TestClientB1234567890": 2
+      }
+    },
+    {
+      "base_hash": "base",
+      "expected_decision": "conflict_download",
+      "local_corrected_mtime": 100,
+      "local_hash": "zzz",
+      "local_vclock": {
+        "TestClientA1234567890": 2
+      },
+      "name": "corrected-mtime-remote-newer-wins",
+      "remote_corrected_mtime": 200,
+      "remote_hash": "aaa",
+      "remote_vclock": {
+        "TestClientB1234567890": 2
+      }
+    },
+    {
+      "base_hash": "base",
+      "expected_decision": "conflict_upload",
+      "local_corrected_mtime": 150,
+      "local_hash": "zzz",
+      "local_vclock": {
+        "TestClientA1234567890": 2
+      },
+      "name": "corrected-mtime-equal-falls-back-to-hash",
+      "remote_corrected_mtime": 150,
+      "remote_hash": "aaa",
+      "remote_vclock": {
+        "TestClientB1234567890": 2
+      }
+    },
+    {
+      "base_hash": "base",
+      "expected_decision": "conflict_upload",
+      "local_corrected_mtime": 100,
+      "local_hash": "zzz",
+      "local_vclock": {
+        "TestClientA1234567890": 2
+      },
+      "name": "corrected-mtime-local-only-falls-back-to-hash",
+      "remote_corrected_mtime": 0,
+      "remote_hash": "aaa",
+      "remote_vclock": {
+        "TestClientB1234567890": 2
+      }
+    },
+    {
+      "base_hash": "base",
+      "expected_decision": "conflict_download",
+      "local_corrected_mtime": 0,
+      "local_hash": "aaa",
+      "local_vclock": {
+        "TestClientA1234567890": 2
+      },
+      "name": "corrected-mtime-remote-only-falls-back-to-hash",
+      "remote_corrected_mtime": 100,
+      "remote_hash": "zzz",
+      "remote_vclock": {
+        "TestClientB1234567890": 2
       }
     }
   ]

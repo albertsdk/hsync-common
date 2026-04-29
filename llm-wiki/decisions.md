@@ -26,6 +26,7 @@ each ADR to the code it governs.
 | [0018 origin-based-log-labels](../docs/internal/adr/0018-origin-based-log-labels.md) | `labels.py` (`ActionLabel`, `resolve_label`, `LOCAL`/`REMOTE` prefix); Kotlin mirror `LogManager.kt` |
 | [0020 lan-security-model](../docs/internal/adr/0020-lan-security-model.md) | `protocol/pairing.py` (pairing); `ssl_utils.py` (self-signed cert); `hsync_client/pinning.py` (TOFU pinning); Android `PinStore.kt` |
 | [0022 causal-vector-clock-conflict-model](../docs/internal/adr/0022-causal-vector-clock-conflict-model.md) | `models/version.py` (`resolve_three_way`, `compare_vclocks`, `tick_vclock`, `merge_vclocks`, `SyncStateStore`); `Capability.vector_clocks`; `FileDict.version` |
+| [0023 corrected-mtime-tie-break](../docs/internal/adr/0023-corrected-mtime-tie-break.md) | `clock.py` (HTTP/RTT + SNTP multi-host probes, `ClockOffsetStore`/`correct_mtime`, `clamp_wire_corrected_mtime`); `constants.py` (`NTP_DEFAULT_HOSTS`, skew guard); `models/version.py` (`corrected_mtime` fields + tie-break in `resolve_three_way`); `HSYNC_NTP_HOSTS` env var (WD OS5 packaging) |
 
 LAN transport/security specifics (TOFU pinning, LAN-key policy, threat model)
 live in [`../docs/lan-protocol.md`](../docs/lan-protocol.md) and map to

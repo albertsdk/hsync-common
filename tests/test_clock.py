@@ -1,14 +1,29 @@
 """Tests for hsync_common.clock."""
 
+import struct
+import time
 from unittest.mock import patch
 
 import pytest
 
 from hsync_common.clock import (
     CLOCK_SKEW_THRESHOLD,
+    ClockOffsetStore,
+    _ntp64_to_unix,
+    _parse_sntp_response,
+    _unix_to_ntp64,
+    clamp_incoming_corrected_mtime,
+    clamp_wire_corrected_mtime,
     compute_clock_offset,
+    correct_mtime,
     measure_clock_offset,
+    measure_clock_offset_ntp_multi,
+    now_corrected,
+    offset_store,
+    parse_ntp_hosts,
+    parse_ntp_targets,
 )
+from hsync_common.constants import NTP_DEFAULT_HOSTS
 
 
 class _FakeResponse:
@@ -152,3 +167,238 @@ class TestMeasureClockOffset:
 
         with pytest.raises(RuntimeError):
             measure_clock_offset("http://srv/api/v1/time", http_get=_boom)
+
+
+# ── SNTP / offset-store helpers (ADR-0023) ───────────────────────────────────
+
+
+def _sntp_reply(server_unix: float, *, mode: int = 4, stratum: int = 2) -> bytes:
+    """Build a 48-byte server-mode SNTP reply carrying *server_unix* in the
+    transmit timestamp (bytes 40-47), like a real NTP server would."""
+    whole, fraction = _unix_to_ntp64(server_unix)
+    header = bytearray(48)
+    header[0] = (4 << 3) | mode  # LI=0, VN=4, mode
+    header[1] = stratum
+    header[40:48] = struct.pack("!II", whole, fraction)
+    return bytes(header)
+
+
+class TestParseNtpHosts:
+    def test_none_returns_defaults(self):
+        assert parse_ntp_hosts(None) == NTP_DEFAULT_HOSTS
+
+    def test_empty_and_blank_returns_defaults(self):
+        assert parse_ntp_hosts("") == NTP_DEFAULT_HOSTS
+        assert parse_ntp_hosts("  , , ") == NTP_DEFAULT_HOSTS
+
+    def test_csv_is_split_and_stripped(self):
+        assert parse_ntp_hosts(" one , two.example ,three ") == (
+            "one",
+            "two.example",
+            "three",
+        )
+
+    def test_blank_entries_are_dropped(self):
+        assert parse_ntp_hosts("one,,two") == ("one", "two")
+
+
+class TestParseNtpTargets:
+    def test_none_returns_defaults_on_standard_port(self):
+        assert parse_ntp_targets(None) == tuple((h, 123) for h in NTP_DEFAULT_HOSTS)
+
+    def test_host_port_overrides(self):
+        assert parse_ntp_targets("stub.local:8123") == (("stub.local", 8123),)
+
+    def test_mixed_entries(self):
+        assert parse_ntp_targets("a.example, b.example:9000") == (
+            ("a.example", 123),
+            ("b.example", 9000),
+        )
+
+    def test_invalid_port_drops_entry(self):
+        assert parse_ntp_targets("bad:notaport") == parse_ntp_targets("")
+
+
+class TestNtp64RoundTrip:
+    def test_unix_to_ntp_and_back(self):
+        for unix in (0.0, 1_700_000_000.0, 1_700_000_000.5):
+            whole, fraction = _unix_to_ntp64(unix)
+            assert _ntp64_to_unix(whole, fraction) == pytest.approx(unix, abs=2**-32)
+
+
+class TestParseSntpResponse:
+    def test_server_reply_yields_offset_and_rtt(self):
+        # t1=100.0 before request, remote=110.5, t4=101.0 after reply.
+        reply = _sntp_reply(110.5)
+        result = _parse_sntp_response(reply, t1=100.0, t4=101.0)
+        assert result is not None
+        offset, rtt = result
+        assert offset == pytest.approx(10.0)
+        assert rtt == pytest.approx(1.0)
+
+    def test_truncated_reply_returns_none(self):
+        assert _parse_sntp_response(b"\x23" * 10, t1=0.0, t4=1.0) is None
+
+    def test_non_server_mode_returns_none(self):
+        reply = _sntp_reply(100.0, mode=3)  # a client-mode reply is not a server answer
+        assert _parse_sntp_response(reply, t1=0.0, t4=1.0) is None
+
+    def test_kiss_of_death_returns_none(self):
+        reply = _sntp_reply(100.0, stratum=0)  # Kiss-o'-Death ⇒ unusable
+        assert _parse_sntp_response(reply, t1=0.0, t4=1.0) is None
+
+
+class TestMeasureClockOffsetNtpMulti:
+    def test_first_working_host_wins(self):
+        """The probe stops at the first answering host and reports it."""
+
+        def _fake_probe(host: str, *, port, timeout):
+            if host == "good.example":
+                return (10.0, 1.0)
+            return None
+
+        with patch("hsync_common.clock._sntp_probe_once", side_effect=_fake_probe):
+            result = measure_clock_offset_ntp_multi(
+                ("good.example", "other.example"), timeout=0.1, probes=1
+            )
+        assert result is not None
+        assert result[2] == "good.example"
+
+    def test_all_hosts_down_returns_none(self):
+        """Offline/air-gapped: every SNTP host fails ⇒ None (caller records offset 0)."""
+        with patch("hsync_common.clock._sntp_probe_once", return_value=None):
+            result = measure_clock_offset_ntp_multi(
+                ("down1.example", "down2.example"), timeout=0.1, probes=1
+            )
+        assert result is None
+
+    def test_fallback_to_second_host(self):
+        """When the first host is unreachable the next one is tried."""
+        calls: list[str] = []
+
+        def _fake_probe(host: str, *, port, timeout):
+            calls.append(host)
+            return (5.0, 1.0) if host == "second.example" else None
+
+        with patch("hsync_common.clock._sntp_probe_once", side_effect=_fake_probe):
+            result = measure_clock_offset_ntp_multi(
+                ("first.example", "second.example"), timeout=0.1, probes=1
+            )
+        assert result is not None
+        assert result[2] == "second.example"
+        assert calls == ["first.example", "second.example"]
+
+
+class TestClockOffsetStore:
+    def test_unresolved_mtime_is_identity(self):
+        store = ClockOffsetStore()
+        assert store.correct_mtime(1234) == 1234
+
+    def test_positive_offset_shifts_forward(self):
+        store = ClockOffsetStore()
+        store.record(10.0, "ntp://host")
+        assert store.get() == 10.0
+        assert store.source == "ntp://host"
+        assert store.resolved() is True
+        assert store.correct_mtime(100) == 110
+
+    def test_negative_offset_shifts_backward(self):
+        store = ClockOffsetStore()
+        store.record(-6.0, "server")
+        assert store.correct_mtime(100) == 94
+
+    def test_clear_forgets_measurement(self):
+        store = ClockOffsetStore()
+        store.record(4.0, "server")
+        store.clear()
+        assert store.resolved() is False
+        assert store.correct_mtime(100) == 100
+
+    def test_module_singleton_correct_mtime(self):
+        offset_store.clear()
+        offset_store.record(7, "test")
+        try:
+            assert correct_mtime(100) == 107
+        finally:
+            offset_store.clear()
+
+    def test_zero_offset_is_degraded_mode_but_resolved(self):
+        # Offline: offset 0 is still a recorded (resolved) measurement so
+        # mtimes flow through unmodified and sync proceeds.
+        store = ClockOffsetStore()
+        store.record(0.0, "offline")
+        assert store.resolved() is True
+        assert store.correct_mtime(500) == 500
+
+
+class TestClampWireCorrectedMtime:
+    def test_within_skew_kept(self):
+        assert clamp_wire_corrected_mtime(1_000_000, 1_000_100) == 1_000_000
+
+    def test_far_future_clamped(self):
+        clamped = clamp_wire_corrected_mtime(10_000_000, 1_000_000)
+        assert clamped == 1_000_000 + 300
+
+    def test_past_value_kept(self):
+        assert clamp_wire_corrected_mtime(999_000, 1_000_000) == 999_000
+
+
+class TestClampIncomingCorrectedMtime:
+    """ADR-0023 receiver-side guard wired into every consuming hub."""
+
+    def test_unknown_zero_passes_through(self):
+        # 0 means "the sender does not carry the field" — never clamp it.
+        assert clamp_incoming_corrected_mtime(0) == 0
+
+    def test_negative_passes_through_as_unknown(self):
+        # Callers pre-filter negatives; the helper must not manufacture a
+        # positive bound from a bogus input.
+        assert clamp_incoming_corrected_mtime(-5) == 0
+
+    def test_within_skew_kept(self):
+        offset_store.clear()
+        offset_store.record(0.0, "test")
+        try:
+            now = int(now_corrected())
+            assert clamp_incoming_corrected_mtime(float(now)) == now
+        finally:
+            offset_store.clear()
+
+    def test_far_future_clamped_against_corrected_reference(self):
+        offset_store.clear()
+        offset_store.record(120.0, "test")
+        try:
+            now = now_corrected()
+            clamped = clamp_incoming_corrected_mtime(now + 10_000)
+            assert clamped == pytest.approx(now + 300)
+        finally:
+            offset_store.clear()
+
+    def test_offset_shifts_the_reference(self):
+        # The guard measures the peer value against the *corrected* clock: an
+        # offset of +500 s still clamps a +10 000 s value to now_corrected+300.
+        offset_store.clear()
+        offset_store.record(500.0, "test")
+        try:
+            now = now_corrected()
+            clamped = clamp_incoming_corrected_mtime(now + 10_000)
+            assert clamped == pytest.approx(now + 300)
+        finally:
+            offset_store.clear()
+
+
+class TestNowCorrected:
+    def test_unresolved_now_is_raw_local_time(self):
+        offset_store.clear()
+        try:
+            assert abs(now_corrected() - int(time.time())) <= 1
+        finally:
+            offset_store.clear()
+
+    def test_offset_applied(self):
+        offset_store.clear()
+        offset_store.record(42.0, "test")
+        try:
+            assert abs(now_corrected() - (int(time.time()) + 42)) <= 1
+        finally:
+            offset_store.clear()

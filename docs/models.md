@@ -20,6 +20,9 @@ Represents a file with its synchronisation metadata:
 Key features:
 - **SHA-256 caching** — in-memory cache keyed by `(filepath, mtime)` to avoid
   redundant hash computation within a sync cycle.
+- **Version metadata** — `version` carries the vector-clock state and the
+  clock-offset-corrected `corrected_mtime` used by the chronological
+  tie-break on concurrent edits (see `SyncStateStore` below).
 - **Adaptive chunk sizes** — SHA-256 computation uses 8 KB / 64 KB / 256 KB
   chunks depending on file size for optimal throughput.
 
@@ -61,10 +64,15 @@ not resurrect a file during a full reconciliation. Key features:
 
 ## SyncStateStore / FileVersion
 
-Backs the three-way merge conflict model. `SyncStateStore` persists per-file
-base versions (the hash known to both peers) to the `.hsyncstate` side-car so
-that conflicts are detected on the next reconciliation rather than by timestamp
-alone.
+Backs the causal three-way merge (vector-clock) conflict model. `SyncStateStore`
+persists per-file versions to the `.hsyncstate` side-car; each `FileVersion`
+records the base content hash, the causal `vclock`, and a `corrected_mtime`
+(the local modification time corrected by the clock offset measured against
+the server or the NTP servers — see the [Clock section](utilities.md#clock-synchronisation-hsync_commonclock)).
+When two devices edit the same file concurrently, the version with the most
+recent corrected time keeps the original path and the losing content is
+preserved as a `_conflicted_copy_` file; when a side lacks the field the
+comparison falls back to a deterministic hash tie-break.
 
 ## Delta transfer models
 

@@ -5,29 +5,105 @@
 # Copyright (C) 2025 Alberto Basso
 
 """
-Clock-skew measurement utilities shared between HSYNC client and server.
+Clock-offset measurement utilities shared by every HSYNC project.
 
-HSYNC relies on the operating-system time synchronisation (NTP, e.g. chrony,
-systemd-timesyncd or the Windows Time service) for correct file timestamps:
-``mtime`` travels with the file as metadata, so it is consistent across peers,
-but the *direction* of a sync is decided by comparing timestamps. A large
-clock offset between two machines that edit the same file close in time can
-therefore lead to an incorrect winner.
+HSYNC keeps the wall clock out of *causal* decisions (vector clocks, ADR-0022),
+but the tie-break for a true concurrent divergence is chronological: the
+``corrected_mtime`` of each version decides which content keeps the original
+path and which one is preserved as a ``_conflicted_copy_`` (ADR-0023). For that
+timestamp to be comparable across machines the local clock must be corrected by
+the offset measured against a trusted reference:
 
-These helpers implement an NTP-like round-trip measurement against the
-server/master ``/api/v1/time`` endpoint. They are purely diagnostic: the
-offset is surfaced as a warning so the operator can fix the system clock; it
-is never silently applied to rewrite timestamps (which would be unreliable in
-multi-peer topologies).
+* **Client-server mode** — the server/master is the time authority:
+  :func:`measure_clock_offset` performs an NTP-like HTTP round-trip against the
+  ``/api/v1/time`` endpoint (``compute_clock_offset`` is the shared math).
+
+* **LAN P2P / no-server startup** — :func:`measure_clock_offset_ntp_multi`
+  probes a configurable list of public SNTP servers (UDP, RFC 4330) in order
+  until one answers; the estimate is the median of several round-trips.
+
+* **Offline / air-gapped** — every probe fails: the caller records offset 0 and
+  logs a degraded-temporal-mode warning; synchronisation must proceed.
+
+The measured offset (remote clock − local clock) is process-local and consumed
+through the :class:`ClockOffsetStore` singleton: ``correct_mtime(mtime)``
+returns ``mtime + offset`` (int). Measurements are never persisted and never
+write the system clock. Wire-supplied offsets/timestamps are *clamped* by
+:func:`clamp_wire_corrected_mtime` so a far-future peer value cannot win every
+tie-break (conflict engineering).
+
+Consumers: ``hsync-client`` (startup probing, mtime correction on
+self-record/advertising), ``hsync-server`` (clamping of incoming upload
+metadata), ``hsync-android`` (``TimeSync.kt`` mirror) and the shared fixtures.
 """
 
 import math
+import socket
+import struct
 import time
+from statistics import median
 from typing import Protocol
 
+from .constants import (
+    CORRECTED_MTIME_MAX_FUTURE_SKEW,
+    NTP_DEFAULT_HOSTS,
+    NTP_PORT,
+    NTP_PROBES_PER_HOST,
+    NTP_TIMEOUT_SECONDS,
+)
+
 # Clock skew warning threshold in seconds. Offsets above this value are
-# surfaced as a warning to the operator.
+# surfaced as a warning to the operator (kept for the diagnostic helpers).
 CLOCK_SKEW_THRESHOLD = 5.0
+
+# Seconds between NTP epoch (1900-01-01) and Unix epoch (1970-01-01).
+_NTP_EPOCH_DELTA = 2_208_988_800
+
+__all__ = [
+    "CLOCK_SKEW_THRESHOLD",
+    "ClockOffsetStore",
+    "HttpGet",
+    "TimeResponse",
+    "clamp_incoming_corrected_mtime",
+    "clamp_wire_corrected_mtime",
+    "compute_clock_offset",
+    "correct_mtime",
+    "measure_clock_offset",
+    "measure_clock_offset_ntp",
+    "measure_clock_offset_ntp_multi",
+    "now_corrected",
+    "offset_store",
+    "parse_ntp_hosts",
+    "parse_ntp_targets",
+]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Offset math (shared by the HTTP and SNTP probes)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def compute_clock_offset(t1: float, t2: float, t3: float) -> tuple[float, float]:
+    """
+    Compute the NTP-like clock offset and round-trip time.
+
+    Args:
+        t1: Local time immediately before the request.
+        t2: Remote time reported by the peer (``/api/v1/time`` or SNTP).
+        t3: Local time immediately after the response.
+
+    Returns:
+        Tuple ``(offset, rtt)`` in seconds. ``offset`` is positive when the
+        remote clock is ahead of the local one.
+    """
+    rtt = t3 - t1
+    offset = t2 - (t1 + rtt / 2)
+    return offset, rtt
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HTTP probe (server/master time authority, client-server mode)
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 class TimeResponse(Protocol):
@@ -44,24 +120,6 @@ class HttpGet(Protocol):
     def __call__(self, url: str, **kwargs) -> TimeResponse: ...
 
 
-def compute_clock_offset(t1: float, t2: float, t3: float) -> tuple[float, float]:
-    """
-    Compute the NTP-like clock offset and round-trip time.
-
-    Args:
-        t1: Local time immediately before the request.
-        t2: Remote time reported by the server (``/api/v1/time``).
-        t3: Local time immediately after the response.
-
-    Returns:
-        Tuple ``(offset, rtt)`` in seconds. ``offset`` is positive when the
-        remote clock is ahead of the local one.
-    """
-    rtt = t3 - t1
-    offset = t2 - (t1 + rtt / 2)
-    return offset, rtt
-
-
 def measure_clock_offset(
     time_url: str,
     *,
@@ -76,7 +134,7 @@ def measure_clock_offset(
     Performs a single round-trip GET using the injected ``http_get`` callable
     (so this module stays free of any HTTP dependency) and returns the
     estimated offset. Network errors are *not* caught here: the caller decides
-    how to handle them (typically a debug log).
+    how to handle them (typically a debug log and offset 0).
 
     Args:
         time_url: Full URL of the time endpoint.
@@ -112,3 +170,279 @@ def measure_clock_offset(
         return None
 
     return compute_clock_offset(t1, t2, t3)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SNTP probe (UDP, RFC 4330 — LAN P2P / no-server startup)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def parse_ntp_hosts(value: str | None) -> tuple[str, ...]:
+    """Parse the ``HSYNC_NTP_HOSTS`` CSV value into a non-empty host tuple.
+
+    Empty/blank entries are skipped; ``None`` or an all-blank value returns
+    the defaults from :data:`hsync_common.constants.NTP_DEFAULT_HOSTS`.
+    Consumers: ``hsync-client`` (config layer), ``hsync-android`` mirror.
+    """
+    if value is None:
+        return NTP_DEFAULT_HOSTS
+    hosts = tuple(h.strip() for h in value.split(",") if h.strip())
+    return hosts or NTP_DEFAULT_HOSTS
+
+
+def parse_ntp_targets(value: str | None) -> tuple[tuple[str, int], ...]:
+    """Parse ``HSYNC_NTP_HOSTS`` into ``(host, port)`` targets.
+
+    Each CSV entry is ``host`` (default SNTP port) or ``host:port`` (port
+    override — useful for operating behind a gateway or in test harnesses).
+    Malformed ports are dropped with their host; ``None``/blank falls back to
+    the default hosts on the standard port.
+
+    Consumers: ``hsync-client`` (``timesync`` probe), ``hsync-android``
+    (``TimeSync.ntpTargets`` mirror) and the shared fixtures.
+    """
+    targets: list[tuple[str, int]] = []
+    for entry in parse_ntp_hosts(value):
+        host, _, port_raw = entry.partition(":")
+        if not host:
+            continue
+        port = NTP_PORT
+        if port_raw:
+            try:
+                parsed_port = int(port_raw)
+            except ValueError:
+                continue
+            if 1 <= parsed_port <= 65535:
+                port = parsed_port
+        targets.append((host, port))
+    if not targets:
+        # Every entry carried a malformed port: fall back to the defaults on
+        # the standard port — the same never-empty contract as parse_ntp_hosts.
+        return tuple((h, NTP_PORT) for h in NTP_DEFAULT_HOSTS)
+    return tuple(targets)
+
+
+def _unix_to_ntp64(unix_epoch: float) -> tuple[int, int]:
+    """Convert Unix epoch seconds to the 64-bit NTP timestamp (whole, fraction)."""
+    seconds = unix_epoch + _NTP_EPOCH_DELTA
+    whole = int(seconds)
+    fraction = int((seconds - whole) * (1 << 32))
+    return whole & 0xFFFFFFFF, fraction & 0xFFFFFFFF
+
+
+def _ntp64_to_unix(whole: int, fraction: int) -> float:
+    """Convert a 64-bit NTP timestamp (whole, fraction) to Unix epoch seconds."""
+    return (whole + fraction / (1 << 32)) - _NTP_EPOCH_DELTA
+
+
+def _build_sntp_client_packet() -> bytes:
+    """Build a 48-byte SNTP client request (version 4, client mode)."""
+    whole, fraction = _unix_to_ntp64(time.time())
+    # LI=0, VN=4, Mode=3 (client) = 0b00_100_011 = 0x23; transmit timestamp at
+    # bytes 40-47 lets us match the response and compute the round-trip.
+    return b"\x23" + b"\x00" * 39 + struct.pack("!II", whole, fraction)
+
+
+def _parse_sntp_response(packet: bytes, t1: float, t4: float) -> tuple[float, float] | None:
+    """Parse an SNTP server reply; return ``(offset, rtt)`` or ``None``.
+
+    Rejects truncation, non-server replies (mode != 4) and stratum 0
+    (Kiss-o'-Death): any unusable reply degrades the measurement to ``None``.
+    """
+    if len(packet) < 48:
+        return None
+    mode = packet[0] & 0x07
+    stratum = packet[1]
+    if mode != 4 or stratum == 0:
+        return None
+    t3_whole, t3_fraction = struct.unpack("!II", packet[40:48])
+    t3 = _ntp64_to_unix(t3_whole, t3_fraction)
+    if not math.isfinite(t3):
+        return None
+    return compute_clock_offset(t1, t3, t4)
+
+
+def _sntp_probe_once(host: str, *, port: int, timeout: float) -> tuple[float, float] | None:
+    """Perform one SNTP round-trip to *host*; returns ``(offset, rtt)`` or ``None``."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.settimeout(timeout)
+            packet = _build_sntp_client_packet()
+            t1 = time.time()
+            sock.sendto(packet, (host, port))
+            reply, _ = sock.recvfrom(48)
+            t4 = time.time()
+    except OSError:
+        # timeouts, unreachable hosts, DNS failures: caller moves on.
+        return None
+    return _parse_sntp_response(reply, t1, t4)
+
+
+def measure_clock_offset_ntp(
+    host: str,
+    *,
+    port: int = NTP_PORT,
+    timeout: float = NTP_TIMEOUT_SECONDS,
+    probes: int = NTP_PROBES_PER_HOST,
+) -> tuple[float, float] | None:
+    """Measure the clock offset against a single SNTP server.
+
+    Runs ``probes`` round-trips and returns the **median** offset so a single
+    jittery reply cannot bias the estimate. The first successful probe is
+    enough only when ``probes`` is 1; otherwise every reply must parse.
+
+    Returns:
+        Tuple ``(offset, rtt)`` in seconds (``offset`` positive when the
+        remote clock is ahead of the local one), or ``None`` when the server
+        is unreachable or every reply was unusable.
+    """
+    results: list[tuple[float, float]] = []
+    for _ in range(max(1, probes)):
+        probe = _sntp_probe_once(host, port=port, timeout=timeout)
+        if probe is None:
+            continue
+        results.append(probe)
+    if not results:
+        return None
+    return float(median(r[0] for r in results)), float(median(r[1] for r in results))
+
+
+def measure_clock_offset_ntp_multi(
+    hosts: tuple[str, ...] | tuple[tuple[str, int], ...] = NTP_DEFAULT_HOSTS,
+    *,
+    port: int = NTP_PORT,
+    timeout: float = NTP_TIMEOUT_SECONDS,
+    probes: int = NTP_PROBES_PER_HOST,
+) -> tuple[float, float, str] | None:
+    """Probe *hosts* in order until one answers; return ``(offset, rtt, host)``.
+
+    Each entry may be a bare host (probed on *port*) or a ``(host, port)``
+    pair (per-host port override). Returns ``None`` when every host fails
+    (offline/air-gapped): the caller records offset 0 and logs degraded
+    temporal-mode operation.
+    """
+    for entry in hosts:
+        if isinstance(entry, tuple):
+            host, host_port = entry
+        else:
+            host, host_port = entry, port
+        result = measure_clock_offset_ntp(host, port=host_port, timeout=timeout, probes=probes)
+        if result is not None:
+            return result[0], result[1], host
+    return None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Process-local offset store & mtime correction
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class ClockOffsetStore:
+    """Process-local holder of the measured clock offset (remote − local).
+
+    Measured once at startup (or handshake) and consumed through
+    :meth:`correct_mtime` every time a local version is self-recorded or
+    advertised. The offset is never persisted: a stale value is harmless
+    because it is re-measured on every process start.
+
+    Consumers: ``hsync-client`` (all three transport modes), ``hsync-server``
+    (clamping reference), ``hsync-android`` (``TimeSync.kt`` mirror).
+    """
+
+    def __init__(self) -> None:
+        self._offset: float | None = None
+        self._source: str | None = None
+
+    def record(self, offset: float, source: str) -> None:
+        """Store the measured offset and its provenance (e.g. host/URL)."""
+        self._offset = float(offset)
+        self._source = source
+
+    def get(self) -> float | None:
+        """Return the stored offset (``None`` before any measurement)."""
+        return self._offset
+
+    @property
+    def source(self) -> str | None:
+        """Provenance of the stored offset (host/URL, or ``None``)."""
+        return self._source
+
+    def resolved(self) -> bool:
+        """True once a measurement (even zero) has been recorded."""
+        return self._offset is not None
+
+    def clear(self) -> None:
+        """Forget the stored offset (used by tests and mode switches)."""
+        self._offset = None
+        self._source = None
+
+    def correct_mtime(self, mtime: int | float) -> int:
+        """Return ``mtime + offset`` as int (raw ``mtime`` when unresolved)."""
+        value = int(mtime)  # bool would collapse to 0/1; callers pass mtimes
+        if self._offset is not None:
+            return value + int(self._offset)
+        return value
+
+
+# Module-level singleton: one measurement per process, shared by every module
+# that corrects timestamps (mirrored as a singleton in Android's TimeSync.kt).
+offset_store = ClockOffsetStore()
+
+
+def correct_mtime(mtime: int | float) -> int:
+    """Correct *mtime* by the process offset (identity when unresolved).
+
+    Consumers: ``hsync-client`` (``sync_state`` self-record, upload/listings
+    version metadata), ``hsync-android`` mirror.
+    """
+    return offset_store.correct_mtime(mtime)
+
+
+def now_corrected() -> float:
+    """Current local time corrected by the process offset (clamping reference).
+
+    The receiver-side guard of ADR-0023 measures a peer-supplied
+    ``corrected_mtime`` against this reference: a value farther than
+    ``CORRECTED_MTIME_MAX_FUTURE_SKEW`` in the future is clamped instead of
+    being allowed to win every tie-break.
+
+    Consumers: ``hsync-server`` (upload/delta-apply arbitration metadata),
+    ``hsync-client`` (LAN master upload arbitration, remote decode),
+    ``hsync-android`` (``TimeSync.kt`` mirror).
+    """
+    return offset_store.correct_mtime(time.time())
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Wire-side clamping (conflict engineering)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def clamp_wire_corrected_mtime(value: float, now_corrected: float) -> float:
+    """Clamp a peer-supplied ``corrected_mtime`` to a sane upper bound.
+
+    A far-future value announced by a malicious or wildly mis-set peer would
+    win every mtime tie-break; values beyond ``now_corrected +
+    CORRECTED_MTIME_MAX_FUTURE_SKEW`` are clamped to exactly that bound (never
+    rejected, so the field still participates in comparisons).
+
+    Consumers: ``hsync-server`` (upload arbitration metadata), ``hsync-client``
+    (remote decode), ``hsync-android`` (``TimeSync.kt`` mirror).
+    """
+    return min(value, now_corrected + CORRECTED_MTIME_MAX_FUTURE_SKEW)
+
+
+def clamp_incoming_corrected_mtime(value: float) -> float:
+    """Clamp an incoming corrected mtime against this process's reference.
+
+    Thin convenience wrapper over :func:`clamp_wire_corrected_mtime` that
+    pins the reference to the local corrected clock
+    (:func:`now_corrected`): the ADR-0023 receiver-side guard shared by every
+    consuming hub (server upload/delta-apply, LAN master upload, client
+    remote decode). A value of ``0`` (unknown) passes through unchanged.
+
+    Consumers: ``hsync-server``, ``hsync-client``, ``hsync-android`` mirror.
+    """
+    if value <= 0:
+        return 0.0
+    return clamp_wire_corrected_mtime(value, now_corrected())
