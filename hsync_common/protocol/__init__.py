@@ -29,10 +29,11 @@ PROTOCOL_DIR = Path(__file__).resolve().parent
 # Canonical location of the committed REST OpenAPI snapshot.
 REST_OPENAPI_PATH = PROTOCOL_DIR / "rest" / "openapi.json"
 
-# Canonical locations of the committed WebSocket and LAN/TXT JSON Schemas
+# Canonical locations of the committed WebSocket and LAN JSON Schemas
 # (generated from hsync_common.protocol.schemas; never hand-edit them).
 WS_SCHEMA_PATH = PROTOCOL_DIR / "ws" / "ws-schema.json"
 LAN_TXT_SCHEMA_PATH = PROTOCOL_DIR / "lan" / "txt-schema.json"
+LAN_WSS_SCHEMA_PATH = PROTOCOL_DIR / "lan" / "wss-schema.json"
 
 # Canonical directory of the committed golden protocol fixtures (generated from
 # hsync_common.protocol.fixtures; consumed as cross-language test inputs).
@@ -86,6 +87,7 @@ __all__ = [
     "REST_OPENAPI_PATH",
     "WS_SCHEMA_PATH",
     "LAN_TXT_SCHEMA_PATH",
+    "LAN_WSS_SCHEMA_PATH",
     "FIXTURES_DIR",
     "ANDROID_FIXTURES_DIR",
     "dump_contract",

@@ -1,0 +1,428 @@
+{
+  "$defs": {
+    "auth": {
+      "additionalProperties": false,
+      "properties": {
+        "capabilities": {
+          "items": {
+            "enum": [
+              "compression",
+              "delta",
+              "https",
+              "never_master",
+              "tombstones",
+              "vector_clocks"
+            ]
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "cid": {
+          "type": "string"
+        },
+        "protocol_version": {
+          "const": "lan/1"
+        },
+        "token": {
+          "type": "string"
+        },
+        "type": {
+          "const": "auth"
+        }
+      },
+      "required": [
+        "type",
+        "token",
+        "cid",
+        "protocol_version",
+        "capabilities"
+      ],
+      "title": "LanAuth",
+      "type": "object"
+    },
+    "authFailed": {
+      "additionalProperties": false,
+      "properties": {
+        "protocol_version": {
+          "const": "lan/1"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "status": {
+          "const": "failed"
+        },
+        "type": {
+          "const": "auth"
+        }
+      },
+      "required": [
+        "type",
+        "status",
+        "protocol_version",
+        "reason"
+      ],
+      "title": "LanAuthFailed",
+      "type": "object"
+    },
+    "authOk": {
+      "additionalProperties": false,
+      "properties": {
+        "capabilities": {
+          "items": {
+            "enum": [
+              "compression",
+              "delta",
+              "https",
+              "never_master",
+              "tombstones",
+              "vector_clocks"
+            ]
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "protocol_version": {
+          "const": "lan/1"
+        },
+        "status": {
+          "const": "ok"
+        },
+        "type": {
+          "const": "auth"
+        }
+      },
+      "required": [
+        "type",
+        "status",
+        "protocol_version",
+        "capabilities"
+      ],
+      "title": "LanAuthOk",
+      "type": "object"
+    },
+    "authRequired": {
+      "additionalProperties": false,
+      "properties": {
+        "capabilities": {
+          "items": {
+            "enum": [
+              "compression",
+              "delta",
+              "https",
+              "never_master",
+              "tombstones",
+              "vector_clocks"
+            ]
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "protocol_version": {
+          "const": "lan/1"
+        },
+        "type": {
+          "const": "auth_required"
+        }
+      },
+      "required": [
+        "type",
+        "protocol_version",
+        "capabilities"
+      ],
+      "title": "LanAuthRequired",
+      "type": "object"
+    },
+    "dir": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "permissions": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "permissions"
+      ],
+      "title": "Dir",
+      "type": "object"
+    },
+    "entity": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/file"
+        },
+        {
+          "$ref": "#/$defs/dir"
+        },
+        {
+          "$ref": "#/$defs/symlink"
+        }
+      ]
+    },
+    "file": {
+      "additionalProperties": false,
+      "properties": {
+        "ctime": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "filepath": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mtime": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "permissions": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha256sum": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "size": {
+          "type": "integer"
+        },
+        "version": {
+          "additionalProperties": false,
+          "description": "Causal version metadata joined from the version store (ADR-0022). Optional: absent ⇒ empty vector clock.",
+          "properties": {
+            "corrected_mtime": {
+              "description": "Clock-offset-corrected modification time used as the chronological tie-break on concurrent divergence (ADR-0023). 0 or absent ⇒ unknown, hash fallback.",
+              "type": "integer"
+            },
+            "origin_cid": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "ts": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "vclock": {
+              "additionalProperties": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "description": "Node cid → logical counter.",
+              "type": "object"
+            },
+            "version_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "vclock",
+            "version_id",
+            "origin_cid",
+            "ts"
+          ],
+          "title": "VersionInfo",
+          "type": "object"
+        }
+      },
+      "required": [
+        "ctime",
+        "filepath",
+        "mtime",
+        "name",
+        "permissions",
+        "sha256sum",
+        "size"
+      ],
+      "title": "File",
+      "type": "object"
+    },
+    "fileEvent": {
+      "additionalProperties": false,
+      "description": "File-system event exchanged over the WebSocket (EventDict).",
+      "properties": {
+        "bucket": {
+          "type": "string"
+        },
+        "cid": {
+          "type": "string"
+        },
+        "dst": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/entity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "enum": [
+            "added",
+            "modified",
+            "renamed",
+            "deleted",
+            "symlink"
+          ]
+        },
+        "src": {
+          "$ref": "#/$defs/entity"
+        }
+      },
+      "required": [
+        "cid",
+        "name",
+        "bucket",
+        "src"
+      ],
+      "title": "FileEvent",
+      "type": "object"
+    },
+    "hello": {
+      "additionalProperties": false,
+      "properties": {
+        "capabilities": {
+          "items": {
+            "enum": [
+              "compression",
+              "delta",
+              "https",
+              "never_master",
+              "tombstones",
+              "vector_clocks"
+            ]
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "cid": {
+          "type": "string"
+        },
+        "protocol_version": {
+          "const": "lan/1"
+        },
+        "type": {
+          "const": "hello"
+        }
+      },
+      "required": [
+        "type",
+        "protocol_version",
+        "capabilities"
+      ],
+      "title": "LanHello",
+      "type": "object"
+    },
+    "symlink": {
+      "additionalProperties": false,
+      "properties": {
+        "ctime": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "filepath": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mtime": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "target": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "const": "symlink"
+        }
+      },
+      "required": [
+        "type",
+        "filepath",
+        "name",
+        "target"
+      ],
+      "title": "Symlink",
+      "type": "object"
+    }
+  },
+  "$id": "https://hsync.dev/protocol/lan/1/wss",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Wire contract for the LAN master⇄slave WebSocket handshake (ADR-0024). Generated from hsync_common.protocol.schemas; do not hand-edit.",
+  "masterToSlave": {
+    "oneOf": [
+      {
+        "$ref": "#/$defs/authRequired"
+      },
+      {
+        "$ref": "#/$defs/authOk"
+      },
+      {
+        "$ref": "#/$defs/authFailed"
+      },
+      {
+        "$ref": "#/$defs/hello"
+      },
+      {
+        "$ref": "#/$defs/fileEvent"
+      }
+    ]
+  },
+  "slaveToMaster": {
+    "oneOf": [
+      {
+        "$ref": "#/$defs/auth"
+      },
+      {
+        "$ref": "#/$defs/hello"
+      },
+      {
+        "$ref": "#/$defs/fileEvent"
+      }
+    ]
+  },
+  "title": "HSYNC LAN WebSocket handshake (lan/1)"
+}

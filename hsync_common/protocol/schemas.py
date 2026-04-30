@@ -39,6 +39,7 @@ __all__ = [
     "LAN_TXT_OPTIONAL_KEYS",
     "LAN_TXT_REQUIRED_KEYS",
     "build_lan_txt_schema",
+    "build_lan_wss_schema",
     "build_ws_schema",
 ]
 
@@ -61,6 +62,7 @@ LAN_TXT_OPTIONAL_KEYS: tuple[str, ...] = (
     "compression",
     "delta",
     "vector_clocks",
+    "tombstones",
     "server_ready",
     "force_master",
     "never_master",
@@ -296,6 +298,140 @@ def build_ws_schema() -> dict[str, Any]:
     }
 
 
+def _lan_capabilities() -> dict[str, Any]:
+    """LAN-WSS capabilities list (same registry tokens as the WS channel)."""
+    return {
+        "type": "array",
+        "items": {"enum": _capability_tokens()},
+        "uniqueItems": True,
+    }
+
+
+def _lan_auth_required() -> dict[str, Any]:
+    """LAN master → slave greeting frame (``LanAuthRequiredFrame``)."""
+    return {
+        "type": "object",
+        "title": "LanAuthRequired",
+        "properties": {
+            "type": {"const": "auth_required"},
+            "protocol_version": {"const": PROTOCOL_VERSION_LAN},
+            "capabilities": _lan_capabilities(),
+        },
+        "required": ["type", "protocol_version", "capabilities"],
+        "additionalProperties": False,
+    }
+
+
+def _lan_auth() -> dict[str, Any]:
+    """LAN slave → master auth frame (``LanAuthFrame``)."""
+    return {
+        "type": "object",
+        "title": "LanAuth",
+        "properties": {
+            "type": {"const": "auth"},
+            "token": {"type": "string"},
+            "cid": {"type": "string"},
+            "protocol_version": {"const": PROTOCOL_VERSION_LAN},
+            "capabilities": _lan_capabilities(),
+        },
+        "required": ["type", "token", "cid", "protocol_version", "capabilities"],
+        "additionalProperties": False,
+    }
+
+
+def _lan_auth_result(kind: str) -> dict[str, Any]:
+    """LAN master → slave auth reply (``LanAuthResultFrame`` ok/failed)."""
+    success = kind == "ok"
+    properties: dict[str, Any] = {
+        "type": {"const": "auth"},
+        "status": {"const": kind},
+        "protocol_version": {"const": PROTOCOL_VERSION_LAN},
+    }
+    required = ["type", "status", "protocol_version"]
+    if success:
+        properties["capabilities"] = _lan_capabilities()
+        required.append("capabilities")
+    else:
+        properties["reason"] = {"type": "string"}
+        required.append("reason")
+    return {
+        "type": "object",
+        "title": f"LanAuth{'Ok' if success else 'Failed'}",
+        "properties": properties,
+        "required": required,
+        "additionalProperties": False,
+    }
+
+
+def _lan_hello() -> dict[str, Any]:
+    """LAN hello frame, both directions (``LanHelloFrame``)."""
+    return {
+        "type": "object",
+        "title": "LanHello",
+        "properties": {
+            "type": {"const": "hello"},
+            "protocol_version": {"const": PROTOCOL_VERSION_LAN},
+            "capabilities": _lan_capabilities(),
+            "cid": {"type": "string"},
+        },
+        "required": ["type", "protocol_version", "capabilities"],
+        "additionalProperties": False,
+    }
+
+
+def build_lan_wss_schema() -> dict[str, Any]:
+    """Build the LAN WebSocket handshake JSON Schema from the Python SSOT.
+
+    Codifies the master⇄slave handshake frames (ADR-0024): they exchange the
+    capability registry over the authenticated channel, so the mDNS/TXT record
+    is not the only capability source on the LAN.
+    """
+    return {
+        "$schema": JSON_SCHEMA_DIALECT,
+        "$id": f"https://hsync.dev/protocol/{PROTOCOL_VERSION_LAN}/wss",
+        "title": f"HSYNC LAN WebSocket handshake ({PROTOCOL_VERSION_LAN})",
+        "description": (
+            "Wire contract for the LAN master⇄slave WebSocket handshake "
+            "(ADR-0024). Generated from hsync_common.protocol.schemas; "
+            "do not hand-edit."
+        ),
+        "$defs": {
+            "file": _file_object(),
+            "dir": _dir_object(),
+            "symlink": _symlink_object(),
+            "entity": {
+                "oneOf": [
+                    {"$ref": "#/$defs/file"},
+                    {"$ref": "#/$defs/dir"},
+                    {"$ref": "#/$defs/symlink"},
+                ]
+            },
+            "authRequired": _lan_auth_required(),
+            "auth": _lan_auth(),
+            "authOk": _lan_auth_result("ok"),
+            "authFailed": _lan_auth_result("failed"),
+            "hello": _lan_hello(),
+            "fileEvent": _event_message(),
+        },
+        "masterToSlave": {
+            "oneOf": [
+                {"$ref": "#/$defs/authRequired"},
+                {"$ref": "#/$defs/authOk"},
+                {"$ref": "#/$defs/authFailed"},
+                {"$ref": "#/$defs/hello"},
+                {"$ref": "#/$defs/fileEvent"},
+            ]
+        },
+        "slaveToMaster": {
+            "oneOf": [
+                {"$ref": "#/$defs/auth"},
+                {"$ref": "#/$defs/hello"},
+                {"$ref": "#/$defs/fileEvent"},
+            ]
+        },
+    }
+
+
 def build_lan_txt_schema() -> dict[str, Any]:
     """Build the LAN/mDNS TXT-record JSON Schema from the Python source of truth."""
     properties: dict[str, Any] = {
@@ -315,6 +451,7 @@ def build_lan_txt_schema() -> dict[str, Any]:
         "compression": _TXT_BOOL_FLAG,
         "delta": _TXT_BOOL_FLAG,
         "vector_clocks": _TXT_BOOL_FLAG,
+        "tombstones": _TXT_BOOL_FLAG,
         "server_ready": _TXT_BOOL_FLAG,
         "force_master": _TXT_BOOL_FLAG,
         "never_master": _TXT_BOOL_FLAG,
