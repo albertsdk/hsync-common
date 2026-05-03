@@ -263,17 +263,25 @@ def _parse_sntp_response(packet: bytes, t1: float, t4: float) -> tuple[float, fl
 
 
 def _sntp_probe_once(host: str, *, port: int, timeout: float) -> tuple[float, float] | None:
-    """Perform one SNTP round-trip to *host*; returns ``(offset, rtt)`` or ``None``."""
+    """Perform one SNTP round-trip to *host*; returns ``(offset, rtt)`` or ``None``.
+
+    The socket is *connected* before the exchange: the kernel then surfaces an
+    ICMP port/host-unreachable as an immediate ``ECONNREFUSED`` instead of
+    blocking ``recv`` for the whole timeout, so a dead endpoint fails fast
+    (one refused probe costs ~0s, not *timeout* seconds), and datagrams from
+    any other source are filtered out (no stray-packet spoofing of the clock).
+    """
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
             sock.settimeout(timeout)
+            sock.connect((host, port))
             packet = _build_sntp_client_packet()
             t1 = time.time()
-            sock.sendto(packet, (host, port))
-            reply, _ = sock.recvfrom(48)
+            sock.send(packet)
+            reply = sock.recv(48)
             t4 = time.time()
     except OSError:
-        # timeouts, unreachable hosts, DNS failures: caller moves on.
+        # timeouts, refused/unreachable hosts, DNS failures: caller moves on.
         return None
     return _parse_sntp_response(reply, t1, t4)
 
