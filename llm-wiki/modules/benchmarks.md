@@ -69,27 +69,26 @@ anomaly needs a cost breakdown.
    incompressible (raw PRNG bytes).
 7. Numbers are **comparative** (this machine, warm page cache), never SLAs.
 
-## Findings worth knowing (default run, `--count 2000`)
+## Findings worth knowing (default run, `--count 2000`, after A1–A5)
 
-* `compute_sha256` runs at ~1.5 GB/s and is size-tier agnostic (C-level
-  `file_digest`), while `compute_sha256_async` defaults to `CHUNK_SIZE_SMALL`
-  (8 KB) and is ~7x slower per byte on 16 MB (12.5 ops/s vs 90.4 ops/s): the
-  async path pays per-chunk `aiofiles` overhead, so the caller-supplied
-  `chunk_size` matters far more there than on the sync path.
-* zstd level 3 is ~25x slower on *semi-compressible* binary input than on
-  already-incompressible input (`binary-1MB` 5.05 ms vs `incompressible-1MB`
-  0.17 ms): the compressor works hardest when there is structure to find.
-* The delta literal path dominates: `match_file(1MB,10%)` 63.6 ms and
-  `match_file(1MB,50%)` 212 ms versus 1.58 ms for an identical file, because
-  unmatched bytes are coalesced byte-by-byte in Python — the reason
-  `DELTA_MAX_CHANGE_RATIO` aborts above 50 % (`delta/decision.py:71`).
-* Ignore sweeps cost ~52 ms per 5000-path bucket scan with a realistic
-  `.hsyncignore` and ~26 ms with the default-pattern fallback; matcher
-  construction is ~0.18 ms but grows ~8x with 300 extra user patterns
-  (gitignore patterns are compiled on every `reload`).
-* Model serialization is not the bottleneck (`File.to_dict` 0.5 µs,
-  `File.from_dict` 14 µs); `Event` construction (~20 µs) costs 20x its own
-  serialization (~1 µs) because it re-normalises the src/dst paths.
+* `compute_sha256` runs at ~1.5 GB/s (`sha256_async(16MB)` now matches the
+  sync 16 MB rate: A3 replaced the 8 KB-chunk `aiofiles` loop with a single
+  `asyncio.to_thread` hop).
+* zstd direction-aware levels (A4): on `binary-1MB` level 1 is **5.5x faster**
+  than level 3 (1146 vs 208 ops/s) and even 3 % smaller
+  (524461 B vs 540956 B); on `text-1MB` it is 1.2x faster for 13 % larger
+  output — the upload/LAN tradeoff the `compression_level()` SSOT encodes.
+* Delta `find_matches` (A2): identical-file 1 MB at ~1.0 ms; 10 % changed at
+  ~27.5 ms; the front-insertion case (`10%+4KB`) costs no more than plain
+  10 % (~28.3 ms) because the window re-synchronises after the shift.
+* Ignore (A5): `matches` single-path at ~0.009 ms (~109k ops/s) with the
+  prefix-strip fast path; a 5000-path bucket sweep costs ~45 ms with a
+  realistic `.hsyncignore` (~24 ms with the default-only fallback).
+* Path stripping (A1): `relpath_in_bucket` at ~1.1 µs and
+  `file_from_dict(strip)` at ~2.1 µs — up from 12.8 µs/14 µs
+  (~9x/6.5x), so model decode is no longer path-normalisation dominated.
+  (`Event` construction at ~1.9 µs still costs ~2x its own serialization
+  (~0.9 µs) because it re-normalises the src/dst paths.)
 
 ## Running
 

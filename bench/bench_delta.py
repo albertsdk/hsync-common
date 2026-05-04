@@ -72,12 +72,16 @@ _SIGNATURE_SCENARIOS: tuple[tuple[int, int], ...] = (
     (12 * _MB, 20),
 )
 
-# (size, every n-th block changed, ratio label, sample cap).
-_MATCH_SCENARIOS: tuple[tuple[int, int, str, int], ...] = (
-    (_MB, 0, "0%", 200),
-    (_MB, 10, "10%", 200),
-    (_MB, 2, "50%", 50),
-    (4 * _MB, 10, "10%", 50),
+# (size, every n-th block changed, bytes inserted at the front, label, sample cap).
+# The 50% case is the literal-heavy worst case, so it keeps a lower cap; the
+# insert cases exercise the unaligned window (copies no longer start at offset 0).
+_MATCH_SCENARIOS: tuple[tuple[int, int, int, str, int], ...] = (
+    (_MB, 0, 0, "0%", 200),
+    (_MB, 10, 0, "10%", 200),
+    (_MB, 2, 0, "50%", 100),
+    (4 * _MB, 10, 0, "10%", 50),
+    (_MB, 0, 4096, "0%+4KB", 200),
+    (_MB, 10, 4096, "10%+4KB", 100),
 )
 
 
@@ -95,6 +99,23 @@ def _changed_copy(base: bytes, block_size: int, every: int, seed: int) -> bytes:
         start = index * block_size
         out[start : start + block_size] = pseudorandom_bytes(block_size, seed + index)
     return bytes(out)
+
+
+def _shifted_copy(base: bytes, shift: int, seed: int) -> bytes:
+    """Return ``base`` with ``shift`` fresh bytes inserted at the front.
+
+    Every base byte moves by ``shift``, so the copies no longer start at the
+    offsets recorded in the signatures: the rolling window must slide and
+    re-synchronise instead of matching immediately, which is the cost the
+    aligned fixtures never exercise.
+    """
+    return pseudorandom_bytes(shift, seed) + base
+
+
+def _modified_copy(base: bytes, block_size: int, every: int, shift: int, seed: int) -> bytes:
+    """Base → new-file fixture: changed blocks plus an optional front insertion."""
+    data = _changed_copy(base, block_size, every, seed)
+    return _shifted_copy(data, shift, seed + 1) if shift else data
 
 
 def _bench_decisions(count: int) -> list[BenchResult]:
@@ -166,21 +187,26 @@ def _bench_signature_index(count: int) -> BenchResult:
     return measure("build_index(4096 sigs)", op, count=count)
 
 
-def _bench_match(workdir: str, size: int, every: int, ratio: str, count: int) -> BenchResult:
+def _bench_match(
+    workdir: str, size: int, every: int, shift: int, ratio: str, count: int
+) -> BenchResult:
     """Time the mmap-backed matcher on a base/new fixture pair."""
     block_size = optimal_block_size(size)
     base = make_payload(size, "binary", seed=size)
     base_path = write_bytes(workdir, f"match-base-{size_label(size)}.bin", base)
     new_path = write_bytes(
         workdir,
-        f"match-new-{size_label(size)}-{ratio}.bin",
-        _changed_copy(base, block_size, every, seed=size),
+        f"match-new-{size_label(size)}-{ratio.replace('%', 'pct').replace('+', '_')}.bin",
+        _modified_copy(base, block_size, every, shift, seed=size),
     )
     signatures = compute_signatures(base_path, block_size)
     expected_ops, expected_literals = find_matches_file(new_path, signatures, block_size)
-    if every == 0:
+    if every == 0 and shift == 0:
         # An identical file must reuse every block: no literal payload at all.
         assert not expected_literals, len(expected_literals)
+    elif shift:
+        # The inserted front bytes can only come from the literal payload.
+        assert len(expected_literals) >= shift, len(expected_literals)
 
     def op() -> None:
         ops, literals = find_matches_file(new_path, signatures, block_size)
@@ -224,8 +250,8 @@ def main() -> None:
             results.append(_bench_signatures(tmp, size, min(count, cap)))
         results.append(_bench_signatures_for_data(_MB * 4, 4 * 1024, min(count, 200)))
         results.append(_bench_signature_index(min(count, 2000)))
-        for size, every, ratio, cap in _MATCH_SCENARIOS:
-            results.append(_bench_match(tmp, size, every, ratio, min(count, cap)))
+        for size, every, shift, ratio, cap in _MATCH_SCENARIOS:
+            results.append(_bench_match(tmp, size, every, shift, ratio, min(count, cap)))
         results.append(_bench_apply(tmp, _MB, 10, min(count, 100)))
 
     print(f"delta micro-benchmark (ops={count}, base/new fixture pairs on disk)")

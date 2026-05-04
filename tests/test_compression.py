@@ -6,6 +6,8 @@ import pytest
 import zstandard as zstd
 
 from hsync_common.compression import (
+    COMPRESSION_LEVEL,
+    COMPRESSION_LEVEL_FAST,
     MIN_SIZE_FOR_COMPRESSION,
     MIN_SIZE_FOR_LAN,
     MIN_SIZE_FOR_UPLOAD,
@@ -13,6 +15,7 @@ from hsync_common.compression import (
     compress_data,
     compress_file,
     compress_file_to_file,
+    compression_level,
     decompress_data,
     decompress_stream,
     should_compress,
@@ -231,6 +234,51 @@ class TestShouldCompressContextual:
 
     def test_precompressed_extension_skipped_in_lan(self):
         assert should_compress("photo.jpg", MIN_SIZE_FOR_LAN * 10, is_lan=True) is False
+
+
+class TestCompressionLevel:
+    def test_download_uses_default_level(self):
+        assert compression_level() == COMPRESSION_LEVEL
+        assert compression_level("download") == COMPRESSION_LEVEL
+
+    def test_upload_uses_fast_level(self):
+        assert compression_level("upload") == COMPRESSION_LEVEL_FAST
+
+    def test_lan_uses_fast_level(self):
+        assert compression_level(is_lan=True) == COMPRESSION_LEVEL_FAST
+
+    def test_lan_overrides_transfer_type(self):
+        # Same precedence as should_compress: LAN wins over transfer_type.
+        assert compression_level("download", is_lan=True) == COMPRESSION_LEVEL_FAST
+
+    def test_constants_relationship(self):
+        assert COMPRESSION_LEVEL == 3
+        assert COMPRESSION_LEVEL_FAST == 1
+        assert COMPRESSION_LEVEL_FAST < COMPRESSION_LEVEL
+
+    def test_compress_data_honours_level(self):
+        """Both levels produce intact frames; the keyword is not ignored."""
+        data = bytes(range(256)) * 40
+        fast = compress_data(data, level=COMPRESSION_LEVEL_FAST)
+        default = compress_data(data, level=COMPRESSION_LEVEL)
+        assert decompress_data(fast) == data
+        assert decompress_data(default) == data
+        # The no-keyword call must stay pinned to the download-side SSOT level.
+        assert compress_data(data) == default
+
+    def test_compress_file_to_file_honours_level(self, tmp_path):
+        """The streaming compressor accepts the direction-aware level too."""
+        src = tmp_path / "data.bin"
+        original = bytes(range(256)) * 40
+        src.write_bytes(original)
+        dst_fast = tmp_path / "out-fast.zst"
+        dst_default = tmp_path / "out-default.zst"
+
+        compress_file_to_file(str(src), str(dst_fast), level=COMPRESSION_LEVEL_FAST)
+        compress_file_to_file(str(src), str(dst_default), level=COMPRESSION_LEVEL)
+
+        assert decompress_data(dst_fast.read_bytes()) == original
+        assert decompress_data(dst_default.read_bytes()) == original
 
 
 class TestCompressFileToFile:

@@ -217,7 +217,12 @@ def find_matches(
 
     ops: list[DeltaOp] = []
     literal_data = bytearray()
-    literal_run_start: int | None = None
+    # Start of the open literal run *in the new file*. The run is materialised
+    # in one slice copy when it ends (a match or EOF) instead of appending one
+    # byte at a time (bytearray.append(int) is ~25-30 ns/byte): on the
+    # changed-block scenarios that is a consistent ~8% (1 MB @50% changed:
+    # 142.5 ms -> 130.5 ms), and it scales with the literal payload.
+    literal_src_start: int | None = None
     view = memoryview(new_data)  # zero-copy: window slices are hashed without copying bytes
     n = len(view)
     pos = 0
@@ -230,13 +235,14 @@ def find_matches(
             roll_a = weak & 0xFFFF
             roll_b = (weak >> 16) & 0xFFFF
         else:
-            weak, roll_a, roll_b = adler32_roll(
-                roll_a,
-                roll_b,
-                block_size,
-                view[pos - 1],
-                view[pos + block_size - 1],
-            )
+            # adler32_roll inlined: a Python call per unmatched byte is ~25% of
+            # this loop (measured 156 ns vs 119 ns per roll). Keep in sync with
+            # adler32_roll (reference implementation, parity-tested in
+            # tests/test_delta.py against fresh zlib.adler32 windows; any drift
+            # here breaks the committed delta fixtures and apply tests).
+            roll_a = (roll_a - view[pos - 1] + view[pos + block_size - 1]) % ADLER32_MOD
+            roll_b = (roll_b - block_size * view[pos - 1] + roll_a - 1) % ADLER32_MOD
+            weak = (roll_b << 16) | roll_a
 
         matched = False
         candidates = table_get(weak)
@@ -244,11 +250,13 @@ def find_matches(
             strong = strong_hash(view[pos : pos + block_size]).hexdigest()
             for base_offset, expected_strong in candidates:
                 if strong == expected_strong:
-                    if literal_run_start is not None:
-                        ops.append(
-                            DeltaOp.data(literal_run_start, len(literal_data) - literal_run_start)
-                        )
-                        literal_run_start = None
+                    if literal_src_start is not None:
+                        # The data offset is the buffer length *before* the
+                        # append: ops and buffer stay in the same order.
+                        data_offset = len(literal_data)
+                        literal_data += view[literal_src_start:pos]
+                        ops.append(DeltaOp.data(data_offset, pos - literal_src_start))
+                        literal_src_start = None
                     ops.append(DeltaOp.copy(base_offset, block_size))
                     pos += block_size
                     roll_a = roll_b = None  # force a fresh window after a jump
@@ -256,20 +264,18 @@ def find_matches(
                     break
 
         if not matched:
-            if literal_run_start is None:
-                literal_run_start = len(literal_data)
-            literal_data.append(view[pos])
+            if literal_src_start is None:
+                literal_src_start = pos
             pos += 1
 
-    # Remaining tail bytes (pos + block_size > n) can never match a window.
-    while pos < n:
-        if literal_run_start is None:
-            literal_run_start = len(literal_data)
-        literal_data.append(view[pos])
-        pos += 1
-
-    if literal_run_start is not None:
-        ops.append(DeltaOp.data(literal_run_start, len(literal_data) - literal_run_start))
+    # Remaining tail bytes (pos + block_size > n) can never match a window: they
+    # extend the open run (or open one) and are coalesced in a single slice.
+    if literal_src_start is None and pos < n:
+        literal_src_start = pos
+    if literal_src_start is not None:
+        data_offset = len(literal_data)
+        literal_data += view[literal_src_start:n]
+        ops.append(DeltaOp.data(data_offset, n - literal_src_start))
 
     return ops, bytes(literal_data)
 

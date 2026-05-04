@@ -43,6 +43,7 @@ from hsync_common.models.dir import Dir
 from hsync_common.models.event import Event, EventName, is_valid_cid
 from hsync_common.models.file import File, is_partial_file
 from hsync_common.models.symlink import Symlink
+from hsync_common.models.tombstone import relpath_in_bucket
 
 _BUCKET_ROOT = "/srv/hsync/buckets/media"
 _CID = "A1b2C3d4E5f6G7h8I9j0K"
@@ -188,6 +189,33 @@ def _bench_event(count: int) -> list[BenchResult]:
     ]
 
 
+def _bench_path_helpers(count: int) -> list[BenchResult]:
+    """Bucket-relative resolution: the per-path call of every scan.
+
+    ``relpath_in_bucket`` is invoked once per scanned (and per event-handled)
+    path by ``hsync-client`` (``sync_state``, ``tombstones``, ``arbitration``,
+    ``transfer``), so its per-call cost multiplies by the bucket size — it is
+    the direct signal for the path-normalisation work measured indirectly by
+    ``file_from_dict(strip)`` and ``event_ctor``.
+    """
+    inside = f"{_BUCKET_ROOT}/photos/2024/album/photo-001.jpg"
+    outside = "/srv/hsync/other/photos/2024/album/photo-001.jpg"
+    assert relpath_in_bucket(inside, _BUCKET_ROOT) == "photos/2024/album/photo-001.jpg"
+    assert relpath_in_bucket(outside, _BUCKET_ROOT) is None
+    assert relpath_in_bucket(_BUCKET_ROOT, _BUCKET_ROOT) == ""
+
+    def op_inside() -> None:
+        assert relpath_in_bucket(inside, _BUCKET_ROOT)
+
+    def op_outside() -> None:
+        assert relpath_in_bucket(outside, _BUCKET_ROOT) is None
+
+    return [
+        measure("relpath_in_bucket(in)", op_inside, count=count),
+        measure("relpath_in_bucket(out)", op_outside, count=count),
+    ]
+
+
 def _bench_micro(count: int) -> list[BenchResult]:
     """Per-entry wire/scan validators plus model construction."""
     cids = [_CID, _CID.lower(), "too-short", "has-hyphen-in-it-123", "z" * 21]
@@ -238,6 +266,7 @@ def main() -> None:
     results.extend(_bench_dir(count))
     results.extend(_bench_symlink(count))
     results.extend(_bench_event(count))
+    results.extend(_bench_path_helpers(count))
     results.extend(_bench_micro(count))
 
     print(f"models micro-benchmark (ops={count}, pure CPU, no filesystem)")
