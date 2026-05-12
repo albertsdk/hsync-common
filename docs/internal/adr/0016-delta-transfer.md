@@ -121,17 +121,17 @@ failures do not consume retry attempts.
 
 ### Base hash tracking
 
-Delta transfer requires a **recorded base hash** in `.hsyncstate` (the three-way
-merge state file). The base hash is recorded after every successful sync
-(download or upload) and is used to determine whether delta transfer is
+Delta transfer requires a **recorded base hash** in the installation
+`syncstate.db` (ADR-0025). The base hash is recorded after every successful
+sync (download or upload) and is used to determine whether delta transfer is
 applicable:
 
 - **Upload delta**: local file changed (`local_sha256 != base_hash`)
 - **Download delta**: local file is still the base (`local_sha256 == base_hash`)
   and remote file changed (`remote_sha256 != base_hash`)
 
-If no base hash exists (first sync, or `.hsyncstate` deleted), delta transfer is
-skipped and a full transfer is performed.
+If no base hash exists (first sync, or the folder UUID has no recorded
+version), delta transfer is skipped and a full transfer is performed.
 
 ### Concurrency
 
@@ -173,8 +173,8 @@ multiple clients would write to the same `.delta.part` file simultaneously.
   (459 unit tests on Android, 561 on the server, 1194 on the client) but the
   increased surface area raises the maintenance burden.
 - **First sync always full**: delta transfer requires a recorded base hash, so
-  the first sync of a file (or after `.hsyncstate` deletion) always performs a
-  full transfer. Subsequent syncs can use delta if the file changed
+  the first sync of a file (or after the recorded base is lost) always performs
+  a full transfer. Subsequent syncs can use delta if the file changed
   incrementally.
 - **Not suitable for completely different files**: if a file is completely
   rewritten (e.g. a new video replacing an old one), delta transfer provides no

@@ -33,6 +33,16 @@ def _reset_active_ignore_matcher() -> Generator[None]:
 
 
 @pytest.fixture(autouse=True)
+def _reset_state_db_cache() -> Generator[None]:
+    """Close cached ``syncstate.db`` connections between tests."""
+    from hsync_common.models.sqlstore import reset_state_db_cache
+
+    reset_state_db_cache()
+    yield
+    reset_state_db_cache()
+
+
+@pytest.fixture(autouse=True)
 def _sanitize_os_environ(monkeypatch: pytest.MonkeyPatch) -> None:
     """Prevent tests that call ``load_env_file`` from permanently polluting
     ``os.environ``.

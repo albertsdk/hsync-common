@@ -388,10 +388,13 @@ def safe_resolve_path(path: str, *, allow_absolute: bool = True) -> str | None:
 # Filenames owned by the sync engine itself. They live inside the synced
 # bucket but must NEVER be accepted from the wire: a remote peer that could
 # (re)write them would alter the victim's sync behaviour (ignore rules,
-# merge-base state, deletion markers) using the sync channel itself.
+# folder identity, leftover legacy side-cars) using the sync channel itself.
+# ``.hsyncstate`` / ``.hsynctombstones`` are no longer written (ADR-0025) but
+# stay rejected so an old peer cannot plant them.
 INTERNAL_FILENAMES: frozenset[str] = frozenset(
     {
         ".hsyncignore",
+        ".hsyncfolder",
         ".hsyncstate",
         ".hsynctombstones",
     }

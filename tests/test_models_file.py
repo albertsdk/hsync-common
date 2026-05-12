@@ -80,6 +80,7 @@ class TestIsHiddenFile:
 
     def test_internal_files_are_hidden(self):
         assert is_hidden_file(".hsyncignore") is True
+        assert is_hidden_file(".hsyncfolder") is True
         assert is_hidden_file(".hsyncstate") is True
         assert is_hidden_file(".hsynctombstones") is True
 

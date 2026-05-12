@@ -9,7 +9,7 @@ Delta-transfer worthwhileness decisions (block size, abort thresholds).
 
 Pure functions shared by every component: no I/O, no peer state. The
 direction-aware ``prepare_delta_upload`` / ``prepare_delta_download`` gates
-live in the client (they need ``.hsyncstate`` and peer capabilities) and reuse
+live in the client (they need the recorded base hash and peer capabilities) and reuse
 these helpers for the size/change-ratio part of the decision.
 """
 
