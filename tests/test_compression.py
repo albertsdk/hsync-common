@@ -49,6 +49,20 @@ class TestConstants:
         for ext in (".txt", ".py", ".json", ".csv", ".xml", ".log"):
             assert ext not in PRECOMPRESSED_EXTENSIONS
 
+    def test_new_extensions_in_precompressed(self):
+        """O1: newly added extensions must be present."""
+        for ext in (".br", ".whl", ".snap", ".lz"):
+            assert ext in PRECOMPRESSED_EXTENSIONS, f"{ext} not in PRECOMPRESSED_EXTENSIONS"
+
+    def test_compound_extensions_not_in_set(self):
+        """splitext() only returns the last extension, so compound strings like
+        '.tar.gz' or '.tgz' would never match and must not appear in the set
+        (they were dead code and have been removed)."""
+        for dead_ext in (".tar.gz", ".tgz", ".tar.bz2", ".tbz2", ".tar.xz", ".txz"):
+            assert dead_ext not in PRECOMPRESSED_EXTENSIONS, (
+                f"{dead_ext} is dead code — splitext() never returns it"
+            )
+
 
 class TestCompressDecompress:
     def test_roundtrip_small(self):
