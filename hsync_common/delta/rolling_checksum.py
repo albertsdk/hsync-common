@@ -63,6 +63,19 @@ ADLER32_MOD = 65521
 APPLY_BUFFER_SIZE = 64 * 1024
 
 
+def _block_byte_penalty(block_size: int) -> list[int]:
+    """Precompute ``(block_size * byte) % ADLER32_MOD`` for every byte value.
+
+    The rolling update needs ``(n * byte_out) % MOD`` per missed byte. Computing
+    ``(block_size * byte_out) % MOD`` inline pays one big-int modulo per byte
+    (``block_size * byte_out`` reaches ~66M for the 256KB tier). A 256-entry
+    table turns it into a list lookup with zero divisions in the hot loop.
+    """
+    mod = ADLER32_MOD
+    n_mod = block_size % mod
+    return [(n_mod * value) % mod for value in range(256)]
+
+
 class DeltaError(HSyncError):
     """Raised when a delta computation or reconstruction cannot proceed."""
 
@@ -214,6 +227,10 @@ def find_matches(
     table = build_signature_index(signatures, block_size)
     table_get = table.get  # bind locally: O(1) lookup, one attribute resolution saved per window
     strong_hash = sha256  # bind locally: called once per candidate window (hot loop)
+    # Per-byte penalty table: (block_size * byte_out) % MOD without a division
+    # in the hot loop (the product reaches ~66M on the 256KB tier).
+    byte_penalty = _block_byte_penalty(block_size)
+    mod = ADLER32_MOD
 
     ops: list[DeltaOp] = []
     literal_data = bytearray()
@@ -240,8 +257,23 @@ def find_matches(
             # adler32_roll (reference implementation, parity-tested in
             # tests/test_delta.py against fresh zlib.adler32 windows; any drift
             # here breaks the committed delta fixtures and apply tests).
-            roll_a = (roll_a - view[pos - 1] + view[pos + block_size - 1]) % ADLER32_MOD
-            roll_b = (roll_b - block_size * view[pos - 1] + roll_a - 1) % ADLER32_MOD
+            # No % here: new_a stays in [-255, 2*MOD) so one conditional
+            # add/sub suffices, and the (n * byte_out) % MOD term comes from
+            # the precomputed table (one list lookup instead of a division).
+            byte_out = view[pos - 1]
+            new_a = roll_a - byte_out + view[pos + block_size - 1]
+            if new_a < 0:
+                new_a += mod
+            elif new_a >= mod:
+                new_a -= mod
+            roll_a = new_a
+            # b_tmp in [-MOD, 2*MOD): one conditional correction, no division.
+            b_tmp = roll_b - byte_penalty[byte_out] + new_a - 1
+            if b_tmp < 0:
+                b_tmp += mod
+            elif b_tmp >= mod:
+                b_tmp -= mod
+            roll_b = b_tmp
             weak = (roll_b << 16) | roll_a
 
         matched = False

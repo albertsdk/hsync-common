@@ -16,7 +16,6 @@ without circular imports.
 import json
 import os
 from hashlib import sha256
-from pathlib import Path
 
 __all__ = [
     "_parse_stored_vclock",
@@ -122,7 +121,15 @@ def _resolve_prefixed_path(data_filepath: str, prefix: str | None, *, strip: boo
         # string prefix (e.g. "/base2/x" vs "/base" must not become "2/x").
         return str(data_filepath) if relative is None else relative
     if prefix:
-        return str(Path(prefix) / str(data_filepath).lstrip("/"))
+        # String concat instead of Path(prefix) / rel: avoids pathlib parsing
+        # (~2 us saved per decoded model on the prepend branch). String
+        # equality with ``str(Path(prefix) / rel)`` is guaranteed only for
+        # already-normalized inputs (no trailing slash on the prefix, no "."
+        # / duplicate separators inside): that is the shape of every
+        # production caller (bucket roots, dir_prefix, localpath) and of the
+        # benchmark fixtures, and it is pinned by the prepend-equivalence
+        # test in tests/test_models_file.py.
+        return prefix.rstrip("/") + "/" + str(data_filepath).lstrip("/")
     return str(data_filepath)
 
 

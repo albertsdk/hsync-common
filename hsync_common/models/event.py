@@ -74,7 +74,8 @@ def _apply_path(entity: File | Dir | Symlink, localpath: str, strip_localpath: b
     prefix). The entity is rewritten in place: callers must not reuse the
     src/dst objects after construction.
     """
-    path = str(entity.path) if isinstance(entity, Dir) else str(entity.filepath)
+    is_dir = isinstance(entity, Dir)
+    path = str(entity.path) if is_dir else str(entity.filepath)
 
     if strip_localpath and not localpath:
         # Nothing to strip: keep the path verbatim (relative_to rejects an
@@ -83,7 +84,7 @@ def _apply_path(entity: File | Dir | Symlink, localpath: str, strip_localpath: b
     else:
         new_path = _resolve_prefixed_path(path, localpath, strip=strip_localpath)
 
-    if isinstance(entity, Dir):
+    if is_dir:
         entity.path = new_path
     else:
         entity.filepath = new_path

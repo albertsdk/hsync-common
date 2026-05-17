@@ -71,6 +71,14 @@ class IgnoreMatcher:
         self._extra_patterns = list(extra_patterns or [])
         self._spec: PathSpec = PathSpec.from_lines(GitIgnoreSpecPattern, [])
         self._lock = threading.RLock()
+        # Cached prefix slice for the hot path: the bucket root never changes
+        # between reloads (only the spec does), so _to_relative reuses it
+        # instead of rebuilding ``root + "/"`` per scanned entry.
+        self._prefix = (
+            self.bucket_root + "/"
+            if self.bucket_root and not self.bucket_root.endswith("/")
+            else self.bucket_root
+        )
         self.reload()
 
     # ------------------------------------------------------------------
@@ -150,7 +158,8 @@ class IgnoreMatcher:
         ) and root:
             # Fast path: absolute path directly under the bucket root -
             # avoids the ~1.3us os.path.relpath() call on the hot path.
-            prefix = root if root.endswith("/") else root + "/"
+            # The ``root + "/"`` prefix is cached at construction time.
+            prefix = self._prefix
             if path.startswith(prefix):
                 rel = path[len(prefix) :]
             else:
@@ -161,7 +170,8 @@ class IgnoreMatcher:
                     rel = path
         else:
             rel = path
-        rel = rel.replace("\\", "/")
+        if "\\" in rel:
+            rel = rel.replace("\\", "/")
         # Strip only leading "./" segments: a blanket lstrip("./") would also
         # eat leading dots, making dotfiles (.env, .hsyncignore) unmatchable.
         while rel.startswith("./"):
@@ -244,5 +254,8 @@ def should_skip(path: str, is_dir: bool = False) -> bool:
     installed, otherwise falls back to the built-in default patterns
     so legacy behaviour is preserved.
     """
-    matcher = get_active_matcher()
+    # Lock-free read: set_active_matcher() swaps the reference under the GIL
+    # (atomic assignment), so readers always see a consistent matcher without
+    # paying an RLock acquire per scanned entry.
+    matcher = _active_matcher
     return (matcher or _fallback_matcher).matches(path, is_dir=is_dir)

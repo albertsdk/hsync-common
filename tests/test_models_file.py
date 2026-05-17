@@ -272,6 +272,23 @@ class TestFileFromDict:
         f = File.from_dict(d, dir_prefix="/base", strip_dir_prefix=False)
         assert "/base" in f.filepath  # type: ignore[reportOperatorIssue]
 
+    def test_prepend_matches_pathlib_join(self):
+        """Pin the prepend fast-path contract: for normalized inputs the string
+        concat must equal ``str(Path(prefix) / rel)`` exactly."""
+        from pathlib import Path as _Path
+
+        for prefix, rel in [
+            ("/base", "subdir/file.txt"),
+            ("/base/", "subdir/file.txt"),
+            ("/srv/hsync/buckets/media", "photos/2024/album/photo-001.jpg"),
+            ("/base", "/subdir/file.txt"),
+        ]:
+            f = File.from_dict(
+                {"filepath": rel, "size": 1}, dir_prefix=prefix, strip_dir_prefix=False
+            )
+            expected = str(_Path(prefix) / str(rel).lstrip("/"))
+            assert f.filepath == expected  # type: ignore[reportOperatorIssue]
+
     def test_from_dict_raises_if_strip_without_prefix(self):
         d = {"filepath": "/base/file.txt", "size": 10}
         with pytest.raises(ValueError):
