@@ -10,12 +10,12 @@ import pytest
 from hsync_common.models.dir import Dir, is_hidden_dir
 from hsync_common.models.event import Event, EventName
 from hsync_common.models.file import (
-    MD5_CACHE_MAX_SIZE,
+    SHA256_CACHE_MAX_SIZE,
     File,
-    _md5_cache,
-    _set_cached_md5,
-    clear_md5_cache,
-    invalidate_md5_cache,
+    _sha256_cache,
+    _set_cached_sha256,
+    clear_sha256_cache,
+    invalidate_sha256_cache,
     is_hidden_file,
 )
 from hsync_common.models.symlink import Symlink
@@ -52,11 +52,11 @@ class TestIsHiddenFile:
 
 class TestFileInit:
     def test_basic_init(self):
-        f = File(filepath="/tmp/test.txt", size=100, md5sum="abc123")
+        f = File(filepath="/tmp/test.txt", size=100, sha256sum="abc123")
         assert f.filepath == "/tmp/test.txt"
         assert f.name == "test.txt"
         assert f.size == 100
-        assert f.md5sum == "abc123"
+        assert f.sha256sum == "abc123"
 
     def test_none_filepath(self):
         f = File()
@@ -89,36 +89,36 @@ class TestFileToDict:
         assert "filepath" in d
         assert "name" in d
         assert "size" in d
-        assert "md5sum" in d
+        assert "sha256sum" in d
 
 
-class TestFileMd5Cache:
+class TestFileSha256Cache:
     def test_clear_cache_does_not_raise(self):
-        clear_md5_cache()
+        clear_sha256_cache()
 
     def test_invalidate_nonexistent_does_not_raise(self):
-        invalidate_md5_cache("/nonexistent/path.txt")
+        invalidate_sha256_cache("/nonexistent/path.txt")
 
-    def test_md5_cache_max_size_constant(self):
-        """O2: MD5_CACHE_MAX_SIZE must be a positive integer."""
-        assert isinstance(MD5_CACHE_MAX_SIZE, int)
-        assert MD5_CACHE_MAX_SIZE > 0
+    def test_sha256_cache_max_size_constant(self):
+        """O2: sha256_cache_MAX_SIZE must be a positive integer."""
+        assert isinstance(SHA256_CACHE_MAX_SIZE, int)
+        assert SHA256_CACHE_MAX_SIZE > 0
 
     def test_cache_evicts_oldest_when_full(self):
-        """O2: inserting beyond MD5_CACHE_MAX_SIZE evicts the LRU entry."""
-        clear_md5_cache()
+        """O2: inserting beyond sha256_cache_MAX_SIZE evicts the LRU entry."""
+        clear_sha256_cache()
         # Fill the cache to the limit using fake paths
-        for i in range(MD5_CACHE_MAX_SIZE):
-            _set_cached_md5(f"/fake/path/{i}.txt", "a" * 32, i)
-        assert len(_md5_cache) == MD5_CACHE_MAX_SIZE
+        for i in range(SHA256_CACHE_MAX_SIZE):
+            _set_cached_sha256(f"/fake/path/{i}.txt", "a" * 32, i)
+        assert len(_sha256_cache) == SHA256_CACHE_MAX_SIZE
 
         # Adding one more entry should evict the oldest (/fake/path/0.txt)
-        _set_cached_md5("/fake/path/overflow.txt", "b" * 32, 9999)
-        assert len(_md5_cache) == MD5_CACHE_MAX_SIZE
-        assert "/fake/path/0.txt" not in _md5_cache
-        assert "/fake/path/overflow.txt" in _md5_cache
+        _set_cached_sha256("/fake/path/overflow.txt", "b" * 32, 9999)
+        assert len(_sha256_cache) == SHA256_CACHE_MAX_SIZE
+        assert "/fake/path/0.txt" not in _sha256_cache
+        assert "/fake/path/overflow.txt" in _sha256_cache
 
-        clear_md5_cache()  # clean up for subsequent tests
+        clear_sha256_cache()  # clean up for subsequent tests
 
 
 class TestFileGet:
@@ -128,7 +128,7 @@ class TestFileGet:
         result = File.get(str(f))
         assert result is not None
         assert result.size == 5
-        assert result.md5sum is not None
+        assert result.sha256sum is not None
 
     def test_get_nonexistent_returns_none(self):
         assert File.get("/nonexistent/path/file.txt") is None

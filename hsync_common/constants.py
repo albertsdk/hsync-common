@@ -39,7 +39,7 @@ HSYNCIGNORE_FILENAME = ".hsyncignore"
 # File Transfer Settings
 # =============================================================================
 
-# Chunk sizes based on file size for optimal MD5 computation
+# Chunk sizes based on file size for optimal checksum computation
 CHUNK_SIZE_SMALL = 8 * 1024  # 8KB for files < 1MB
 CHUNK_SIZE_MEDIUM = 64 * 1024  # 64KB for files < 100MB
 CHUNK_SIZE_LARGE = 256 * 1024  # 256KB for files >= 100MB
