@@ -14,10 +14,10 @@ from hsync_common.ssl_utils import (
     verify_cert_fingerprint,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="module")
 def private_key() -> rsa.RSAPrivateKey:
@@ -40,6 +40,7 @@ def self_signed_cert(private_key: rsa.RSAPrivateKey) -> x509.Certificate:
 # generate_rsa_private_key
 # ---------------------------------------------------------------------------
 
+
 class TestGenerateRsaPrivateKey:
     def test_returns_rsa_key(self, private_key):
         assert isinstance(private_key, rsa.RSAPrivateKey)
@@ -59,19 +60,19 @@ class TestGenerateRsaPrivateKey:
 # build_self_signed_certificate
 # ---------------------------------------------------------------------------
 
+
 class TestBuildSelfSignedCertificate:
     def test_returns_certificate(self, self_signed_cert):
         assert isinstance(self_signed_cert, x509.Certificate)
 
     def test_has_san_extension(self, self_signed_cert):
-        san = self_signed_cert.extensions.get_extension_for_class(
-            x509.SubjectAlternativeName
-        )
+        san = self_signed_cert.extensions.get_extension_for_class(x509.SubjectAlternativeName)
         dns_names = san.value.get_values_for_type(x509.DNSName)
         assert "test.hsync.local" in dns_names
 
     def test_validity_period(self, self_signed_cert):
-        from datetime import UTC, timedelta, datetime
+        from datetime import timedelta
+
         not_before = self_signed_cert.not_valid_before_utc
         not_after = self_signed_cert.not_valid_after_utc
         diff = not_after - not_before
@@ -79,9 +80,7 @@ class TestBuildSelfSignedCertificate:
 
     def test_ca_flag_false_by_default(self, self_signed_cert):
         try:
-            bc = self_signed_cert.extensions.get_extension_for_class(
-                x509.BasicConstraints
-            )
+            bc = self_signed_cert.extensions.get_extension_for_class(x509.BasicConstraints)
             assert bc.value.ca is False
         except x509.ExtensionNotFound:
             pass  # No BasicConstraints extension — also valid for non-CA cert
@@ -102,6 +101,7 @@ class TestBuildSelfSignedCertificate:
 # Serialization
 # ---------------------------------------------------------------------------
 
+
 class TestSerialization:
     def test_serialize_cert_pem_returns_bytes(self, self_signed_cert):
         pem = serialize_cert_pem(self_signed_cert)
@@ -112,17 +112,37 @@ class TestSerialization:
         assert pem.startswith(b"-----BEGIN CERTIFICATE-----")
 
     def test_serialize_key_pem_returns_bytes(self, private_key):
-        pem = serialize_key_pem(private_key)
+        pem = serialize_key_pem(private_key, password=b"test-password")
         assert isinstance(pem, bytes)
 
-    def test_serialize_key_pem_starts_with_header(self, private_key):
-        pem = serialize_key_pem(private_key)
-        assert pem.startswith(b"-----BEGIN RSA PRIVATE KEY-----")
+    def test_serialize_key_pem_starts_with_encrypted_header(self, private_key):
+        pem = serialize_key_pem(private_key, password=b"test-password")
+        assert pem.startswith(b"-----BEGIN ENCRYPTED PRIVATE KEY-----")
+
+    def test_serialize_key_pem_round_trip_with_password(self, private_key):
+        from cryptography.hazmat.primitives import serialization
+
+        password = b"another-password"
+        pem = serialize_key_pem(private_key, password=password)
+        loaded = serialization.load_pem_private_key(pem, password=password)
+        assert loaded is not None
+
+    def test_serialize_key_pem_wrong_password_fails(self, private_key):
+        from cryptography.hazmat.primitives import serialization
+
+        pem = serialize_key_pem(private_key, password=b"correct")
+        with pytest.raises(ValueError):
+            serialization.load_pem_private_key(pem, password=b"wrong")
+
+    def test_serialize_key_pem_empty_password_rejected(self, private_key):
+        with pytest.raises(ValueError, match="password is required"):
+            serialize_key_pem(private_key, password=b"")
 
 
 # ---------------------------------------------------------------------------
 # Fingerprints
 # ---------------------------------------------------------------------------
+
 
 class TestFingerprints:
     def test_compute_fingerprint_returns_hex_string(self, self_signed_cert):
@@ -135,20 +155,25 @@ class TestFingerprints:
         int(fp, 16)  # should not raise
 
     def test_verify_fingerprint_correct(self, self_signed_cert):
-        from cryptography.hazmat.primitives.serialization import Encoding
         import hashlib
+
+        from cryptography.hazmat.primitives.serialization import Encoding
+
         der = self_signed_cert.public_bytes(Encoding.DER)
         expected = hashlib.sha256(der).hexdigest()
         assert verify_cert_fingerprint(der, expected) is True
 
     def test_verify_fingerprint_wrong(self, self_signed_cert):
         from cryptography.hazmat.primitives.serialization import Encoding
+
         der = self_signed_cert.public_bytes(Encoding.DER)
         assert verify_cert_fingerprint(der, "0" * 64) is False
 
     def test_verify_fingerprint_case_insensitive(self, self_signed_cert):
-        from cryptography.hazmat.primitives.serialization import Encoding
         import hashlib
+
+        from cryptography.hazmat.primitives.serialization import Encoding
+
         der = self_signed_cert.public_bytes(Encoding.DER)
         expected = hashlib.sha256(der).hexdigest().upper()
         assert verify_cert_fingerprint(der, expected) is True
