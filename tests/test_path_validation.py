@@ -1,14 +1,8 @@
 """Tests for hsync_common.path_validation."""
 
-import tempfile
-
-import pytest
-
 from hsync_common.path_validation import (
     FORBIDDEN_FILENAME_CHARS,
     FORBIDDEN_PATH_CHARS,
-    PROBLEMATIC_TRAILING_CHARS,
-    RESERVED_FILENAMES,
     has_control_chars,
     has_forbidden_chars,
     has_problematic_trailing,
