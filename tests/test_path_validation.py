@@ -4,6 +4,7 @@ from hsync_common.path_validation import (
     FORBIDDEN_FILENAME_CHARS,
     FORBIDDEN_PATH_CHARS,
     has_control_chars,
+    has_dotdot_component,
     has_forbidden_chars,
     has_problematic_trailing,
     is_reserved_name,
@@ -81,6 +82,26 @@ class TestProblematicTrailing:
         assert has_problematic_trailing("") is False
 
 
+class TestHasDotdotComponent:
+    def test_plain_name(self):
+        assert has_dotdot_component("hello.txt") is False
+
+    def test_embedded_double_dots(self):
+        assert has_dotdot_component("lib..1.dylib") is False
+        assert has_dotdot_component("a..b.txt") is False
+
+    def test_triple_dots(self):
+        assert has_dotdot_component("...") is False
+
+    def test_dotdot_component(self):
+        assert has_dotdot_component("..") is True
+        assert has_dotdot_component("../secret") is True
+        assert has_dotdot_component("foo/../bar") is True
+
+    def test_dotdot_backslash(self):
+        assert has_dotdot_component("foo\\..\\bar") is True
+
+
 class TestIsSafePathComponent:
     def test_simple_name(self):
         assert is_safe_path_component("hello.txt") is True
@@ -99,6 +120,24 @@ class TestIsSafePathComponent:
 
     def test_subdir(self):
         assert is_safe_path_component("subdir/file.txt") is True
+
+    def test_double_dots_in_filename(self):
+        # ".." embedded in a name (not a component) must be allowed
+        assert is_safe_path_component("lib..1.dylib") is True
+        assert is_safe_path_component("a..b.txt") is True
+        assert is_safe_path_component("v1.2.3.tar.gz") is True
+
+    def test_triple_dots_filename(self):
+        assert is_safe_path_component("...") is True
+
+    def test_traversal_component_in_subdir(self):
+        assert is_safe_path_component("foo/../bar") is False
+        assert is_safe_path_component("foo/../../bar") is False
+
+    def test_traversal_mixed_separators(self):
+        # Backslash-normalized traversal must still be blocked
+        assert is_safe_path_component("foo/..\\bar") is False
+        assert is_safe_path_component("..\\secret") is False
 
 
 class TestIsValidFilename:
