@@ -78,29 +78,37 @@ anomaly needs a cost breakdown.
   than level 3 (1146 vs 208 ops/s) and even 3 % smaller
   (524461 B vs 540956 B); on `text-1MB` it is 1.2x faster for 13 % larger
   output — the upload/LAN tradeoff the `compression_level()` SSOT encodes.
-* Delta `find_matches` (A2 + B1): identical-file 1 MB at ~1.0 ms; 10 % changed
-  at ~26.3 ms (was ~27.5 ms: B1 replaced the two per-byte `%` divisions with
-  conditional corrections + a 256-entry `(n*byte)%MOD` table,
-  `delta/rolling_checksum.py:66`); 50 % changed at ~115.8 ms (was ~122.6 ms,
-  −5.5 %); the front-insertion case (`10%+4KB`) costs no more than plain
-  10 % (~27.2 ms) because the window re-synchronises after the shift.
-* Ignore (A5 + B2): `matches` single-path at ~0.009 ms (~109k ops/s) with the
-  prefix-strip fast path; a 5000-path bucket sweep costs ~43.9 ms with a
-  realistic `.hsyncignore` (~24.1 ms with the default-only fallback). B2 cached
-  the `root + "/"` prefix at construction (`ignore.py`), made `should_skip`
-  lock-free (direct `_active_matcher` read) and skipped the `\\`→`/` rewrite
-  when absent — sweep noise dominates, single-path is unchanged.
+* Delta `find_matches` (A2 + B1): identical-file 1 MB at ~1.01 ms; 10 %
+  changed at ~25.98 ms (was ~27.53 ms, −5.6 %: B1 replaced the two per-byte
+  `%` divisions with conditional corrections + a 256-entry `(n*byte)%MOD`
+  table, `delta/rolling_checksum.py:66`); 50 % changed at ~115.13 ms
+  (was ~122.62 ms, −6.1 %); 4 MB 10 % at ~97.04 ms (was ~102.07 ms, −4.9 %);
+  the front-insertion case (`10%+4KB`, ~26.84 ms) costs no more than plain
+  10 % because the window re-synchronises after the shift.
+* Ignore (A5 + B2): `matches` single-path at ~0.009 ms (~111k ops/s) with the
+  prefix-strip fast path; a 5000-path bucket sweep costs ~43.60 ms with a
+  realistic `.hsyncignore` (~24.09 ms with the default-only fallback). B2
+  cached the `root + "/"` prefix at construction (`ignore.py`), made
+  `should_skip` lock-free (direct `_active_matcher` read) and skipped the
+  `\\`→`/` rewrite when absent — sweep noise dominates, single-path is
+  unchanged.
 * Path prepend (B3): `file_from_dict(prepend)` at ~1.1 µs (was ~4.0 µs, **3.6x**),
-  `dir_from_dict(prepend)` at ~0.6 µs (was ~3.1 µs), `symlink_from_dict` at
-  ~0.8 µs (was ~3.3 µs) — `_resolve_prefixed_path` (`models/_util.py:124`)
+  `dir_from_dict(prepend)` at ~0.5 µs (was ~3.1 µs, **~6x**),
+  `symlink_from_dict` at ~0.8 µs (was ~3.3 µs, **~4x**) —
+  `_resolve_prefixed_path` (`models/_util.py:124`)
   now uses string concat instead of `Path(prefix) / rel` on the prepend
   branch (pinned by `test_prepend_matches_pathlib_join` in
   `tests/test_models_file.py`). `file_from_dict(strip)` unchanged at ~2.1 µs.
 * Path stripping (A1): `relpath_in_bucket` at ~1.1 µs and
   `file_from_dict(strip)` at ~2.1 µs — up from 12.8 µs/14 µs
   (~9x/6.5x), so model decode is no longer path-normalisation dominated.
-  (`Event` construction at ~2.0 µs still costs ~2x its own serialization
-  (~1.1 µs) because it re-normalises the src/dst paths.)
+  (`Event` construction at ~1.8 µs still costs ~2x its own serialization
+  (~0.9 µs) because it re-normalises the src/dst paths.)
+* Unchanged areas (same machine, B1–B3 touched only delta/ignore/models):
+  hashing (`sha256(1MB)` ~0.63 ms, ~1.5 GB/s), compression
+  (`compress_data(binary-1MB)` ~4.68 ms, `text-1MB` ~0.38 ms) and
+  `signatures`/`apply_delta` are within run-to-run noise of the A1–A5
+  baseline.
 
 ## Running
 
