@@ -1,0 +1,40 @@
+# Pre-commit hooks for hsync-common
+# Install: pip install pre-commit && pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  # Check for trailing whitespace
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=5000']
+      - id: debug-statements
+      - id: mixed-line-ending
+
+  # Ruff linter and formatter
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.0
+    hooks:
+      # Run ruff linter
+      - id: ruff
+        args: [--fix]
+      # Run ruff formatter
+      - id: ruff-format
+
+  # MyPy type checker (disabled by default - requires additional setup)
+  # To enable: pip install mypy types-requests && pre-commit install
+  # Uncomment the following to enable:
+  # - repo: https://github.com/pre-commit/mirrors-mypy
+  #   rev: v1.14.0
+  #   hooks:
+  #     - id: mypy
+  #       args: [--no-error-summary, --ignore-missing-imports]
+  #       files: ^hsync_common/
+  #       types_or: [python, pyi]
