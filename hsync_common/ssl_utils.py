@@ -17,8 +17,8 @@ from __future__ import annotations
 import hashlib
 import socket
 import ssl
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
-from typing import Sequence
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
@@ -87,12 +87,19 @@ def serialize_cert_pem(cert: x509.Certificate) -> bytes:
     return cert.public_bytes(serialization.Encoding.PEM)
 
 
-def serialize_key_pem(private_key: rsa.RSAPrivateKey) -> bytes:
-    """Serialize an RSA private key to unencrypted PEM bytes."""
+def serialize_key_pem(private_key: rsa.RSAPrivateKey, password: bytes) -> bytes:
+    """Serialize an RSA private key to encrypted PKCS#8 PEM bytes.
+
+    The key is always encrypted using ``BestAvailableEncryption`` (typically
+    AES-256-CBC with PBKDF2HMAC-SHA256). A non-empty ``password`` is required:
+    private keys must never be written to disk in clear text.
+    """
+    if not password:
+        raise ValueError("password is required: refusing to serialize an unencrypted private key")
     return private_key.private_bytes(
         encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.TraditionalOpenSSL,
-        encryption_algorithm=serialization.NoEncryption(),
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.BestAvailableEncryption(password),
     )
 
 
