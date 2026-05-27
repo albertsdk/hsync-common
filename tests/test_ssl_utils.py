@@ -1,14 +1,19 @@
 """Tests for hsync_common.ssl_utils."""
 
+import hashlib
+from unittest.mock import MagicMock, patch
+
 import pytest
 from cryptography import x509
 from cryptography.hazmat.primitives.asymmetric import rsa
 
+from hsync_common import ssl_utils
 from hsync_common.ssl_utils import (
     DEFAULT_KEY_SIZE,
     build_self_signed_certificate,
     compute_cert_fingerprint,
     generate_rsa_private_key,
+    get_server_cert_fingerprint,
     serialize_cert_pem,
     serialize_key_pem,
     verify_cert_fingerprint,
@@ -177,3 +182,49 @@ class TestFingerprints:
         der = self_signed_cert.public_bytes(Encoding.DER)
         expected = hashlib.sha256(der).hexdigest().upper()
         assert verify_cert_fingerprint(der, expected) is True
+
+
+# ---------------------------------------------------------------------------
+# get_server_cert_fingerprint (mocked socket/ssl)
+# ---------------------------------------------------------------------------
+
+
+def _make_cm(value):
+    """Build a context-manager mock whose __enter__ yields ``value``."""
+    cm = MagicMock()
+    cm.__enter__.return_value = value
+    cm.__exit__.return_value = False
+    return cm
+
+
+class TestGetServerCertFingerprint:
+    def test_connection_error_returns_none(self):
+        with patch.object(ssl_utils.socket, "create_connection", side_effect=OSError("boom")):
+            assert get_server_cert_fingerprint("localhost", 9) is None
+
+    def test_success_returns_fingerprint(self):
+        der = b"fake-der-bytes"
+        expected = hashlib.sha256(der).hexdigest()
+
+        ssock = MagicMock()
+        ssock.getpeercert.return_value = der
+        ctx = MagicMock()
+        ctx.wrap_socket.return_value = _make_cm(ssock)
+
+        with (
+            patch.object(ssl_utils.ssl, "create_default_context", return_value=ctx),
+            patch.object(ssl_utils.socket, "create_connection", return_value=_make_cm(MagicMock())),
+        ):
+            assert get_server_cert_fingerprint("host", 443) == expected
+
+    def test_missing_peer_cert_returns_none(self):
+        ssock = MagicMock()
+        ssock.getpeercert.return_value = None
+        ctx = MagicMock()
+        ctx.wrap_socket.return_value = _make_cm(ssock)
+
+        with (
+            patch.object(ssl_utils.ssl, "create_default_context", return_value=ctx),
+            patch.object(ssl_utils.socket, "create_connection", return_value=_make_cm(MagicMock())),
+        ):
+            assert get_server_cert_fingerprint("host", 443) is None
