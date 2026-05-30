@@ -48,7 +48,10 @@ Key properties:
 A CID alone is not a proof of identity. Its trustworthiness depends on the
 transport context:
 
-- **Server Mode**: the CID arrives alongside a validated `API_KEY` → **authenticated**.
+- **Server Mode**: the CID arrives alongside a validated account token → **authenticated**.
+  The account token (`hs_<account_id>_<secret>`) identifies a server-side account
+  with a role (`admin` or `client`) and bucket memberships. The CID remains
+  ephemeral and is not the account id.
 - **LAN P2P with `LAN_KEY`**: the CID is bound to the shared secret → **authenticated**.
 - **LAN P2P without `LAN_KEY` (hello mode)**: the CID is self-declared and
   unverified → **unauthenticated** — the master ignores it for echo suppression
@@ -90,7 +93,7 @@ connection (there is no separate auth channel). The message envelope is:
 {
   "type": "<message-type>",
   "status": "<ok|failed>",
-  "token": "<shared-secret>",
+  "token": "<account-token>",
   "cid": "<client-id>",
   "app_version": "<semver>",
   "protocol_version": "<protocol-version>",
@@ -103,7 +106,7 @@ connection (there is no separate auth channel). The message envelope is:
 
 | `type` | Direction | Meaning |
 |---|---|---|
-| `auth` | Client → Server / Slave → Master | Authentication request carrying the shared secret and CID |
+| `auth` | Client → Server / Slave → Master | Authentication request carrying the account token (Server Mode) or shared LAN key, and CID |
 | `auth_required` | Master → Slave | Master requires authentication (LAN P2P with `LAN_KEY`) |
 | `hello` | Master → Slave | Lightweight handshake: master has no `LAN_KEY`, asks slave for its CID for logging |
 
@@ -141,7 +144,7 @@ Once a peer's CID has been validated and (where applicable) authenticated, it is
 
 | Scenario | CID validated? | CID authenticated? | Can be used for echo suppression? | Logged as |
 |---|---|---|---|---|
-| Server Mode (API key) | ✅ `is_valid_cid()` | ✅ (by API key) | ✅ | `(CID: xxx)` |
+| Server Mode (account token) | ✅ `is_valid_cid()` | ✅ (by account token) | ✅ | `(CID: xxx)` |
 | LAN P2P with `LAN_KEY` | ✅ `is_valid_cid()` | ✅ (`hmac.compare_digest`) | ✅ | `(CID: xxx)` |
 | LAN P2P without `LAN_KEY` (hello) | ✅ `is_valid_cid()` | ❌ (no shared secret) | ❌ (master's own CID used instead) | `(CID: xxx, unauthenticated)` |
 
@@ -154,3 +157,50 @@ documented in:
 - Python: `hsync_common/models/event.py` — `CID_PATTERN`, `is_valid_cid()`
 - Kotlin: `LanWebSocketServer.kt` — `CID_PATTERN`, `isValidCid()` (companion object)
 - Kotlin: `LanServer.kt` — `CID_PATTERN`, `isValidCidFormat()` (companion object)
+
+## Server Mode account model
+
+In Server Mode, authentication uses **per-account tokens** (not a shared key).
+Each account has a stable id, a revocable secret, a role, and bucket memberships.
+
+### Token format
+
+```
+hs_<account_id 21 alnum>_<secret 64 hex>
+```
+
+- `hs_` prefix (opaque, not parseable by clients).
+- `account_id`: 21-char alphanumeric, server-minted, immutable. Identifies the
+  account. Not the same as the session CID (which is ephemeral and client-minted).
+- `secret`: 64-char lowercase hex (`secrets.token_hex(32)`).
+
+The token is presented as `Authorization: Bearer <token>` (REST) and as the
+`token` field of the WS `auth` frame. The wire envelope is identical to the
+previous shared-key model — clients treat the token as an opaque string.
+
+### Roles
+
+| Role | Bucket access | Account management |
+|---|---|---|
+| `admin` | All buckets | Create, rotate, disable, delete accounts; grant/revoke membership; transfer ownership |
+| `client` | Owns + member buckets only | None |
+
+### Bucket membership
+
+- Each bucket has exactly one **owner** and zero or more **members**.
+- Owner and member have the same data access (read, write, sync).
+- Only admin or the bucket owner can grant/revoke membership and transfer ownership.
+- Bucket deletion is admin-only.
+
+### Bootstrap
+
+On first start (empty account store), an admin account is created:
+- If `HSYNC_ADMIN_KEY` (64 hex) is set: used silently as the admin secret.
+- If absent: a secret is generated and the full token `hs_<id>_<secret>` is
+  printed once (not recoverable).
+
+### Anti-enumeration
+
+- Unknown account id → dummy scrypt (same timing as a real verify).
+- Disabled / expired / non-member → same wire response as "invalid key" (401 /
+  WS 4003) or "bucket not found" (404 / WS 4009).
