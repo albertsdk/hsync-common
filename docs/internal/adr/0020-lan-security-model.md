@@ -51,9 +51,9 @@ eliminates even this window.
 
 ### 2. LAN key write authorization
 
-**Decision**: a shared secret (LAN key, distinct from the server API key) gates
-write access in LAN mode. Peers that know the key can push changes; peers
-without it are read-only observers.
+**Decision**: a shared secret (LAN key, distinct from the server's per-account
+tokens) gates write access in LAN mode. Peers that know the key can push
+changes; peers without it are read-only observers.
 
 - The key is set via `HSYNC_LAN_KEY` or `--lan-key-fd`.
 - Write policy is enforced by `_check_lan_write_policy` in the master.
@@ -65,8 +65,9 @@ same Wi-Fi from injecting files. It is not a cryptographic identity — TOFU
 pinning serves that role — but a coarse "are you part of my sync group?" gate.
 
 **Accepted risk**: the LAN key is a shared secret; compromise of one device
-compromises the whole LAN group. This matches the single API key model of the
-server ([ADR-0008](0008-client-accounts.md)) and the target use case
+compromises the whole LAN group. This is a deliberate contrast with the server's
+per-account token model ([ADR-0008](0008-client-accounts.md)), where each device
+has its own revocable key; the LAN group remains a single shared trust domain
 (single-user/small-family fleet).
 
 ### 3. Strict pairing mode (optional)
@@ -107,9 +108,10 @@ untrusted bulletin board and moves all trust decisions to the TLS+key layer.
   contact.
 - **Discovery is untrusted by design**: eliminating trust from mDNS simplifies
   the threat model — no need to secure a protocol that is inherently unsecurable.
-- **Shared secret model**: both the server account tokens ([ADR-0008](0008-client-accounts.md))
-  and the LAN key use shared secrets. Revocation requires rotating the secret and
-  updating all peers simultaneously.
+- **Shared secret model**: the LAN key is a shared secret; the server's account
+  tokens ([ADR-0008](0008-client-accounts.md)) are per-account and individually
+  revocable. Revoking the LAN key requires rotating it and updating all peers
+  simultaneously.
 
 ## See also
 
