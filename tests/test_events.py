@@ -24,9 +24,10 @@ class TestBuildEvent:
         assert ev["status"] == "connected"  # type: ignore[reportTypedDictNotRequiredAccess]
 
     def test_explicit_ts_is_preserved(self):
-        ev = build_event(UiEventName.peers, ts="2026-06-19T10:00:00Z", count=3)
+        ev = build_event(UiEventName.peers, ts="2026-06-19T10:00:00Z", connected=3, total=5)
         assert ev["ts"] == "2026-06-19T10:00:00Z"
-        assert ev["count"] == 3  # type: ignore[reportTypedDictNotRequiredAccess]
+        assert ev["connected"] == 3  # type: ignore[reportTypedDictNotRequiredAccess]
+        assert ev["total"] == 5  # type: ignore[reportTypedDictNotRequiredAccess]
 
     def test_drops_none_payload_values(self):
         ev = build_event(UiEventName.transfer, op="download", file="a.txt", size=None)
