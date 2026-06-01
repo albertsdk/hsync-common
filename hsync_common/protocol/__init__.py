@@ -35,6 +35,10 @@ REST_OPENAPI_PATH = PROTOCOL_DIR / "rest" / "openapi.json"
 WS_SCHEMA_PATH = PROTOCOL_DIR / "ws" / "ws-schema.json"
 LAN_TXT_SCHEMA_PATH = PROTOCOL_DIR / "lan" / "txt-schema.json"
 
+# Canonical directory of the committed golden protocol fixtures (generated from
+# hsync_common.protocol.fixtures; consumed as cross-language test inputs).
+FIXTURES_DIR = PROTOCOL_DIR / "fixtures"
+
 
 def dump_contract(schema: dict[str, Any]) -> str:
     """Serialize a contract document to its canonical on-disk representation.
