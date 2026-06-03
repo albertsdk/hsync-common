@@ -20,6 +20,7 @@ the matching drift-check test guards them against silent divergence.
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from typing import Any
 
 from hsync_common.models.event import Event, EventName
@@ -32,6 +33,7 @@ from .handshake import (
     build_ws_auth_ok,
     build_ws_auth_request,
 )
+from .lan import ElectionCandidate, elect_master
 
 __all__ = ["FIXTURE_TOKEN", "FIXTURE_APP_VERSION", "build_fixtures"]
 
@@ -81,6 +83,85 @@ def _lan_txt_record() -> dict[str, Any]:
     }
 
 
+# Cross-language master-election scenarios. Each scenario lists its candidates
+# and the expected winning ``cid``; the expectation is *computed* from the shared
+# algorithm (never hand-written), so the committed snapshot can only encode what
+# hsync_common.protocol.lan actually decides. Both the Python client tests and the
+# Android parity test replay these exact inputs and must reach the same outcome.
+_ELECTION_SCENARIOS: tuple[tuple[str, tuple[ElectionCandidate, ...]], ...] = (
+    (
+        "incumbent-server-ready-wins-over-force-master",
+        (
+            ElectionCandidate(cid="local", force_master=True, startup_time=10.0),
+            ElectionCandidate(cid="incumbent", startup_time=200.0, server_ready=True),
+        ),
+    ),
+    (
+        "force-master-wins-over-plain-peer",
+        (
+            ElectionCandidate(cid="plain", startup_time=50.0),
+            ElectionCandidate(cid="forced", force_master=True, startup_time=300.0),
+        ),
+    ),
+    (
+        "bidirectional-preferred-over-upload-only",
+        (
+            ElectionCandidate(cid="aaa", startup_time=100.0, sync_direction="upload-only"),
+            ElectionCandidate(cid="bbb", startup_time=100.0),
+        ),
+    ),
+    (
+        "earliest-startup-wins",
+        (
+            ElectionCandidate(cid="late", startup_time=200.0),
+            ElectionCandidate(cid="early", startup_time=100.0),
+        ),
+    ),
+    (
+        "lowest-cid-breaks-tie",
+        (
+            ElectionCandidate(cid="zzz", startup_time=100.0),
+            ElectionCandidate(cid="aaa", startup_time=100.0),
+        ),
+    ),
+    (
+        "no-peer-server-ready-still-elects",
+        (
+            ElectionCandidate(cid="early", startup_time=100.0),
+            ElectionCandidate(cid="later", startup_time=200.0),
+        ),
+    ),
+    (
+        "never-master-peer-excluded",
+        (
+            ElectionCandidate(cid="never", startup_time=100.0, never_master=True),
+            ElectionCandidate(cid="eligible", startup_time=200.0),
+        ),
+    ),
+    (
+        "all-never-master-no-master",
+        (
+            ElectionCandidate(cid="a", startup_time=100.0, never_master=True),
+            ElectionCandidate(cid="b", startup_time=200.0, never_master=True),
+        ),
+    ),
+)
+
+
+def _election_scenarios() -> dict[str, Any]:
+    """Serialized election scenarios with expectations computed from the source."""
+    return {
+        "scenarios": [
+            {
+                "name": name,
+                "candidates": [asdict(c) for c in candidates],
+                "expected_master": elect_master(candidates),
+            }
+            for name, candidates in _ELECTION_SCENARIOS
+        ]
+    }
+
+
 def build_fixtures() -> dict[str, dict[str, Any]]:
     """Build every golden fixture, keyed by its snapshot file stem.
 
@@ -105,4 +186,5 @@ def build_fixtures() -> dict[str, dict[str, Any]]:
         "ws-pong": {"type": "pong"},
         "ws-file-event": _file_event(),
         "lan-txt-record": _lan_txt_record(),
+        "lan-election-scenarios": _election_scenarios(),
     }
