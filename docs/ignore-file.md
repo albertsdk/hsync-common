@@ -131,9 +131,3 @@ if should_skip("Thumbs.db"):
     # skip this file
     pass
 ```
-
-#### `is_ignored(path, is_dir=False)`
-
-Alias for `should_skip()`. Returns `True` when *path* should be excluded from
-synchronisation. Uses the active matcher when available, otherwise the built-in
-default ignore patterns (`hsync_common.constants.DEFAULT_IGNORE_PATTERNS`).
