@@ -117,5 +117,8 @@ class TestEventNameCoverage:
             "preview_end",
             "file_status",
             "rename_status",
+            "fingerprint_changed",
+            "auth_required",
+            "pairing_needed",
         }
         assert expected <= names

@@ -10,8 +10,9 @@ the same golden fixtures.
 |---|---|
 | TXT record keys / schema | `hsync_common.protocol.schemas` (`LAN_TXT_KEYS`, `build_lan_txt_schema`) |
 | Election algorithm | `hsync_common.protocol.lan` (`elect_master`, `election_sort_key`) |
-| Kotlin mirror | `com.hsync.android.p2p.Election` |
-| Cross-language scenarios | `protocol/fixtures/lan-election-scenarios.json` |
+| Pairing / trust policy | `hsync_common.protocol.pairing` (`evaluate_pin`, `lan_write_requires_key`, `requires_pairing_confirmation`) |
+| Kotlin mirror | `com.hsync.android.p2p.Election`, `com.hsync.android.p2p.Pairing` |
+| Cross-language scenarios | `protocol/fixtures/lan-election-scenarios.json`, `protocol/fixtures/lan-pairing-scenarios.json` |
 
 ## mDNS / TXT record
 
@@ -97,3 +98,85 @@ poetry run python scripts/export_protocol_schemas.py
 then copy the regenerated `protocol/fixtures/*.json` into
 `hsync-android/app/src/test/resources/protocol/fixtures/` (the
 `TestAndroidFixtureParity` test enforces byte-for-byte equality).
+
+## Security
+
+The election above decides *who serves*; this section decides *who to trust*. The
+trust decisions are the single source of truth in
+`hsync_common.protocol.pairing`; persistence and I/O live in each client.
+
+### Threat model
+
+The LAN channel is designed for a **trusted LAN** (a home/office network the
+operator controls) and degrades safely on an **untrusted LAN** (shared/public
+Wi-Fi):
+
+- mDNS/TXT discovery is **unauthenticated**: any host can advertise any `cid`,
+  `bucket` or flag. Discovery data is therefore a hint, never proof.
+- A LAN master may serve over self-signed HTTPS, advertising its certificate
+  fingerprint in `cert_fp`. Self-signed HTTPS gives **confidentiality and
+  integrity** against passive eavesdroppers, but **does not prove identity** — on
+  its own it cannot distinguish the real master from an impostor that generated
+  its own certificate.
+- `HSYNC_LAN_KEY` is a shared secret presented as a bearer token. It authenticates
+  *writes* to the master, but is only meaningful over HTTPS (it is never sent over
+  plain HTTP) and is shared, not per-peer.
+
+Identity is therefore established by **Trust On First Use (TOFU)** pinning, and
+writes by an unattended client are gated on the shared key.
+
+### Certificate pinning (TOFU)
+
+The first `cert_fp` seen for a `(cid, bucket)` is pinned (client store:
+`hsync_client.pinning.PinStore`, outside the synced bucket and overridable via
+`HSYNC_LAN_PIN_FILE`). `evaluate_pin` classifies every later sighting:
+
+| Decision | Meaning | Client behaviour |
+|---|---|---|
+| `trusted` | first sighting | pin it and proceed |
+| `matched` | equals the pin | proceed |
+| `changed` | differs from the pin | **refuse** to connect; emit `fingerprint_changed` |
+| `no_fingerprint` | peer offers none | nothing to pin (plain HTTP) |
+
+A `changed` fingerprint is treated as a possible man-in-the-middle: the client
+logs a parsable `[FINGERPRINT_CHANGED]` line, emits the structured event, and
+stays in discovery instead of connecting. Re-trusting a legitimately rotated
+certificate requires removing the stale pin out of band.
+
+### LAN-key write policy
+
+Because a self-signed transport does not prove identity, an **unattended**
+(non-interactive, `--yes`) client must authenticate write-capable sync with the
+shared key. `lan_write_requires_key(sync_direction, interactive=...)` is the
+canonical rule: a key is required when the run is **non-interactive** *and* the
+direction writes to the master (`bidirectional` or `upload-only`). `download-only`
+never writes and is always allowed.
+
+The client enforces this before sync (`_check_lan_write_policy`): when an
+unattended write lacks an effective key — `HSYNC_LAN_KEY` set **and**
+`HSYNC_LAN_HTTPS` enabled, since the key is dropped over plain HTTP — it logs
+`[AUTH_REQUIRED]`, emits the `auth_required` event, and exits. Interactive runs
+keep the key recommended, not required: the operator can vouch for the peer out
+of band.
+
+### Explicit pairing (strict mode)
+
+TOFU trusts a peer's *first* certificate automatically, which is convenient on a
+trusted LAN but assumes no attacker was already present at first sighting. Strict
+pairing (`HSYNC_LAN_REQUIRE_PAIRING` / client `LAN_REQUIRE_PAIRING`, Android
+`SyncConfig.lanRequirePairing`) closes that window by disabling the auto-pin
+shortcut. `requires_pairing_confirmation(decision, require_pairing=...)` is the
+canonical rule: it returns true only for a first sighting (`trusted`) while
+strict pairing is on; `matched`/`changed`/`no_fingerprint` are unaffected.
+
+When it triggers, the client logs `[PAIRING_NEEDED]`, emits the `pairing_needed`
+event and stays in discovery without connecting. The operator confirms the peer
+out of band — by pinning its fingerprint (or disabling strict pairing) — after
+which the normal TOFU table applies.
+
+### Security events
+
+Security state is surfaced on the structured channel (see §3) rather than by
+scraping log wording: `fingerprint_changed` (pin mismatch, connection refused),
+`auth_required` (unattended write without an effective key), and `pairing_needed`
+(strict pairing: a first-seen certificate awaiting out-of-band confirmation).

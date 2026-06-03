@@ -64,6 +64,10 @@ class UiEventName(StrEnum):
     preview_end = "preview_end"  # dry-run preview scan ended
     file_status = "file_status"  # preview per-file status (synced/to_*)
     rename_status = "rename_status"  # preview rename status
+    # ── LAN security (P1 §5) ─────────────────────────────────────────────────
+    fingerprint_changed = "fingerprint_changed"  # pinned master cert changed (TOFU)
+    auth_required = "auth_required"  # a shared LAN key is required but missing
+    pairing_needed = "pairing_needed"  # an explicit trust confirmation is required
 
 
 class UiEventDict(TypedDict):
@@ -94,6 +98,7 @@ class UiEventDict(TypedDict):
     peer_address: NotRequired[str]
     state: NotRequired[str]
     elapsed: NotRequired[int]
+    fingerprint: NotRequired[str]
 
 
 def _utc_now_iso() -> str:
