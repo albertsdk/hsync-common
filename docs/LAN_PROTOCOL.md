@@ -163,7 +163,8 @@ of band.
 
 TOFU trusts a peer's *first* certificate automatically, which is convenient on a
 trusted LAN but assumes no attacker was already present at first sighting. Strict
-pairing (`HSYNC_LAN_REQUIRE_PAIRING` / client `LAN_REQUIRE_PAIRING`, Android
+pairing (`HSYNC_LAN_REQUIRE_PAIRING` / client `LAN_REQUIRE_PAIRING` or the
+`--require-pairing` CLI flag, Desktop *Require pairing* toggle, Android
 `SyncConfig.lanRequirePairing`) closes that window by disabling the auto-pin
 shortcut. `requires_pairing_confirmation(decision, require_pairing=...)` is the
 canonical rule: it returns true only for a first sighting (`trusted`) while
