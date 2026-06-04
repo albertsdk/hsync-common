@@ -1,7 +1,5 @@
 """Tests for hsync_common.constants."""
 
-import pytest
-
 from hsync_common.constants import (
     CHUNK_SIZE_LARGE,
     CHUNK_SIZE_MEDIUM,

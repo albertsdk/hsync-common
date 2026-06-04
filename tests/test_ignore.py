@@ -95,9 +95,7 @@ class TestPathNormalisation:
 
 class TestExtraPatterns:
     def test_extra_patterns_layered_on_top(self, bucket):
-        m = IgnoreMatcher(
-            str(bucket), include_hidden=True, extra_patterns=["*.private"]
-        )
+        m = IgnoreMatcher(str(bucket), include_hidden=True, extra_patterns=["*.private"])
         assert m.matches("notes.private") is True
 
 

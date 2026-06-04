@@ -1,9 +1,6 @@
 """Tests for hsync_common.logger."""
 
 import logging
-import os
-
-import pytest
 
 from hsync_common.logger import (
     DEFAULT_LOG_COMPRESSION,
@@ -109,7 +106,9 @@ class TestBaseInterceptHandler:
         assert h._bind_extra is None
 
     def test_bind_extra_callable(self):
-        fn = lambda: {"request_id": "abc"}
+        def fn():
+            return {"request_id": "abc"}
+
         h = BaseInterceptHandler(bind_extra=fn)
         assert h._bind_extra is fn
 
@@ -117,8 +116,13 @@ class TestBaseInterceptHandler:
         """emit() should forward messages to loguru without raising."""
         h = BaseInterceptHandler()
         record = logging.LogRecord(
-            name="test", level=logging.INFO, pathname="", lineno=0,
-            msg="hello", args=(), exc_info=None,
+            name="test",
+            level=logging.INFO,
+            pathname="",
+            lineno=0,
+            msg="hello",
+            args=(),
+            exc_info=None,
         )
         # Should not raise
         h.emit(record)
@@ -126,7 +130,12 @@ class TestBaseInterceptHandler:
     def test_emit_with_escape_braces(self):
         h = BaseInterceptHandler(escape_braces=True)
         record = logging.LogRecord(
-            name="test", level=logging.WARNING, pathname="", lineno=0,
-            msg='{"key": "value"}', args=(), exc_info=None,
+            name="test",
+            level=logging.WARNING,
+            pathname="",
+            lineno=0,
+            msg='{"key": "value"}',
+            args=(),
+            exc_info=None,
         )
         h.emit(record)
