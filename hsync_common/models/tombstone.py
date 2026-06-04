@@ -41,6 +41,11 @@ def tombstone_key(relpath: str) -> str:
     return sha256(relpath.encode("utf-8")).hexdigest()
 
 
+def relpath_in_bucket(abs_path: str, bucket_dir: str) -> str:
+    """Return the bucket-relative path used as the tombstone identity."""
+    return str(abs_path).removeprefix(str(bucket_dir)).lstrip("/")
+
+
 class TombstoneStore:
     """In-memory tombstone map with JSON persistence and LWW merge."""
 
