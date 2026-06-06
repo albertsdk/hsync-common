@@ -4,6 +4,9 @@ This document describes the architecture of `hsync-common`, the shared library
 that provides canonical models, constants, and compression utilities for the
 HSYNC ecosystem.
 
+> The *why* behind the ecosystem's stable, cross-project decisions is recorded
+> in the [Architecture Decision Records](adr/README.md).
+
 ## System Overview
 
 ```mermaid
