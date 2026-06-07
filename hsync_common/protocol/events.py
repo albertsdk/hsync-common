@@ -68,6 +68,8 @@ class UiEventName(StrEnum):
     fingerprint_changed = "fingerprint_changed"  # pinned master cert changed (TOFU)
     auth_required = "auth_required"  # a shared LAN key is required but missing
     pairing_needed = "pairing_needed"  # an explicit trust confirmation is required
+    # ── Transfer resilience (P1 §11) ─────────────────────────────────────────
+    transfer_failed = "transfer_failed"  # a file transfer gave up after retries
 
 
 class UiEventDict(TypedDict):
