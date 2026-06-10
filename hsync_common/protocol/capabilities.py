@@ -5,7 +5,7 @@
 # Copyright (C) 2025 Alberto Basso
 
 """
-Binary-capabilities document emitted by ``hsync --capabilities-json`` (§8).
+Binary-capabilities document emitted by ``hsync --capabilities-json``.
 
 This is the single source of truth for the JSON document the client prints so a
 parent process (the Desktop GUI) can drive its UI from the *binary's* declared

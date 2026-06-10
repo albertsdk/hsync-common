@@ -7,11 +7,10 @@
 """
 Versioned wire-protocol contract, shared across every HSYNC component.
 
-This package is the single source of truth for the on-the-wire contract
-(DESIGN_REVIEW §1). The REST surface is captured as a committed OpenAPI
-snapshot exported from the FastAPI server; both the server (drift check)
-and any client tooling read it from here instead of re-deriving payload
-shapes by hand.
+This package is the single source of truth for the on-the-wire contract.
+The REST surface is captured as a committed OpenAPI snapshot exported
+from the FastAPI server; both the server (drift check) and any client
+tooling read it from here instead of re-deriving payload shapes by hand.
 
 The snapshot is serialized through :func:`dump_openapi` so the exporter and
 the drift-check test always agree byte-for-byte; never hand-edit the JSON.

@@ -5,7 +5,7 @@
 # Copyright (C) 2025 Alberto Basso
 
 """
-Canonical LAN master-election algorithm (P1 §4, single source of truth).
+Canonical LAN master-election algorithm (single source of truth).
 
 The election ordering used to pick the LAN coordinator lives here once and is
 consumed by every component (the Python client's ``PeerManager`` and, via the
