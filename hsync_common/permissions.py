@@ -17,7 +17,7 @@ hsync-client; the Android client mirrors the same format.
 """
 
 from os import stat as os_stat
-from re import fullmatch
+from re import compile as _re_compile
 
 # Permission bits we preserve: the standard rwx triplets plus the special bits
 # (setuid/setgid/sticky). This mirrors the low 12 bits of ``st_mode``.
@@ -29,6 +29,11 @@ PERMISSION_MASK = 0o7777
 # executable on every receiving host (a local privilege-escalation vector
 # when the daemon runs with elevated privileges).
 REMOTE_PERMISSION_MASK = 0o777
+
+# Precompiled octal-permission shape gate (3 or 4 octal digits): a single
+# C-level regex object instead of recompiling (or cache-looking-up) the
+# pattern on every validation call.
+_OCTAL_PERMISSIONS_RE = _re_compile(r"[0-7]{3,4}")
 
 
 def mode_to_octal(mode: int) -> str:
@@ -68,7 +73,7 @@ def is_valid_octal_permissions(permissions: str) -> bool:
     Returns:
         True if the format is valid, False otherwise.
     """
-    return bool(fullmatch(r"[0-7]{3,4}", permissions))
+    return bool(_OCTAL_PERMISSIONS_RE.fullmatch(permissions))
 
 
 def sanitize_remote_permissions(permissions: str) -> str:

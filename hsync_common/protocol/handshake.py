@@ -87,6 +87,10 @@ class Capability(StrEnum):
 
 ALL_CAPABILITIES: frozenset[Capability] = frozenset(Capability)
 
+# Precomputed value -> Capability lookup for decode_capabilities (built once at
+# import instead of rebuilding the dict on every handshake decode).
+_CAPABILITY_BY_VALUE: dict[str, Capability] = {c.value: c for c in Capability}
+
 
 def encode_capabilities(capabilities: Iterable[Capability | str]) -> list[str]:
     """Serialize capabilities to a sorted, de-duplicated list of wire tokens."""
@@ -101,8 +105,9 @@ def decode_capabilities(values: Any) -> set[Capability]:
     """
     if not isinstance(values, (list, tuple, set, frozenset)):
         return set()
-    known = {c.value: c for c in Capability}
-    return {known[v] for v in values if isinstance(v, str) and v in known}
+    return {
+        _CAPABILITY_BY_VALUE[v] for v in values if isinstance(v, str) and v in _CAPABILITY_BY_VALUE
+    }
 
 
 class WsAuthRequest(TypedDict):

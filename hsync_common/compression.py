@@ -211,7 +211,7 @@ def should_compress(
         )
         return False
 
-    ext = splitext(filepath.lower())[1]
+    ext = splitext(filepath)[1].lower()
     if ext in PRECOMPRESSED_EXTENSIONS:
         log.debug(f"Skip compression: {filepath} already compressed ({ext})")
         return False

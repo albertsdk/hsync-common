@@ -15,7 +15,7 @@ from hsync_common.constants import (
     PARTIAL_DOWNLOAD_SUFFIX,
 )
 from hsync_common.hashing import adaptive_chunk_size, compute_sha256
-from hsync_common.permissions import get_permissions
+from hsync_common.permissions import mode_to_octal
 from hsync_common.time_utils import to_epoch
 
 if TYPE_CHECKING:
@@ -108,6 +108,11 @@ class FileDict(TypedDict):
     version: NotRequired["VersionInfo"]
 
 
+# Parked literal-payload suffix: "<final>.delta.part.lit". Precomputed once
+# so the hot is_partial_file() check does not rebuild the string per entry.
+_PARTIAL_DELTA_LIT_SUFFIX = f"{PARTIAL_DELTA_SUFFIX}.lit"
+
+
 def is_partial_file(file_path: str) -> bool:
     """Return True if *file_path* is an in-progress hsync transfer artifact.
 
@@ -131,7 +136,7 @@ def is_partial_file(file_path: str) -> bool:
     stripped = file_path.rstrip("/")
     sep = stripped.rfind("/")
     name = stripped if sep < 0 else stripped[sep + 1 :]
-    return name.endswith(PARTIAL_DOWNLOAD_SUFFIX) or name.endswith(f"{PARTIAL_DELTA_SUFFIX}.lit")
+    return name.endswith(PARTIAL_DOWNLOAD_SUFFIX) or name.endswith(_PARTIAL_DELTA_LIT_SUFFIX)
 
 
 def is_hidden_file(file_path: str) -> bool:
@@ -284,10 +289,9 @@ class File:
                 return None
             _set_cached_sha256(file_path, sha256sum, file_mtime, file_size)
 
-        try:
-            permissions = get_permissions(file_path)
-        except OSError:
-            return None
+        # Reuse the st_mode already read by file.stat() above instead of a
+        # second stat syscall (get_permissions would stat the path again).
+        permissions = mode_to_octal(file_stat.st_mode)
 
         return cls(
             filepath=file_path,
