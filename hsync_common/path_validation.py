@@ -14,6 +14,8 @@ Based on Microsoft documentation:
 https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file
 """
 
+import re
+
 # =============================================================================
 # Forbidden Characters
 # =============================================================================
@@ -305,3 +307,72 @@ def sanitize_filename(filename: str) -> str:
         filename = "unnamed"
 
     return filename
+
+
+# =============================================================================
+# Bucket Name Validation
+# =============================================================================
+
+# Canonical bucket-name pattern shared by client, server and desktop.
+# Bucket names must be alphanumeric, may contain hyphens and underscores in
+# the middle, but cannot start or end with a hyphen or underscore.
+BUCKET_NAME_PATTERN = r"^[a-zA-Z0-9]([a-zA-Z0-9_-]*[a-zA-Z0-9])?$"
+
+_BUCKET_NAME_RE = re.compile(BUCKET_NAME_PATTERN)
+
+
+def is_valid_bucket_name(value: str) -> bool:
+    """Validate a bucket name against the canonical HSYNC pattern.
+
+    Bucket names must contain only alphanumeric characters, hyphens and
+    underscores, and cannot start or end with a hyphen or underscore.
+
+    Args:
+        value: The bucket name to validate.
+
+    Returns:
+        True if the bucket name is valid, False otherwise.
+    """
+    return bool(_BUCKET_NAME_RE.match(value))
+
+
+# =============================================================================
+# Safe Path Resolution
+# =============================================================================
+
+
+def safe_resolve_path(path: str, *, allow_absolute: bool = True) -> str | None:
+    """Resolve a filesystem path, rejecting traversal and unsafe inputs.
+
+    The path is stripped of NUL bytes, checked for ``..`` traversal
+    components and resolved with :meth:`pathlib.Path.resolve`. When
+    ``allow_absolute`` is False, resolved absolute paths are rejected.
+
+    Args:
+        path: The path to validate and resolve.
+        allow_absolute: If False, only relative paths are accepted.
+
+    Returns:
+        The resolved path as a string if safe, or ``None`` otherwise.
+    """
+    from pathlib import Path
+
+    if not path:
+        return None
+
+    # Strip NUL bytes which are never valid in paths.
+    path = path.replace("\x00", "")
+
+    # Reject parent-directory traversal as a whole component.
+    if has_dotdot_component(path):
+        return None
+
+    try:
+        resolved = Path(path).resolve()
+    except (OSError, ValueError):
+        return None
+
+    if not allow_absolute and resolved.is_absolute():
+        return None
+
+    return str(resolved)

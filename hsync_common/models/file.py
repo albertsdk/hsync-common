@@ -7,19 +7,12 @@ This module defines the File class representing a file with its metadata
 
 from collections import OrderedDict
 from datetime import UTC, datetime
-from hashlib import sha256
 from pathlib import Path
 from re import match
 from typing import Optional, TypedDict
 
-from hsync_common.constants import (
-    CHUNK_SIZE_LARGE,
-    CHUNK_SIZE_MEDIUM,
-    CHUNK_SIZE_SMALL,
-    FILE_SIZE_MEDIUM,
-    FILE_SIZE_SMALL,
-    HSYNCKEEP_FILENAME,
-)
+from hsync_common.constants import HSYNCKEEP_FILENAME
+from hsync_common.hashing import adaptive_chunk_size, compute_sha256
 from hsync_common.permissions import get_permissions
 
 # =============================================================================
@@ -216,21 +209,7 @@ class File:
     @staticmethod
     def _compute_sha256(filepath: str, file_size: int | None = None) -> str:
         """Compute the SHA-256 checksum of a file with adaptive chunk size."""
-        if file_size is not None:
-            if file_size >= FILE_SIZE_MEDIUM:
-                chunk_size = CHUNK_SIZE_LARGE
-            elif file_size >= FILE_SIZE_SMALL:
-                chunk_size = CHUNK_SIZE_MEDIUM
-            else:
-                chunk_size = CHUNK_SIZE_SMALL
-        else:
-            chunk_size = CHUNK_SIZE_SMALL
-
-        hash_sha256 = sha256()
-        with open(filepath, "rb") as f:
-            for chunk in iter(lambda: f.read(chunk_size), b""):
-                hash_sha256.update(chunk)
-        return hash_sha256.hexdigest()
+        return compute_sha256(filepath, adaptive_chunk_size(file_size))
 
     @staticmethod
     def _get_permissions(obj_path: str) -> str:
