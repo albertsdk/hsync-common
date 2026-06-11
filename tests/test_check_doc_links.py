@@ -62,6 +62,8 @@ class TestIterMarkdownFiles:
         (tmp_path / ".venv" / "b.md").write_text("x")
         (tmp_path / "node_modules").mkdir()
         (tmp_path / "node_modules" / "c.md").write_text("x")
+        (tmp_path / ".kilo" / "worktrees" / "wt").mkdir(parents=True)
+        (tmp_path / ".kilo" / "worktrees" / "wt" / "d.md").write_text("x")
 
         found = {p.name for p in cdl.iter_markdown_files(tmp_path)}
         assert found == {"a.md"}

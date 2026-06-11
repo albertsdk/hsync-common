@@ -7,12 +7,15 @@
 """
 Canonical LAN security policy (single source of truth).
 
-The LAN channel proves a peer's *transport* with a self-signed certificate
-(``cert_fp`` carried in the mDNS TXT record) and may authenticate writes with a
-shared ``HSYNC_LAN_KEY``. Neither, on its own, proves *identity*: a self-signed
-certificate is trusted only because it is the first one seen for a given peer
-(Trust On First Use). This module owns the two pure decisions that follow from
-that model so the Python client and the Android client cannot drift:
+The LAN channel is **HTTPS/WSS-only**: every master serves over a self-signed
+certificate whose fingerprint (``cert_fp``) travels in the mDNS TXT record, and
+may authenticate writes with a shared ``HSYNC_LAN_KEY``. Neither, on its own,
+proves *identity*: a self-signed certificate is trusted only because it is the
+first one seen for a given peer (Trust On First Use). Because the transport is
+mandatory, a peer always presents a fingerprint; there is no plain-HTTP mode and
+therefore no "nothing to pin" outcome. This module owns the two pure decisions
+that follow from that model so the Python client and the Android client cannot
+drift:
 
 * :func:`evaluate_pin` — compare an observed certificate fingerprint against the
   one previously pinned for a ``(cid, bucket)`` and classify the outcome.
@@ -55,15 +58,15 @@ _WRITE_DIRECTIONS = frozenset({SYNC_DIRECTION_BIDIRECTIONAL, SYNC_DIRECTION_UPLO
 class PinDecision(StrEnum):
     """Outcome of comparing an observed fingerprint against the stored pin.
 
-    The consuming client maps these to behaviour: ``trusted``/``matched`` proceed,
-    ``changed`` is refused and surfaced as a ``fingerprint_changed`` event, and
-    ``no_fingerprint`` means there is nothing to pin (e.g. a plain-HTTP master).
+    The consuming client maps these to behaviour: ``trusted``/``matched`` proceed
+    and ``changed`` is refused and surfaced as a ``fingerprint_changed`` event.
+    Since LAN transport is HTTPS-only, a fingerprint is always present; a missing
+    one is a contract violation (:func:`evaluate_pin` raises), not an outcome.
     """
 
     trusted = "trusted"  # first sighting for this (cid, bucket): pin it and proceed (TOFU)
     matched = "matched"  # observed fingerprint equals the stored pin: proceed
     changed = "changed"  # observed differs from the stored pin: refuse (possible MITM)
-    no_fingerprint = "no_fingerprint"  # peer offers no fingerprint: nothing to pin
 
 
 def normalize_fingerprint(fingerprint: str | None) -> str | None:
@@ -85,15 +88,23 @@ def evaluate_pin(stored_fp: str | None, observed_fp: str | None) -> PinDecision:
     Args:
         stored_fp: The fingerprint already pinned for this ``(cid, bucket)``, or
             ``None`` when the peer has never been seen.
-        observed_fp: The fingerprint advertised/presented now, or ``None`` when
-            the peer offers none (e.g. plain HTTP).
+        observed_fp: The fingerprint presented now. LAN transport is HTTPS-only,
+            so a master always presents one; a missing/blank value is a contract
+            violation.
 
     Returns:
         :class:`PinDecision` describing the trust outcome.
+
+    Raises:
+        ValueError: when ``observed_fp`` is missing/blank (no plain-HTTP master
+            exists under the HTTPS-only LAN contract).
     """
     observed = normalize_fingerprint(observed_fp)
     if observed is None:
-        return PinDecision.no_fingerprint
+        raise ValueError(
+            "a certificate fingerprint is mandatory in LAN mode (HTTPS-only); "
+            "got a missing/blank fingerprint"
+        )
     stored = normalize_fingerprint(stored_fp)
     if stored is None:
         return PinDecision.trusted
@@ -107,8 +118,8 @@ def requires_pairing_confirmation(decision: PinDecision, *, require_pairing: boo
     first certificate (``trusted``) is no longer auto-pinned but must be vouched
     for by the operator out of band, so the client refuses and emits
     ``pairing_needed`` instead of silently trusting it. Every other decision
-    (``matched``/``changed``/``no_fingerprint``) is unaffected — pairing only
-    gates the very first sighting.
+    (``matched``/``changed``) is unaffected — pairing only gates the very first
+    sighting.
 
     Args:
         decision: The outcome of :func:`evaluate_pin` for this peer.

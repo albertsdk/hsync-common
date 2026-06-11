@@ -16,6 +16,7 @@ from hsync_common.ssl_utils import (
     get_server_cert_fingerprint,
     serialize_cert_pem,
     serialize_key_pem,
+    serialize_private_key_unencrypted,
     verify_cert_fingerprint,
 )
 
@@ -142,6 +143,21 @@ class TestSerialization:
     def test_serialize_key_pem_empty_password_rejected(self, private_key):
         with pytest.raises(ValueError, match="password is required"):
             serialize_key_pem(private_key, password=b"")
+
+    def test_serialize_private_key_unencrypted_returns_bytes(self, private_key):
+        pem = serialize_private_key_unencrypted(private_key)
+        assert isinstance(pem, bytes)
+
+    def test_serialize_private_key_unencrypted_starts_with_plain_header(self, private_key):
+        pem = serialize_private_key_unencrypted(private_key)
+        assert pem.startswith(b"-----BEGIN PRIVATE KEY-----")
+
+    def test_serialize_private_key_unencrypted_round_trip_without_password(self, private_key):
+        from cryptography.hazmat.primitives import serialization
+
+        pem = serialize_private_key_unencrypted(private_key)
+        loaded = serialization.load_pem_private_key(pem, password=None)
+        assert loaded is not None
 
 
 # ---------------------------------------------------------------------------
