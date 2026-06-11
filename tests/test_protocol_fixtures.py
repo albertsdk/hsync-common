@@ -15,6 +15,7 @@ are known-valid by construction.
 import pytest
 
 from hsync_common.protocol import (
+    ANDROID_FIXTURES_DIR,
     FIXTURES_DIR,
     dump_contract,
     load_contract,
@@ -113,24 +114,12 @@ class TestFixtureRoundTrip:
         assert load_contract(FIXTURES_DIR / f"{name}.json") == _FIXTURES[name]
 
 
-# Sibling Android test resources: the contract test consumes these as the cross-
-# language inputs, so they must be byte-identical copies of the Python fixtures.
-# Resolved relative to the monorepo root; skipped when the Android tree is absent
+# The Android contract test consumes these fixtures as cross-language inputs, so
+# they must be byte-identical copies of the Python ones (kept in sync via
+# scripts/sync_android_fixtures.py). Skipped when the Android tree is absent
 # (e.g. hsync-common checked out on its own).
-_ANDROID_FIXTURES_DIR = (
-    FIXTURES_DIR.parents[3]
-    / "hsync-android"
-    / "app"
-    / "src"
-    / "test"
-    / "resources"
-    / "protocol"
-    / "fixtures"
-)
-
-
 @pytest.mark.skipif(
-    not _ANDROID_FIXTURES_DIR.is_dir(),
+    not ANDROID_FIXTURES_DIR.is_dir(),
     reason="Android test resources not present in this checkout",
 )
 class TestAndroidFixtureParity:
@@ -138,12 +127,12 @@ class TestAndroidFixtureParity:
 
     @pytest.mark.parametrize("name", _FIXTURE_NAMES)
     def test_android_copy_matches(self, name):
-        android = _ANDROID_FIXTURES_DIR / f"{name}.json"
+        android = ANDROID_FIXTURES_DIR / f"{name}.json"
         assert android.is_file(), f"Missing Android fixture {android}. Copy it from {FIXTURES_DIR}."
         assert android.read_text(encoding="utf-8") == (FIXTURES_DIR / f"{name}.json").read_text(
             encoding="utf-8"
         ), f"Android fixture '{name}' diverged. {_REGEN_HINT}"
 
     def test_no_extra_android_fixtures(self):
-        android = {p.stem for p in _ANDROID_FIXTURES_DIR.glob("*.json")}
+        android = {p.stem for p in ANDROID_FIXTURES_DIR.glob("*.json")}
         assert android == set(_FIXTURE_NAMES), f"Android fixture set diverged. {_REGEN_HINT}"

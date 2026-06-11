@@ -21,6 +21,8 @@ Usage:
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from hsync_common.protocol import (
     FIXTURES_DIR,
     LAN_TXT_SCHEMA_PATH,
@@ -31,20 +33,33 @@ from hsync_common.protocol.fixtures import build_fixtures
 from hsync_common.protocol.schemas import build_lan_txt_schema, build_ws_schema
 
 
-def main() -> None:
-    """Regenerate and write the canonical WS/LAN schemas and golden fixtures."""
+def export_schemas() -> list[Path]:
+    """Write the canonical WS/LAN JSON Schemas; return the written paths."""
+    written: list[Path] = []
     for path, schema in (
         (WS_SCHEMA_PATH, build_ws_schema()),
         (LAN_TXT_SCHEMA_PATH, build_lan_txt_schema()),
     ):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(dump_contract(schema), encoding="utf-8")
-        print(f"Wrote {path}")
+        written.append(path)
+    return written
 
+
+def export_fixtures() -> list[Path]:
+    """Write the canonical golden fixtures; return the written paths."""
     FIXTURES_DIR.mkdir(parents=True, exist_ok=True)
+    written: list[Path] = []
     for name, fixture in build_fixtures().items():
         path = FIXTURES_DIR / f"{name}.json"
         path.write_text(dump_contract(fixture), encoding="utf-8")
+        written.append(path)
+    return written
+
+
+def main() -> None:
+    """Regenerate and write the canonical WS/LAN schemas and golden fixtures."""
+    for path in (*export_schemas(), *export_fixtures()):
         print(f"Wrote {path}")
 
 
