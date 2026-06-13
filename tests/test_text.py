@@ -8,21 +8,27 @@
 
 from json import loads
 
-from hsync_common.text import escape_loguru_braces, safe_json_for_log
+from hsync_common.text import escape_loguru_markup, safe_json_for_log
 
 
-class TestEscapeLoguruBraces:
+class TestEscapeLoguruMarkup:
     def test_doubles_curly_braces(self):
-        assert escape_loguru_braces("a {b} c") == "a {{b}} c"
+        assert escape_loguru_markup("a {b} c") == "a {{b}} c"
 
     def test_doubles_each_brace_independently(self):
-        assert escape_loguru_braces("{a} and {b}") == "{{a}} and {{b}}"
+        assert escape_loguru_markup("{a} and {b}") == "{{a}} and {{b}}"
 
-    def test_passthrough_when_no_braces(self):
-        assert escape_loguru_braces("no braces here") == "no braces here"
+    def test_escapes_opening_angle_bracket(self):
+        assert escape_loguru_markup("foo.<locals>.bar") == r"foo.\<locals>.bar"
+
+    def test_escapes_braces_and_angle_brackets_together(self):
+        assert escape_loguru_markup("{a}<b>") == r"{{a}}\<b>"
+
+    def test_passthrough_when_no_markup(self):
+        assert escape_loguru_markup("no markup here") == "no markup here"
 
     def test_empty_string(self):
-        assert escape_loguru_braces("") == ""
+        assert escape_loguru_markup("") == ""
 
 
 class TestSafeJsonForLog:
