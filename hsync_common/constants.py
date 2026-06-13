@@ -62,3 +62,13 @@ CHUNK_SIZE_LARGE = 256 * 1024  # 256KB for files >= 100MB
 # File size thresholds for chunk size selection
 FILE_SIZE_SMALL = 1_000_000  # 1MB
 FILE_SIZE_MEDIUM = 100_000_000  # 100MB
+
+# =============================================================================
+# Partial Transfer Artifacts
+# =============================================================================
+
+# Suffix appended to in-progress transfer targets. Bytes are streamed to
+# "<final>.part" and atomically renamed to the final name only after the
+# SHA-256 checksum is verified, so a "<name>.part" file is always a transient
+# internal artifact that must never be synced, listed, or treated as user data.
+PARTIAL_DOWNLOAD_SUFFIX = ".part"

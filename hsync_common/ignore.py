@@ -35,7 +35,7 @@ from pathspec.patterns import GitWildMatchPattern
 
 from hsync_common.constants import HSYNCIGNORE_FILENAME, HSYNCKEEP_FILENAME
 from hsync_common.models.dir import _is_hidden_dir_basic
-from hsync_common.models.file import _is_hidden_file_basic
+from hsync_common.models.file import _is_hidden_file_basic, is_partial_file
 
 
 class IgnoreMatcher:
@@ -124,6 +124,11 @@ class IgnoreMatcher:
         # Sentinel file is always preserved
         if name == HSYNCKEEP_FILENAME:
             return False
+
+        # hsync's own in-progress transfer artifacts (.part) are never synced,
+        # regardless of include_hidden or .hsyncignore rules.
+        if not is_dir and is_partial_file(name):
+            return True
 
         rel = self._to_relative(path)
         if not rel:
