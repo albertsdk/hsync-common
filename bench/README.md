@@ -24,6 +24,8 @@ operation really took the intended branch.
 | `bench_delta.py` | `compute_signatures`, `signatures_for_data`, `build_signature_index`, `find_matches_file` (0/10/50 % changed blocks **and** front-insertion cases that force the window to re-synchronise), `apply_delta`, decision helpers |
 | `bench_ignore.py` | `IgnoreMatcher` construction (default + extra patterns), per-path `matches` / `should_skip`, full-scan sweeps (bucket rules vs. default-only fallback) |
 | `bench_models.py` | `File` / `Dir` / `Symlink` / `Event` encode/decode round-trips, `relpath_in_bucket` (the per-path call of a scan), `is_valid_cid`, `is_partial_file`, `File` construction |
+| `bench_path_validation.py` | `validate_remote_relpath` (valid + `../` escape), `resolve_within` (symlink-confining resolve, hit + escape) and `wire_relpaths` (two-key smuggle gate) |
+| `bench_stores.py` | `SyncStateStore` `record` / `get` / `retain` / `save`+`load` (SQLite WAL round-trip) and `TombstoneStore.merge` (untrusted-payload causal merge, strictly-dominant clock) |
 | `run_all.py` | Chained runner: runs every script above and writes `bench_result.txt` at the repo root (committed baseline, diff-friendly) |
 | `bench_result.txt` | **Committed after-fix baseline** (default `--count 2000`, this machine): compare revisions with `git diff bench_result.txt` |
 
@@ -46,6 +48,8 @@ cd hsync-common
 .venv/bin/python bench/bench_delta.py    --count 2000
 .venv/bin/python bench/bench_ignore.py   --count 2000
 .venv/bin/python bench/bench_models.py   --count 2000
+.venv/bin/python bench/bench_path_validation.py --count 2000
+.venv/bin/python bench/bench_stores.py   --count 2000
 
 # machine-readable results (one JSON array per run)
 .venv/bin/python bench/bench_hashing.py --count 2000 --json-out /tmp/hashing.json

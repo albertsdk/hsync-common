@@ -24,6 +24,8 @@ anomaly needs a cost breakdown.
 | `bench/bench_delta.py` | `hsync_common/delta/` scenarios |
 | `bench/bench_ignore.py` | `hsync_common/ignore.py` scenarios |
 | `bench/bench_models.py` | `hsync_common/models/` serialization scenarios |
+| `bench/bench_path_validation.py` | `hsync_common/path_validation.py` scenarios |
+| `bench/bench_stores.py` | `hsync_common/models/` store scenarios (`SyncStateStore`, `TombstoneStore`) |
 
 ## Scenario → code anchors
 
@@ -48,6 +50,12 @@ anomaly needs a cost breakdown.
 | `dir_*`, `symlink_*` | `models/dir.py:64`/`:79`, `models/symlink.py:96`/`:108` |
 | `event_ctor(rename)`, `event_to_dict` | `models/event.py:108`, `:139` |
 | `is_valid_cid`, `is_partial_file` | `models/event.py:30`, `models/file.py:131` |
+| `validate_remote_relpath(valid\|escape)` | `path_validation.validate_remote_relpath` (`hsync_common/path_validation.py:481`) |
+| `resolve_within(valid\|escape)` | `path_validation.resolve_within` (`hsync_common/path_validation.py:542`) |
+| `wire_relpaths(2-key)` | `path_validation.wire_relpaths` (`hsync_common/path_validation.py:456`) |
+| `SyncStateStore.record` / `get` / `retain` | `models/version_store.py:77`, `models/_store_base.py:55`, `models/version_store.py:99` |
+| `SyncStateStore.save+load` | `models/_store_base.py` persistence skeleton (SQLite WAL) |
+| `TombstoneStore.merge(dominant)` | `models/tombstone_store.py:152` (untrusted-payload sanitize + causal adopt) |
 
 ## Methodology (must-read before trusting a number)
 
@@ -109,6 +117,12 @@ anomaly needs a cost breakdown.
   (`compress_data(binary-1MB)` ~4.68 ms, `text-1MB` ~0.38 ms) and
   `signatures`/`apply_delta` are within run-to-run noise of the A1–A5
   baseline.
+* New coverage (C6): `resolve_within(valid)` at ~0.028 ms is ~15x the pure-lex
+  `validate_remote_relpath(valid)` (~0.0019 ms) — the confining `Path.resolve()`
+  syscall dominates the hit path; an escaping `../` path is rejected at
+  ~0.0004 ms (lexical guards fire before any syscall). Store layer:
+  `SyncStateStore.record` ~0.0031 ms, `get` ~0.0010 ms, `save+load` ~0.019 ms
+  (SQLite WAL round-trip), `TombstoneStore.merge(dominant)` ~0.0046 ms.
 
 ## Running
 
@@ -119,6 +133,8 @@ cd hsync-common
 .venv/bin/python bench/bench_delta.py    --count 2000 [--json-out FILE]
 .venv/bin/python bench/bench_ignore.py   --count 2000 [--json-out FILE]
 .venv/bin/python bench/bench_models.py   --count 2000 [--json-out FILE]
+.venv/bin/python bench/bench_path_validation.py --count 2000 [--json-out FILE]
+.venv/bin/python bench/bench_stores.py   --count 2000 [--json-out FILE]
 ```
 
 Lint: `cd hsync-common && .venv/bin/python -m ruff check bench` — the directory
