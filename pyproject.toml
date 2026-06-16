@@ -2,7 +2,7 @@
 name = "hsync-common"
 version = "1.0.0"
 description = "HSYNC Common - shared models, constants, and compression utilities"
-authors = ["Alberto Basso"]
+authors = ["Alberto Basso <17047798+albertobasso@users.noreply.github.com>"]
 license = "MPL-2.0"
 readme = "README.md"
 packages = [{include = "hsync_common"}]
