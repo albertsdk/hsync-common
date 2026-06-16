@@ -94,3 +94,15 @@ index `README.md` honest about what actually exists.
 
 ### 3. Modularity & Maintainability
 * **File Size Control**: Always evaluate the length and complexity of the files you are modifying. If a file becomes too long or handles too many responsibilities, split it into smaller, focused modules to maximize code readability and simplify maintenance.
+
+---
+
+## 📝 Changelog Maintenance
+
+Before completing any task that introduces a user-facing change, bug fix, or
+notable internal improvement, evaluate whether the change warrants an entry in
+`CHANGELOG.md` following the [Keep a Changelog](https://keepachangelog.com/)
+format. Add an entry under an `## [Unreleased]` section when relevant.
+
+Irrelevant for: typo fixes, purely internal refactors with no behavioral change,
+CI/formatting-only changes, or doc updates that don't document new features.
