@@ -8,7 +8,7 @@ readme = "README.md"
 packages = [{include = "hsync_common"}]
 
 [tool.poetry.dependencies]
-python = ">=3.12,<3.14"
+python = ">=3.12,<3.15"
 zstandard = "^0.25.0"
 loguru = "^0.7.3"
 python-dotenv = "^1.2.1"
@@ -28,7 +28,7 @@ python_functions = ["test_*"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM"]
