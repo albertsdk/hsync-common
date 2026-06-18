@@ -139,3 +139,39 @@ class TestBaseInterceptHandler:
             exc_info=None,
         )
         h.emit(record)
+
+    def test_emit_unknown_level_falls_back_to_levelno(self):
+        """An unmapped levelname must fall back to the numeric level (no raise)."""
+        h = BaseInterceptHandler()
+        record = logging.LogRecord(
+            name="test",
+            level=logging.INFO,
+            pathname="",
+            lineno=0,
+            msg="weird",
+            args=(),
+            exc_info=None,
+        )
+        record.levelname = "NOTALEVEL"
+        h.emit(record)
+
+    def test_emit_invokes_bind_extra(self):
+        """bind_extra callable is invoked and its mapping bound before logging."""
+        calls = []
+
+        def _extra():
+            calls.append(True)
+            return {"request_id": "abc"}
+
+        h = BaseInterceptHandler(bind_extra=_extra)
+        record = logging.LogRecord(
+            name="test",
+            level=logging.INFO,
+            pathname="",
+            lineno=0,
+            msg="bound",
+            args=(),
+            exc_info=None,
+        )
+        h.emit(record)
+        assert calls == [True]
