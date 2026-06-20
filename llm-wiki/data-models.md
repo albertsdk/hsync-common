@@ -82,7 +82,7 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
 - Strict wire validation (`merge()`/`load()` via `_sanitize_entry`,
   `models/tombstone.py:123`): keys and `sha256` must be sha256 hex (64),
   `ts` must be `0 < ts ≤ now + TOMBSTONE_MAX_CLOCK_SKEW_SECONDS` (300 s),
-  the `vclock` must parse strictly (`_parse_vclock`, `:101`: dict, ≤
+  the `vclock` must parse strictly (`parse_vclock`, `models/version.py`: dict, ≤
   `VCLOCK_MAX_ENTRIES` entries, non-negative int counters with `bool`
   rejected, valid cids only) — an entry without a valid clock is dropped,
   never loaded with a fabricated empty clock. Store capped at

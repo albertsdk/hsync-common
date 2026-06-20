@@ -50,6 +50,18 @@ def utc_now_iso() -> str:
     return to_iso(datetime.now(UTC))
 
 
+def _as_utc_dt(t: int | float | datetime) -> datetime:
+    """Normalize an epoch timestamp or aware ``datetime`` to a UTC ``datetime``.
+
+    Raises ``ValueError`` for a naive ``datetime`` (no timezone info).
+    """
+    if isinstance(t, datetime):
+        if t.tzinfo is None:
+            raise ValueError("Naive datetime without timezone is not accepted")
+        return t
+    return datetime.fromtimestamp(float(t), tz=UTC)
+
+
 def to_iso(t: int | float | datetime, *, timespec: str = "milliseconds") -> str:
     """Convert an epoch timestamp or timezone-aware ``datetime`` to an ISO-8601
     string ending with ``Z``.
@@ -65,12 +77,7 @@ def to_iso(t: int | float | datetime, *, timespec: str = "milliseconds") -> str:
     Raises:
         ValueError: If ``t`` is a naive ``datetime`` (no timezone info).
     """
-    if isinstance(t, datetime):
-        if t.tzinfo is None:
-            raise ValueError("Naive datetime without timezone is not accepted")
-        dt = t
-    else:
-        dt = datetime.fromtimestamp(float(t), tz=UTC)
+    dt = _as_utc_dt(t)
 
     return dt.isoformat(timespec=timespec).replace("+00:00", "Z")
 
@@ -150,13 +157,6 @@ def conflict_timestamp(t: int | float | datetime | None = None) -> str:
     Returns:
         Compact timestamp string like ``"20250115T083000Z"``.
     """
-    if t is None:
-        dt = datetime.now(UTC)
-    elif isinstance(t, datetime):
-        if t.tzinfo is None:
-            raise ValueError("Naive datetime without timezone is not accepted")
-        dt = t
-    else:
-        dt = datetime.fromtimestamp(float(t), tz=UTC)
+    dt = datetime.now(UTC) if t is None else _as_utc_dt(t)
 
     return dt.strftime("%Y%m%dT%H%M%SZ")

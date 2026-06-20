@@ -172,7 +172,7 @@ Python uses the `zstandard` package; Kotlin uses `zstd-jni` via JNI bindings.
 | Pre-compressed extensions | `PRECOMPRESSED_EXTENSIONS` (frozenset, 95 entries) | `PRECOMPRESSED_EXTENSIONS` (Set<String>) in `CompressionManager` |
 | Upload threshold | `MIN_SIZE_FOR_UPLOAD` = 32 KB | `MIN_SIZE_FOR_UPLOAD` = 32 KB |
 | LAN threshold | `MIN_SIZE_FOR_LAN` = 100 KB | `MIN_SIZE_FOR_LAN` = 100 KB |
-| Download threshold | `MIN_SIZE_FOR_DOWNLOAD` = 10 KB | — (not exposed in `CompressionManager`) |
+| Download threshold | `MIN_SIZE_FOR_COMPRESSION` = 10 KB | — (not exposed in `CompressionManager`) |
 
 Both implementations must produce byte-identical compressed output for the
 same input. The cross-language test fixtures include compression round-trip

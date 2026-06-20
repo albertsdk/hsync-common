@@ -39,9 +39,6 @@ CONTENT_ENCODING_ZSTD = "zstd"
 # Above 10KB, compression benefits clearly outweigh overhead.
 MIN_SIZE_FOR_COMPRESSION = 10 * 1024  # 10 KB
 
-# Alias for clarity in context-aware code
-MIN_SIZE_FOR_DOWNLOAD = MIN_SIZE_FOR_COMPRESSION
-
 # Upload threshold: 32KB
 # Client CPU is more precious than server CPU; only compress medium-large
 # files where the benefit is clear.
@@ -202,7 +199,7 @@ def should_compress(
         threshold = MIN_SIZE_FOR_UPLOAD
         context = "upload"
     else:
-        threshold = MIN_SIZE_FOR_DOWNLOAD
+        threshold = MIN_SIZE_FOR_COMPRESSION
         context = "download"
 
     if size < threshold:

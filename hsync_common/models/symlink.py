@@ -13,6 +13,8 @@ from pathlib import Path
 
 from hsync_common.path_validation import MAX_REMOTE_RELPATH_BYTES
 
+from ._util import _resolve_prefixed_path
+
 
 class Symlink:
     """
@@ -116,8 +118,6 @@ class Symlink:
         stripped from the dict's ``filepath`` (making it bucket-relative);
         when False the prefix is prepended (making it absolute).
         """
-        from hsync_common.models import _resolve_prefixed_path
-
         filepath = _resolve_prefixed_path(
             data.get("filepath", ""), dir_prefix, strip=strip_dir_prefix
         )

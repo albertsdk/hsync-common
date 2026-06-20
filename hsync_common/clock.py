@@ -52,15 +52,10 @@ from .constants import (
     NTP_TIMEOUT_SECONDS,
 )
 
-# Clock skew warning threshold in seconds. Offsets above this value are
-# surfaced as a warning to the operator (kept for the diagnostic helpers).
-CLOCK_SKEW_THRESHOLD = 5.0
-
 # Seconds between NTP epoch (1900-01-01) and Unix epoch (1970-01-01).
 _NTP_EPOCH_DELTA = 2_208_988_800
 
 __all__ = [
-    "CLOCK_SKEW_THRESHOLD",
     "ClockOffsetStore",
     "HttpGet",
     "TimeResponse",
