@@ -3,17 +3,22 @@
 from hsync_common.path_validation import (
     FORBIDDEN_FILENAME_CHARS,
     FORBIDDEN_PATH_CHARS,
+    INTERNAL_FILENAMES,
     has_control_chars,
     has_dotdot_component,
     has_forbidden_chars,
     has_problematic_trailing,
+    is_internal_name,
     is_reserved_name,
     is_safe_path_component,
+    is_safe_symlink_target,
     is_valid_bucket_name,
     is_valid_filename,
     is_valid_path,
+    resolve_within,
     safe_resolve_path,
     sanitize_filename,
+    validate_remote_relpath,
 )
 
 
@@ -244,3 +249,114 @@ class TestSafeResolvePath:
     def test_relative_path_resolved_when_absolute_allowed(self):
         result = safe_resolve_path("subdir/file.txt")
         assert result is not None and result.endswith("subdir/file.txt")
+
+
+class TestIsInternalName:
+    def test_internal_filenames_detected(self):
+        for name in INTERNAL_FILENAMES:
+            assert is_internal_name(name) is True
+            assert is_internal_name(f"sub/dir/{name}") is True
+
+    def test_expected_contents(self):
+        assert frozenset({".hsyncignore", ".hsyncstate", ".hsynctombstones"}) == INTERNAL_FILENAMES
+
+    def test_partial_suffix_is_internal(self):
+        assert is_internal_name("file.txt.part") is True
+        assert is_internal_name("dir/.hsyncstate.part") is True
+
+    def test_hsynckeep_not_internal(self):
+        # .hsynckeep legitimately appears in delete events between peers.
+        assert is_internal_name(".hsynckeep") is False
+
+    def test_regular_files_not_internal(self):
+        assert is_internal_name("document.txt") is False
+        assert is_internal_name(".env") is False
+
+    def test_backslash_separators_normalised(self):
+        assert is_internal_name("dir\\.hsyncignore") is True
+
+
+class TestValidateRemoteRelpath:
+    def test_valid_relative_paths(self):
+        assert validate_remote_relpath("a/b/c.txt") == "a/b/c.txt"
+        assert validate_remote_relpath("file.txt") == "file.txt"
+        assert validate_remote_relpath("dir/") == "dir"
+
+    def test_empty_and_non_string_rejected(self):
+        assert validate_remote_relpath("") is None
+        assert validate_remote_relpath(None) is None
+        assert validate_remote_relpath(123) is None
+        assert validate_remote_relpath("/") is None
+
+    def test_traversal_rejected(self):
+        assert validate_remote_relpath("../evil.txt") is None
+        assert validate_remote_relpath("a/../../evil.txt") is None
+        assert validate_remote_relpath("..") is None
+        assert validate_remote_relpath("a/./b") is None
+
+    def test_absolute_and_drive_letter_rejected(self):
+        assert validate_remote_relpath("/etc/passwd") is None
+        assert validate_remote_relpath("C:/windows/win.ini") is None
+        assert validate_remote_relpath("C:\\windows\\win.ini") is None
+
+    def test_backslash_rejected(self):
+        # Windows separator differential: a Linux-legal name must not reach
+        # a Windows peer where it would resolve outside the bucket.
+        assert validate_remote_relpath("..\\..\\evil.txt") is None
+        assert validate_remote_relpath("dir\\file.txt") is None
+
+    def test_forbidden_and_control_chars_rejected(self):
+        assert validate_remote_relpath("a<b>.txt") is None
+        assert validate_remote_relpath("a|b.txt") is None
+        assert validate_remote_relpath("a\x00b.txt") is None
+        assert validate_remote_relpath("a\x1fb.txt") is None
+
+    def test_reserved_names_rejected(self):
+        assert validate_remote_relpath("NUL") is None
+        assert validate_remote_relpath("dir/COM1.txt") is None
+
+    def test_problematic_trailing_rejected(self):
+        assert validate_remote_relpath("file.txt ") is None
+        assert validate_remote_relpath("dir./file.txt") is None
+
+    def test_internal_names_rejected(self):
+        assert validate_remote_relpath(".hsyncignore") is None
+        assert validate_remote_relpath("sub/.hsyncstate") is None
+        assert validate_remote_relpath("file.txt.part") is None
+
+
+class TestResolveWithin:
+    def test_confines_to_base(self, tmp_path):
+        result = resolve_within(str(tmp_path), "a/b.txt")
+        assert result == str((tmp_path / "a" / "b.txt").resolve())
+
+    def test_traversal_rejected(self, tmp_path):
+        assert resolve_within(str(tmp_path), "../outside.txt") is None
+
+    def test_symlink_escape_rejected(self, tmp_path):
+        outside = tmp_path.parent / "outside"
+        outside.mkdir(exist_ok=True)
+        link = tmp_path / "link"
+        link.symlink_to(outside, target_is_directory=True)
+        assert resolve_within(str(tmp_path), "link/secret.txt") is None
+
+    def test_internal_name_rejected(self, tmp_path):
+        assert resolve_within(str(tmp_path), ".hsyncignore") is None
+
+
+class TestIsSafeSymlinkTarget:
+    def test_relative_target_within_bucket(self, tmp_path):
+        assert is_safe_symlink_target(str(tmp_path / "sub" / "ln"), "../f.txt", str(tmp_path))
+
+    def test_absolute_target_within_bucket(self, tmp_path):
+        target = tmp_path / "f.txt"
+        assert is_safe_symlink_target(str(tmp_path / "ln"), str(target), str(tmp_path))
+
+    def test_absolute_target_outside_bucket(self, tmp_path):
+        assert not is_safe_symlink_target(str(tmp_path / "ln"), "/etc/passwd", str(tmp_path))
+
+    def test_relative_target_escaping_bucket(self, tmp_path):
+        assert not is_safe_symlink_target(str(tmp_path / "ln"), "../../outside.txt", str(tmp_path))
+
+    def test_empty_target_rejected(self, tmp_path):
+        assert not is_safe_symlink_target(str(tmp_path / "ln"), "", str(tmp_path))

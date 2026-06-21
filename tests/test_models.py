@@ -1,5 +1,7 @@
 """Tests for hsync_common models (File, Dir, Symlink, Event, SyncAction)."""
 
+import json
+import time
 from datetime import UTC, datetime
 
 import pytest
@@ -598,44 +600,100 @@ class TestTombstoneStore:
         assert store.get("old.txt") is not None
 
     def test_merge_lww(self):
+        now = int(time.time())
+        sha_local = "a" * 64
+        sha_remote = "b" * 64
+        sha_newpath = "c" * 64
         store = TombstoneStore()
-        store.record("a.txt", sha256sum="local", timestamp=10)
+        store.record("a.txt", sha256sum=sha_local, timestamp=now - 10)
         payload = {
-            tombstone_key("a.txt"): {"ts": 20, "sha256": "remote"},
-            tombstone_key("b.txt"): {"ts": 5, "sha256": "newpath"},
+            tombstone_key("a.txt"): {"ts": now, "sha256": sha_remote},
+            tombstone_key("b.txt"): {"ts": now - 20, "sha256": sha_newpath},
         }
         changed = store.merge(payload)
         assert changed == 2
-        assert store.get("a.txt")["sha256"] == "remote"
-        assert store.get("b.txt")["sha256"] == "newpath"
+        assert store.get("a.txt")["sha256"] == sha_remote
+        assert store.get("b.txt")["sha256"] == sha_newpath
         # Older remote entry must not override newer local one.
-        assert store.merge({tombstone_key("a.txt"): {"ts": 1, "sha256": "x"}}) == 0
-        assert store.get("a.txt")["sha256"] == "remote"
+        assert store.merge({tombstone_key("a.txt"): {"ts": now - 30, "sha256": "d" * 64}}) == 0
+        assert store.get("a.txt")["sha256"] == sha_remote
 
     def test_merge_ignores_malformed_entries(self):
         store = TombstoneStore()
         assert store.merge({"k": {"sha256": "no-ts"}}) == 0
         assert store.merge(None) == 0
 
+    def test_merge_rejects_poisoned_entries(self):
+        """Anti-poisoning: gossip payloads are untrusted input."""
+        now = int(time.time())
+        key = tombstone_key("victim.txt")
+        store = TombstoneStore()
+        # Far-future timestamp (permanent poison) is rejected.
+        assert store.merge({key: {"ts": now + 10_000_000, "sha256": None}}) == 0
+        assert store.get("victim.txt") is None
+        # Non-hex / short keys are rejected.
+        assert store.merge({"not-a-sha": {"ts": now, "sha256": None}}) == 0
+        # Malformed content hash is rejected.
+        assert store.merge({key: {"ts": now, "sha256": "not-hex"}}) == 0
+        # Missing/non-numeric/zero timestamps are rejected.
+        assert store.merge({key: {"sha256": None}}) == 0
+        assert store.merge({key: {"ts": "soon", "sha256": None}}) == 0
+        assert store.merge({key: {"ts": 0, "sha256": None}}) == 0
+        assert len(store) == 0
+        # A timestamp within the clock-skew tolerance is accepted.
+        assert store.merge({key: {"ts": now + 60, "sha256": None}}) == 1
+        assert store.get("victim.txt") is not None
+
+    def test_merge_caps_store_size(self, monkeypatch):
+        monkeypatch.setattr("hsync_common.models.tombstone.TOMBSTONE_MAX_ENTRIES", 2)
+        now = int(time.time())
+        store = TombstoneStore()
+        payload = {tombstone_key(f"f{i}.txt"): {"ts": now, "sha256": None} for i in range(5)}
+        store.merge(payload)
+        assert len(store) == 2
+
     def test_to_payload_roundtrips_through_merge(self):
+        now = int(time.time())
         src = TombstoneStore()
-        src.record("a/b.txt", sha256sum="h1", timestamp=11)
+        src.record("a/b.txt", sha256sum="e" * 64, timestamp=now)
         dst = TombstoneStore()
         dst.merge(src.to_payload())
         assert dst.get("a/b.txt") == src.get("a/b.txt")
 
     def test_save_and_load(self, tmp_path):
+        now = int(time.time())
         path = str(tmp_path / "sub" / ".hsynctombstones")
         store = TombstoneStore(path=path, ttl_days=30)
-        store.record("a/b.txt", sha256sum="hh", timestamp=42)
+        store.record("a/b.txt", sha256sum="f" * 64, timestamp=now)
         store.save()
 
         reloaded = TombstoneStore(path=path, ttl_days=30)
         reloaded.load()
         entry = reloaded.get("a/b.txt")
         assert entry is not None
-        assert entry["ts"] == 42
-        assert entry["sha256"] == "hh"
+        assert entry["ts"] == now
+        assert entry["sha256"] == "f" * 64
+
+    def test_load_drops_poisoned_entries(self, tmp_path):
+        now = int(time.time())
+        path = tmp_path / ".hsynctombstones"
+        path.write_text(
+            json.dumps(
+                {
+                    "tombstones": {
+                        tombstone_key("ok.txt"): {"ts": now, "sha256": None},
+                        tombstone_key("future.txt"): {"ts": now + 10_000_000, "sha256": None},
+                        "bad-key": {"ts": now, "sha256": None},
+                        tombstone_key("badsha.txt"): {"ts": now, "sha256": "xyz"},
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        store = TombstoneStore(path=str(path))
+        store.load()
+        assert len(store) == 1
+        assert store.get("ok.txt") is not None
 
     def test_load_missing_file_is_noop(self, tmp_path):
         store = TombstoneStore(path=str(tmp_path / "absent.json"))

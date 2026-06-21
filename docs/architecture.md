@@ -157,6 +157,11 @@ Key features:
 - **Privacy-preserving keys** — paths are hashed (SHA-256) before storage.
 - **TTL pruning** — `prune()` garbage-collects markers older than
   `TOMBSTONE_TTL_DAYS_DEFAULT` (30 days) so the store stays bounded.
+- **Untrusted-payload validation** — `merge()` and `load()` accept only
+  well-formed entries (SHA-256-hex keys and content hashes) with timestamps
+  up to 5 minutes in the future, and the store is capped at 100 000 entries:
+  a hostile peer cannot plant permanent or unbounded deletion markers through
+  the gossip channel.
 - **JSON persistence** — atomic `save()`/`load()` to the `.hsynctombstones`
   side-car file, with a wire shape (`to_payload()`) reused by the REST endpoints
   and the Android client.
@@ -166,7 +171,7 @@ Key features:
 | Module             | Responsibility                                                  |
 |--------------------|----------------------------------------------------------------|
 | `ignore`           | `.hsyncignore` (gitignore-style) pattern matching              |
-| `path_validation`  | Filename/path validation and traversal protection             |
+| `path_validation`  | Filename/path validation, traversal protection, remote-path validators |
 | `ssl_utils`        | Self-signed certificate generation and fingerprint helpers     |
 | `logger`           | Shared loguru configuration                                    |
 | `env`              | Environment-file loading helpers                               |
@@ -181,7 +186,7 @@ The `compression` module provides Zstandard (zstd) compression with level 3
 | Function          | Description                                      |
 |-------------------|--------------------------------------------------|
 | `compress_data`   | Compress raw bytes                               |
-| `decompress_data` | Decompress zstd-compressed bytes                 |
+| `decompress_data` | Decompress zstd-compressed bytes (optional hard cap on output size for untrusted payloads) |
 | `compress_file`   | Read and compress a file from disk               |
 | `should_compress` | Decide if compression is beneficial (10 KB gate) |
 

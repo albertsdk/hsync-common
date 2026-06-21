@@ -12,7 +12,7 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
 | `Symlink` | `models/symlink.py:14` | — | `filepath`, `target`, `name`, times |
 | `Event` | `models/event.py:50` | `EventDict` (`models/event.py:21`) | FS change; `EventName` enum `models/event.py:31` |
 | `SyncAction` | `models/sync_action.py:31` | — | decision; `SyncActionName` enum `models/sync_action.py:14` |
-| `TombstoneStore` | `models/tombstone.py:49` | `TombstoneEntry` (`models/tombstone.py:32`) | deletion markers, LWW merge |
+| `TombstoneStore` | `models/tombstone.py:101` | `TombstoneEntry` (`models/tombstone.py:42`) | deletion markers, LWW merge |
 | `SyncStateStore` / `FileVersion` | `models/version.py:100` / `:46` | `FileVersion` TypedDict | 3-way merge state |
 
 ## File
@@ -35,11 +35,16 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
 
 ## TombstoneStore (deletion markers)
 
-- Key derivation hashed for privacy: `tombstone_key` (`models/tombstone.py:39`),
-  bucket-relative path via `relpath_in_bucket` (`:44`).
-- `TombstoneEntry`: `{ts: float, sha256: str|None}` (`models/tombstone.py:32`).
+- Key derivation hashed for privacy: `tombstone_key` (`models/tombstone.py:91`),
+  bucket-relative path via `relpath_in_bucket` (`:96`).
+- `TombstoneEntry`: `{ts: int, sha256: str|None}` (`models/tombstone.py:42`).
 - LWW semantics in `record()` / `merge()` keep newest `ts`; TTL GC via `prune()`
   bounded by `TOMBSTONE_TTL_DAYS_DEFAULT = 30` (`models/tombstone.py:29`).
+- Untrusted-input hardening (`merge()`/`load()` via `_sanitize_entry`,
+  `models/tombstone.py:59`): keys and `sha256` must be sha256 hex (64),
+  `ts` must be `0 < ts ≤ now + TOMBSTONE_MAX_CLOCK_SKEW_SECONDS` (300 s, `:35`),
+  store capped at `TOMBSTONE_MAX_ENTRIES` (100 000, `:39`) — anti-poisoning
+  for LAN gossip payloads.
 - Persisted to the `.hsynctombstones` side-car (`constants.py:43`).
 
 ## Version / three-way merge
