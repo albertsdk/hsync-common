@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - `decompress_data` now accepts `max_output_size`, enforcing a hard cap on the
   decompressed size via a capped streaming read (anti decompression-bomb for
-  wire-supplied payloads)
+  wire-supplied payloads); new `decompress_stream` generator applies the same
+  cap to streamed HTTP response bodies
 - New wire-facing remote-path validators in `path_validation.py`:
   `validate_remote_relpath` (rejects `..`, absolute paths, drive letters,
   backslashes, forbidden/control characters, Windows reserved names,
@@ -26,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `TombstoneStore.merge`/`load` now validate untrusted gossip payloads:
   sha256-hex keys/content hashes, rejection of future timestamps beyond a
   300 s clock-skew tolerance, and a 100 000-entry store cap (anti-poisoning)
+
+### Added
+- New `security_rejected` structured UI event name, emitted by clients when a
+  remote-supplied path is rejected as unsafe
 
 ### Fixed
 - Aligned `aiofiles` constraint to `>=25.1.0,<26.0.0`, resolving the version

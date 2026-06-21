@@ -14,7 +14,9 @@ Both hsync-client and hsync-server import from this module for the base
 compression functionality, and may extend it with project-specific logic.
 """
 
+from collections.abc import Iterator
 from os.path import splitext
+from typing import BinaryIO
 
 import zstandard as zstd
 from loguru import logger as log
@@ -251,6 +253,50 @@ def decompress_data(data: bytes, max_output_size: int | None = None) -> bytes:
     if len(out) > max_output_size:
         raise zstd.ZstdError(f"Decompressed data exceeds max_output_size ({max_output_size} bytes)")
     return out
+
+
+def decompress_stream(
+    stream: BinaryIO,
+    max_output_size: int,
+    read_size: int = 1024 * 1024,
+) -> Iterator[bytes]:
+    """Yield decompressed chunks from a compressed byte stream, with a hard cap.
+
+    Streams decompression so neither the compressed input nor the
+    decompressed output is ever fully buffered in memory. MUST be used
+    (with a meaningful *max_output_size*) whenever *stream* carries data
+    from a remote peer (anti decompression-bomb).
+
+    Args:
+        stream: A readable binary stream of zstd-compressed data (e.g.
+            ``response.raw`` of a streamed HTTP download).
+        max_output_size: Hard cap on the total decompressed bytes.
+        read_size: Maximum chunk size yielded at a time.
+
+    Yields:
+        Decompressed byte chunks, at most *read_size* each and at most
+        *max_output_size* in total.
+
+    Raises:
+        zstd.ZstdError: On malformed input or when the decompressed size
+            exceeds *max_output_size*.
+        ValueError: If *max_output_size* is negative.
+    """
+    if max_output_size < 0:
+        raise ValueError("max_output_size must be >= 0")
+
+    produced = 0
+    with _decompressor.stream_reader(stream) as reader:
+        while True:
+            chunk = reader.read(read_size)
+            if not chunk:
+                return
+            produced += len(chunk)
+            if produced > max_output_size:
+                raise zstd.ZstdError(
+                    f"Decompressed data exceeds max_output_size ({max_output_size} bytes)"
+                )
+            yield chunk
 
 
 def compress_file(filepath: str) -> bytes:
