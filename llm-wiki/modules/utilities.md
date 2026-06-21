@@ -118,29 +118,30 @@ loguru colorization. Labels follow the **two-level origin rule** (ADR 0018):
 vs peer-caused / inbound dispatch); the empty prefix is reserved for
 reconciliation, transfers, previews and server lines.
 
-- `ActionLabel` (`labels.py:41`) — `StrEnum` of every label: sync ops
+- `ActionLabel` (`labels.py:52`) — `StrEnum` of every label: sync ops
   (`DOWNLOAD`/`UPLOAD`/`RESUME`/`MOVE`/`DELETE`/`CREATE`/`MODIFY`/
   `RENAME`/`PERMISSION`/`SYMLINK`/`IN_SYNC`/`SKIP`/`CONFLICT`/
   `GUARD`/`TOMBSTONE`), dry-run preview (`SYNCED`/`TO_*`), local-origin watcher
   (`LOCAL_*`), remote-origin / inbound (`REMOTE_*`), security/warnings
   (`SECURITY`/`NO_MASTER`/`MASTER_CONFLICT`/`MASTER_TAKEOVER`/`INSECURE_MASTER`/
   `PAIRING_NEEDED`/`FINGERPRINT_CHANGED`/`AUTH_REQUIRED`), infrastructure
-  (`WS`).
-- `LABEL_CATEGORIES` (`:114`) — semantic category → loguru color tag pair
+  (`WS`), readiness state (`READY` — emitted by the client when watcher +
+  event channel are up, category `create`).
+- `LABEL_CATEGORIES` (`:127`) — semantic category → loguru color tag pair
   (transfer→cyan, upload/create→green, modify/rename→blue, delete→red,
   permission/infrastructure→magenta, in_sync→dim, warning→yellow, security→red).
   Labels are grouped by *kind* of operation, not one color per label.
-- `_LABEL_CATEGORY_MAP` (`:129`) — label → category (the binding table);
-  `LABEL_STYLES` (`:177`) is the derived label → color-tag view consumed by
+- `_LABEL_CATEGORY_MAP` (`:142`) — label → category (the binding table);
+  `LABEL_STYLES` (`:193`) is the derived label → color-tag view consumed by
   `colorize_labels`.
-- `colorize_labels(message, use_colors)` (`labels.py:199`) — wraps every known
+- `colorize_labels(message, use_colors)` (`labels.py:204`) — wraps every known
   label in the message with its category's color tags; a no-op when
   `use_colors=False`. Labels are processed **longest-first** so that shorter
   labels (e.g. `[DOWNLOAD]`) are never substituted inside longer prefixed
   labels (e.g. `[REMOTE DOWNLOAD]`), preventing corrupted double-wrapping.
   Wired into the loguru `message_transform` of both client
   (`hsync_client/logger.py`) and server (`hsync_server/logger.py`) formatters.
-- `resolve_label(prefix, name)` (`:206`) — resolves a label stem (with optional
+- `resolve_label(prefix, name)` (`:230`) — resolves a label stem (with optional
   `""`/`"LOCAL "`/`"REMOTE "` prefix) to its bracketed string via
   `ActionLabel`, falling back to verbatim interpolation for unregistered debug
   tags. Shared by the watchdog handlers (`BaseFileEventHandler._label`) and the

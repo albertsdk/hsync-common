@@ -115,6 +115,9 @@ class ActionLabel(StrEnum):
     # ── Infrastructure (transport-level) ───────────────────────────────
     WS = "[WS]"
 
+    # ── Readiness state (observable "ready for sync" threshold) ────────
+    READY = "[READY]"
+
 
 # =============================================================================
 # Color categories
@@ -183,6 +186,7 @@ _LABEL_CATEGORY_MAP: dict[str, str] = {
     ActionLabel.REMOTE_SECURITY: "security",
     ActionLabel.WS: "infrastructure",
     ActionLabel.REMOTE_ECHO: "infrastructure",
+    ActionLabel.READY: "create",
 }
 
 #: Label -> (start_tag, end_tag) loguru color tags, derived from categories.
