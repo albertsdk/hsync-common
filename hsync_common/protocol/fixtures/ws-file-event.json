@@ -1,0 +1,15 @@
+{
+  "bucket": "bucket-1",
+  "cid": "client-1",
+  "dst": null,
+  "name": "added",
+  "src": {
+    "ctime": 1700000000,
+    "filepath": "docs/report.txt",
+    "mtime": 1700000500,
+    "name": "report.txt",
+    "permissions": "-rw-r--r--",
+    "sha256sum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "size": 42
+  }
+}

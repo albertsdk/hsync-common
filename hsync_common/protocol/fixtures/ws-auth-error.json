@@ -1,0 +1,7 @@
+{
+  "client_protocol_version": "ws/0",
+  "error": "protocol_incompatible",
+  "protocol_version": "ws/1",
+  "status": "error",
+  "type": "auth"
+}
