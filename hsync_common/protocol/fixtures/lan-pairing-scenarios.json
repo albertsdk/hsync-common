@@ -1,0 +1,98 @@
+{
+  "pairing_scenarios": [
+    {
+      "decision": "trusted",
+      "expected_requires_pairing": true,
+      "name": "first-sighting-strict-needs-pairing",
+      "require_pairing": true
+    },
+    {
+      "decision": "trusted",
+      "expected_requires_pairing": false,
+      "name": "first-sighting-lax-auto-trust",
+      "require_pairing": false
+    },
+    {
+      "decision": "matched",
+      "expected_requires_pairing": false,
+      "name": "matched-never-needs-pairing",
+      "require_pairing": true
+    },
+    {
+      "decision": "changed",
+      "expected_requires_pairing": false,
+      "name": "changed-never-needs-pairing",
+      "require_pairing": true
+    },
+    {
+      "decision": "no_fingerprint",
+      "expected_requires_pairing": false,
+      "name": "no-fingerprint-never-needs-pairing",
+      "require_pairing": true
+    }
+  ],
+  "pin_scenarios": [
+    {
+      "expected_decision": "trusted",
+      "name": "first-sighting-is-trusted",
+      "observed": "AA:BB:CC:DD",
+      "stored": null
+    },
+    {
+      "expected_decision": "matched",
+      "name": "matching-pin-ignoring-format",
+      "observed": "AA:BB:CC:DD",
+      "stored": "aabbccdd"
+    },
+    {
+      "expected_decision": "changed",
+      "name": "changed-pin-is-refused",
+      "observed": "ee:ff:00:11",
+      "stored": "aabbccdd"
+    },
+    {
+      "expected_decision": "no_fingerprint",
+      "name": "no-observed-fingerprint",
+      "observed": null,
+      "stored": null
+    },
+    {
+      "expected_decision": "no_fingerprint",
+      "name": "no-observed-fingerprint-with-stored",
+      "observed": null,
+      "stored": "aabbccdd"
+    }
+  ],
+  "write_policy_scenarios": [
+    {
+      "expected_requires_key": true,
+      "interactive": false,
+      "name": "non-interactive-bidirectional-requires-key",
+      "sync_direction": "bidirectional"
+    },
+    {
+      "expected_requires_key": true,
+      "interactive": false,
+      "name": "non-interactive-upload-only-requires-key",
+      "sync_direction": "upload-only"
+    },
+    {
+      "expected_requires_key": false,
+      "interactive": false,
+      "name": "non-interactive-download-only-no-key",
+      "sync_direction": "download-only"
+    },
+    {
+      "expected_requires_key": false,
+      "interactive": true,
+      "name": "interactive-bidirectional-no-key",
+      "sync_direction": "bidirectional"
+    },
+    {
+      "expected_requires_key": false,
+      "interactive": true,
+      "name": "interactive-upload-only-no-key",
+      "sync_direction": "upload-only"
+    }
+  ]
+}
