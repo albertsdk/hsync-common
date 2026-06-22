@@ -1,0 +1,347 @@
+{
+  "$defs": {
+    "authError": {
+      "additionalProperties": false,
+      "properties": {
+        "client_protocol_version": {
+          "type": "string"
+        },
+        "error": {
+          "type": "string"
+        },
+        "protocol_version": {
+          "const": "ws/1"
+        },
+        "status": {
+          "const": "error"
+        },
+        "type": {
+          "const": "auth"
+        }
+      },
+      "required": [
+        "type",
+        "status",
+        "protocol_version",
+        "error",
+        "client_protocol_version"
+      ],
+      "title": "AuthError",
+      "type": "object"
+    },
+    "authOk": {
+      "additionalProperties": false,
+      "properties": {
+        "app_version": {
+          "type": "string"
+        },
+        "capabilities": {
+          "items": {
+            "enum": [
+              "compression",
+              "https",
+              "never_master",
+              "tombstones"
+            ]
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "protocol_version": {
+          "const": "ws/1"
+        },
+        "status": {
+          "const": "ok"
+        },
+        "type": {
+          "const": "auth"
+        }
+      },
+      "required": [
+        "type",
+        "status",
+        "protocol_version",
+        "app_version",
+        "capabilities"
+      ],
+      "title": "AuthOk",
+      "type": "object"
+    },
+    "authRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "app_version": {
+          "type": "string"
+        },
+        "capabilities": {
+          "items": {
+            "enum": [
+              "compression",
+              "https",
+              "never_master",
+              "tombstones"
+            ]
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "protocol_version": {
+          "const": "ws/1"
+        },
+        "token": {
+          "type": "string"
+        },
+        "type": {
+          "const": "auth"
+        }
+      },
+      "required": [
+        "type",
+        "token",
+        "app_version",
+        "protocol_version",
+        "capabilities"
+      ],
+      "title": "AuthRequest",
+      "type": "object"
+    },
+    "dir": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "permissions": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "permissions"
+      ],
+      "title": "Dir",
+      "type": "object"
+    },
+    "entity": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/file"
+        },
+        {
+          "$ref": "#/$defs/dir"
+        },
+        {
+          "$ref": "#/$defs/symlink"
+        }
+      ]
+    },
+    "file": {
+      "additionalProperties": false,
+      "properties": {
+        "ctime": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "filepath": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mtime": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "permissions": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha256sum": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "size": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "filepath",
+        "name",
+        "ctime",
+        "mtime",
+        "size",
+        "sha256sum",
+        "permissions"
+      ],
+      "title": "File",
+      "type": "object"
+    },
+    "fileEvent": {
+      "additionalProperties": false,
+      "description": "File-system event exchanged over the WebSocket (EventDict).",
+      "properties": {
+        "bucket": {
+          "type": "string"
+        },
+        "cid": {
+          "type": "string"
+        },
+        "dst": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/entity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "enum": [
+            "added",
+            "modified",
+            "renamed",
+            "deleted",
+            "symlink"
+          ]
+        },
+        "src": {
+          "$ref": "#/$defs/entity"
+        }
+      },
+      "required": [
+        "cid",
+        "name",
+        "bucket",
+        "src"
+      ],
+      "title": "FileEvent",
+      "type": "object"
+    },
+    "ping": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "ping"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "Ping",
+      "type": "object"
+    },
+    "pong": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "pong"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "Pong",
+      "type": "object"
+    },
+    "symlink": {
+      "additionalProperties": false,
+      "properties": {
+        "ctime": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "filepath": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mtime": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "target": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "const": "symlink"
+        }
+      },
+      "required": [
+        "type",
+        "filepath",
+        "name",
+        "target"
+      ],
+      "title": "Symlink",
+      "type": "object"
+    }
+  },
+  "$id": "https://hsync.dev/protocol/ws/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "clientToServer": {
+    "oneOf": [
+      {
+        "$ref": "#/$defs/authRequest"
+      },
+      {
+        "$ref": "#/$defs/pong"
+      },
+      {
+        "$ref": "#/$defs/fileEvent"
+      }
+    ]
+  },
+  "description": "Wire contract for the real-time event WebSocket. Generated from hsync_common.protocol.schemas; do not hand-edit.",
+  "serverToClient": {
+    "oneOf": [
+      {
+        "$ref": "#/$defs/authOk"
+      },
+      {
+        "$ref": "#/$defs/authError"
+      },
+      {
+        "$ref": "#/$defs/ping"
+      },
+      {
+        "$ref": "#/$defs/fileEvent"
+      }
+    ]
+  },
+  "title": "HSYNC WebSocket protocol (ws/1)"
+}

@@ -1,0 +1,76 @@
+{
+  "$id": "https://hsync.dev/protocol/lan/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Contract for the mDNS service TXT record. All values are strings (mDNS encoding). Generated from hsync_common.protocol.schemas.",
+  "properties": {
+    "bucket": {
+      "type": "string"
+    },
+    "cert_fp": {
+      "description": "TLS certificate fingerprint.",
+      "type": "string"
+    },
+    "cid": {
+      "type": "string"
+    },
+    "compression": {
+      "enum": [
+        "true"
+      ],
+      "type": "string"
+    },
+    "force_master": {
+      "enum": [
+        "true"
+      ],
+      "type": "string"
+    },
+    "group": {
+      "type": "string"
+    },
+    "https": {
+      "enum": [
+        "true"
+      ],
+      "type": "string"
+    },
+    "never_master": {
+      "enum": [
+        "true"
+      ],
+      "type": "string"
+    },
+    "protocol": {
+      "const": "lan/1"
+    },
+    "server_ready": {
+      "enum": [
+        "true"
+      ],
+      "type": "string"
+    },
+    "startup_time": {
+      "description": "Unix start time; earlier wins master election.",
+      "pattern": "^[0-9]+(\\.[0-9]+)?$",
+      "type": "string"
+    },
+    "sync_direction": {
+      "type": "string"
+    },
+    "version": {
+      "description": "Semantic app version (informational).",
+      "type": "string"
+    }
+  },
+  "required": [
+    "cid",
+    "bucket",
+    "version",
+    "protocol",
+    "startup_time",
+    "sync_direction"
+  ],
+  "title": "HSYNC LAN mDNS/TXT record (lan/1)",
+  "type": "object"
+}
