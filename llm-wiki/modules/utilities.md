@@ -51,7 +51,9 @@ formatting/hashing/parsing helper (DRY rule in `CLAUDE.md`).
 - `sanitize_filename` (`:261`).
 - Wire-facing remote-path validation (`:380`+): `INTERNAL_FILENAMES`
   (`.hsyncignore`/`.hsyncstate`/`.hsynctombstones`), `is_internal_name`
-  (also matches `*.part`), `validate_remote_relpath` (rejects `..`, absolute
+  (also matches `*.part`; comparison is case-insensitive so case variants
+  like `.HSYNCIGNORE`/`x.PART` are rejected on case-insensitive
+  filesystems), `validate_remote_relpath` (rejects `..`, absolute
   paths, drive letters, `\`, forbidden/control chars, reserved names,
   problematic trailing chars, internal artifacts), `resolve_within`
   (validation + `resolve()`/`relative_to()` confinement),
