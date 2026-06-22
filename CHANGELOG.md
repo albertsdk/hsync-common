@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - New `security_rejected` structured UI event name, emitted by clients when a
   remote-supplied path is rejected as unsafe
+- New `is_valid_cid`/`CID_PATTERN` wire-facing client-ID format validation
+  (`models/event.py`)
 
 ### Fixed
 - Aligned `aiofiles` constraint to `>=25.1.0,<26.0.0`, resolving the version

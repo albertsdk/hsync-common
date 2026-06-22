@@ -14,7 +14,7 @@ from hsync_common.constants import (
     FILE_SIZE_SMALL,
 )
 from hsync_common.models.dir import Dir, is_hidden_dir
-from hsync_common.models.event import Event, EventName
+from hsync_common.models.event import Event, EventName, is_valid_cid
 from hsync_common.models.file import (
     SHA256_CACHE_MAX_SIZE,
     File,
@@ -460,6 +460,24 @@ class TestEventName:
         assert EventName.renamed == "renamed"
         assert EventName.deleted == "deleted"
         assert EventName.symlink == "symlink"
+
+
+class TestIsValidCid:
+    """Wire-facing client-ID format validation."""
+
+    def test_valid_cids(self):
+        assert is_valid_cid("abc123") is True
+        assert is_valid_cid("V1StGXR8_Z5jdHi6B-myT") is True
+        assert is_valid_cid("a" * 64) is True
+
+    def test_invalid_cids(self):
+        assert is_valid_cid("") is False
+        assert is_valid_cid("a" * 65) is False
+        assert is_valid_cid("bad cid") is False
+        assert is_valid_cid("bad/cid") is False
+        assert is_valid_cid("bad.cid") is False
+        assert is_valid_cid(None) is False
+        assert is_valid_cid(123) is False
 
 
 class TestEventModel:
