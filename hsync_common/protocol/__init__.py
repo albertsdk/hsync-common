@@ -38,6 +38,21 @@ LAN_TXT_SCHEMA_PATH = PROTOCOL_DIR / "lan" / "txt-schema.json"
 # hsync_common.protocol.fixtures; consumed as cross-language test inputs).
 FIXTURES_DIR = PROTOCOL_DIR / "fixtures"
 
+# Sibling Android test-resource mirror of FIXTURES_DIR. The Android contract
+# test consumes byte-identical copies of the golden fixtures; resolved from the
+# monorepo root (FIXTURES_DIR.parents[3]). Single source of truth for both the
+# sync script and the cross-language parity test.
+ANDROID_FIXTURES_DIR = (
+    FIXTURES_DIR.parents[3]
+    / "hsync-android"
+    / "app"
+    / "src"
+    / "test"
+    / "resources"
+    / "protocol"
+    / "fixtures"
+)
+
 
 def dump_contract(schema: dict[str, Any]) -> str:
     """Serialize a contract document to its canonical on-disk representation.
@@ -72,6 +87,7 @@ __all__ = [
     "WS_SCHEMA_PATH",
     "LAN_TXT_SCHEMA_PATH",
     "FIXTURES_DIR",
+    "ANDROID_FIXTURES_DIR",
     "dump_contract",
     "load_contract",
     "dump_openapi",

@@ -5,10 +5,10 @@ This module defines the Dir class representing a directory with its
 path and permissions, used for directory synchronization events.
 """
 
-import stat
-from os import stat as os_stat
 from pathlib import Path
 from typing import Optional
+
+from hsync_common.permissions import get_permissions
 
 
 def _is_hidden_dir_basic(directory: str) -> bool:
@@ -60,7 +60,7 @@ class Dir:
 
     Attributes:
         path: Absolute or relative path to the directory.
-        permissions: Symbolic permission string (e.g., 'drwxr-xr-x').
+        permissions: Octal permission string (e.g., '755').
     """
 
     def __init__(self, path: str | None = None, permissions: str | None = None):
@@ -69,7 +69,7 @@ class Dir:
 
         Args:
             path: Path to the directory.
-            permissions: Symbolic permission string.
+            permissions: Octal permission string.
         """
         self.path = path
         self.permissions = permissions
@@ -80,10 +80,8 @@ class Dir:
 
     @staticmethod
     def _get_permissions(obj_path: str) -> str:
-        """Get permissions for a path in symbolic notation."""
-        obj_stat = os_stat(obj_path)
-        permissions = obj_stat.st_mode
-        return stat.filemode(permissions)
+        """Get permissions for a path as a canonical octal string."""
+        return get_permissions(obj_path)
 
     def to_dict(self) -> dict:
         """Convert the Dir instance to a dictionary."""
