@@ -4,7 +4,7 @@
 #
 # Copyright (C) 2025 Alberto Basso
 
-"""Tests for the WS + LAN/TXT JSON Schemas (DESIGN_REVIEW §1 / P0-A, Fase 3).
+"""Tests for the WS + LAN/TXT JSON Schemas.
 
 These guard the committed snapshots against silent drift from the Python source
 of truth and assert that the handshake builders and shared models actually

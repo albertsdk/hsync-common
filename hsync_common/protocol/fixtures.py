@@ -190,8 +190,8 @@ _WRITE_POLICY_SCENARIOS: tuple[tuple[str, str, bool], ...] = (
     ("interactive-upload-only-no-key", "upload-only", True),
 )
 
-# Cross-language explicit-pairing scenarios (P1 §5 step 4). Each lists the stored/
-# observed fingerprints and whether strict pairing is enabled; the resulting
+# Cross-language explicit-pairing scenarios. Each lists the stored/observed
+# fingerprints and whether strict pairing is enabled; the resulting
 # ``PinDecision`` and ``expected_requires_pairing`` are *computed* from the shared
 # ``evaluate_pin``/``requires_pairing_confirmation`` so Python and Android agree on
 # when a first-seen master must be confirmed out of band before it is trusted.

@@ -4,7 +4,7 @@
 #
 # Copyright (C) 2025 Alberto Basso
 
-"""Tests for the canonical LAN security policy (P1 §5).
+"""Tests for the canonical LAN security policy.
 
 These verify the single source of truth in ``hsync_common.protocol.pairing``:
 the TOFU pin classification and the LAN-key write policy. Both are pure, so the

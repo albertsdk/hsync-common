@@ -4,7 +4,7 @@
 #
 # Copyright (C) 2025 Alberto Basso
 
-"""Tests for the canonical LAN master-election algorithm (P1 §4).
+"""Tests for the canonical LAN master-election algorithm.
 
 These verify the single source of truth in ``hsync_common.protocol.lan`` against
 hand-written expectations (independent of the committed fixtures) and assert that
