@@ -4,24 +4,74 @@ from hsync_common.constants import (
     CHUNK_SIZE_LARGE,
     CHUNK_SIZE_MEDIUM,
     CHUNK_SIZE_SMALL,
+    CONTENT_TYPE_JSON,
+    CONTENT_TYPE_OCTET_STREAM,
     FILE_SIZE_MEDIUM,
     FILE_SIZE_SMALL,
+    HEADER_CLIENT_NAME,
+    HEADER_CLIENT_VERSION,
+    HEADER_PROTOCOL_VERSION,
+    HEADER_SERVER_VERSION,
+    HSYNC_VERSION,
     HSYNCKEEP_FILENAME,
-    VERSION,
+    is_valid_client_name,
 )
 
 
 class TestVersion:
     def test_version_is_string(self):
-        assert isinstance(VERSION, str)
+        assert isinstance(HSYNC_VERSION, str)
 
     def test_version_has_three_parts(self):
-        parts = VERSION.split(".")
-        assert len(parts) == 3, f"Expected semver X.Y.Z, got '{VERSION}'"
+        parts = HSYNC_VERSION.split(".")
+        assert len(parts) == 3, f"Expected semver X.Y.Z, got '{HSYNC_VERSION}'"
 
     def test_version_parts_are_numeric(self):
-        for part in VERSION.split("."):
+        for part in HSYNC_VERSION.split("."):
             assert part.isdigit(), f"Version part '{part}' is not numeric"
+
+
+class TestWireHeaders:
+    def test_header_names_have_x_prefix(self):
+        for header in (
+            HEADER_CLIENT_NAME,
+            HEADER_CLIENT_VERSION,
+            HEADER_SERVER_VERSION,
+            HEADER_PROTOCOL_VERSION,
+        ):
+            assert header.startswith("X-")
+
+    def test_header_names_are_distinct(self):
+        headers = {
+            HEADER_CLIENT_NAME,
+            HEADER_CLIENT_VERSION,
+            HEADER_SERVER_VERSION,
+            HEADER_PROTOCOL_VERSION,
+        }
+        assert len(headers) == 4
+
+
+class TestWireContentTypes:
+    def test_content_types_are_literals(self):
+        assert CONTENT_TYPE_OCTET_STREAM == "application/octet-stream"
+        assert CONTENT_TYPE_JSON == "application/json"
+
+    def test_content_types_are_distinct(self):
+        assert CONTENT_TYPE_OCTET_STREAM != CONTENT_TYPE_JSON
+
+
+class TestClientNameValidation:
+    def test_accepts_product_slugs(self):
+        for name in ("hsync-client", "hsync-android", "hsync-desktop"):
+            assert is_valid_client_name(name)
+
+    def test_rejects_upper_case_or_underscores(self):
+        for name in ("HSYNC Client", "hsync_client", "Hsync-Client"):
+            assert not is_valid_client_name(name)
+
+    def test_rejects_empty_and_whitespace(self):
+        assert not is_valid_client_name("")
+        assert not is_valid_client_name("   ")
 
 
 class TestHsyncKeepFilename:

@@ -125,7 +125,14 @@ Constants must stay identical across all projects. The single source of truth
 is `hsync_common/constants.py`:
 
 ```python
-VERSION = "1.0.0"
+HSYNC_VERSION = "1.0.0"
+HEADER_CLIENT_NAME = "X-Client-Name"
+HEADER_CLIENT_VERSION = "X-Client-Version"
+HEADER_SERVER_VERSION = "X-Server-Version"
+HEADER_PROTOCOL_VERSION = "X-Protocol-Version"
+CLIENT_NAME_PATTERN = "^[a-z][a-z0-9-]*[a-z0-9]$"  # is_valid_client_name()
+CONTENT_TYPE_OCTET_STREAM = "application/octet-stream"
+CONTENT_TYPE_JSON = "application/json"
 HSYNCKEEP_FILENAME = ".hsynckeep"
 HSYNCIGNORE_FILENAME = ".hsyncignore"
 HSYNCFOLDER_FILENAME = ".hsyncfolder"
@@ -141,7 +148,10 @@ distributed across the Kotlin files that mirror their Python counterparts:
 
 | Constant | Kotlin location |
 |----------|-----------------|
-| `VERSION` | `com.hsync.android.data.api.Protocol` (`VERSION_REST`, `VERSION_WS`, `VERSION_LAN`) |
+| `HSYNC_VERSION` | `BuildConfig.VERSION_NAME` (Gradle `versionName`; sent as the WS `app_version` and the REST `X-Client-Version` header) |
+| `HEADER_*` | `com.hsync.android.data.api.Protocol` (`HEADER_PROTOCOL_VERSION`; `HEADER_CLIENT_NAME`/`HEADER_CLIENT_VERSION` added by `ProtocolHeaderInterceptor`) |
+| `CLIENT_NAME_PATTERN` | `Protocol.CLIENT_NAME` slug + the server-side `is_valid_client_name` middleware check (Android sends a compliant slug) |
+| `CONTENT_TYPE_*` | literals in `LanServer.kt` (`CONTENT_TYPE_OCTET`), `SafHelper.kt`, `SyncRepository.kt`, `DeltaTransfer.kt` |
 | `HSYNCKEEP_FILENAME`, `HSYNCIGNORE_FILENAME` | `com.hsync.android.util.IgnoreMatcher` (companion object) |
 | `HSYNCFOLDER_FILENAME` | Referenced as a string literal in `PathValidation.kt` |
 | `HSYNCTOMBSTONES_FILENAME` | Referenced as a string literal in `PathValidation.kt` / `IgnoreMatcher.kt` (legacy rejection) |

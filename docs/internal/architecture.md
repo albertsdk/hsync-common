@@ -77,7 +77,7 @@ hsync-common/
 ├── llm-wiki/                   # Agent-optimized knowledge base
 └── hsync_common/
     ├── __init__.py
-    ├── constants.py             # VERSION, sentinel/ignore/tombstone filenames, chunk sizes, delta constants
+    ├── constants.py             # HSYNC_VERSION, wire headers, sentinel/ignore/tombstone filenames, chunk sizes, delta constants
     ├── hashing.py               # SHA-256 helpers, adaptive chunk sizing, hex digest validation
     ├── compression.py           # Zstandard compress/decompress utilities
     ├── permissions.py           # Octal permission SSOT, remote permission sanitization
@@ -328,7 +328,8 @@ Engine-owned artifacts (`.hsyncignore`, `.hsyncfolder`, leftover
 
 | Constant                     | Value                | Description                              |
 |------------------------------|----------------------|------------------------------------------|
-| `VERSION`                    | `"1.0.0"`            | HSYNC protocol version (single source)   |
+| `HSYNC_VERSION`              | `"1.0.0"`            | HSYNC application version (single source) |
+| `HEADER_CLIENT_NAME`         | `"X-Client-Name"`    | REST header identifying the client product |
 | `HSYNCKEEP_FILENAME`         | `".hsynckeep"`       | Sentinel file for empty-directory sync   |
 | `HSYNCIGNORE_FILENAME`       | `".hsyncignore"`     | Per-bucket gitignore-style ignore file   |
 | `HSYNCFOLDER_FILENAME`       | `".hsyncfolder"`     | Folder-identity marker (UUIDv4)          |
