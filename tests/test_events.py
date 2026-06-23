@@ -120,5 +120,6 @@ class TestEventNameCoverage:
             "fingerprint_changed",
             "auth_required",
             "pairing_needed",
+            "transfer_failed",
         }
         assert expected <= names
