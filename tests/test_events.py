@@ -121,5 +121,6 @@ class TestEventNameCoverage:
             "auth_required",
             "pairing_needed",
             "transfer_failed",
+            "sync_paused",
         }
         assert expected <= names
