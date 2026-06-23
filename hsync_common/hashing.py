@@ -28,6 +28,21 @@ from hsync_common.constants import (
 )
 
 
+def is_sha256_hex(value: object) -> bool:
+    """Return True when *value* has the shape of a SHA-256 hex digest.
+
+    Wire-supplied checksums must pass this before being compared with
+    :func:`hmac.compare_digest`, which raises ``TypeError`` on non-ASCII
+    strings — an unvalidated peer-supplied checksum would otherwise turn a
+    routine integrity mismatch into an unhandled 500.
+    """
+    return (
+        isinstance(value, str)
+        and len(value) == 64
+        and all(c in "0123456789abcdefABCDEF" for c in value)
+    )
+
+
 def adaptive_chunk_size(file_size: int | None) -> int:
     """Pick an optimal read chunk size based on file size.
 

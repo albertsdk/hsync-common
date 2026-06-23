@@ -14,9 +14,11 @@ formatting/hashing/parsing helper (DRY rule in `CLAUDE.md`).
 
 ## hashing.py
 
-- `adaptive_chunk_size` (`hashing.py:31`) picks a tier from file size.
-- `compute_sha256` (`hashing.py:52`) + async `compute_sha256_async`
-  (`hashing.py:69`).
+- `is_sha256_hex` (`hashing.py:31`): wire-facing digest-shape gate — required
+  before `hmac.compare_digest` (raises `TypeError` on non-ASCII input).
+- `adaptive_chunk_size` (`hashing.py:46`) picks a tier from file size.
+- `compute_sha256` (`hashing.py:67`) + async `compute_sha256_async`
+  (`hashing.py:84`).
 
 ## compression.py (Zstandard, level 3)
 
@@ -58,6 +60,9 @@ formatting/hashing/parsing helper (DRY rule in `CLAUDE.md`).
   problematic trailing chars, internal artifacts), `resolve_within`
   (validation + `resolve()`/`relative_to()` confinement),
   `is_safe_symlink_target` (SSOT, shared with the server).
+- Event-payload path keys: `WIRE_PATH_KEYS` + `wire_relpaths` (`:435`) —
+  SSOT for the set of path-carrying keys (`filepath`, `path`) used by both
+  the server relay gate and the client dispatcher.
 
 ## ignore.py (.hsyncignore matcher)
 
