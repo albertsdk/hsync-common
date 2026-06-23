@@ -62,3 +62,19 @@ def dump_openapi(schema: dict[str, Any]) -> str:
 def load_openapi() -> dict[str, Any]:
     """Load the committed REST OpenAPI contract snapshot."""
     return load_contract(REST_OPENAPI_PATH)
+
+
+# Public surface of the protocol package. ``load_openapi`` is the read-side twin
+# of ``dump_openapi`` and is exported for external tooling even though the
+# in-repo drift check only needs the dump side.
+__all__ = [
+    "PROTOCOL_DIR",
+    "REST_OPENAPI_PATH",
+    "WS_SCHEMA_PATH",
+    "LAN_TXT_SCHEMA_PATH",
+    "FIXTURES_DIR",
+    "dump_contract",
+    "load_contract",
+    "dump_openapi",
+    "load_openapi",
+]
