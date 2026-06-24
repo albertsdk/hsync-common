@@ -58,3 +58,33 @@ class HSyncError(Exception):
         if self.details:
             result["details"] = self.details
         return result
+
+
+def format_exception(exc: Exception) -> str:
+    """Format an exception for logging.
+
+    Args:
+        exc: The exception to format.
+
+    Returns:
+        Formatted string with exception type and message.
+    """
+    return f"{type(exc).__name__}: {exc}"
+
+
+def log_exception(logger, exc: Exception, message: str | None = None) -> None:
+    """Log an exception with context.
+
+    A convenience function to log an exception with additional context.
+    Logs at ERROR level by default.
+
+    Args:
+        logger: Logger instance (e.g., loguru logger).
+        exc: The exception that was caught.
+        message: Optional additional context message.
+    """
+    from traceback import format_exc
+
+    msg = message or "An error occurred"
+    logger.error(f"{msg}: {format_exception(exc)}")
+    logger.debug(f"Full traceback:\n{format_exc()}")

@@ -2,7 +2,7 @@
 
 import pytest
 
-from hsync_common.exceptions import HSyncError
+from hsync_common.exceptions import HSyncError, format_exception, log_exception
 
 
 class TestHSyncErrorDefaults:
@@ -90,3 +90,29 @@ class TestHSyncErrorSubclassing:
 
         with pytest.raises(HSyncError):
             raise MyError("subclass error")
+
+
+class TestFormatException:
+    def test_format_exception(self):
+        exc = ValueError("boom")
+        assert format_exception(exc) == "ValueError: boom"
+
+
+class TestLogException:
+    def test_log_exception_calls_logger(self):
+        calls: dict[str, str] = {}
+
+        class FakeLogger:
+            def error(self, msg: str) -> None:
+                calls["error"] = msg
+
+            def debug(self, msg: str) -> None:
+                calls["debug"] = msg
+
+        try:
+            raise RuntimeError("kaboom")
+        except RuntimeError as exc:
+            log_exception(FakeLogger(), exc, "context")
+
+        assert calls["error"] == "context: RuntimeError: kaboom"
+        assert "Full traceback:" in calls["debug"]
