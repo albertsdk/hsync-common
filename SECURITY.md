@@ -31,8 +31,9 @@ provides security-sensitive building blocks reused by the other components:
 
 - **Path validation** (`path_validation`) — filename checks and path-traversal
   protection for bucket-relative paths.
-- **SSL utilities** (`ssl_utils`) — self-signed certificate generation and
-  fingerprint helpers used by LAN HTTPS.
+- **SSL utilities** (`ssl_utils`) — self-signed certificate generation,
+  unencrypted PKCS#8 key serialization, and fingerprint helpers used by the
+  HTTPS-only LAN transport and its connection-level pinning.
 - **Tombstones** (`models/tombstone`) — privacy-preserving (hashed) deletion
   keys.
 

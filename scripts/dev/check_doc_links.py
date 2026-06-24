@@ -33,6 +33,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # Directories that never contain authored docs we want to validate.
 EXCLUDE_DIRS = {
     ".git",
+    ".kilo",
     ".venv",
     "node_modules",
     "build",
