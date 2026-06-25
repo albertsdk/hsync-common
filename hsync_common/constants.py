@@ -72,3 +72,48 @@ FILE_SIZE_MEDIUM = 100_000_000  # 100MB
 # SHA-256 checksum is verified, so a "<name>.part" file is always a transient
 # internal artifact that must never be synced, listed, or treated as user data.
 PARTIAL_DOWNLOAD_SUFFIX = ".part"
+
+# Suffix appended to in-progress *delta* reconstruction targets. Distinct from
+# PARTIAL_DOWNLOAD_SUFFIX so an interrupted delta transfer is recognisable (and
+# cleaned up) separately from a plain interrupted download.
+PARTIAL_DELTA_SUFFIX = ".delta.part"
+
+# =============================================================================
+# Delta Transfer (rsync-style) Settings
+# =============================================================================
+
+# Minimum file size for delta transfer to be worthwhile. Below this threshold
+# the signature/matching overhead exceeds the bandwidth saved.
+DELTA_MIN_FILE_SIZE = 256 * 1024  # 256 KB (remote/server mode)
+
+# Higher threshold for LAN mode: on gigabit links with slow CPUs (e.g. NAS ARM)
+# the signature computation cost can exceed the bandwidth saving, so delta is
+# only attempted for larger files (same rationale as the LAN compression floor).
+DELTA_MIN_FILE_SIZE_LAN = 1024 * 1024  # 1 MB
+
+# Maximum fraction of changed base blocks for delta to stay worthwhile; above
+# this the sender aborts and falls back to a full transfer.
+DELTA_MAX_CHANGE_RATIO = 0.50  # 50%
+
+# Hard cap on the literal payload produced by a single delta. Beyond this the
+# delta degenerates into a full transfer anyway, so it is aborted up-front.
+DELTA_MAX_LITERAL_SIZE = 1024 * 1024 * 1024  # 1 GB
+
+# Time-to-live (seconds) of a server-issued literal-payload download token.
+DELTA_TOKEN_TTL = 300  # 5 minutes
+
+# Adaptive block sizes selected by base-file size (see delta.decision).
+DELTA_BLOCK_SIZE_SMALL = 4 * 1024  # 4 KB  (< 1 MB)
+DELTA_BLOCK_SIZE_MEDIUM = 16 * 1024  # 16 KB (1–10 MB)
+DELTA_BLOCK_SIZE_LARGE = 64 * 1024  # 64 KB (10–100 MB)
+DELTA_BLOCK_SIZE_XLARGE = 256 * 1024  # 256 KB (> 100 MB)
+
+# Base-file size thresholds for block-size selection.
+DELTA_FILE_SIZE_SMALL = 1 * 1024 * 1024  # 1 MB
+DELTA_FILE_SIZE_MEDIUM = 10 * 1024 * 1024  # 10 MB
+DELTA_FILE_SIZE_LARGE = 100 * 1024 * 1024  # 100 MB
+
+# Wire DoS guards: maximum number of signatures in an exchange and operations
+# in a delta-instructions payload (bounds JSON size and matching work).
+DELTA_MAX_SIGNATURES = 100_000
+DELTA_MAX_OPS = 100_000

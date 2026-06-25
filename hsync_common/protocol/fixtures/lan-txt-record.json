@@ -2,6 +2,7 @@
   "bucket": "bucket-1",
   "cid": "client-1",
   "compression": "true",
+  "delta": "true",
   "protocol": "lan/1",
   "startup_time": "1700000000.5",
   "sync_direction": "bidirectional",

@@ -11,6 +11,14 @@ This package contains the canonical data classes for file synchronization
 operations, shared between hsync-client and hsync-server.
 """
 
+from hsync_common.models.delta import (
+    BlockSignature,
+    BlockSignatureDict,
+    DeltaInstructions,
+    DeltaInstructionsDict,
+    DeltaOp,
+    DeltaOpDict,
+)
 from hsync_common.models.dir import Dir, is_hidden_dir
 from hsync_common.models.event import Event, EventDict, EventName
 from hsync_common.models.file import (
@@ -30,6 +38,12 @@ from hsync_common.models.tombstone import (
 )
 
 __all__ = [
+    "BlockSignature",
+    "BlockSignatureDict",
+    "DeltaInstructions",
+    "DeltaInstructionsDict",
+    "DeltaOp",
+    "DeltaOpDict",
     "Dir",
     "Event",
     "EventDict",

@@ -20,6 +20,12 @@
       ],
       "type": "string"
     },
+    "delta": {
+      "enum": [
+        "true"
+      ],
+      "type": "string"
+    },
     "force_master": {
       "enum": [
         "true"

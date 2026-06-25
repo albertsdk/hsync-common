@@ -57,6 +57,7 @@ class Capability(StrEnum):
     tombstones = "tombstones"  # deletion markers to avoid resurrecting files
     never_master = "never_master"  # node refuses LAN master election
     https = "https"  # TLS-secured master endpoint
+    delta = "delta"  # rsync-style delta transfer (block-level sync)
 
 
 ALL_CAPABILITIES: frozenset[Capability] = frozenset(Capability)
