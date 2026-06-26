@@ -93,13 +93,13 @@ class TestBaseInterceptHandler:
         h = BaseInterceptHandler()
         assert isinstance(h, logging.Handler)
 
-    def test_default_escape_braces_false(self):
+    def test_default_escape_markup_false(self):
         h = BaseInterceptHandler()
-        assert h._escape_braces is False
+        assert h._escape_markup is False
 
-    def test_escape_braces_true(self):
-        h = BaseInterceptHandler(escape_braces=True)
-        assert h._escape_braces is True
+    def test_escape_markup_true(self):
+        h = BaseInterceptHandler(escape_markup=True)
+        assert h._escape_markup is True
 
     def test_bind_extra_none_by_default(self):
         h = BaseInterceptHandler()
@@ -127,14 +127,14 @@ class TestBaseInterceptHandler:
         # Should not raise
         h.emit(record)
 
-    def test_emit_with_escape_braces(self):
-        h = BaseInterceptHandler(escape_braces=True)
+    def test_emit_with_escape_markup(self):
+        h = BaseInterceptHandler(escape_markup=True)
         record = logging.LogRecord(
             name="test",
             level=logging.WARNING,
             pathname="",
             lineno=0,
-            msg='{"key": "value"}',
+            msg='{"key": "value"} <locals>',
             args=(),
             exc_info=None,
         )
