@@ -11,7 +11,11 @@ from pathlib import Path
 from re import match
 from typing import Optional, TypedDict
 
-from hsync_common.constants import HSYNCKEEP_FILENAME, PARTIAL_DOWNLOAD_SUFFIX
+from hsync_common.constants import (
+    HSYNCKEEP_FILENAME,
+    PARTIAL_DELTA_SUFFIX,
+    PARTIAL_DOWNLOAD_SUFFIX,
+)
 from hsync_common.hashing import adaptive_chunk_size, compute_sha256
 from hsync_common.permissions import get_permissions
 
@@ -96,15 +100,18 @@ def is_partial_file(file_path: str) -> bool:
     name only after the SHA-256 checksum is verified, so a ``.part`` file is
     always a transient internal artifact that must be excluded from
     synchronisation regardless of the ``include_hidden`` setting or
-    ``.hsyncignore`` rules.
+    ``.hsyncignore`` rules. The same applies to delta-transfer artifacts:
+    ``<final>.delta.part`` (already covered by the ``.part`` suffix) and the
+    parked literal payload ``<final>.delta.part.lit``.
 
     Args:
         file_path: Path (or bare filename) to check.
 
     Returns:
-        True if the basename ends with the partial-transfer suffix.
+        True if the basename ends with a partial-transfer suffix.
     """
-    return Path(file_path).name.endswith(PARTIAL_DOWNLOAD_SUFFIX)
+    name = Path(file_path).name
+    return name.endswith(PARTIAL_DOWNLOAD_SUFFIX) or name.endswith(f"{PARTIAL_DELTA_SUFFIX}.lit")
 
 
 def _is_hidden_file_basic(file_path: str) -> bool:
