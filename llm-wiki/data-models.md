@@ -1,0 +1,64 @@
+# hsync-common — Data Models (`hsync_common/models/`)
+
+Canonical sync types. All are plain dataclasses with a paired `TypedDict` for the
+wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
+
+## Types
+
+| Type | File:line | Wire dict | Notes |
+| ---- | --------- | --------- | ----- |
+| `File` | `models/file.py:178` | `FileDict` (`models/file.py:80`) | sync metadata + content hash |
+| `Dir` | `models/dir.py:54` | — | `path`, octal `permissions` |
+| `Symlink` | `models/symlink.py:14` | — | `filepath`, `target`, `name`, times |
+| `Event` | `models/event.py:50` | `EventDict` (`models/event.py:21`) | FS change; `EventName` enum `models/event.py:31` |
+| `SyncAction` | `models/sync_action.py:31` | — | decision; `SyncActionName` enum `models/sync_action.py:14` |
+| `TombstoneStore` | `models/tombstone.py:49` | `TombstoneEntry` (`models/tombstone.py:32`) | deletion markers, LWW merge |
+| `SyncStateStore` / `FileVersion` | `models/version.py:100` / `:46` | `FileVersion` TypedDict | 3-way merge state |
+
+## File
+
+- Attributes: `filepath, name, ctime, mtime, size, sha256sum, permissions`
+  (constructor `models/file.py:178`). `permissions` is an **octal string**
+  (e.g. `"644"`), produced via `permissions.get_permissions` (see utilities).
+- SHA-256 cache keyed by `(file_path, mtime)`: `_get_cached_sha256`
+  (`models/file.py:56`), `_set_cached_sha256` (`:67`), invalidation
+  `invalidate_sha256_cache` (`:43`), full clear `clear_sha256_cache` (`:34`).
+- Partial-download exclusion: `is_partial_file` (`models/file.py:92`) matches the
+  `PARTIAL_DOWNLOAD_SUFFIX = ".part"` constant (`constants.py:74`); applied in
+  `_is_hidden_file_basic` (`:110`) and unconditionally by the ignore matcher.
+- Hidden detection: `is_hidden_file` (`models/file.py:154`).
+
+## Event / SyncAction
+
+- `EventName` (`models/event.py:31`): `added, modified, renamed, deleted, symlink`.
+- `SyncActionName` (`models/sync_action.py:14`): `download, upload, delete, nothing`.
+
+## TombstoneStore (deletion markers)
+
+- Key derivation hashed for privacy: `tombstone_key` (`models/tombstone.py:39`),
+  bucket-relative path via `relpath_in_bucket` (`:44`).
+- `TombstoneEntry`: `{ts: float, sha256: str|None}` (`models/tombstone.py:32`).
+- LWW semantics in `record()` / `merge()` keep newest `ts`; TTL GC via `prune()`
+  bounded by `TOMBSTONE_TTL_DAYS_DEFAULT = 30` (`models/tombstone.py:29`).
+- Persisted to the `.hsynctombstones` side-car (`constants.py:43`).
+
+## Version / three-way merge
+
+- `FileVersion` TypedDict (`models/version.py:46`) + `SyncDecision` enum
+  (`models/version.py:55`).
+- Core resolver: `resolve_three_way` (`models/version.py:70`) — compares
+  base/local/remote hashes to pick keep/overwrite/conflict.
+- Change-id minting: `new_change_id` (`models/version.py:65`,
+  `_CHANGE_ID_BYTES = 16`).
+- `SyncStateStore` (`models/version.py:100`) persists per-file base versions for
+  the next reconciliation; backs the `.hsyncstate` side-car (`constants.py:51`).
+
+## Serialization & protocol tie-in
+
+`File`/`Dir`/`Symlink`/`Event` shapes are reflected into the WS and LAN JSON
+Schemas by the builders in `protocol/schemas.py` (`_file_object` `:82`,
+`_dir_object` `:103`, `_symlink_object` `:117`, `_event_message` `:135`), so a
+model field change must regenerate the contract artifacts (see
+[modules/protocol.md](modules/protocol.md)).
+
+> Human-readable attribute tables and narrative: `../docs/architecture.md` (Models).
