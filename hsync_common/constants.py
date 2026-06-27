@@ -117,3 +117,8 @@ DELTA_FILE_SIZE_LARGE = 100 * 1024 * 1024  # 100 MB
 # in a delta-instructions payload (bounds JSON size and matching work).
 DELTA_MAX_SIGNATURES = 100_000
 DELTA_MAX_OPS = 100_000
+
+# TOCTOU re-hash threshold: files smaller than this get a full SHA-256 re-hash
+# after the rolling scan to detect content changes that mtime+size alone miss.
+# 10 MB is a reasonable cutoff — re-hashing is fast enough to not impact UX.
+DELTA_TOCTOU_REHASH_THRESHOLD = 10 * 1024 * 1024  # 10 MB

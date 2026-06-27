@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Delta transfer protocol**: new `delta` capability token in
+  `hsync_common.protocol.handshake.Capability`; new `delta` optional key in
+  `LAN_TXT_KEYS` (`hsync_common.protocol.schemas`); regenerated `txt-schema.json`
+  and `lan-txt-record.json` fixture with `delta: "true"`. Core delta algorithm
+  in `hsync_common.delta`: rolling Adler32 checksum, block signatures, find_matches,
+  apply_delta. Decision logic in `hsync_common.delta.decision`: optimal block size
+  (4/16/64/256 KB thresholds), is_delta_worthwhile (50% change ratio, 1 GB literal
+  cap). Constants: `DELTA_MIN_FILE_SIZE` (256 KB), `DELTA_MIN_FILE_SIZE_LAN` (1 MB),
+  `DELTA_MAX_CHANGE_RATIO` (0.50), `DELTA_MAX_LITERAL_SIZE` (1 GB), `DELTA_TOKEN_TTL`
+  (300 s), `DELTA_BLOCK_SIZE_SMALL/MEDIUM/LARGE/XLARGE`.
+- **DeltaApplyMetadata model**: new dataclass and TypedDict in
+  `hsync_common/models/delta.py` for POST /delta/apply metadata (upload delta).
+  Includes cid, base/new SHA-256, new_size, block_size, compressed flag, ops,
+  optional mtime/permissions. Mirrors the wire shape used by the server apply
+  endpoint and the Android Kotlin implementation.
+- **Delta protocol fixtures**: three new golden fixtures in
+  `hsync_common/protocol/fixtures/` for cross-platform parity testing:
+  `delta-signatures.json` (example block signatures), `delta-instructions.json`
+  (example delta operations), `delta-apply-metadata.json` (example apply
+  metadata). These fixtures are consumed by the Android parity tests and can
+  be used by future implementations in other languages.
+- **ADR-0016**: Delta transfer (rsync-style block sync) — documents the
+  architectural decision to implement rsync-style delta transfer for efficient
+  synchronization of large files with small changes. Covers the rolling checksum
+  algorithm, wire protocol, capability negotiation, size thresholds, fallback
+  behavior, and concurrency considerations.
+
 ### Security
 - `decompress_data` now accepts `max_output_size`, enforcing a hard cap on the
   decompressed size via a capped streaming read (anti decompression-bomb for
