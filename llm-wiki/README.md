@@ -37,4 +37,4 @@ android).
 
 - Every claim is anchored to code via `path/to/file.py:line`.
 - No large code blocks are duplicated; intent is described and the code is referenced.
-- Kept in sync with `../docs/` per the Dual-Docs rule in `CLAUDE.md`.
+- Kept in sync with `../docs/` per the Dual-Docs rule in `AGENTS.md`.

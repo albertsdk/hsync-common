@@ -38,7 +38,7 @@ LAN transport/security specifics (TOFU pinning, LAN-key policy, threat model)
 live in [`../docs/lan-protocol.md`](../docs/lan-protocol.md) and map to
 `protocol/pairing.py` + `ssl_utils.py`.
 
-## House rules (from `CLAUDE.md`)
+## House rules (from `AGENTS.md`)
 
 - **Zero backward compatibility**: no shims/migration layers; consumers import
   `hsync_common.*` directly.

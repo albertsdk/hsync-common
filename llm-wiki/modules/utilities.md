@@ -1,7 +1,7 @@
 # HSYNC Common Library — Cross-cutting utilities
 
 Leaf helpers shared by every project. Check here before writing any new
-formatting/hashing/parsing helper (DRY rule in `CLAUDE.md`).
+formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
 
 ## constants.py
 

@@ -84,7 +84,7 @@ common suite optionally assert byte-equality with the Android resources.
 
 - Path dependency with `develop = true`: edits to `hsync_common` are picked up
   live by client/server/desktop without reinstall.
-- Per *Zero Backward Compatibility* (`CLAUDE.md`), there are **no compatibility
+- Per *Zero Backward Compatibility* (`AGENTS.md`), there are **no compatibility
   shims**: consumers import directly from `hsync_common.*`.
 - Android does not import Python; it mirrors the SSOT in Kotlin and the shared
   fixtures pin both languages to identical behavior.
