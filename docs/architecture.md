@@ -71,18 +71,25 @@ hsync-common/
 ├── pyproject.toml              # Poetry configuration
 ├── README.md
 ├── docs/
-│   └── architecture.md         # This file
+│   ├── architecture.md         # This file
+│   ├── LAN_PROTOCOL.md         # LAN discovery/election/pairing/security spec
+│   └── adr/                    # Architecture Decision Records
+├── llm-wiki/                   # Agent-optimized knowledge base
 └── hsync_common/
     ├── __init__.py
-    ├── constants.py             # VERSION, sentinel/ignore/tombstone filenames, chunk sizes
+    ├── constants.py             # VERSION, sentinel/ignore/tombstone filenames, chunk sizes, delta constants
+    ├── hashing.py               # SHA-256 helpers, adaptive chunk sizing, hex digest validation
     ├── compression.py           # Zstandard compress/decompress utilities
+    ├── permissions.py           # Octal permission SSOT, remote permission sanitization
+    ├── path_validation.py       # Filename/path traversal validation, remote-path validators
     ├── ignore.py                # .hsyncignore (gitignore-style) matcher
-    ├── path_validation.py       # Filename/path traversal validation
     ├── ssl_utils.py             # Self-signed cert generation + fingerprinting
     ├── logger.py                # Shared loguru configuration
-    ├── env.py                   # Environment-file loading helpers
+    ├── clock.py                 # NTP-style clock offset computation
+    ├── env.py                   # Environment-variable parsing helpers
+    ├── format.py                # Human-readable bytes/duration formatting
     ├── text.py                  # Text utilities (e.g. loguru brace escaping)
-    ├── exceptions.py            # Shared exception types
+    ├── exceptions.py            # Shared exception base types
     ├── models/
     │   ├── __init__.py          # Re-exports all models
     │   ├── file.py              # File model with SHA-256 caching
@@ -90,16 +97,25 @@ hsync-common/
     │   ├── symlink.py           # Symlink model
     │   ├── event.py             # Event + EventName enum
     │   ├── sync_action.py       # SyncAction + SyncActionName enum
-    │   └── tombstone.py         # TombstoneStore (deletion markers, LWW merge)
+    │   ├── tombstone.py         # TombstoneStore (deletion markers, LWW merge)
+    │   ├── version.py           # SyncStateStore + FileVersion (3-way merge state)
+    │   └── delta.py             # Delta transfer wire models (signatures, ops, instructions)
+    ├── delta/                   # Rsync-style delta transfer algorithm
+    │   ├── decision.py          # Block-size selection, is-delta-worthwhile heuristics
+    │   └── rolling_checksum.py  # Adler32 rolling checksum, block matching
     └── protocol/
-        ├── __init__.py
-        ├── handshake.py         # PROTOCOL_VERSION_REST, capabilities negotiation
+        ├── __init__.py          # Artifact path constants, dump/load helpers
+        ├── handshake.py         # Protocol versions, capabilities, WS auth frames
+        ├── capabilities.py      # Capabilities document (desktop UI gating)
+        ├── events.py            # UiEventName enum, event build/serialize/parse
         ├── lan.py               # elect_master, election_sort_key
         ├── pairing.py           # evaluate_pin, lan_write_requires_key
-        ├── schemas.py           # LAN_TXT_KEYS, build_lan_txt_schema
-        └── fixtures/            # Cross-language test scenarios
-            ├── lan-election-scenarios.json
-            └── lan-pairing-scenarios.json
+        ├── schemas.py           # JSON-Schema builders (WS, LAN TXT)
+        ├── fixtures.py          # Cross-language golden fixture generation
+        ├── fixtures/             # Committed test scenarios (JSON)
+        ├── rest/                # Generated OpenAPI snapshot (REST contract)
+        ├── ws/                  # Generated WS JSON-Schema snapshot
+        └── lan/                 # Generated LAN TXT JSON-Schema snapshot
 ```
 
 ## Models
@@ -116,7 +132,7 @@ The `File` class represents a file with its synchronization metadata:
 | `mtime`       | `int \| None`    | Modification time (Unix timestamp)       |
 | `size`        | `int`            | File size in bytes                       |
 | `sha256sum`   | `str \| None`    | SHA-256 checksum of file content         |
-| `permissions` | `str \| None`    | Symbolic permission string               |
+| `permissions` | `str \| None`    | Octal permission string (e.g. `"644"`)  |
 
 Key features:
 - **SHA-256 caching** — in-memory cache keyed by `(filepath, mtime)` to avoid
@@ -166,14 +182,45 @@ Key features:
   side-car file, with a wire shape (`to_payload()`) reused by the REST endpoints
   and the Android client.
 
+### SyncStateStore / FileVersion
+
+Backs the three-way merge conflict model. `SyncStateStore` persists per-file
+base versions (the hash known to both peers) to the `.hsyncstate` side-car so
+that conflicts are detected on the next reconciliation rather than by timestamp
+alone. `FileVersion` is the `TypedDict` wire shape, and `resolve_three_way()`
+compares base/local/remote hashes to pick keep/overwrite/conflict.
+
+See [ADR 0006 — Master-authoritative conflict model](adr/0006-master-authoritative-conflict-model.md).
+
+### Delta transfer models
+
+Wire models for rsync-style block-level sync (`models/delta.py`):
+
+| Model | Purpose |
+|-------|---------|
+| `BlockSignature` | Signature of a single base-file block (index, offset, length, weak Adler32, strong SHA-256) |
+| `DeltaOp` | Reconstruction operation (copy from base or data from literal payload) |
+| `DeltaInstructions` | Ordered operations to rebuild the new file from base + literals |
+| `DeltaApplyMetadata` | Metadata for delta upload (cid, base/new SHA-256, block size, ops, …) |
+
+Untrusted peer payloads are validated by dedicated sanitizers (`sanitize_*`)
+before use. The core delta algorithm lives in the `hsync_common.delta` package
+(rolling checksum + block matching + decision heuristics). See
+[ADR 0016 — Delta transfer](adr/0016-delta-transfer.md).
+
 ## Utilities
 
 | Module             | Responsibility                                                  |
 |--------------------|----------------------------------------------------------------|
-| `ignore`           | `.hsyncignore` (gitignore-style) pattern matching              |
+| `hashing`          | SHA-256 computation, adaptive chunk sizing, hex digest validation |
+| `compression`      | Zstandard compress/decompress, decompression-bomb protection   |
+| `permissions`      | Octal permission SSOT, remote permission sanitization           |
 | `path_validation`  | Filename/path validation, traversal protection, remote-path validators |
+| `ignore`           | `.hsyncignore` (gitignore-style) pattern matching              |
 | `ssl_utils`        | Self-signed certificate generation and fingerprint helpers     |
 | `logger`           | Shared loguru configuration                                    |
+| `clock`            | NTP-style clock offset computation                             |
+| `format`           | Human-readable bytes/duration formatting                        |
 | `env`              | Environment-file loading helpers                               |
 | `text`             | Text helpers (e.g. escaping loguru braces)                     |
 | `exceptions`       | Shared exception base types                                    |
@@ -263,29 +310,38 @@ When `--sync-hidden` is passed, the default hidden patterns layer is disabled.
 | `HSYNCKEEP_FILENAME`         | `".hsynckeep"`       | Sentinel file for empty-directory sync   |
 | `HSYNCIGNORE_FILENAME`       | `".hsyncignore"`     | Per-bucket gitignore-style ignore file   |
 | `HSYNCTOMBSTONES_FILENAME`   | `".hsynctombstones"` | Per-bucket deletion-marker side-car file |
+| `HSYNCSTATE_FILENAME`        | `".hsyncstate"`      | Per-bucket 3-way merge state side-car    |
+| `PARTIAL_DOWNLOAD_SUFFIX`    | `".part"`            | Suffix for in-progress downloads         |
 | `TOMBSTONE_TTL_DAYS_DEFAULT` | `30`                 | Retention window before tombstone GC     |
 | `CHUNK_SIZE_SMALL`           | 8 KB                 | SHA-256 chunk size for files < 1 MB      |
 | `CHUNK_SIZE_MEDIUM`          | 64 KB                | SHA-256 chunk size for files < 100 MB    |
 | `CHUNK_SIZE_LARGE`           | 256 KB               | SHA-256 chunk size for files ≥ 100 MB    |
 | `FILE_SIZE_SMALL`            | 1 MB                 | Threshold for medium chunk size          |
 | `FILE_SIZE_MEDIUM`           | 100 MB               | Threshold for large chunk size           |
+| `DELTA_MIN_FILE_SIZE`        | 256 KB               | Minimum file size to attempt delta sync  |
+| `DELTA_MIN_FILE_SIZE_LAN`    | 1 MB                 | Minimum file size for LAN delta sync     |
+| `DELTA_MAX_CHANGE_RATIO`     | `0.50`               | Max changed-block ratio for delta sync   |
+| `DELTA_TOKEN_TTL`            | 300 s                | Delta token expiry (single-use)          |
 
 ## Integration
 
-Both `hsync-client` and `hsync-server` declare a Poetry path dependency:
+`hsync-client`, `hsync-server`, and `hsync-desktop` all declare a Poetry path
+dependency:
 
 ```toml
 hsync-common = { path = "../hsync-common", develop = true }
 ```
 
-Each project maintains **backward-compatible shim modules** that re-export
-symbols from `hsync_common`. For example, in `hsync-client`:
+Consumers import shared symbols directly from `hsync_common.*` — there are no
+compatibility shims or re-export modules. Per the project's *Zero Backward
+Compatibility* stance, a contract change in `hsync-common` is applied
+atomically across all consumers:
 
 ```python
-# hsync_client/models/file.py
-from hsync_common.models.file import File, FileDict, clear_sha256_cache, ...
+# Direct import — no shim layer
+from hsync_common.models.file import File, FileDict
+from hsync_common.protocol.handshake import PROTOCOL_VERSION_REST
 ```
 
-This ensures that all existing `from hsync_client.models.file import File`
-and `from hsync_server.models.file import File` imports continue to work
-without any changes to application code or tests.
+The Android app does not import Python; it mirrors the SSOT in Kotlin and the
+shared fixtures pin both languages to identical behavior.
