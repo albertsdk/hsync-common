@@ -69,7 +69,7 @@ formatting/hashing/parsing helper (DRY rule in `CLAUDE.md`).
 - `IgnoreMatcher` (`ignore.py:41`, pathspec-backed). Process-global active
   matcher: `set_active_matcher` (`:163`), `get_active_matcher` (`:176`),
   `should_skip` (`:182`). `.part` files and `INTERNAL_FILENAMES` are always
-  excluded, even with `include_hidden=True`. `_to_relative` strips only a
+  excluded. `_to_relative` strips only a
   leading `./`, so user patterns can match dotfiles.
 
 ## ssl_utils.py (LAN TLS identity)

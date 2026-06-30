@@ -32,31 +32,33 @@ def _write_ignore(bucket: Path, content: str) -> None:
 
 
 class TestDefaults:
-    def test_no_ignore_file_defaults_to_hidden_only(self, bucket):
+    """Built-in default patterns are always active (industry standard).
+
+    Only OS cache files and editor/office temporary files are excluded.
+    Dotfiles in general (.env, .config, .git …) are synchronised normally.
+    """
+
+    def test_no_ignore_file_excludes_os_cache(self, bucket):
         m = IgnoreMatcher(str(bucket))
-        assert m.matches(".cache") is True
+        assert m.matches(".DS_Store") is True
+        assert m.matches("Thumbs.db") is True
         assert m.matches("document.txt") is False
-        assert m.matches("backup.bak") is True
+
+    def test_no_ignore_file_syncs_dotfiles(self, bucket):
+        """Dotfiles are NOT excluded by default (industry standard)."""
+        m = IgnoreMatcher(str(bucket))
+        assert m.matches(".env") is False
+        assert m.matches(".config") is False
+        assert m.matches(".gitignore") is False
 
     def test_hsynckeep_always_kept(self, bucket):
         _write_ignore(bucket, "*\n")
         m = IgnoreMatcher(str(bucket))
         assert m.matches(HSYNCKEEP_FILENAME) is False
 
-    def test_include_hidden_disables_default_patterns(self, bucket):
-        m = IgnoreMatcher(str(bucket), include_hidden=True)
-        assert m.matches(".cache") is False
-        assert m.matches("file.bak") is False
-
     def test_partial_file_always_ignored(self, bucket):
         m = IgnoreMatcher(str(bucket))
         assert m.matches("document.txt.part") is True
-
-    def test_partial_file_ignored_even_with_include_hidden(self, bucket):
-        # In-progress transfer artifacts must never sync, regardless of flags.
-        m = IgnoreMatcher(str(bucket), include_hidden=True)
-        assert m.matches("document.txt.part") is True
-        assert m.matches("sub/document.txt.part") is True
 
     def test_internal_files_always_ignored(self, bucket):
         # Engine-owned state files must never be synced: a peer that could
@@ -68,11 +70,13 @@ class TestDefaults:
         assert m.matches(".hsynctombstones") is True
         assert m.matches("sub/.hsyncignore") is True
 
-    def test_internal_files_ignored_even_with_include_hidden(self, bucket):
-        m = IgnoreMatcher(str(bucket), include_hidden=True)
-        assert m.matches(".hsyncignore") is True
-        assert m.matches(".hsyncstate") is True
-        assert m.matches(".hsynctombstones") is True
+    def test_default_patterns_cannot_be_disabled(self, bucket):
+        """Default patterns are always active — there is no way to disable them."""
+        m = IgnoreMatcher(str(bucket))
+        assert m.matches(".DS_Store") is True
+        assert m.matches("Thumbs.db") is True
+        assert m.matches("backup.bak") is True
+        assert m.matches("temp.tmp") is True
 
 
 class TestDotfilePatterns:
@@ -98,7 +102,7 @@ class TestDotfilePatterns:
 class TestGitignoreSyntax:
     def test_basic_glob(self, bucket):
         _write_ignore(bucket, "*.log\nnode_modules/\n")
-        m = IgnoreMatcher(str(bucket), include_hidden=True)
+        m = IgnoreMatcher(str(bucket))
         assert m.matches("server.log") is True
         assert m.matches("logs/app.log") is True
         assert m.matches("node_modules", is_dir=True) is True
@@ -106,20 +110,26 @@ class TestGitignoreSyntax:
 
     def test_negation_reincludes(self, bucket):
         _write_ignore(bucket, "*.log\n!important.log\n")
-        m = IgnoreMatcher(str(bucket), include_hidden=True)
+        m = IgnoreMatcher(str(bucket))
         assert m.matches("debug.log") is True
         assert m.matches("important.log") is False
 
+    def test_negation_reincludes_default_pattern(self, bucket):
+        """A user can re-include a file excluded by the default patterns."""
+        _write_ignore(bucket, "!*.tmp\n")
+        m = IgnoreMatcher(str(bucket))
+        assert m.matches("temp.tmp") is False
+
     def test_directory_only_pattern(self, bucket):
         _write_ignore(bucket, "build/\n")
-        m = IgnoreMatcher(str(bucket), include_hidden=True)
+        m = IgnoreMatcher(str(bucket))
         assert m.matches("build", is_dir=True) is True
         # File named "build" is NOT matched by "build/"
         assert m.matches("build", is_dir=False) is False
 
     def test_double_star_recursive(self, bucket):
         _write_ignore(bucket, "**/cache/**\n")
-        m = IgnoreMatcher(str(bucket), include_hidden=True)
+        m = IgnoreMatcher(str(bucket))
         assert m.matches("foo/cache/x.bin") is True
         assert m.matches("foo/bar/cache/baz/q.bin") is True
 
@@ -127,13 +137,13 @@ class TestGitignoreSyntax:
 class TestPathNormalisation:
     def test_absolute_path_resolved_to_relative(self, bucket):
         _write_ignore(bucket, "secret.txt\n")
-        m = IgnoreMatcher(str(bucket), include_hidden=True)
+        m = IgnoreMatcher(str(bucket))
         assert m.matches(str(bucket / "secret.txt")) is True
 
     def test_root_anchored_pattern_only_matches_at_root(self, bucket):
         # Leading "/" anchors the pattern to the bucket root
         _write_ignore(bucket, "/secret.txt\n")
-        m = IgnoreMatcher(str(bucket), include_hidden=True)
+        m = IgnoreMatcher(str(bucket))
         assert m.matches("secret.txt") is True
         # Same basename in a subdirectory must NOT match
         assert m.matches("subdir/secret.txt") is False
@@ -141,17 +151,17 @@ class TestPathNormalisation:
 
 class TestExtraPatterns:
     def test_extra_patterns_layered_on_top(self, bucket):
-        m = IgnoreMatcher(str(bucket), include_hidden=True, extra_patterns=["*.private"])
+        m = IgnoreMatcher(str(bucket), extra_patterns=["*.private"])
         assert m.matches("notes.private") is True
 
 
 class TestReload:
     def test_reload_picks_up_changes(self, bucket):
-        m = IgnoreMatcher(str(bucket), include_hidden=True)
-        assert m.matches("new.tmp") is False
-        _write_ignore(bucket, "*.tmp\n")
+        m = IgnoreMatcher(str(bucket))
+        assert m.matches("new.tmp") is True  # excluded by default
+        _write_ignore(bucket, "!*.tmp\n")
         m.reload()
-        assert m.matches("new.tmp") is True
+        assert m.matches("new.tmp") is False  # re-included by .hsyncignore
 
 
 class TestComments:
@@ -160,7 +170,7 @@ class TestComments:
     def test_comment_lines_are_ignored(self, bucket):
         """Patterns after comment lines should still work."""
         _write_ignore(bucket, "# Ignore log files\n*.log\n# Ignore temp files\n*.tmp\n")
-        m = IgnoreMatcher(str(bucket), include_hidden=True)
+        m = IgnoreMatcher(str(bucket))
         assert m.matches("server.log") is True
         assert m.matches("data.tmp") is True
         assert m.matches("important.txt") is False
@@ -168,14 +178,14 @@ class TestComments:
     def test_comment_with_leading_whitespace(self, bucket):
         """Comments with leading spaces/tabs should still be treated as comments."""
         _write_ignore(bucket, "  # This is a comment\n*.log\n\t# Another comment\n")
-        m = IgnoreMatcher(str(bucket), include_hidden=True)
+        m = IgnoreMatcher(str(bucket))
         assert m.matches("app.log") is True
         assert m.matches("readme.md") is False
 
     def test_blank_lines_between_patterns(self, bucket):
         """Blank lines should not affect pattern matching."""
         _write_ignore(bucket, "*.log\n\n*.tmp\n\n\n")
-        m = IgnoreMatcher(str(bucket), include_hidden=True)
+        m = IgnoreMatcher(str(bucket))
         assert m.matches("server.log") is True
         assert m.matches("data.tmp") is True
         assert m.matches("readme.md") is False
@@ -183,7 +193,7 @@ class TestComments:
     def test_only_comments_and_blanks(self, bucket):
         """A file with only comments and blank lines should match nothing extra."""
         _write_ignore(bucket, "# Everything is a comment\n\n  # indented comment\n")
-        m = IgnoreMatcher(str(bucket), include_hidden=True)
+        m = IgnoreMatcher(str(bucket))
         assert m.matches("anyfile.txt") is False
         assert m.matches("another.doc") is False
 
@@ -192,7 +202,7 @@ class TestComments:
         In standard .gitignore, only a '#' at the start of a line
         (possibly after whitespace) is a comment."""
         _write_ignore(bucket, "file#name.log\n")
-        m = IgnoreMatcher(str(bucket), include_hidden=True)
+        m = IgnoreMatcher(str(bucket))
         # The pattern "file#name.log" should literally match a file named "file#name.log"
         assert m.matches("file#name.log") is True
         assert m.matches("file.log") is False
@@ -200,7 +210,7 @@ class TestComments:
     def test_escaped_hash_is_pattern(self, bucket):
         """A line starting with '\\#' is an escaped hash, treated as a pattern."""
         _write_ignore(bucket, "\\#not_a_comment.log\n")
-        m = IgnoreMatcher(str(bucket), include_hidden=True)
+        m = IgnoreMatcher(str(bucket))
         assert m.matches("#not_a_comment.log") is True
         assert m.matches("not_a_comment.log") is False
 
@@ -216,7 +226,7 @@ class TestActiveMatcher:
 
     def test_should_skip_uses_active_matcher(self, bucket):
         _write_ignore(bucket, "*.secret\n")
-        m = IgnoreMatcher(str(bucket), include_hidden=True)
+        m = IgnoreMatcher(str(bucket))
         set_active_matcher(m)
         try:
             assert should_skip("foo.secret") is True
@@ -224,7 +234,11 @@ class TestActiveMatcher:
         finally:
             set_active_matcher(None)
 
-    def test_should_skip_falls_back_to_hidden_check(self):
+    def test_should_skip_falls_back_to_default_patterns(self):
         set_active_matcher(None)
-        assert should_skip(".cache") is True
+        # Default patterns still exclude OS cache files
+        assert should_skip(".DS_Store") is True
+        assert should_skip("Thumbs.db") is True
+        # Dotfiles are NOT excluded
+        assert should_skip(".env") is False
         assert should_skip("regular.txt") is False

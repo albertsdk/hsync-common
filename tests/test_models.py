@@ -40,17 +40,34 @@ from hsync_common.models.tombstone import (
 
 
 class TestIsHiddenFile:
-    def test_dot_file_is_hidden(self):
-        assert is_hidden_file(".hidden") is True
+    """Default ignore patterns follow the industry standard: only OS cache
+    and editor/office temporary files are excluded. Dotfiles in general
+    (.env, .config, .git …) are synchronised normally."""
+
+    def test_dotfile_not_hidden_by_default(self):
+        """Dotfiles like .env, .config are synced normally (industry standard)."""
+        assert is_hidden_file(".env") is False
+        assert is_hidden_file(".config") is False
+        assert is_hidden_file(".hidden") is False
 
     def test_regular_file_not_hidden(self):
         assert is_hidden_file("document.txt") is False
+
+    def test_ds_store_is_hidden(self):
+        assert is_hidden_file(".DS_Store") is True
+
+    def test_thumbs_db_is_hidden(self):
+        assert is_hidden_file("Thumbs.db") is True
+
+    def test_office_lock_is_hidden(self):
+        assert is_hidden_file("~$document.docx") is True
 
     def test_tilde_backup_is_hidden(self):
         assert is_hidden_file("file.txt~") is True
 
     def test_vim_swap_is_hidden(self):
         assert is_hidden_file(".file.swp") is True
+        assert is_hidden_file("file.swp") is True
 
     def test_hsynckeep_not_hidden(self):
         from hsync_common.constants import HSYNCKEEP_FILENAME
@@ -62,9 +79,15 @@ class TestIsHiddenFile:
 
     def test_tmp_is_hidden(self):
         assert is_hidden_file("temp.tmp") is True
+        assert is_hidden_file("temp.temp") is True
 
     def test_partial_download_is_hidden(self):
         assert is_hidden_file("document.txt.part") is True
+
+    def test_internal_files_are_hidden(self):
+        assert is_hidden_file(".hsyncignore") is True
+        assert is_hidden_file(".hsyncstate") is True
+        assert is_hidden_file(".hsynctombstones") is True
 
 
 class TestIsPartialFile:
@@ -252,23 +275,33 @@ class TestFileFromDict:
 
 
 class TestIsHiddenDir:
-    def test_dot_dir_is_hidden(self):
-        assert is_hidden_dir(".git") is True
+    """Default ignore patterns follow the industry standard: only OS cache
+    and editor/office temporary files are excluded. Dotfile directories in
+    general (.git/, .config/ …) are synchronised normally."""
+
+    def test_dot_dir_not_hidden_by_default(self):
+        """Dotfile directories like .git, .config are synced normally."""
+        assert is_hidden_dir(".git") is False
+        assert is_hidden_dir(".config") is False
 
     def test_regular_dir_not_hidden(self):
         assert is_hidden_dir("documents") is False
 
-    def test_parent_dot_dir_is_hidden(self):
-        assert is_hidden_dir(".parent/subdir") is True
+    def test_ds_store_dir_is_hidden(self):
+        """A directory named .DS_Store matches the default pattern (gitignore
+        patterns match both files and directories unless they end with /)."""
+        assert is_hidden_dir(".DS_Store") is True
+
+    def test_internal_dir_is_hidden(self):
+        """Engine-owned directories like .hsyncignore are always excluded."""
+        assert is_hidden_dir(".hsyncignore") is True
 
 
 class TestIsHiddenMatcherAwareness:
-    """is_hidden_dir/is_hidden_file consult the active IgnoreMatcher (2.14).
+    """is_hidden_dir/is_hidden_file consult the active IgnoreMatcher.
 
     The matcher-aware behaviour now lives in hsync_common, so importing the
-    functions from common, client or server yields identical results. The
-    private ``_basic`` helpers remain the matcher's own fallback to avoid
-    infinite recursion.
+    functions from common, client or server yields identical results.
     """
 
     @pytest.fixture
@@ -277,21 +310,21 @@ class TestIsHiddenMatcherAwareness:
         from hsync_common.ignore import IgnoreMatcher, set_active_matcher
 
         (tmp_path / HSYNCIGNORE_FILENAME).write_text("*.secret\nbuild/\n")
-        # include_hidden=False keeps the built-in hidden fallback active, which
-        # exercises the recursion-prone path (matcher -> _is_hidden_*_basic).
-        matcher = IgnoreMatcher(str(tmp_path), include_hidden=False)
+        matcher = IgnoreMatcher(str(tmp_path))
         set_active_matcher(matcher)
         try:
             yield tmp_path
         finally:
             set_active_matcher(None)
 
-    def test_no_matcher_uses_basic_file_check(self):
+    def test_no_matcher_uses_default_patterns(self):
         from hsync_common.ignore import set_active_matcher
 
         set_active_matcher(None)
-        assert is_hidden_file(".hidden") is True
+        # Default patterns still exclude OS cache files
+        assert is_hidden_file(".DS_Store") is True
         assert is_hidden_file("foo.secret") is False
+        assert is_hidden_file(".env") is False
 
     def test_file_consults_active_matcher(self, active_secret_matcher):
         assert is_hidden_file("foo.secret") is True
@@ -301,11 +334,10 @@ class TestIsHiddenMatcherAwareness:
         assert is_hidden_dir("build") is True
         assert is_hidden_dir("documents") is False
 
-    def test_matcher_active_does_not_recurse(self, active_secret_matcher):
-        # A path matching no rule falls through to the matcher's hidden-check,
-        # which must use the pure helper (no re-entry into is_hidden_*).
-        assert is_hidden_file(".env") is True
-        assert is_hidden_dir(".cache") is True
+    def test_matcher_dotfiles_not_excluded_by_default(self, active_secret_matcher):
+        # Dotfiles are NOT excluded by default (industry standard).
+        assert is_hidden_file(".env") is False
+        assert is_hidden_dir(".cache") is False
 
 
 class TestDirModel:

@@ -31,9 +31,48 @@ HSYNCKEEP_FILENAME = ".hsynckeep"
 
 # Per-bucket ignore file with gitignore-style patterns.  When present at
 # the bucket root it is parsed by hsync_common.ignore.IgnoreMatcher and
-# its rules are layered on top of (or replace, depending on sync_hidden)
-# the default hidden-file detection.
+# its rules are layered on top of the default ignore patterns.
 HSYNCIGNORE_FILENAME = ".hsyncignore"
+
+# =============================================================================
+# Default Ignore Patterns (OS cache / temporary files)
+# =============================================================================
+
+# Built-in gitignore-style patterns that are *always* active, regardless of
+# user configuration.  Following industry standard (Syncthing, rsync,
+# Nextcloud, OneDrive) these cover only operating-system cache files and
+# editor/office temporary files — NOT dotfiles in general, which are
+# synchronised normally.
+#
+# Users can re-include any of these via negation rules in ``.hsyncignore``
+# (e.g. ``!*.tmp``) or override them with more specific patterns.
+DEFAULT_IGNORE_PATTERNS: tuple[str, ...] = (
+    # --- macOS Finder / Spotlight cache ---
+    ".DS_Store",
+    "._*",
+    ".Spotlight-V100",
+    ".Trashes",
+    # --- Windows Explorer / thumbnail cache ---
+    "Thumbs.db",
+    "Thumbs.db:encryptable",
+    "ehthumbs.db",
+    "ehthumbs_vista.db",
+    "desktop.ini",
+    # --- Microsoft Office lock / temp files ---
+    "~$*",
+    # --- Editor swap / backup / lock files ---
+    "*.swp",
+    "*.swo",
+    "*~",
+    "4913",
+    ".~lock.*#",
+    # --- Generic temporary / backup files ---
+    "*.tmp",
+    "*.temp",
+    "*.bak",
+    # --- Date-stamped backup files (e.g. file-2024-01-15-120000) ---
+    "*-????-??-??-??????",
+)
 
 # Per-bucket deletion-marker (tombstone) side-car file.  Maps a hashed
 # bucket-relative path to the deletion timestamp and the content hash of the
