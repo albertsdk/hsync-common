@@ -37,6 +37,8 @@ graph TB
     subgraph "Consumers"
         CLIENT[hsync-client]
         SERVER[hsync-server]
+        DESKTOP[hsync-desktop]
+        ANDROID[hsync-android]
     end
 
     CLIENT -->|"path dependency"| FILE
@@ -45,6 +47,8 @@ graph TB
     SERVER -->|"path dependency"| FILE
     SERVER -->|"path dependency"| COMP
     SERVER -->|"path dependency"| CONST
+    DESKTOP -->|"path dependency"| FILE
+    ANDROID -.->|"Kotlin mirror"| FILE
 ```
 
 ## Purpose
@@ -79,14 +83,23 @@ hsync-common/
     ├── env.py                   # Environment-file loading helpers
     ├── text.py                  # Text utilities (e.g. loguru brace escaping)
     ├── exceptions.py            # Shared exception types
-    └── models/
-        ├── __init__.py          # Re-exports all models
-        ├── file.py              # File model with SHA-256 caching
-        ├── dir.py               # Dir model
-        ├── symlink.py           # Symlink model
-        ├── event.py             # Event + EventName enum
-        ├── sync_action.py       # SyncAction + SyncActionName enum
-        └── tombstone.py         # TombstoneStore (deletion markers, LWW merge)
+    ├── models/
+    │   ├── __init__.py          # Re-exports all models
+    │   ├── file.py              # File model with SHA-256 caching
+    │   ├── dir.py               # Dir model
+    │   ├── symlink.py           # Symlink model
+    │   ├── event.py             # Event + EventName enum
+    │   ├── sync_action.py       # SyncAction + SyncActionName enum
+    │   └── tombstone.py         # TombstoneStore (deletion markers, LWW merge)
+    └── protocol/
+        ├── __init__.py
+        ├── handshake.py         # PROTOCOL_VERSION_REST, capabilities negotiation
+        ├── lan.py               # elect_master, election_sort_key
+        ├── pairing.py           # evaluate_pin, lan_write_requires_key
+        ├── schemas.py           # LAN_TXT_KEYS, build_lan_txt_schema
+        └── fixtures/            # Cross-language test scenarios
+            ├── lan-election-scenarios.json
+            └── lan-pairing-scenarios.json
 ```
 
 ## Models
