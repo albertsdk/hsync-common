@@ -68,12 +68,14 @@ class SyncAction:
         timedelta: int = 0,
         conflict: bool = False,
         tombstone_confirmed: bool = False,
+        permissions_only: bool = False,
     ):
         self.file: File | Symlink = file
         self.name = name
         self.timedelta = self._format_timedelta(timedelta)
         self.conflict = conflict
         self.tombstone_confirmed = tombstone_confirmed
+        self.permissions_only = permissions_only
 
     def __repr__(self) -> str:
         return (
@@ -82,7 +84,8 @@ class SyncAction:
             f"name={self.name}, "
             f"timedelta={self.timedelta}, "
             f"conflict={self.conflict}, "
-            f"tombstone_confirmed={self.tombstone_confirmed})"
+            f"tombstone_confirmed={self.tombstone_confirmed}, "
+            f"permissions_only={self.permissions_only})"
         )
 
     def to_dict(self) -> dict:
@@ -98,6 +101,7 @@ class SyncAction:
             "timedelta": self.timedelta,
             "conflict": self.conflict,
             "tombstone_confirmed": self.tombstone_confirmed,
+            "permissions_only": self.permissions_only,
         }
 
     def _format_timedelta(self, delta_seconds: int) -> str:
