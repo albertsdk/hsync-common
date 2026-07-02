@@ -32,6 +32,7 @@ from hsync_common.protocol.handshake import PROTOCOL_VERSION_REST
 | -------- | -------------- |
 | [architecture.md](architecture.md) | Models, utilities, and the protocol package; how the wire contract is generated and kept in sync. |
 | [LAN_PROTOCOL.md](LAN_PROTOCOL.md) | The LAN discovery, master-election, pairing, and security specification (authoritative reference). |
+| [android-mirroring.md](android-mirroring.md) | How Python models are mirrored in Kotlin for the Android app. |
 | [adr/README.md](adr/README.md) | Architecture Decision Records — the *why* behind the ecosystem's stable, cross-project decisions. |
 
 ## Related projects

@@ -7,9 +7,27 @@
 > The software is provided "as is", without warranty of any kind — see the full
 > [Disclaimer](#disclaimer) and [License](#license) below.
 
+
+**hsync-common** is the shared foundation that all other HSYNC projects build
+upon — data formats, compression, file exclusion rules, and security utilities.
+You don't install or run it directly; it's a library used by the client, server,
+desktop, and Android apps.
+
 ---
 
-Shared models, constants, compression utilities, and ignore-file support for the HSYNC ecosystem.
+**Quick navigation:**
+- **Want to contribute?** See [Contributing](CONTRIBUTING.md)
+- **Looking for detailed documentation?** Navigate to [docs/README.md](docs/README.md)
+
+## Table of Contents
+
+- [Key modules](#key-modules)
+- [Ignore file (`.hsyncignore`)](#ignore-file-hsyncignore)
+- [Documentation](#documentation)
+- [License](#license)
+- [Disclaimer](#disclaimer)
+
+---
 
 ## Key modules
 
