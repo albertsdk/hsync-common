@@ -87,6 +87,12 @@ def _bench_file(count: int) -> list[BenchResult]:
     def op_from_dict_prepend() -> None:
         assert File.from_dict(_FILE_DICT_REL, _BUCKET_ROOT, False).size > 0
 
+    def op_from_dict_rel_strip() -> None:
+        # The production decode shape: the listing path is already
+        # bucket-relative, so strip is a verbatim no-op (fast path).
+        decoded = File.from_dict(_FILE_DICT_REL, _BUCKET_ROOT, True)
+        assert decoded.filepath == "photos/2024/album/photo-001.jpg"
+
     def op_round_trip() -> None:
         assert File.from_dict(info.to_dict(), _BUCKET_ROOT, True).sha256sum == _SHA256
 
@@ -94,6 +100,7 @@ def _bench_file(count: int) -> list[BenchResult]:
         measure("file_to_dict", op_to_dict, count=count),
         measure("file_from_dict(strip)", op_from_dict_strip, count=count),
         measure("file_from_dict(prepend)", op_from_dict_prepend, count=count),
+        measure("file_from_dict(rel_strip)", op_from_dict_rel_strip, count=count),
         measure("file_round_trip", op_round_trip, count=count),
     ]
 

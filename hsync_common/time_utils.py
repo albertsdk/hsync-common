@@ -98,6 +98,9 @@ def to_epoch(t: str | int | float | datetime | None) -> int | None:
         return None
     if isinstance(t, bool):
         raise TypeError(f"Expected a timestamp, got bool ({t!r})")
+    if isinstance(t, int):
+        # Hot-path: epoch seconds are already an int (the dominant wire shape).
+        return t
 
     if isinstance(t, datetime):
         if t.tzinfo is None:

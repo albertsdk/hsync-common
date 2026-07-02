@@ -506,7 +506,8 @@ def validate_remote_relpath(rel: str) -> str | None:
     # fullwidth U+FF0F as "/") cannot bypass the component-level checks
     # below. Normalize BEFORE every subsequent guard so the normalized form
     # is what the filesystem eventually sees.
-    rel = unicodedata.normalize("NFC", rel)
+    if not unicodedata.is_normalized("NFC", rel):
+        rel = unicodedata.normalize("NFC", rel)
 
     # Absolute paths and drive letters are never acceptable on the wire.
     if not is_safe_path_component(rel):

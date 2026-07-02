@@ -46,7 +46,7 @@ anomaly needs a cost breakdown.
 | `matches(single path)` | `hsync_common/ignore.py:150` |
 | `should_skip(...)` | `hsync_common/ignore.py:217` (active matcher → fallback) |
 | `sweep(N paths,bucket\|defaults)` | full-scan cost with bucket rules vs. default-only fallback |
-| `file_to_dict` / `file_from_dict(strip\|prepend)` | `models/file.py:234`, `:289` via `models/_util.py:56` |
+| `file_to_dict` / `file_from_dict(strip\|prepend\|rel_strip)` | `models/file.py:234`, `:289` via `models/_util.py:56` |
 | `dir_*`, `symlink_*` | `models/dir.py:64`/`:79`, `models/symlink.py:96`/`:108` |
 | `event_ctor(rename)`, `event_to_dict` | `models/event.py:108`, `:139` |
 | `is_valid_cid`, `is_partial_file` | `models/event.py:30`, `models/file.py:131` |
@@ -118,6 +118,21 @@ anomaly needs a cost breakdown.
   (~9x/6.5x), so model decode is no longer path-normalisation dominated.
   (`Event` construction at ~1.8 µs still costs ~2x its own serialization
   (~0.9 µs) because it re-normalises the src/dst paths.)
+* Steady-state reconcide micro-opts (D1): a `hsync-client` cProfile of the
+  in-sync reconcile showed the per-file cost spread flatly across the shared
+  model/validation layer, so four behavior-preserving fast paths were added
+  here — `to_epoch` returns an int verbatim (`time_utils.py:101`),
+  `File.get` uses `os.stat` instead of `Path(...).stat()` (`models/file.py:259`,
+  test switched to patch `os.stat`), `_resolve_prefixed_path` returns an
+  already-relative path verbatim when the prefix is absolute
+  (`models/_util.py:118`), and `validate_remote_relpath` guards the NFC
+  normalize with `is_normalized` (`path_validation.py:509`). Measured effect:
+  `file_round_trip` ~2.1→1.3 µs, `file_from_dict(strip)` ~2.1→1.9 µs,
+  `file_ctor` ~0.7→0.6 µs; the production decode shape (relative listing path +
+  strip) is now a dedicated `file_from_dict(rel_strip)` scenario at ~0.9 µs,
+  ~2.3x cheaper than the absolute-strip branch. `validate_remote_relpath`
+  unchanged (~1.9 µs: the NFC guard is a no-op on already-normalized ASCII).
+  No wire/semantic change: consumers and the Kotlin mirrors are unaffected.
 * Unchanged areas (same machine, each hot-path edit touched only its target):
   hashing (`sha256(1MB)` ~0.63 ms, ~1.5 GB/s), compression payloads
   (`compress_data(binary-1MB)` ~4.81 ms, `text-1MB` ~0.38 ms) and

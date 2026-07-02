@@ -115,6 +115,11 @@ def _resolve_prefixed_path(data_filepath: str, prefix: str | None, *, strip: boo
     if strip and not prefix:
         raise ValueError("Set dir_prefix to strip it.")
     if strip and prefix:
+        # Fast path: an already-relative path can never sit under an absolute
+        # prefix, so it is returned verbatim — exactly what the component-aware
+        # strip below would conclude after two list splits (it is a pure no-op).
+        if not str(data_filepath).startswith(os.sep) and prefix.startswith(os.sep):
+            return str(data_filepath)
         relative = _strip_prefix_components(data_filepath, prefix)
         # Not under prefix: keep the original path verbatim. Component-aware
         # stripping never mangles a sibling path that merely shares the

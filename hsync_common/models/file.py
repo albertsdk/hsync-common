@@ -5,9 +5,9 @@ This module defines the File class representing a file with its metadata
 (path, timestamps, size, checksum, permissions) used for file synchronization.
 """
 
+import os
 from collections import OrderedDict
 from datetime import datetime
-from pathlib import Path
 from threading import Lock
 from typing import TYPE_CHECKING, NotRequired, TypedDict
 
@@ -256,9 +256,8 @@ class File:
         aborting the whole sync cycle.
         """
         file_path = _resolve_prefixed_path(file_path, buckets_dir, strip=False)
-        file = Path(file_path)
         try:
-            file_stat = file.stat()
+            file_stat = os.stat(file_path)
         except OSError:
             return None
         file_size = file_stat.st_size

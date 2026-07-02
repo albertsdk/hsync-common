@@ -257,7 +257,7 @@ class TestFileGet:
         def _boom(_path):
             raise OSError("vanished")
 
-        monkeypatch.setattr(file_mod.Path, "stat", _boom)
+        monkeypatch.setattr(file_mod.os, "stat", _boom)
         assert File.get("/tmp/whatever.txt") is None
 
 
@@ -265,6 +265,15 @@ class TestFileFromDict:
     def test_from_dict_with_strip(self):
         d = {"filepath": "/base/subdir/file.txt", "size": 50}
         f = File.from_dict(d, dir_prefix="/base", strip_dir_prefix=True)
+        assert f.filepath == "subdir/file.txt"
+
+    def test_from_dict_relative_with_strip_is_verbatim(self):
+        """A bucket-relative wire path with ``strip_dir_prefix=True`` is already
+        relative: the prefix never applies and the path is kept verbatim (the
+        production shape — server/master listings are bucket-relative)."""
+        f = File.from_dict(
+            {"filepath": "subdir/file.txt", "size": 50}, dir_prefix="/base", strip_dir_prefix=True
+        )
         assert f.filepath == "subdir/file.txt"
 
     def test_from_dict_without_strip(self):
