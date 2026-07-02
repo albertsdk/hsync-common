@@ -5,7 +5,7 @@ single source of truth for data models, the wire protocol, and cross-cutting
 utilities consumed by every other HSYNC project (client, server, desktop,
 android).
 
-> End-user / human docs live in [`../docs/`](../docs/architecture.md). This wiki
+> End-user / human docs live in [`../docs/`](../docs/internal/architecture.md). This wiki
 > is the **first search surface**: start here, follow the `path/to/file.py:line`
 > references to reach code directly.
 
@@ -17,7 +17,7 @@ android).
 | [data-models.md](data-models.md) | Dataclasses/TypedDicts in `models/` (File, Dir, Symlink, Event, SyncAction, Tombstone, Version) + serialization shapes |
 | [modules/protocol.md](modules/protocol.md) | `protocol/` package: versions, capabilities, handshake, events, LAN election, pairing, JSON-Schema builders, fixtures |
 | [modules/utilities.md](modules/utilities.md) | Cross-cutting helpers: hashing, compression, ignore, path validation, permissions, ssl, logger, env, text, clock, format |
-| [decisions.md](decisions.md) | Pointer to the committed ADRs under `../docs/adr/` (ecosystem-wide decisions) |
+| [decisions.md](decisions.md) | Pointer to the committed ADRs under `../docs/internal/adr/` (ecosystem-wide decisions) |
 
 ## Quick facts
 
