@@ -88,6 +88,40 @@ formatting/hashing/parsing helper (DRY rule in `CLAUDE.md`).
   `get_rotation_config` (`:66`); `build_record_formatter` (`:147`);
   `configure_handlers` (`:200`).
 
+## labels.py (action-label & colorization SSOT)
+
+Single source of truth for the bracketed action labels emitted in client/server
+log lines (e.g. `[DOWNLOAD]`, `[LAN CREATE]`) and their loguru colorization.
+
+- `ActionLabel` (`labels.py:41`) — `StrEnum` of every label: sync ops
+  (`DOWNLOAD`/`UPLOAD`/`RESUME`/`MOVE`/`REMOVE`/`DELETE`/`CREATE`/`MODIFY`/
+  `RENAME`/`PERMISSION`/`SYMLINK`/`IN_SYNC`/`SKIP`/`IGNORE_DEL`/`CONFLICT`/
+  `GUARD`/`TOMBSTONE`), dry-run preview (`SYNCED`/`TO_*`), LAN client
+  (`CLIENT_*`), LAN master (`LAN_*`), security/warnings (`SECURITY`/
+  `NO_MASTER`/`MASTER_CONFLICT`/`MASTER_TAKEOVER`/`INSECURE_MASTER`/
+  `PAIRING_NEEDED`/`FINGERPRINT_CHANGED`/`AUTH_REQUIRED`), infrastructure
+  (`WS`).
+- `LABEL_CATEGORIES` (`:114`) — semantic category → loguru color tag pair
+  (transfer→cyan, upload/create→green, modify/rename→blue, delete→red,
+  permission/infrastructure→magenta, in_sync→dim, warning→yellow, security→red).
+  Labels are grouped by *kind* of operation, not one color per label.
+- `_LABEL_CATEGORY_MAP` (`:129`) — label → category (the binding table);
+  `LABEL_STYLES` (`:177`) is the derived label → color-tag view consumed by
+  `colorize_labels`.
+- `colorize_labels(message, use_colors)` (`:183`) — wraps every known label in
+  the message with its category's color tags; a no-op when `use_colors=False`.
+  Wired into the loguru `message_transform` of both client
+  (`hsync_client/logger.py`) and server (`hsync_server/logger.py`) formatters.
+- `resolve_label(prefix, name)` (`:206`) — resolves a label stem (with optional
+  `""`/`"LAN "` prefix) to its bracketed string via `ActionLabel`, falling back
+  to verbatim interpolation for unregistered debug tags. Shared by the watchdog
+  handlers (`BaseFileEventHandler._label`) and the inbound event dispatcher
+  (`event_dispatch._tag`) so the two transports cannot drift apart.
+
+> No project-local `LABEL_STYLES`/`ActionLabel` exists anymore: client
+> (`hsync_client/constants.py:29`) and server (`hsync_server/constants.py:23`)
+> re-export `ActionLabel` from here.
+
 ## clock.py
 
 - `compute_clock_offset` (`clock.py:46`) / `measure_clock_offset` (`:64`);
