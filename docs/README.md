@@ -43,7 +43,7 @@ from hsync_common.protocol.handshake import PROTOCOL_VERSION_REST
 | -------- | -------------- |
 | [usage.md](usage.md) | How to integrate hsync-common as a dependency, import paths, versioning. |
 | [models.md](models.md) | The shared data models: File, Dir, Symlink, Event, SyncAction, TombstoneStore, SyncStateStore, delta models. |
-| [utilities.md](utilities.md) | Cross-cutting utilities: compression, hashing, ignore matcher, path validation, SSL, logging, clock, formatting. |
+| [utilities.md](utilities.md) | Cross-cutting utilities: compression, hashing, ignore matcher, path validation, SSL, logging, clock, formatting, runtime detection. |
 | [protocol.md](protocol.md) | Versioned wire protocol: handshake, capabilities, LAN election, pairing, JSON-Schemas, fixtures. |
 | [lan-protocol.md](lan-protocol.md) | The LAN discovery, master-election, pairing, and security specification (authoritative reference). |
 | [android-mirroring.md](android-mirroring.md) | How Python models are mirrored in Kotlin for the Android app. |

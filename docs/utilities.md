@@ -10,10 +10,11 @@ Zstandard (zstd) compression with level 3:
 |----------|-------------|
 | `compress_data` | Compress raw bytes |
 | `decompress_data` | Decompress zstd-compressed bytes (optional hard cap on output size for untrusted payloads) |
+| `decompress_stream` | Stream-decompress a zstd byte stream with a hard cap on total output (anti decompression-bomb) |
 | `compress_file` | Read and compress a file from disk |
-| `should_compress` | Decide if compression is beneficial (10 KB gate) |
+| `should_compress` | Decide if compression is beneficial (10 KB download / 32 KB upload / 100 KB LAN gate) |
 
-The module also exports `PRECOMPRESSED_EXTENSIONS` — a frozen set of ~80 file
+The module also exports `PRECOMPRESSED_EXTENSIONS` — a frozen set of 95 file
 extensions that are already compressed (archives, images, audio, video, etc.).
 
 Compression support is negotiated between peers during connection setup (see
@@ -72,7 +73,20 @@ Human-readable bytes/duration formatting helpers.
 
 ## Env (`hsync_common.env`)
 
-Environment-file loading helpers.
+Environment-file loading helpers (`load_env_file`).
+
+## Runtime (`hsync_common.runtime`)
+
+Runtime environment detection shared across HSYNC projects:
+
+| Function | Description |
+|----------|-------------|
+| `detect_container` | Detect whether the process runs inside a container (Docker, Podman, Kubernetes, containerd) |
+| `is_tty_interactive` | True when both stdin and stdout are attached to a terminal |
+| `color_output_enabled` | Whether colored log output should be emitted (respects `--no-color` and `NO_COLOR`) |
+| `get_memory_limit_bytes` | Effective RAM limit for this process in bytes (cgroup v2 then v1) |
+| `get_cpu_quota_cores` | Effective CPU quota in cores (cgroup v2 then v1) |
+| `runtime_summary` | One-line human-readable summary of the runtime environment for startup logs |
 
 ## Text (`hsync_common.text`)
 
