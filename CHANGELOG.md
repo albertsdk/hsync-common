@@ -106,6 +106,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   non-hidden names such as `animation.swf` are no longer excluded by mistake.
   Real Vim/Neovim swap files (`.file.swp`, `.file.swo`, `.file.swx`) remain
   ignored.
+- **Ignore patterns**: GNOME GIO safe-save temp files (`.goutputstream-*`)
+  are now in `DEFAULT_IGNORE_PATTERNS`. These transient files are created by
+  GNOME editors (gedit, nautilus, …) during atomic safe-save and must never
+  be synced; the client's watcher reframes the temp→final rename as a content
+  `modified` of the destination file.
 - Updated development dependencies: coverage 7.15.2, filelock 3.31.2,
   platformdirs 4.10.1, ruff 0.15.22
 - **Docs**: Updated `CONTRIBUTING.md` — added a test-structure table organised

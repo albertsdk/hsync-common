@@ -65,6 +65,11 @@ DEFAULT_IGNORE_PATTERNS: tuple[str, ...] = (
     "*~",
     "4913",
     ".~lock.*#",
+    # --- Editor / application safe-save temp files ---
+    # GNOME GIO (gedit, nautilus, …) writes to ".goutputstream-XXXX" then
+    # atomically renames over the final file. The temp must never be synced;
+    # the watcher reframes the rename as a content modification of the dest.
+    ".goutputstream-*",
     # --- Generic temporary / backup files ---
     "*.tmp",
     "*.temp",
