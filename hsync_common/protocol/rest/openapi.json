@@ -785,6 +785,16 @@
               "title": "Filename",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "cid",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Cid",
+              "type": "string"
+            }
           }
         ],
         "responses": {
