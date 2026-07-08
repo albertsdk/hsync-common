@@ -13,27 +13,27 @@ from hsync_common.format import format_bytes, format_duration
 
 class TestFormatBytes:
     def test_bytes_render_as_integer(self):
-        assert format_bytes(0) == "0 B"
-        assert format_bytes(500) == "500 B"
-        assert format_bytes(1023) == "1023 B"
+        assert format_bytes(0) == "0B"
+        assert format_bytes(500) == "500B"
+        assert format_bytes(1023) == "1023B"
 
     def test_kilobytes(self):
-        assert format_bytes(1024) == "1.0 KB"
-        assert format_bytes(1536) == "1.5 KB"
+        assert format_bytes(1024) == "1.0KB"
+        assert format_bytes(1536) == "1.5KB"
 
     def test_megabytes_and_gigabytes(self):
-        assert format_bytes(1024 * 1024) == "1.0 MB"
-        assert format_bytes(int(1.5 * 1024 * 1024 * 1024)) == "1.5 GB"
+        assert format_bytes(1024 * 1024) == "1.0MB"
+        assert format_bytes(int(1.5 * 1024 * 1024 * 1024)) == "1.5GB"
 
     def test_decimals_param(self):
-        assert format_bytes(1536, decimals=2) == "1.50 KB"
+        assert format_bytes(1536, decimals=2) == "1.50KB"
 
     def test_negative(self):
-        assert format_bytes(-2048) == "-2.0 KB"
+        assert format_bytes(-2048) == "-2.0KB"
 
     def test_largest_unit(self):
         huge = 1024**9  # beyond YB scale collapses onto YB
-        assert format_bytes(huge).endswith(" YB")
+        assert format_bytes(huge).endswith("YB")
 
 
 class TestFormatDuration:
