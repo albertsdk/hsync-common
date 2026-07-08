@@ -24,7 +24,7 @@ lives in `LAN_TXT_KEYS`; do not introduce keys outside it.
 
 | Key | Type | Notes |
 |---|---|---|
-| `cid` | string | Unique client id; final election tiebreaker. |
+| `cid` | string | Unique client id; strictly alphanumeric (`[A-Za-z0-9]{1,64}`), so it always starts with a letter or digit; final election tiebreaker. |
 | `bucket` | string | Bucket served/synced. |
 | `version` | string | Semantic app version (informational only). |
 | `protocol` | string | LAN protocol version (`lan/1`); mismatched peers are ignored. |
