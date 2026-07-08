@@ -44,7 +44,7 @@ Safety checks to prevent path manipulation attacks:
 |-------|-------------|
 | Path traversal | Rejects paths containing `../` or absolute paths |
 | Null bytes | Rejects paths with embedded null bytes (`\0`) |
-| Symlink escape | Validates that resolved symlink targets stay within the allowed directory |
+| Symlink escape | Validates that resolved symlink targets stay within the allowed directory (`is_safe_symlink_target` — the SSOT used by the client scan/upload guards, the LAN master listing/download, and the server listing/download/WS-event paths) |
 | Component validation | Rejects empty path components and reserved names |
 | Length limits | Enforces maximum path and filename length limits |
 

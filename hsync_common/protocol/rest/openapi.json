@@ -903,6 +903,80 @@
         ]
       }
     },
+    "/api/v1/buckets/{bucket}/symlinks": {
+      "post": {
+        "description": "Create a symlink inside a bucket.\n\nThe peer sends the symlink structurally (path + target); the server\ncreates the link in the filesystem, never dereferencing it. Escaping\ntargets are rejected via ``is_safe_symlink_target``.\n\nArgs:\n    bucket: Target bucket name.\n    path: Bucket-relative path for the symlink to create.\n    target: The symlink target (what it points to).\n    cid: Optional client ID (for echo suppression on LAN master;\n        unused on the central server).\n\nReturns:\n    201 on success, 400 on invalid/unsafe input or non-empty directory\n    at the destination.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    InvalidPathError: If path is invalid.",
+        "operationId": "create_symlink_api_v1_buckets__bucket__symlinks_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bucket",
+            "required": true,
+            "schema": {
+              "title": "Bucket",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "target",
+            "required": true,
+            "schema": {
+              "title": "Target",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cid",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Cid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Symlink",
+        "tags": [
+          "Authenticated Router"
+        ]
+      }
+    },
     "/api/v1/buckets/{bucket}/tombstones": {
       "get": {
         "description": "List deletion markers (tombstones) for a bucket.\n\nReturns a mapping of hashed bucket-relative path to the deletion\ntimestamp and the content hash of the removed file. Clients use these\nmarkers to avoid resurrecting files that were deleted while they were\noffline.\n\nArgs:\n    request: The incoming FastAPI request.\n    bucket: Name of the bucket to list tombstones from.\n\nReturns:\n    JSON response with the tombstone payload.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    BucketNotFoundError: If bucket does not exist.",

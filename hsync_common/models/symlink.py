@@ -5,10 +5,11 @@ This module defines the Symlink class for representing symbolic links
 that need to be synchronized between client and server.
 """
 
+from __future__ import annotations
+
 from os import readlink
 from os import stat as os_stat
 from pathlib import Path
-from typing import Optional
 
 
 class Symlink:
@@ -16,11 +17,13 @@ class Symlink:
     Represents a symbolic link for synchronization.
 
     Attributes:
-        filepath: Path to the symlink.
+        filepath: Bucket-relative path (after ``from_dict`` with prefix) or
+            absolute path (from ``get``). Always absolute after ``get`` is
+            called with a ``dir_prefix``.
         name: Name of the symlink (filename only).
         target: Path that the symlink points to.
-        ctime: Creation time (Unix timestamp).
-        mtime: Modification time (Unix timestamp).
+        ctime: Creation time as integer Unix timestamp.
+        mtime: Modification time as integer Unix timestamp.
     """
 
     def __init__(
@@ -28,8 +31,8 @@ class Symlink:
         filepath: str,
         target: str | None = None,
         name: str | None = None,
-        ctime: float | None = None,
-        mtime: float | None = None,
+        ctime: int | None = None,
+        mtime: int | None = None,
     ):
         self.filepath = filepath
         self.name = name or Path(filepath).name
@@ -46,10 +49,14 @@ class Symlink:
         )
 
     @classmethod
-    def get(cls, filepath: str) -> Optional["Symlink"]:
-        """Create a Symlink instance from a filesystem path."""
-        if not Path(filepath).exists() and not Path(filepath).is_symlink():
-            return None
+    def get(cls, filepath: str, dir_prefix: str | None = None) -> Symlink | None:
+        """Create a Symlink instance from a filesystem path.
+
+        When *dir_prefix* is given the *filepath* is first made absolute
+        relative to it (matching ``File.get``). The returned ``filepath`` is
+        always absolute.
+        """
+        filepath = str(Path(dir_prefix) / filepath.lstrip("/")) if dir_prefix else filepath
 
         if not Path(filepath).is_symlink():
             return None
@@ -62,8 +69,8 @@ class Symlink:
                 filepath=filepath,
                 name=Path(filepath).name,
                 target=target,
-                ctime=stat.st_ctime,
-                mtime=stat.st_mtime,
+                ctime=int(stat.st_ctime),
+                mtime=int(stat.st_mtime),
             )
         except OSError:
             return None
@@ -80,12 +87,34 @@ class Symlink:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "Symlink":
-        """Create a Symlink instance from a dictionary."""
+    def from_dict(
+        cls,
+        data: dict,
+        dir_prefix: str | None = None,
+        strip_dir_prefix: bool = True,
+    ) -> Symlink:
+        """Create a Symlink instance from a dictionary.
+
+        The ``dir_prefix`` / ``strip_dir_prefix`` parameters mirror
+        :meth:`File.from_dict`: when *strip_dir_prefix* is True the prefix is
+        stripped from the dict's ``filepath`` (making it bucket-relative);
+        when False the prefix is prepended (making it absolute).
+        """
+        if strip_dir_prefix and not dir_prefix:
+            raise ValueError("Set dir_prefix to strip it.")
+
+        data_filepath = data.get("filepath", "")
+        if strip_dir_prefix and dir_prefix:
+            filepath = str(data_filepath).removeprefix(dir_prefix).lstrip("/")
+        elif dir_prefix:
+            filepath = str(Path(dir_prefix) / str(data_filepath).lstrip("/"))
+        else:
+            filepath = str(data_filepath)
+
         return cls(
-            filepath=data.get("filepath", ""),
+            filepath=filepath,
             name=data.get("name"),
             target=data.get("target"),
-            ctime=data.get("ctime"),
-            mtime=data.get("mtime"),
+            ctime=int(data["ctime"]) if data.get("ctime") is not None else None,
+            mtime=int(data["mtime"]) if data.get("mtime") is not None else None,
         )
