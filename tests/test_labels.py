@@ -51,33 +51,34 @@ class TestSpecificLabelColors:
 
     def test_upload_labels_are_green(self):
         assert LABEL_STYLES[str(ActionLabel.UPLOAD)] == ("<green>", "</green>")
-        assert LABEL_STYLES[str(ActionLabel.CLIENT_UP)] == ("<green>", "</green>")
 
     def test_create_labels_are_green(self):
         assert LABEL_STYLES[str(ActionLabel.CREATE)] == ("<green>", "</green>")
-        assert LABEL_STYLES[str(ActionLabel.CLIENT_DIR)] == ("<green>", "</green>")
+        assert LABEL_STYLES[str(ActionLabel.LOCAL_CREATE)] == ("<green>", "</green>")
+        assert LABEL_STYLES[str(ActionLabel.REMOTE_CREATE)] == ("<green>", "</green>")
 
     def test_delete_labels_are_red(self):
         assert LABEL_STYLES[str(ActionLabel.DELETE)] == ("<red>", "</red>")
-        assert LABEL_STYLES[str(ActionLabel.CLIENT_DEL)] == ("<red>", "</red>")
+        assert LABEL_STYLES[str(ActionLabel.LOCAL_DELETE)] == ("<red>", "</red>")
+        assert LABEL_STYLES[str(ActionLabel.REMOTE_DELETE)] == ("<red>", "</red>")
 
     def test_warning_labels_are_yellow(self):
         # ignore-del operations are advisory (deletions skipped), not no-ops.
-        assert LABEL_STYLES[str(ActionLabel.IGNORE_DEL)] == ("<yellow>", "</yellow>")
-        assert LABEL_STYLES[str(ActionLabel.CLIENT_IGN)] == ("<yellow>", "</yellow>")
-        assert LABEL_STYLES[str(ActionLabel.LAN_IGNORE_DEL)] == ("<yellow>", "</yellow>")
+        assert LABEL_STYLES[str(ActionLabel.LOCAL_IGNORE_DEL)] == ("<yellow>", "</yellow>")
+        assert LABEL_STYLES[str(ActionLabel.REMOTE_IGNORE_DEL)] == ("<yellow>", "</yellow>")
 
     def test_in_sync_labels_are_dim(self):
         assert LABEL_STYLES[str(ActionLabel.IN_SYNC)] == ("<dim>", "</dim>")
         assert LABEL_STYLES[str(ActionLabel.SKIP)] == ("<dim>", "</dim>")
+        assert LABEL_STYLES[str(ActionLabel.LOCAL_KEEP)] == ("<dim>", "</dim>")
 
     def test_security_labels_are_red(self):
         assert LABEL_STYLES[str(ActionLabel.SECURITY)] == ("<red>", "</red>")
-        assert LABEL_STYLES[str(ActionLabel.LAN_SECURITY)] == ("<red>", "</red>")
+        assert LABEL_STYLES[str(ActionLabel.REMOTE_SECURITY)] == ("<red>", "</red>")
 
     def test_infrastructure_labels_are_magenta(self):
         assert LABEL_STYLES[str(ActionLabel.WS)] == ("<magenta>", "</magenta>")
-        assert LABEL_STYLES[str(ActionLabel.LAN_ECHO)] == ("<magenta>", "</magenta>")
+        assert LABEL_STYLES[str(ActionLabel.REMOTE_ECHO)] == ("<magenta>", "</magenta>")
 
 
 class TestColorizeLabels:
@@ -109,29 +110,55 @@ class TestResolveLabel:
         assert resolve_label("", "DELETE") == "[DELETE]"
 
     def test_prefixed_label(self):
-        assert resolve_label("LAN ", "CREATE") == "[LAN CREATE]"
-        assert resolve_label("LAN ", "RENAME") == "[LAN RENAME]"
+        assert resolve_label("LOCAL ", "CREATE") == "[LOCAL CREATE]"
+        assert resolve_label("REMOTE ", "RENAME") == "[REMOTE RENAME]"
 
     def test_multi_word_name(self):
-        # "IGNORE DEL" resolves to IGNORE_DEL (unprefixed) and LAN_IGNORE_DEL
-        # (LAN-prefixed), keeping ignore-del advisories colored as warnings.
-        assert resolve_label("", "IGNORE DEL") == "[IGNORE DEL]"
-        assert resolve_label("LAN ", "IGNORE DEL") == "[LAN IGNORE DEL]"
+        # "IGNORE DEL" resolves to the LOCAL_/REMOTE_ prefixed members,
+        # keeping ignore-del advisories colored as warnings.
+        assert resolve_label("LOCAL ", "IGNORE DEL") == "[LOCAL IGNORE DEL]"
+        assert resolve_label("REMOTE ", "IGNORE DEL") == "[REMOTE IGNORE DEL]"
 
     def test_unknown_label_falls_back_to_interpolation(self):
         # Unknown labels print verbatim (uncolored) instead of raising.
         assert resolve_label("", "BOGUS") == "[BOGUS]"
-        assert resolve_label("LAN ", "BOGUS") == "[LAN BOGUS]"
+        assert resolve_label("REMOTE ", "BOGUS") == "[REMOTE BOGUS]"
 
     def test_prefix_whitespace_normalized(self):
         # Leading/trailing spaces in the prefix are tolerated.
-        assert resolve_label("  LAN  ", "DELETE") == "[LAN DELETE]"
+        assert resolve_label("  REMOTE  ", "DELETE") == "[REMOTE DELETE]"
 
     def test_resolved_labels_are_colorizable(self):
-        # Every label resolve_label can produce for a known name is colorizable.
-        for name in ("CREATE", "DELETE", "MODIFY", "RENAME", "SYMLINK", "IGNORE DEL"):
-            label = resolve_label("", name)
-            assert label in LABEL_STYLES, f"{label!r} is not colorizable"
+        # Matrix guard against resolve_label's silent verbatim fallback:
+        # every (prefix, stem) pair actually emitted by the code must resolve
+        # to a registered, colorizable label.
+        matrix = {
+            "": ("MOVE", "DELETE", "CREATE", "MODIFY", "RENAME", "SYMLINK", "SECURITY"),
+            "LOCAL ": (
+                "CREATE",
+                "MODIFY",
+                "RENAME",
+                "DELETE",
+                "SYMLINK",
+                "IGNORE DEL",
+                "KEEP",
+            ),
+            "REMOTE ": (
+                "CREATE",
+                "MODIFY",
+                "RENAME",
+                "DELETE",
+                "SYMLINK",
+                "IGNORE DEL",
+                "SECURITY",
+                "ECHO",
+                "DOWNLOAD",
+            ),
+        }
+        for prefix, stems in matrix.items():
+            for stem in stems:
+                label = resolve_label(prefix, stem)
+                assert label in LABEL_STYLES, f"{label!r} is not colorizable"
 
 
 class TestLabelValueFormat:

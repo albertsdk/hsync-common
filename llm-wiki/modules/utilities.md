@@ -91,14 +91,18 @@ formatting/hashing/parsing helper (DRY rule in `CLAUDE.md`).
 ## labels.py (action-label & colorization SSOT)
 
 Single source of truth for the bracketed action labels emitted in client/server
-log lines (e.g. `[DOWNLOAD]`, `[LAN CREATE]`) and their loguru colorization.
+log lines (e.g. `[DOWNLOAD]`, `[LOCAL CREATE]`, `[REMOTE MODIFY]`) and their
+loguru colorization. Labels follow the **two-level origin rule** (ADR 0018):
+`LOCAL `/`REMOTE ` prefixes mark watching events by origin (this node's watcher
+vs peer-caused / inbound dispatch); the empty prefix is reserved for
+reconciliation, transfers, previews and server lines.
 
 - `ActionLabel` (`labels.py:41`) — `StrEnum` of every label: sync ops
-  (`DOWNLOAD`/`UPLOAD`/`RESUME`/`MOVE`/`REMOVE`/`DELETE`/`CREATE`/`MODIFY`/
-  `RENAME`/`PERMISSION`/`SYMLINK`/`IN_SYNC`/`SKIP`/`IGNORE_DEL`/`CONFLICT`/
-  `GUARD`/`TOMBSTONE`), dry-run preview (`SYNCED`/`TO_*`), LAN client
-  (`CLIENT_*`), LAN master (`LAN_*`), security/warnings (`SECURITY`/
-  `NO_MASTER`/`MASTER_CONFLICT`/`MASTER_TAKEOVER`/`INSECURE_MASTER`/
+  (`DOWNLOAD`/`UPLOAD`/`RESUME`/`MOVE`/`DELETE`/`CREATE`/`MODIFY`/
+  `RENAME`/`PERMISSION`/`SYMLINK`/`IN_SYNC`/`SKIP`/`CONFLICT`/
+  `GUARD`/`TOMBSTONE`), dry-run preview (`SYNCED`/`TO_*`), local-origin watcher
+  (`LOCAL_*`), remote-origin / inbound (`REMOTE_*`), security/warnings
+  (`SECURITY`/`NO_MASTER`/`MASTER_CONFLICT`/`MASTER_TAKEOVER`/`INSECURE_MASTER`/
   `PAIRING_NEEDED`/`FINGERPRINT_CHANGED`/`AUTH_REQUIRED`), infrastructure
   (`WS`).
 - `LABEL_CATEGORIES` (`:114`) — semantic category → loguru color tag pair
@@ -113,10 +117,11 @@ log lines (e.g. `[DOWNLOAD]`, `[LAN CREATE]`) and their loguru colorization.
   Wired into the loguru `message_transform` of both client
   (`hsync_client/logger.py`) and server (`hsync_server/logger.py`) formatters.
 - `resolve_label(prefix, name)` (`:206`) — resolves a label stem (with optional
-  `""`/`"LAN "` prefix) to its bracketed string via `ActionLabel`, falling back
-  to verbatim interpolation for unregistered debug tags. Shared by the watchdog
-  handlers (`BaseFileEventHandler._label`) and the inbound event dispatcher
-  (`event_dispatch._tag`) so the two transports cannot drift apart.
+  `""`/`"LOCAL "`/`"REMOTE "` prefix) to its bracketed string via
+  `ActionLabel`, falling back to verbatim interpolation for unregistered debug
+  tags. Shared by the watchdog handlers (`BaseFileEventHandler._label`) and the
+  inbound event dispatcher (`event_dispatch._tag`) so the two transports cannot
+  drift apart.
 
 > No project-local `LABEL_STYLES`/`ActionLabel` exists anymore: client
 > (`hsync_client/constants.py:29`) and server (`hsync_server/constants.py:23`)
