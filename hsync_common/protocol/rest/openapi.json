@@ -1,40 +1,6 @@
 {
   "components": {
     "schemas": {
-      "BlockSignatureDict": {
-        "description": "Serialized signature of one base-file block.",
-        "properties": {
-          "index": {
-            "title": "Index",
-            "type": "integer"
-          },
-          "length": {
-            "title": "Length",
-            "type": "integer"
-          },
-          "offset": {
-            "title": "Offset",
-            "type": "integer"
-          },
-          "strong": {
-            "title": "Strong",
-            "type": "string"
-          },
-          "weak": {
-            "title": "Weak",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "index",
-          "offset",
-          "length",
-          "weak",
-          "strong"
-        ],
-        "title": "BlockSignatureDict",
-        "type": "object"
-      },
       "Body_delete_file_api_v1_buckets__bucket__files_delete": {
         "properties": {
           "cid": {
@@ -139,35 +105,6 @@
           "sha256sum"
         ],
         "title": "Body_upload_file_api_v1_buckets__bucket__files_post",
-        "type": "object"
-      },
-      "DeltaSignaturesRequest": {
-        "description": "POST body: signatures of the client's local base file.",
-        "properties": {
-          "block_size": {
-            "exclusiveMinimum": 0.0,
-            "title": "Block Size",
-            "type": "integer"
-          },
-          "path": {
-            "minLength": 1,
-            "title": "Path",
-            "type": "string"
-          },
-          "signatures": {
-            "items": {
-              "$ref": "#/components/schemas/BlockSignatureDict"
-            },
-            "title": "Signatures",
-            "type": "array"
-          }
-        },
-        "required": [
-          "path",
-          "block_size",
-          "signatures"
-        ],
-        "title": "DeltaSignaturesRequest",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -722,16 +659,6 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DeltaSignaturesRequest"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "200": {
             "content": {
