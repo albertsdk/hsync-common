@@ -14,6 +14,8 @@ from hsync_common.constants import WS_MAX_MESSAGE_BYTES
 from hsync_common.protocol.peer_download import (
     LAN_INVENTORY_MAX_ENTRIES,
     LAN_INVENTORY_MAX_FRAME_BYTES,
+    LAN_SERVE_SLOTS_MAX,
+    LAN_SERVE_SLOTS_MIN,
     LAN_SOURCES_MAX_BODY_BYTES,
     LAN_SOURCES_MAX_CANDIDATES,
     LAN_SOURCES_MAX_FILES,
@@ -27,6 +29,7 @@ from hsync_common.protocol.peer_download import (
     build_lan_inventory_frame,
     build_lan_sources_request,
     build_lan_sources_response,
+    is_valid_serve_slots,
     validate_lan_inventory_ack,
     validate_lan_inventory_frame,
     validate_lan_sources_request,
@@ -44,12 +47,13 @@ def _source(path: str = "docs/report.bin") -> dict[str, object]:
     return {"path": path, "sha256": _SHA256}
 
 
-def _candidate(url: str = _URL) -> dict[str, object]:
+def _candidate(url: str = _URL, serve_slots: object = 2) -> dict[str, object]:
     return {
         "cid": _SEEDER_CID,
         "download_url": url,
         "cert_fp": _CERT_FP,
         "compression": True,
+        "serve_slots": serve_slots,
     }
 
 
@@ -176,6 +180,7 @@ class TestSourcesResponse:
                             download_url=url,
                             cert_fp=_CERT_FP,
                             compression=False,
+                            serve_slots=1,
                         )
                     ],
                 )
@@ -211,6 +216,51 @@ class TestSourcesResponse:
     )
     def test_rejects_invalid_candidate_url(self, url):
         assert validate_lan_sources_response(_sources_response(url)) is None
+
+    def test_rejects_missing_serve_slots(self):
+        """A candidate without the capacity advertisement is not a candidate."""
+        candidate = _candidate()
+        candidate.pop("serve_slots")
+        response = _sources_response()
+        response["files"][0]["sources"] = [candidate]  # type: ignore[index]
+        assert validate_lan_sources_response(response) is None
+
+    @pytest.mark.parametrize(
+        "serve_slots",
+        [0, -1, LAN_SERVE_SLOTS_MAX + 1, True, False, 2.0, "2", None],
+    )
+    def test_rejects_invalid_serve_slots(self, serve_slots):
+        """Bounds are enforced strictly: bool, float, str and out-of-range fail."""
+        response = _sources_response()
+        response["files"][0]["sources"] = [_candidate(serve_slots=serve_slots)]  # type: ignore[index]
+        assert validate_lan_sources_response(response) is None
+
+    @pytest.mark.parametrize("serve_slots", [LAN_SERVE_SLOTS_MIN, LAN_SERVE_SLOTS_MAX])
+    def test_accepts_serve_slots_boundaries(self, serve_slots):
+        response = _sources_response()
+        response["files"][0]["sources"] = [_candidate(serve_slots=serve_slots)]  # type: ignore[index]
+        assert validate_lan_sources_response(response) is not None
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            LAN_SERVE_SLOTS_MIN,
+            LAN_SERVE_SLOTS_MAX,
+            0,
+            LAN_SERVE_SLOTS_MAX + 1,
+            True,
+            1.0,
+            "1",
+            None,
+        ],
+    )
+    def test_is_valid_serve_slots(self, value):
+        expected = (
+            isinstance(value, int)
+            and not isinstance(value, bool)
+            and 1 <= value <= LAN_SERVE_SLOTS_MAX
+        )
+        assert is_valid_serve_slots(value) is expected
 
     def test_rejects_more_than_eight_candidates(self):
         response = _sources_response()

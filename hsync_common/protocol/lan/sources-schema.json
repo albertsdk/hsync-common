@@ -130,13 +130,20 @@
           "type": "string",
           "x-explicitPort": true,
           "x-host": "ip-literal"
+        },
+        "serve_slots": {
+          "description": "Concurrent peer-download response bodies this seeder accepts; the requester uses it as its per-seeder admission limit (ADR-0028).",
+          "maximum": 32,
+          "minimum": 1,
+          "type": "integer"
         }
       },
       "required": [
         "cid",
         "download_url",
         "cert_fp",
-        "compression"
+        "compression",
+        "serve_slots"
       ],
       "title": "LanSourceCandidate",
       "type": "object"

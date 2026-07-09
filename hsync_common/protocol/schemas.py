@@ -39,6 +39,8 @@ from .peer_download import (
     LAN_INVENTORY_ACK_REASON_MAX_LENGTH,
     LAN_INVENTORY_MAX_ENTRIES,
     LAN_INVENTORY_MAX_FRAME_BYTES,
+    LAN_SERVE_SLOTS_MAX,
+    LAN_SERVE_SLOTS_MIN,
     LAN_SOURCES_MAX_BODY_BYTES,
     LAN_SOURCES_MAX_CANDIDATES,
     LAN_SOURCES_MAX_FILES,
@@ -152,6 +154,19 @@ def _lan_sources_request_file() -> dict[str, Any]:
     }
 
 
+def _lan_serve_slots() -> dict[str, Any]:
+    """Seeder concurrent-read capacity advertised on a LAN frame or candidate."""
+    return {
+        "type": "integer",
+        "minimum": LAN_SERVE_SLOTS_MIN,
+        "maximum": LAN_SERVE_SLOTS_MAX,
+        "description": (
+            "Concurrent peer-download response bodies this seeder accepts; the "
+            "requester uses it as its per-seeder admission limit (ADR-0028)."
+        ),
+    }
+
+
 def _lan_source_candidate() -> dict[str, Any]:
     return {
         "type": "object",
@@ -171,8 +186,9 @@ def _lan_source_candidate() -> dict[str, Any]:
             },
             "cert_fp": _lan_sha256(),
             "compression": {"type": "boolean"},
+            "serve_slots": _lan_serve_slots(),
         },
-        "required": ["cid", "download_url", "cert_fp", "compression"],
+        "required": ["cid", "download_url", "cert_fp", "compression", "serve_slots"],
         "additionalProperties": False,
     }
 
@@ -525,6 +541,7 @@ def _lan_auth() -> dict[str, Any]:
             "cid": {"type": "string"},
             "protocol_version": {"const": PROTOCOL_VERSION_LAN},
             "capabilities": _capabilities_array(),
+            "serve_slots": _lan_serve_slots(),
         },
         "required": ["type", "token", "cid", "protocol_version", "capabilities"],
         "additionalProperties": False,
@@ -565,6 +582,7 @@ def _lan_hello() -> dict[str, Any]:
             "protocol_version": {"const": PROTOCOL_VERSION_LAN},
             "capabilities": _capabilities_array(),
             "cid": {"type": "string"},
+            "serve_slots": _lan_serve_slots(),
         },
         "required": ["type", "protocol_version", "capabilities"],
         "additionalProperties": False,

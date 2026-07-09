@@ -1,6 +1,6 @@
 # ADR 0028 — LAN peer-assisted download
 
-- **Status:** Accepted
+- **Status:** Accepted; peer-download eligibility and admission superseded in part by [ADR-0030](0030-lan-seeder-capacity-advertisement.md)
 - **Date:** 2026-09-09
 
 ## Context
@@ -27,11 +27,12 @@ boundaries:
    mutation, and delta transfer remain master-coordinated. Delta-to-master is
    attempted before peer-assisted full transfer.
 2. Peer download is enabled by default (`HSYNC_LAN_PEER_DOWNLOAD`) and may be
-   disabled explicitly (`--no-peer-download`). Source lookup applies only at or
-   above `HSYNC_LAN_PEER_DOWNLOAD_MIN_SIZE` (1 MiB by default; zero means all
-   sizes). A requester tries at most `HSYNC_LAN_PEER_SOURCES_MAX` unique peer
-   CIDs per file (default 3, valid range 1–8). Missing support and every peer
-   failure remain a transparent master fallback.
+   disabled explicitly (`--no-peer-download`). A requester tries at most
+   `HSYNC_LAN_PEER_SOURCES_MAX` unique peer CIDs per file (default 3, valid range
+   1–8). Missing support and every peer failure remain a transparent master
+   fallback. *(The size threshold this clause originally defined was removed by
+   [ADR-0030](0030-lan-seeder-capacity-advertisement.md): eligibility is now
+   decided by live seeder capacity, not by file size.)*
 3. Continuous, non-dry-run slaves may bind a read-only HTTPS seeder and publish
    an inventory to the master. One-shot clients may request peer sources but do
    not seed or publish. Inventory and serving contain regular files only. Seeder

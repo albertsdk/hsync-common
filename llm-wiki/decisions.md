@@ -33,6 +33,7 @@ each ADR to the code it governs.
 | [0027 lan-leadership-lease](../docs/internal/adr/0027-lan-leadership-lease.md) | `labels.py` (`ActionLabel.MASTER_YIELD`); client `lan.py` `LANSync.update_server_not_ready` + `lan_handler.py` yield path (revoke incumbency on yield) |
 | [0028 lan-peer-assisted-download](../docs/internal/adr/0028-lan-peer-assisted-download.md) | `protocol/peer_download.py` (strict source/inventory wire models); `protocol/schemas.py` (sources + additive LAN WSS schemas); `Capability.peer_download`; TXT `peer_download`/`seed`; `constants.HEADER_CHECKSUM_SHA256`; optional UI-event `source_cid` |
 | [0029 explicit-opt-in-unauthenticated-lan-writes](../docs/internal/adr/0029-explicit-opt-in-unauthenticated-lan-writes.md) | `protocol/pairing.py` (`lan_write_requires_key`: explicit opt-in, interactivity is non-authoritative); LAN mutation endpoint policy in consumers |
+| [0030 lan-seeder-capacity-advertisement](../docs/internal/adr/0030-lan-seeder-capacity-advertisement.md) | `protocol/peer_download.py` (`LAN_SERVE_SLOTS_MIN`/`_MAX`, `is_valid_serve_slots`, required `serve_slots` in `LanSourceCandidate`); `protocol/handshake.py` (`build_lan_auth`/`build_lan_hello` advertisement); `protocol/schemas.py` (candidate + LAN WSS schemas); golden fixtures |
 
 LAN transport/security specifics (TOFU pinning, LAN-key policy, threat model)
 live in [`../docs/lan-protocol.md`](../docs/lan-protocol.md) and map to

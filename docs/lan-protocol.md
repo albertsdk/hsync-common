@@ -96,6 +96,11 @@ Android):
    fail → `{"type": "auth", "status": "failed", "reason": "protocol_incompatible"}`),
    then the token (constant-time). Success is
    `{"type": "auth", "status": "ok", "protocol_version", "capabilities"}`.
+   The slave's frame also carries `serve_slots` (1–32) **while it serves peer
+   downloads**: the master records it with the publisher session and echoes it to
+   requesters as their per-seeder admission limit (ADR-0030). An out-of-range
+   value, or a slot count without the `peer_download` capability, is refused as a
+   protocol violation; omitting it means "not a source candidate".
 
 Semantics:
 
@@ -129,13 +134,20 @@ existing delta-to-master path first; only its full-transfer fallback may use a
 peer.
 
 Continuous, non-dry-run slaves may seed. One-shot clients may request peer
-sources but never bind a seeder or publish inventory. A requester performs a
-source lookup only for a file at or above its configured peer-download size
-threshold (default 1 MiB; zero means every size). Missing capability, an empty
-source list, or any peer failure selects the master without changing sync
-correctness.
+sources but never bind a seeder or publish inventory. Eligibility is not a
+function of file size: a listed file is looked up whenever a live seeder
+advertises its exact `(path, SHA-256)`, and the requester then respects that
+seeder's advertised `serve_slots` capacity. Missing capability, an empty source
+list, or any peer failure selects the master without changing sync correctness.
 
 ### Batch source lookup
+
+- Each `sources` list has 0–8 unique CIDs. `serve_slots` is the capacity the
+  seeder advertised on its authenticated handshake (1–32); the requester admits at
+  most that many concurrent reads per CID, waiting a bounded interval for a slot
+  before falling back to the master, so it never discovers the limit by provoking
+  refusals (ADR-0030). A candidate is never returned for a CID without a live
+  advertisement.
 
 The master-only endpoint is:
 
@@ -171,7 +183,8 @@ Response:
           "cid": "SeederPeerX1234567890",
           "download_url": "https://192.0.2.10:8443/api/v1/buckets/bucket-1/files/download",
           "cert_fp": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
-          "compression": true
+          "compression": true,
+          "serve_slots": 2
         }
       ]
     }
@@ -221,7 +234,11 @@ longer matches the opened regular file is rejected (400 for malformed input,
 409 for current-content mismatch). Seeders expose only `GET /health`,
 `GET /time`, and this file download; list, write, delta, tombstone and source
 routes return 405. Their active response-body concurrency is capped (default 2,
-valid range 1–32); saturation returns 503 before opening the file.
+valid range 1–32) and **advertised on the handshake** as `serve_slots`, so a
+requester knows the limit in advance and does not fire attempts that must be
+refused. Saturation still answers 503 before opening the file, now with a
+`Retry-After` delay: the requester defers that source for exactly that interval
+instead of counting it as a health failure (ADR-0030).
 
 The seeder hashes and streams the same no-follow opened regular-file descriptor,
 rejecting identity/size mutation. Its response uses the canonical

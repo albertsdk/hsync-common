@@ -34,6 +34,8 @@ __all__ = [
     "LAN_INVENTORY_ACK_REASON_MAX_LENGTH",
     "LAN_INVENTORY_MAX_ENTRIES",
     "LAN_INVENTORY_MAX_FRAME_BYTES",
+    "LAN_SERVE_SLOTS_MAX",
+    "LAN_SERVE_SLOTS_MIN",
     "LAN_SOURCES_MAX_BODY_BYTES",
     "LAN_SOURCES_MAX_CANDIDATES",
     "LAN_SOURCES_MAX_FILES",
@@ -54,6 +56,7 @@ __all__ = [
     "build_lan_inventory_frame",
     "build_lan_sources_request",
     "build_lan_sources_response",
+    "is_valid_serve_slots",
     "validate_lan_inventory_ack",
     "validate_lan_inventory_frame",
     "validate_lan_sources_request",
@@ -69,6 +72,13 @@ LAN_INVENTORY_MAX_FRAME_BYTES = WS_MAX_MESSAGE_BYTES
 LAN_SOURCES_MAX_FILES = 500
 LAN_SOURCES_MAX_CANDIDATES = 8
 LAN_INVENTORY_MAX_ENTRIES = 500
+
+# Concurrent response bodies a seeder accepts for one requester. The value is
+# advertised by the seeder on the authenticated LAN WebSocket session, echoed by
+# the master in a source candidate, and used by the requester as its per-seeder
+# admission limit: the bound is part of the contract, not a local guess.
+LAN_SERVE_SLOTS_MIN = 1
+LAN_SERVE_SLOTS_MAX = 32
 LAN_WIRE_INT_MAX = (1 << 63) - 1
 LAN_INVENTORY_ACK_REASON_MAX_LENGTH = 64
 
@@ -77,7 +87,7 @@ type LanInventoryAckStatus = Literal["ok", "resync", "rejected"]
 
 _SOURCE_FILE_KEYS = frozenset({"path", "sha256"})
 _SOURCES_REQUEST_KEYS = frozenset({"cid", "files"})
-_SOURCE_CANDIDATE_KEYS = frozenset({"cid", "download_url", "cert_fp", "compression"})
+_SOURCE_CANDIDATE_KEYS = frozenset({"cid", "download_url", "cert_fp", "compression", "serve_slots"})
 _SOURCES_RESPONSE_FILE_KEYS = frozenset({"path", "sha256", "sources"})
 _SOURCES_RESPONSE_KEYS = frozenset({"files"})
 _INVENTORY_FRAME_KEYS = frozenset({"type", "gen", "seq", "mode", "more", "entries"})
@@ -103,12 +113,18 @@ class LanSourcesRequest(TypedDict):
 
 
 class LanSourceCandidate(TypedDict):
-    """One exact-hash seeder endpoint returned by the master."""
+    """One exact-hash seeder endpoint returned by the master.
+
+    ``serve_slots`` is the seeder's advertised concurrent-read capacity. The
+    requester treats it as its own admission limit for that CID, so it does not
+    have to discover the limit by provoking ``503`` responses.
+    """
 
     cid: str
     download_url: str
     cert_fp: str
     compression: bool
+    serve_slots: int
 
 
 class LanSourcesResponseFile(TypedDict):
@@ -177,6 +193,22 @@ def _is_wire_int(value: object) -> TypeGuard[int]:
 def _is_lower_sha256(value: object) -> TypeGuard[str]:
     """Accept only the canonical lowercase SHA-256 wire representation."""
     return is_sha256_hex(value) and value == value.lower()
+
+
+def is_valid_serve_slots(value: object) -> TypeGuard[int]:
+    """True when *value* is a wire-valid seeder slot count.
+
+    Bounded by :data:`LAN_SERVE_SLOTS_MIN`/``_MAX``; ``bool`` is rejected even
+    though it is an ``int`` subclass, because ``true``/``false`` are not slot
+    counts. Consumers: ``hsync-client`` (seeder advertisement, master candidate
+    build, requester admission), the Android protocol mirror, and the shared
+    protocol tests.
+    """
+    return (
+        isinstance(value, int)
+        and not isinstance(value, bool)
+        and LAN_SERVE_SLOTS_MIN <= value <= LAN_SERVE_SLOTS_MAX
+    )
 
 
 def _validated_path(value: object) -> str | None:
@@ -267,11 +299,13 @@ def _validate_source_candidate(value: object) -> LanSourceCandidate | None:
     download_url = value["download_url"]
     cert_fp = value["cert_fp"]
     compression = value["compression"]
+    serve_slots = value["serve_slots"]
     if (
         not is_valid_cid(cid)
         or not _is_download_url(download_url)
         or not _is_lower_sha256(cert_fp)
         or not isinstance(compression, bool)
+        or not is_valid_serve_slots(serve_slots)
     ):
         return None
     return LanSourceCandidate(
@@ -279,6 +313,7 @@ def _validate_source_candidate(value: object) -> LanSourceCandidate | None:
         download_url=download_url,
         cert_fp=cert_fp,
         compression=compression,
+        serve_slots=serve_slots,
     )
 
 

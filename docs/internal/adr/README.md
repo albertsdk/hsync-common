@@ -47,8 +47,9 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0025](0025-sqlite-external-state-store.md) | SQLite external state store (folder UUID + ``syncstate.db``) | Accepted |
 | [0026](0026-permission-special-bits-policy.md) | Special permission bits (setuid/setgid/sticky) policy | Accepted |
 | [0027](0027-lan-leadership-lease.md) | LAN leadership lease: bounded incumbency and immediate yield | Accepted |
-| [0028](0028-lan-peer-assisted-download.md) | LAN peer-assisted download | Accepted |
+| [0028](0028-lan-peer-assisted-download.md) | LAN peer-assisted download | Accepted (eligibility/admission superseded in part by [ADR-0030](0030-lan-seeder-capacity-advertisement.md)) |
 | [0029](0029-explicit-opt-in-unauthenticated-lan-writes.md) | Explicit opt-in for unauthenticated LAN writes | Accepted |
+| [0030](0030-lan-seeder-capacity-advertisement.md) | LAN seeder capacity advertisement and requester admission | Accepted |
 
 ## Related documents
 

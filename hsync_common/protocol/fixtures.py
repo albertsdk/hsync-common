@@ -161,6 +161,7 @@ def _lan_sources_response() -> dict[str, Any]:
         download_url="https://192.0.2.10:8443/api/v1/buckets/bucket-1/files/download",
         cert_fp=_FIXTURE_CERT_FP,
         compression=True,
+        serve_slots=2,
     )
     return dict(
         build_lan_sources_response(

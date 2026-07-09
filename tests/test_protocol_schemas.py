@@ -11,6 +11,8 @@ of truth and assert that the handshake builders and shared models actually
 conform to the published contract.
 """
 
+import pytest
+
 from hsync_common.models.event import CID_PATTERN, Event, EventName
 from hsync_common.models.file import File, FileDict
 from hsync_common.protocol import (
@@ -34,6 +36,7 @@ from hsync_common.protocol.handshake import (
     build_ws_auth_request,
     encode_capabilities,
 )
+from hsync_common.protocol.peer_download import LAN_SERVE_SLOTS_MAX, LAN_SERVE_SLOTS_MIN
 from hsync_common.protocol.schemas import (
     LAN_TXT_KEYS,
     LAN_TXT_REQUIRED_KEYS,
@@ -249,6 +252,53 @@ class TestLanWssHandshakeConformance:
         frame = build_lan_hello(capabilities=set(), cid="TestClientA1234567890")
         assert "cid" in frame
         assert set(frame) - {"cid"} == set(self._defs()["hello"]["required"])
+
+    def test_serve_slots_is_an_optional_declared_property(self):
+        """A seeding node advertises its capacity inside the declared contract."""
+        defs = self._defs()
+        for name in ("auth", "hello"):
+            prop = defs[name]["properties"]["serve_slots"]
+            assert prop == {
+                "type": "integer",
+                "minimum": LAN_SERVE_SLOTS_MIN,
+                "maximum": LAN_SERVE_SLOTS_MAX,
+                "description": prop["description"],
+            }
+            assert "serve_slots" not in defs[name]["required"]
+            assert defs[name]["additionalProperties"] is False
+
+    def test_auth_with_serve_slots_conforms(self):
+        frame = build_lan_auth(
+            token="t",
+            cid="TestClientA1234567890",
+            capabilities={Capability.peer_download},
+            serve_slots=LAN_SERVE_SLOTS_MAX,
+        )
+        assert frame["serve_slots"] == LAN_SERVE_SLOTS_MAX
+        assert set(frame) - {"serve_slots"} == set(self._defs()["auth"]["required"])
+
+    def test_hello_with_serve_slots_conforms(self):
+        frame = build_lan_hello(
+            capabilities={Capability.peer_download},
+            cid="TestClientA1234567890",
+            serve_slots=LAN_SERVE_SLOTS_MIN,
+        )
+        assert frame["serve_slots"] == LAN_SERVE_SLOTS_MIN
+        assert set(frame) - {"serve_slots", "cid"} == set(self._defs()["hello"]["required"])
+
+    def test_omitting_serve_slots_is_a_non_seeding_node(self):
+        """The field is absent for a node that serves nothing: no empty sentinel."""
+        assert "serve_slots" not in build_lan_hello(capabilities=set())
+        assert "serve_slots" not in build_lan_auth(
+            token="t", cid="TestClientA1234567890", capabilities=set()
+        )
+
+    @pytest.mark.parametrize("serve_slots", [0, -1, LAN_SERVE_SLOTS_MAX + 1, True, 2.5])
+    def test_out_of_range_serve_slots_fails_at_the_sender(self, serve_slots):
+        with pytest.raises(ValueError, match="serve_slots"):
+            build_lan_auth(
+                token="t", cid="TestClientA1234567890", capabilities=set(), serve_slots=serve_slots
+            )
 
 
 class TestHandshakeConformance:

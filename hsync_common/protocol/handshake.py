@@ -29,6 +29,12 @@ from collections.abc import Iterable
 from enum import StrEnum
 from typing import Any, NotRequired, TypedDict
 
+from hsync_common.protocol.peer_download import (
+    LAN_SERVE_SLOTS_MAX,
+    LAN_SERVE_SLOTS_MIN,
+    is_valid_serve_slots,
+)
+
 __all__ = [
     "PROTOCOL_VERSION_LAN",
     "PROTOCOL_VERSION_REST",
@@ -207,13 +213,20 @@ class LanAuthRequiredFrame(TypedDict):
 
 
 class LanAuthFrame(TypedDict):
-    """LAN slave → master authentication frame."""
+    """LAN slave → master authentication frame.
+
+    ``serve_slots`` is present exactly when this node serves peer downloads, and
+    states its concurrent-read capacity (``LAN_SERVE_SLOTS_MIN``/``_MAX``). The
+    master records it on the authenticated session and only returns CIDs with a
+    live advertisement as source candidates (ADR-0028).
+    """
 
     type: str  # always "auth"
     token: str
     cid: str
     protocol_version: str
     capabilities: list[str]
+    serve_slots: NotRequired[int]
 
 
 class LanAuthResultFrame(TypedDict):
@@ -231,13 +244,16 @@ class LanHelloFrame(TypedDict):
 
     The master greets with ``{"type": "hello", protocol_version, capabilities}``
     and the slave replies with the same shape plus its ``cid``. The CID is a
-    logging hint only when no ``LAN_KEY`` is configured.
+    logging hint only when no ``LAN_KEY`` is configured. ``serve_slots`` follows
+    the same rule as :class:`LanAuthFrame`: present exactly when the sender
+    serves peer downloads.
     """
 
     type: str  # always "hello"
     protocol_version: str
     capabilities: list[str]
     cid: NotRequired[str]
+    serve_slots: NotRequired[int]
 
 
 def build_lan_auth_required(*, capabilities: Iterable[Capability | str]) -> LanAuthRequiredFrame:
@@ -249,17 +265,40 @@ def build_lan_auth_required(*, capabilities: Iterable[Capability | str]) -> LanA
     }
 
 
+def _serve_slots_field(serve_slots: int | None) -> dict[str, int]:
+    """Return the optional ``serve_slots`` field for a LAN frame.
+
+    Raises:
+        ValueError: when a slot count is given but is outside the wire bounds,
+            so a malformed advertisement fails at the sender instead of being
+            silently ignored by the master.
+    """
+    if serve_slots is None:
+        return {}
+    if not is_valid_serve_slots(serve_slots):
+        raise ValueError(
+            f"serve_slots must be between {LAN_SERVE_SLOTS_MIN} and {LAN_SERVE_SLOTS_MAX}"
+        )
+    return {"serve_slots": serve_slots}
+
+
 def build_lan_auth(
-    *, token: str, cid: str, capabilities: Iterable[Capability | str]
+    *,
+    token: str,
+    cid: str,
+    capabilities: Iterable[Capability | str],
+    serve_slots: int | None = None,
 ) -> LanAuthFrame:
     """Build the LAN slave's authentication frame."""
-    return {
+    frame: LanAuthFrame = {
         "type": "auth",
         "token": token,
         "cid": cid,
         "protocol_version": PROTOCOL_VERSION_LAN,
         "capabilities": encode_capabilities(capabilities),
     }
+    frame.update(_serve_slots_field(serve_slots))  # type: ignore[typeddict-item]
+    return frame
 
 
 def build_lan_auth_ok(*, capabilities: Iterable[Capability | str]) -> LanAuthResultFrame:
@@ -283,7 +322,10 @@ def build_lan_auth_failed(*, reason: str) -> LanAuthResultFrame:
 
 
 def build_lan_hello(
-    *, capabilities: Iterable[Capability | str], cid: str | None = None
+    *,
+    capabilities: Iterable[Capability | str],
+    cid: str | None = None,
+    serve_slots: int | None = None,
 ) -> LanHelloFrame:
     """Build a LAN hello frame (master greeting or slave reply with ``cid``)."""
     frame: LanHelloFrame = {
@@ -293,4 +335,5 @@ def build_lan_hello(
     }
     if cid is not None:
         frame["cid"] = cid
+    frame.update(_serve_slots_field(serve_slots))  # type: ignore[typeddict-item]
     return frame

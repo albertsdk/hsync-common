@@ -8,7 +8,8 @@
           "cert_fp": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
           "cid": "TestClientA1234567890",
           "compression": true,
-          "download_url": "https://192.0.2.10:8443/api/v1/buckets/bucket-1/files/download"
+          "download_url": "https://192.0.2.10:8443/api/v1/buckets/bucket-1/files/download",
+          "serve_slots": 2
         }
       ]
     }
