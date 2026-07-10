@@ -1,4 +1,4 @@
-# hsync-common — Data Models (`hsync_common/models/`)
+# HSYNC Common Library — Data Models (`hsync_common/models/`)
 
 Canonical sync types. All are plain dataclasses with a paired `TypedDict` for the
 wire shape. Re-exported from `hsync_common/models/__init__.py:1`.

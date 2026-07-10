@@ -2,7 +2,7 @@
   <img src="docs/assets/hsync-logo-horizontal.svg" alt="HSYNC logo" width="480">
 </p>
 
-# hsync-common
+HSYNC Common Library —
 
 **hsync-common** is the shared foundation that all other HSYNC projects build
 upon — data formats, compression, file exclusion rules, and security utilities.

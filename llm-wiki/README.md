@@ -1,4 +1,4 @@
-# hsync-common — LLM Wiki (Index)
+# HSYNC Common Library — LLM Wiki (Index)
 
 Agent-optimized knowledge base for `hsync-common`, the shared library that is the
 single source of truth for data models, the wire protocol, and cross-cutting

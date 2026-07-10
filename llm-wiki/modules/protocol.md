@@ -1,4 +1,4 @@
-# hsync-common — `protocol/` package
+# HSYNC Common Library — `protocol/` package
 
 Versioned wire contract + generators. This is the SSOT; never redefine these
 constants in consumers.

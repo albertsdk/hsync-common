@@ -1,4 +1,4 @@
-# hsync-common — Architecture (agent view)
+# HSYNC Common Library — Architecture (agent view)
 
 Shared, dependency-light library. No process of its own; it is imported by the
 runtime projects and re-implemented (by mirroring) in Kotlin for Android.
