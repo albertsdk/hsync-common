@@ -78,6 +78,7 @@ back to the legacy hidden-file check when no matcher is active.
 - [Models](docs/models.md) - Shared data models reference
 - [Utilities](docs/utilities.md) - Cross-cutting utilities guide
 - [Protocol](docs/protocol.md) - Versioned wire protocol reference
+- [Android Mirroring](docs/android-mirroring.md) - How Python models are mirrored in Kotlin
 - [Internal Architecture](docs/internal/architecture.md) - Shared models, utilities, and how they fit the HSYNC ecosystem
 - [Architecture Decision Records](docs/internal/adr/README.md) - Why the stable, cross-project decisions were made
 - [Contributing](CONTRIBUTING.md) - Development setup and contribution guidelines
