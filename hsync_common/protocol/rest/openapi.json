@@ -828,7 +828,7 @@
         ],
         "summary": "Create Bucket",
         "tags": [
-          "Authenticated Router"
+          "Authenticated"
         ]
       }
     },
@@ -874,7 +874,7 @@
         ],
         "summary": "Delete Bucket",
         "tags": [
-          "Authenticated Router"
+          "Authenticated"
         ]
       },
       "get": {
@@ -918,7 +918,7 @@
         ],
         "summary": "Get bucket information",
         "tags": [
-          "Authenticated Router"
+          "Authenticated"
         ]
       }
     },
@@ -964,7 +964,7 @@
         ],
         "summary": "Get Dirs",
         "tags": [
-          "Authenticated Router"
+          "Authenticated"
         ]
       }
     },
@@ -1020,7 +1020,7 @@
         ],
         "summary": "Delete File",
         "tags": [
-          "Authenticated Router"
+          "Authenticated"
         ]
       },
       "get": {
@@ -1080,7 +1080,7 @@
         ],
         "summary": "Get Files",
         "tags": [
-          "Authenticated Router"
+          "Authenticated"
         ]
       },
       "post": {
@@ -1134,7 +1134,7 @@
         ],
         "summary": "Upload File",
         "tags": [
-          "Authenticated Router"
+          "Authenticated"
         ]
       }
     },
@@ -1190,7 +1190,7 @@
         ],
         "summary": "Delta Apply",
         "tags": [
-          "Authenticated Router"
+          "Authenticated"
         ]
       }
     },
@@ -1245,7 +1245,7 @@
         ],
         "summary": "Get Delta Data",
         "tags": [
-          "Authenticated Router"
+          "Authenticated"
         ]
       }
     },
@@ -1300,7 +1300,7 @@
         ],
         "summary": "Get Delta Signatures",
         "tags": [
-          "Authenticated Router"
+          "Authenticated"
         ]
       },
       "post": {
@@ -1344,7 +1344,7 @@
         ],
         "summary": "Post Delta Signatures",
         "tags": [
-          "Authenticated Router"
+          "Authenticated"
         ]
       }
     },
@@ -1409,7 +1409,7 @@
         ],
         "summary": "Download File",
         "tags": [
-          "Authenticated Router"
+          "Authenticated"
         ]
       }
     },
@@ -1483,7 +1483,7 @@
         ],
         "summary": "Patch File Permissions",
         "tags": [
-          "Authenticated Router"
+          "Authenticated"
         ]
       }
     },
@@ -1558,7 +1558,7 @@
         ],
         "summary": "Get Upload Status",
         "tags": [
-          "Authenticated Router"
+          "Authenticated"
         ]
       }
     },
@@ -1604,7 +1604,7 @@
         ],
         "summary": "List Members",
         "tags": [
-          "Authenticated Router"
+          "Authenticated"
         ]
       },
       "post": {
@@ -1658,7 +1658,7 @@
         ],
         "summary": "Grant Member",
         "tags": [
-          "Authenticated Router"
+          "Authenticated"
         ]
       }
     },
@@ -1713,7 +1713,7 @@
         ],
         "summary": "Revoke Member",
         "tags": [
-          "Authenticated Router"
+          "Authenticated"
         ]
       }
     },
@@ -1769,7 +1769,7 @@
         ],
         "summary": "Transfer Or Reclaim Owner",
         "tags": [
-          "Authenticated Router"
+          "Authenticated"
         ]
       }
     },
@@ -1815,7 +1815,7 @@
         ],
         "summary": "Get Presence",
         "tags": [
-          "Authenticated Router"
+          "Authenticated"
         ]
       }
     },
@@ -1889,7 +1889,7 @@
         ],
         "summary": "Create Symlink",
         "tags": [
-          "Authenticated Router"
+          "Authenticated"
         ]
       }
     },
@@ -1935,7 +1935,7 @@
         ],
         "summary": "Get Tombstones",
         "tags": [
-          "Authenticated Router"
+          "Authenticated"
         ]
       },
       "post": {
@@ -1979,7 +1979,7 @@
         ],
         "summary": "Post Tombstones",
         "tags": [
-          "Authenticated Router"
+          "Authenticated"
         ]
       }
     },
@@ -1999,7 +1999,7 @@
         },
         "summary": "Clock Synchronization Endpoint",
         "tags": [
-          "Public Router"
+          "Public"
         ]
       }
     },
@@ -2021,7 +2021,7 @@
         },
         "summary": "Monitoring - Health Check Endpoint",
         "tags": [
-          "Public Router"
+          "Public"
         ]
       }
     },
@@ -2041,7 +2041,7 @@
         },
         "summary": "Metrics",
         "tags": [
-          "Public Router"
+          "Public"
         ]
       }
     }
