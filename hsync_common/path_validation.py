@@ -305,6 +305,15 @@ def sanitize_filename(filename: str) -> str:
 # the middle, but cannot start or end with a hyphen or underscore.
 BUCKET_NAME_PATTERN = r"^[a-zA-Z0-9]([a-zA-Z0-9_-]*[a-zA-Z0-9])?$"
 
+# Maximum bucket name length.  The bucket name becomes a directory entry on the
+# server and a local folder name on the client; filesystems typically limit
+# individual path components to 255 bytes (Linux ext4, macOS APFS, Windows NTFS).
+# A generous 63-character limit keeps the name human-readable and leaves ample
+# room for the prefixed path components that the server / client construct around
+# it (``<buckets_path>/<bucket>/…``), well within the 255-byte component cap
+# even when the name is pure ASCII but the path prefix uses multi-byte UTF-8.
+MAX_BUCKET_NAME_LENGTH = 63
+
 _BUCKET_NAME_RE = re.compile(BUCKET_NAME_PATTERN)
 
 
@@ -313,6 +322,7 @@ def is_valid_bucket_name(value: str) -> bool:
 
     Bucket names must contain only alphanumeric characters, hyphens and
     underscores, and cannot start or end with a hyphen or underscore.
+    The length must not exceed ``MAX_BUCKET_NAME_LENGTH`` (63 characters).
 
     Args:
         value: The bucket name to validate.
@@ -320,6 +330,10 @@ def is_valid_bucket_name(value: str) -> bool:
     Returns:
         True if the bucket name is valid, False otherwise.
     """
+    if not value or not isinstance(value, str):
+        return False
+    if len(value) > MAX_BUCKET_NAME_LENGTH:
+        return False
     return bool(_BUCKET_NAME_RE.match(value))
 
 
