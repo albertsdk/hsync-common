@@ -52,9 +52,13 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
   the full-sync reconcile — never file content; they are transport-agnostic
   (server `/symlinks` and LAN master share the same surface).
 - `SyncAction.to_dict` (`models/sync_action.py:88`) serializes
-  `file, name, timedelta, conflict, tombstone_confirmed` — `conflict` is the
-  "preserve the local copy first" signal; `tombstone_confirmed` marks a delete
-  backed by a matching deletion marker (mass-deletion guard exemption).
+  `file, name, timedelta, conflict, tombstone_confirmed, permissions_only` —
+  `conflict` is the "preserve the local copy first" signal; `tombstone_confirmed`
+  marks a delete backed by a matching deletion marker (mass-deletion guard
+  exemption); `permissions_only` marks an upload whose content hash already
+  matches the peer (only permissions changed): the transfer layer resolves it
+  through the metadata-only `PATCH …/files/permissions` surface (falling back
+  to the same-SHA upload branch) so no bytes cross the wire.
 
 ## TombstoneStore (causal deletion markers)
 

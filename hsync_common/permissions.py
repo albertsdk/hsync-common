@@ -30,6 +30,12 @@ PERMISSION_MASK = 0o7777
 # when the daemon runs with elevated privileges).
 REMOTE_PERMISSION_MASK = 0o777
 
+# Owner-access floor OR-ed onto directory modes applied from a remote peer.
+# A peer-supplied mode like ``000`` must never lock every receiver out of its
+# own storage: the owner always keeps rwx so the sync engine (and the server's
+# storage layer) can still traverse and update its own tree.
+OWNER_DIRECTORY_ACCESS = 0o700
+
 # Precompiled octal-permission shape gate (3 or 4 octal digits): a single
 # C-level regex object instead of recompiling (or cache-looking-up) the
 # pattern on every validation call.
