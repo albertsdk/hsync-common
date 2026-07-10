@@ -112,8 +112,12 @@ class TestBaseInterceptHandler:
         h = BaseInterceptHandler(bind_extra=fn)
         assert h._bind_extra is fn
 
-    def test_emit_plain_message(self):
-        """emit() should forward messages to loguru without raising."""
+    def test_emit_plain_message(self, monkeypatch):
+        """emit() should forward messages to loguru with correct level and message."""
+        from unittest.mock import MagicMock
+
+        from hsync_common import logger as logger_module
+
         h = BaseInterceptHandler()
         record = logging.LogRecord(
             name="test",
@@ -124,10 +128,24 @@ class TestBaseInterceptHandler:
             args=(),
             exc_info=None,
         )
-        # Should not raise
+
+        mock_log = MagicMock()
+        mock_opt = MagicMock()
+        mock_opt.log = mock_log
+        monkeypatch.setattr(logger_module.logger, "opt", lambda **kw: mock_opt)
+
         h.emit(record)
 
-    def test_emit_with_escape_markup(self):
+        mock_log.assert_called_once()
+        assert mock_log.call_args[0][0] == "INFO"
+        assert mock_log.call_args[0][1] == "hello"
+
+    def test_emit_with_escape_markup(self, monkeypatch):
+        """emit() with escape_markup=True must escape loguru markup in the message."""
+        from unittest.mock import MagicMock
+
+        from hsync_common import logger as logger_module
+
         h = BaseInterceptHandler(escape_markup=True)
         record = logging.LogRecord(
             name="test",
@@ -138,10 +156,24 @@ class TestBaseInterceptHandler:
             args=(),
             exc_info=None,
         )
+
+        mock_log = MagicMock()
+        mock_opt = MagicMock()
+        mock_opt.log = mock_log
+        monkeypatch.setattr(logger_module.logger, "opt", lambda **kw: mock_opt)
+
         h.emit(record)
 
-    def test_emit_unknown_level_falls_back_to_levelno(self):
+        # The message must have curly braces doubled and angle brackets escaped
+        logged_msg = mock_log.call_args[0][1]
+        assert logged_msg == r'{{"key": "value"}} \<locals>'
+
+    def test_emit_unknown_level_falls_back_to_levelno(self, monkeypatch):
         """An unmapped levelname must fall back to the numeric level (no raise)."""
+        from unittest.mock import MagicMock
+
+        from hsync_common import logger as logger_module
+
         h = BaseInterceptHandler()
         record = logging.LogRecord(
             name="test",
@@ -153,7 +185,18 @@ class TestBaseInterceptHandler:
             exc_info=None,
         )
         record.levelname = "NOTALEVEL"
+
+        mock_log = MagicMock()
+        mock_opt = MagicMock()
+        mock_opt.log = mock_log
+        monkeypatch.setattr(logger_module.logger, "opt", lambda **kw: mock_opt)
+
         h.emit(record)
+
+        # Fallback: numeric level (20 for INFO) is used instead of the string name
+        mock_log.assert_called_once()
+        assert mock_log.call_args[0][0] == logging.INFO
+        assert mock_log.call_args[0][1] == "weird"
 
     def test_emit_invokes_bind_extra(self):
         """bind_extra callable is invoked and its mapping bound before logging."""
