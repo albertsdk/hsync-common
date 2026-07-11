@@ -306,7 +306,7 @@ def _delta_apply_metadata() -> dict[str, Any]:
     """
     return {
         "description": "Example metadata for POST /delta/apply (upload delta)",
-        "cid": "TestClientABC34567890",
+        "cid": "TestClientX1234567890",
         "base_sha256": "a1b2c3d4e5f67890123456789012345678901234567890123456789012345678",
         "new_sha256": "d4e5f67890123456789012345678901234567890123456789012345678901234",
         "new_size": 1048576,
