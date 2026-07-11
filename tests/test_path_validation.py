@@ -287,8 +287,8 @@ class TestValidateRemoteRelpath:
 
     def test_empty_and_non_string_rejected(self):
         assert validate_remote_relpath("") is None
-        assert validate_remote_relpath(None) is None
-        assert validate_remote_relpath(123) is None
+        assert validate_remote_relpath(None) is None  # type: ignore[reportArgumentType]
+        assert validate_remote_relpath(123) is None  # type: ignore[reportArgumentType]
         assert validate_remote_relpath("/") is None
 
     def test_traversal_rejected(self):

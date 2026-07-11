@@ -33,7 +33,7 @@ from os.path import relpath
 from pathlib import Path
 
 from pathspec import PathSpec
-from pathspec.patterns import GitWildMatchPattern
+from pathspec.patterns.gitwildmatch import GitWildMatchPattern
 
 from hsync_common.constants import (
     DEFAULT_IGNORE_PATTERNS,
