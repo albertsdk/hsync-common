@@ -259,3 +259,15 @@ class TestActiveMatcher:
         # Dotfiles are NOT excluded
         assert should_skip(".env") is False
         assert should_skip("regular.txt") is False
+
+    def test_should_skip_honours_is_dir(self, bucket):
+        # A directory-only pattern ("build/") must match a directory through
+        # the process-global helper too, and must NOT match a file.
+        _write_ignore(bucket, "build/\n")
+        m = IgnoreMatcher(str(bucket))
+        set_active_matcher(m)
+        try:
+            assert should_skip("build", is_dir=True) is True
+            assert should_skip("build", is_dir=False) is False
+        finally:
+            set_active_matcher(None)

@@ -159,7 +159,7 @@ values: `added`, `modified`, `renamed`, `deleted`, `symlink`.
 ### SyncAction / SyncActionName
 
 Represents a synchronization decision. `SyncActionName` is a `StrEnum` with
-values: `download`, `upload`, `delete`, `nothing`.
+values: `download`, `upload`, `delete`, `delete_remote`, `nothing`.
 
 ### TombstoneStore
 

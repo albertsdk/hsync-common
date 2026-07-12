@@ -222,8 +222,13 @@ class TestFindMatches:
         ops, literals = find_matches(new, sigs, BLOCK)
         data_ops = [op for op in ops if op.type == OP_TYPE_DATA]
         assert literals == b"AABB"
-        for op in data_ops:
-            assert literals[op.data_offset : op.data_offset + op.length]
+        # A non-empty slice would pass even with wrong offsets: pin the exact
+        # (data_offset, length) pairs and the byte content they must select.
+        assert [(op.data_offset, op.length) for op in data_ops] == [(0, 2), (2, 2)]
+        assert (
+            b"".join(literals[op.data_offset : op.data_offset + op.length] for op in data_ops)
+            == b"AABB"
+        )
 
 
 # ---------------------------------------------------------------------------
