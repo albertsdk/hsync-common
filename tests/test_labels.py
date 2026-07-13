@@ -103,6 +103,49 @@ class TestColorizeLabels:
         result = colorize_labels("[BOGUS] something")
         assert result == "[BOGUS] something"
 
+    def test_prefixed_label_not_corrupted_by_shorter_counterpart(self):
+        """Regression: [DOWNLOAD] inside [REMOTE DOWNLOAD] must not corrupt."""
+        result = colorize_labels("[REMOTE DOWNLOAD] file.pdf")
+        assert result == "<cyan>[REMOTE DOWNLOAD]</cyan> file.pdf"
+
+    def test_local_create_not_corrupted_by_create(self):
+        """Regression: [CREATE] inside [LOCAL CREATE] must not corrupt."""
+        result = colorize_labels("[LOCAL CREATE] document.txt")
+        assert result == "<green>[LOCAL CREATE]</green> document.txt"
+
+    def test_prefixed_and_unprefixed_labels_coexist(self):
+        """Unprefixed label alongside its prefixed variant — both colored."""
+        result = colorize_labels("[DOWNLOAD] started -> [REMOTE DOWNLOAD] file.pdf")
+        assert "<cyan>[DOWNLOAD]</cyan>" in result
+        assert "<cyan>[REMOTE DOWNLOAD]</cyan>" in result
+
+    def test_multiple_prefixed_labels_independently_colored(self):
+        """Each prefixed label gets its own color category, not the short label's."""
+        result = colorize_labels("[LOCAL DELETE] secret.txt  [REMOTE CREATE] new.txt")
+        assert "<red>[LOCAL DELETE]</red>" in result
+        assert "<green>[REMOTE CREATE]</green>" in result
+
+    def test_security_label_not_corrupted(self):
+        """[SECURITY] inside [LOCAL SECURITY] / [REMOTE SECURITY] must not corrupt."""
+        result = colorize_labels("[LOCAL SECURITY] blocked path")
+        assert "<red>[LOCAL SECURITY]</red>" in result
+        result = colorize_labels("[REMOTE SECURITY] blocked path")
+        assert "<red>[REMOTE SECURITY]</red>" in result
+
+    def test_modify_label_not_corrupted(self):
+        """[MODIFY] inside [LOCAL MODIFY] / [REMOTE MODIFY] must not corrupt."""
+        result = colorize_labels("[LOCAL MODIFY] data.json")
+        assert "<blue>[LOCAL MODIFY]</blue>" in result
+        result = colorize_labels("[REMOTE MODIFY] data.json")
+        assert "<blue>[REMOTE MODIFY]</blue>" in result
+
+    def test_ignore_del_label_not_corrupted(self):
+        """[IGNORE DEL] is matched as a complete spaced value."""
+        result = colorize_labels("[LOCAL IGNORE DEL] temp.bak")
+        assert "<yellow>[LOCAL IGNORE DEL]</yellow>" in result
+        result = colorize_labels("[REMOTE IGNORE DEL] temp.bak")
+        assert "<yellow>[REMOTE IGNORE DEL]</yellow>" in result
+
 
 class TestResolveLabel:
     def test_unprefixed_label(self):
