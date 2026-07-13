@@ -6,7 +6,6 @@
   "https": "true",
   "peer_download": "true",
   "protocol": "lan/1",
-  "seed": "true",
   "startup_time": "1700000001",
   "sync_direction": "download-only",
   "version": "1.0.0"

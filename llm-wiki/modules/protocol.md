@@ -85,7 +85,8 @@ within a version — intersection semantics, never cross-version negotiation
 ## schemas.py — JSON-Schema builders (draft 2020-12)
 
 - Dialect const `schemas.py:59`; LAN TXT key sets `:63`/`:71`/`:85` include the
-  optional `peer_download` implementation flag and bound-seeder `seed` state.
+  optional `peer_download` implementation flag. Live seeder capacity is not a TXT
+  fact: it travels on the authenticated handshake (ADR-0030).
 - `build_ws_schema` (`schemas.py:464`), `build_lan_wss_schema` (`:669`; pins
   auth/hello plus additive inventory/ACK frames, ADR-0024/0028),
   `build_lan_sources_schema` (`:180`), and `build_lan_txt_schema` (`:742`) derive

@@ -64,6 +64,12 @@ requester discovers by being refused:
    avoid: measured on the cycle scenario, non-blocking admission served 6.7 of 24
    files from the peer and 121 of 168 full downloads from the master, against
    24 of 24 and 0 of 168 while waiting.
+8. The `seed` TXT hint is removed. Whether a peer can serve is already decided by
+   its authenticated session with the master, so a discovery-time copy of that
+   fact can only ever be stale — and because candidacy *required* it, a lagging
+   record could exclude a seeder that was in fact serving. A serving slave still
+   advertises `https`/`cert_fp` (endpoint material) from the same "endpoint bound"
+   state, so no requester loses the route to a seeder.
 
 ## Consequences
 
@@ -84,6 +90,9 @@ requester discovers by being refused:
 - Deleting the knob is a breaking configuration change: an environment still
   setting `HSYNC_LAN_PEER_DOWNLOAD_MIN_SIZE` is ignored, in line with the
   project's no-backward-compatibility stance.
+- One fewer discovery key: `seed` leaves the TXT contract, the client's service
+  listener/snapshot model and the Android mirror, and candidacy no longer consults
+  a browser-cached hint that could contradict live state.
 - New obligations: strict validators, schemas and shared fixtures in
   `hsync-common`; admission/busy semantics plus the cycle acceptance scenario in
   `hsync-client`; contract parity tests in `hsync-android`.

@@ -128,12 +128,10 @@ class TestLanSchemaSource:
         schema = build_lan_txt_schema()
         assert set(schema["properties"]) == set(LAN_TXT_KEYS)
 
-    def test_peer_download_flags_are_optional_true_only(self):
+    def test_peer_download_flag_is_optional_true_only(self):
         schema = build_lan_txt_schema()
         assert "peer_download" not in schema["required"]
-        assert "seed" not in schema["required"]
         assert schema["properties"]["peer_download"]["enum"] == ["true"]
-        assert schema["properties"]["seed"]["enum"] == ["true"]
 
 
 class TestLanWssSchemaSource:

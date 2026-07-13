@@ -139,7 +139,6 @@ def _lan_txt_seeder_record() -> dict[str, Any]:
         "https": "true",
         "cert_fp": _FIXTURE_CERT_FP,
         "peer_download": "true",
-        "seed": "true",
         "heartbeat": "8",
     }
 

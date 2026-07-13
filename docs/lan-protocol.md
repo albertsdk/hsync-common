@@ -36,7 +36,7 @@ lives in `LAN_TXT_KEYS`; do not introduce keys outside it.
 
 **Optional keys** (present only when meaningful/true): `group`, `https`,
 `cert_fp`, `compression`, `delta`, `server_ready`, `force_master`,
-`never_master`, `connected`, `heartbeat`, `peer_download`, `seed`.
+`never_master`, `connected`, `heartbeat`, `peer_download`.
 
 `compression` and `delta` are advertised only when the feature is enabled on
 that node. Per the canonical rule, a boolean flag is advertised only when
@@ -48,11 +48,12 @@ record.
 `peer_download` means the node implements the ADR-0028 inventory, batch source
 lookup, and read-only seeder semantics. A serving master publishes it when its
 `POST .../files/sources` endpoint is available; this TXT flag gates initial and
-one-shot lookup before WSS. The WSS capability is authoritative after an
-authenticated handshake. `seed` is narrower runtime state: it is present only
-while a slave's read-only HTTPS seeder has successfully bound. A stale or
-spoofed hint can at worst cause a failed source lookup or peer attempt, followed
-by the mandatory master fallback.
+one-shot lookup before WSS. After an authenticated handshake the WSS capability is
+authoritative, and so is the seeder's live capacity advertisement (ADR-0030):
+whether a peer can serve *right now* is decided only by its authenticated session
+with the master, never by a discovery-time hint. A stale or spoofed hint can at
+worst cause a failed source lookup or peer attempt, followed by the mandatory
+master fallback.
 
 Endpoint-material keys are optional at the record level because a node advertises
 them only while it serves an endpoint. A master or seeder, however, **must**

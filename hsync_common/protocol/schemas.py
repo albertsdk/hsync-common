@@ -82,7 +82,6 @@ LAN_TXT_OPTIONAL_KEYS: tuple[str, ...] = (
     "connected",
     "heartbeat",
     "peer_download",
-    "seed",
 )
 LAN_TXT_KEYS: tuple[str, ...] = LAN_TXT_REQUIRED_KEYS + LAN_TXT_OPTIONAL_KEYS
 
@@ -782,10 +781,6 @@ def build_lan_txt_schema() -> dict[str, Any]:
                 "This node implements LAN inventory, batch source lookup and "
                 "read-only seeder semantics (ADR-0028)."
             ),
-        },
-        "seed": {
-            **_TXT_BOOL_FLAG,
-            "description": "A read-only peer-download seeder is currently bound.",
         },
         "connected": {
             "type": "string",

@@ -67,13 +67,6 @@
     "protocol": {
       "const": "lan/1"
     },
-    "seed": {
-      "description": "A read-only peer-download seeder is currently bound.",
-      "enum": [
-        "true"
-      ],
-      "type": "string"
-    },
     "server_ready": {
       "enum": [
         "true"

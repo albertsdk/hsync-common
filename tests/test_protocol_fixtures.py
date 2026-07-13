@@ -109,7 +109,6 @@ class TestLanFixtureConformance:
     def test_seeder_record_is_bound_but_not_master(self):
         record = _FIXTURES["lan-txt-seeder-record"]
         assert record["peer_download"] == "true"
-        assert record["seed"] == "true"
         assert record["https"] == "true"
         assert "cert_fp" in record
         assert "server_ready" not in record
