@@ -99,9 +99,9 @@ Android):
    `{"type": "auth", "status": "ok", "protocol_version", "capabilities"}`.
    The slave's frame also carries `serve_slots` (1–32) **while it serves peer
    downloads**: the master records it with the publisher session and echoes it to
-   requesters as their per-seeder admission limit (ADR-0030). An out-of-range
-   value, or a slot count without the `peer_download` capability, is refused as a
-   protocol violation; omitting it means "not a source candidate".
+   requesters as their per-seeder admission limit (ADR-0030). A non-integer or
+   out-of-range value, or a slot count without the `peer_download` capability, is
+   refused as a protocol violation; omitting it means "not a source candidate".
 
 Semantics:
 

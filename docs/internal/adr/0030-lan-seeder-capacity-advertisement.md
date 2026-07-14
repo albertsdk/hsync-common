@@ -36,8 +36,8 @@ requester discovers by being refused:
    every `POST /files/sources` candidate (`LanSourceCandidate.serve_slots`, now
    required). A candidate cannot exist without a live advertisement, so the
    requester always knows the limit it must respect. An inconsistent frame
-   (out-of-range value, or slots without the `peer_download` capability) is
-   refused as a protocol violation.
+   (non-integer or out-of-range value, or slots without the `peer_download`
+   capability) is refused as a protocol violation on both masters.
 3. The requester admits at most `serve_slots` concurrent reads per CID, waiting up
    to a bounded interval (`LAN_PEER_SLOT_WAIT_S`, 2 s) for a slot before taking the
    master. Expiring that wait is a *scheduling* outcome, never a refused attempt.
