@@ -96,3 +96,16 @@ requester discovers by being refused:
 - New obligations: strict validators, schemas and shared fixtures in
   `hsync-common`; admission/busy semantics plus the cycle acceptance scenario in
   `hsync-client`; contract parity tests in `hsync-android`.
+- **Worker-to-seeder affinity was evaluated and rejected on measurement.** The
+  follow-up idea — group a cycle's downloads per candidate seeder so each seeder
+  is served by as many workers as its slots instead of by the whole pool — does
+  not pay: driven through one long-lived pool behind a latency relay
+  (`bench_lan_peer_transfer.py --latency`, 24 × 4 KiB per cycle, cap 2), a cycle
+  pays handshakes only at first contact (`[2,0,…]` with 2 workers, `[8,0,…]` with
+  8) and **zero** afterwards, because the HTTP session cache is per-thread and
+  every worker keeps a warm keep-alive connection. Forcing the worker count down
+  to the slot count under a 40 ms RTT costs 1066.6 ms per cycle against 815.6 ms
+  with 8 workers, so affinity would trade 6 one-time handshakes for a permanent
+  parallelism loss. Admission stays as specified in point 3; `sync.py` keeps its
+  single shared pool, and no grouping/scheduling layer is added. The remaining RTT
+  cost is the per-file request round trip, which is out of this decision's scope.
