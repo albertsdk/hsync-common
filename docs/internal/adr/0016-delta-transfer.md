@@ -196,6 +196,19 @@ multiple clients would write to the same `.delta.part` file simultaneously.
   Kotlin implementations produce identical results for the same inputs (see
   `hsync-android/app/src/test/java/com/hsync/android/util/DeltaEngineTest.kt`).
 
+### Interaction with content-addressed storage ([ADR-0007](0007-content-addressed-storage.md))
+
+After a delta apply on the server (upload delta), the newly reconstructed file is
+treated as a normal upload:
+
+1. The server computes SHA-256 of the reconstructed file.
+2. The content hash is stored in the in-memory cache (`FILE_HASHES`, keyed by
+   `SHA256(filepath)`), enabling future idempotent-upload detection.
+3. The file replaces any existing content at the target path via `os.replace()`.
+4. Deduplication via hard links (when two different paths share the same content
+   hash) is a server-side optimisation governed by [ADR-0007](0007-content-addressed-storage.md)
+   and is transparent to the delta transfer layer.
+
 ## References
 
 - [ADR-0005](0005-protocol-versioning.md) — Protocol Versioning & Capability Negotiation

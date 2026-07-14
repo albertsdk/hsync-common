@@ -41,6 +41,8 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0016](0016-delta-transfer.md) | Delta transfer (rsync-style block sync) | Accepted |
 | [0017](0017-lan-slave-outbound-event-reliability.md) | LAN slave outbound event reliability (defer-to-close uploads, echo-pair rename caching) | Accepted (*terminology superseded by [ADR-0018](0018-origin-based-log-labels.md); algorithm still valid*) |
 | [0018](0018-origin-based-log-labels.md) | Origin-based log labels (`LOCAL ` / `REMOTE `) with unified verbs | Accepted |
+| [0019](0019-tombstone-clock-model.md) | Tombstone clock model: why LWW-by-time is acceptable | Accepted |
+| [0020](0020-lan-security-model.md) | LAN security model: TOFU pinning, LAN key, and strict pairing | Accepted |
 
 ## Related documents
 

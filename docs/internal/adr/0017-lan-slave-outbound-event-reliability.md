@@ -121,6 +121,23 @@ has a *different* pair and is never misclassified as an echo.
   to "deferred to on_closed"; the log legend must reflect it if it documents
   that label.
 
+## Cross-client deployment constraint
+
+The defer-to-close upload behaviour and echo-pair rename cache are **behavioural**
+changes, not wire-format changes. They are not captured by the golden fixtures of
+[ADR-0005](0005-protocol-versioning.md) and do not cause a protocol-version
+hard-fail. A mixed-version fleet (one client patched with ADR-0017, another not)
+will exhibit:
+
+- **Duplicate uploads** from the unpatched client (both `on_created` and `on_closed`
+  fire uploads).
+- **Spurious rename 404 WARNINGs** on the unpatched client.
+
+Both are benign (no data loss — the "never suppress" principle still holds for the
+unpatched client), but operators should deploy the Python and Android client
+updates in lockstep to eliminate the noise. The periodic resync remains the safety
+net for any missed events.
+
 ## References
 
 - [ADR 0006 — Master-authoritative conflict model](0006-master-authoritative-conflict-model.md) (last-write-wins on master)
