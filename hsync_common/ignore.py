@@ -41,7 +41,7 @@ from hsync_common.constants import (
     HSYNCKEEP_FILENAME,
 )
 from hsync_common.models.file import is_partial_file
-from hsync_common.path_validation import is_internal_name
+from hsync_common.path_validation import basename, is_internal_name
 
 # Maximum number of total ignore patterns (defaults + .hsyncignore + extras).
 # Beyond this cap the remaining patterns are silently dropped to prevent
@@ -155,14 +155,7 @@ class IgnoreMatcher:
             is_dir: When ``True`` the trailing slash is appended so
                 gitignore directory-only patterns (``foo/``) match.
         """
-        # Basename without constructing a Path object (hot: once per scanned
-        # entry). "dir/" -> rstrip -> "dir"; "a/b" -> rsplit -> "b"; "" -> "".
-        stripped = path.rstrip("/")
-        if not stripped:
-            name = ""
-        else:
-            sep = stripped.rfind("/")
-            name = stripped[sep + 1 :]
+        name = basename(path)
 
         # Sentinel file is always preserved
         if name == HSYNCKEEP_FILENAME:

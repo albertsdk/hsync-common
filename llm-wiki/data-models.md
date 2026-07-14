@@ -7,13 +7,13 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
 
 | Type | File:line | Wire dict | Notes |
 | ---- | --------- | --------- | ----- |
-| `File` | `models/file.py:178` | `FileDict` (`models/file.py:80`) | sync metadata + content hash |
-| `Dir` | `models/dir.py:54` | — | `path`, octal `permissions` |
+| `File` | `models/file.py:151` | `FileDict` (`models/file.py:97`) | sync metadata + content hash |
+| `Dir` | `models/dir.py:26` | — | `path`, octal `permissions` |
 | `Symlink` | `models/symlink.py:14` | — | `filepath`, `target`, `name`, times |
 | `Event` | `models/event.py:63` | `EventDict` (`models/event.py:34`) | FS change; `EventName` enum `models/event.py:44`; `is_valid_cid` wire validator `models/event.py:29` |
 | `SyncAction` | `models/sync_action.py:31` | — | decision; `SyncActionName` enum `models/sync_action.py:14` |
-| `TombstoneStore` | `models/tombstone_store.py:67` | `TombstoneEntry` (`models/tombstone.py:71`) | causal deletion markers (vclock merge); SQLite-backed; re-exported from `models/tombstone.py` |
-| `SyncStateStore` / `FileVersion` | `models/version_store.py:106` / `models/version.py:70` | `FileVersion` TypedDict | 3-way merge state; SQLite-backed; `SyncStateStore` re-exported from `models/version.py` |
+| `TombstoneStore` | `models/tombstone_store.py:62` | `TombstoneEntry` (`models/tombstone.py:71`) | causal deletion markers (vclock merge); SQLite-backed; re-exported from `models/tombstone.py`; inherits `CausalStoreBase` (`models/_store_base.py:29`) |
+| `SyncStateStore` / `FileVersion` | `models/version_store.py:77` / `models/version.py:71` | `FileVersion` TypedDict | 3-way merge state; SQLite-backed; `SyncStateStore` re-exported from `models/version.py`; inherits `CausalStoreBase` |
 | `StateDb` | `models/sqlstore.py` | — | installation `syncstate.db` (ADR-0025) |
 | folder marker | `models/folder.py` | — | `.hsyncfolder` UUIDv4 + `default_state_dir` |
 
@@ -99,8 +99,9 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
   hand-written); the committed JSON is replayed by the Android parity test.
 - Persisted in the installation `syncstate.db` (`models/sqlstore.py`), keyed
   by folder UUID from `.hsyncfolder` (`models/folder.py`, ADR-0025). The wire
-  payload (`to_payload`) is unchanged. The store class lives in
-  `models/tombstone_store.py:67` (re-exported from `models/tombstone.py`).
+  payload (`to_payload`) is unchanged.   The store class lives in
+  `models/tombstone_store.py:62` (re-exported from `models/tombstone.py`);
+  shared persistence plumbing is `CausalStoreBase` (`models/_store_base.py:29`).
 
 ## Version / causal merge
 
@@ -132,8 +133,9 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
   unchanged. The model is strictly causal: `load()` drops rows without a
   structurally valid `vclock` (no fabricated empty clocks) — a corrupted row
   degrades entry-by-entry instead of crashing startup. `corrected_mtime` is
-  persisted alongside and defaulted to 0 when NULL. The store class lives in
-  `models/version_store.py:106` (re-exported from `models/version.py`).
+  persisted alongside and defaulted to 0 when NULL.   The store class lives in
+  `models/version_store.py:77` (re-exported from `models/version.py`);
+  shared persistence plumbing is `CausalStoreBase` (`models/_store_base.py:29`).
 
 ## Delta Transfer Models (`models/delta.py`)
 
