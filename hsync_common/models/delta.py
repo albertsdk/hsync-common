@@ -20,6 +20,7 @@ and by the final whole-file SHA-256 verification after reconstruction.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Literal, NotRequired, TypedDict, TypeGuard
 
@@ -220,6 +221,11 @@ def _is_valid_non_negative_int(value: object) -> TypeGuard[int]:
     return isinstance(value, int) and not isinstance(value, bool) and value >= 0
 
 
+def _is_valid_positive_int(value: object) -> TypeGuard[int]:
+    """Return True for real positive ints (bools are rejected)."""
+    return isinstance(value, int) and not isinstance(value, bool) and value > 0
+
+
 def sanitize_block_signature(value: object) -> BlockSignatureDict | None:
     """Validate an untrusted block-signature payload.
 
@@ -239,7 +245,7 @@ def sanitize_block_signature(value: object) -> BlockSignatureDict | None:
         return None
     if not _is_valid_non_negative_int(offset):
         return None
-    if not (isinstance(length, int) and not isinstance(length, bool) and length > 0):
+    if not _is_valid_positive_int(length):
         return None
     if not _is_valid_non_negative_int(weak):
         return None
@@ -269,7 +275,7 @@ def sanitize_delta_op(value: object) -> DeltaOpDict | None:
         return None
     if not _is_valid_non_negative_int(offset):
         return None
-    if not (isinstance(length, int) and not isinstance(length, bool) and length > 0):
+    if not _is_valid_positive_int(length):
         return None
     if not _is_valid_non_negative_int(data_offset):
         return None
@@ -277,27 +283,33 @@ def sanitize_delta_op(value: object) -> DeltaOpDict | None:
     return DeltaOpDict(type=op_type, offset=offset, length=length, data_offset=data_offset)
 
 
-def sanitize_signature_list(value: object) -> list[BlockSignatureDict] | None:
-    """Validate an untrusted signature list, enforcing the wire count cap."""
-    if not isinstance(value, list) or len(value) > DELTA_MAX_SIGNATURES:
+def _sanitize_list[T](
+    value: object,
+    *,
+    cap: int,
+    sanitize_item: Callable[[object], T | None],
+) -> list[T] | None:
+    """Validate a list of untrusted items, enforcing a count cap.
+
+    Returns ``None`` when *value* is not a list, exceeds *cap* entries,
+    or any item fails *sanitize_item*. Otherwise returns the cleaned list.
+    """
+    if not isinstance(value, list) or len(value) > cap:
         return None
-    out: list[BlockSignatureDict] = []
+    out: list[T] = []
     for item in value:
-        clean = sanitize_block_signature(item)
+        clean = sanitize_item(item)
         if clean is None:
             return None
         out.append(clean)
     return out
+
+
+def sanitize_signature_list(value: object) -> list[BlockSignatureDict] | None:
+    """Validate an untrusted signature list, enforcing the wire count cap."""
+    return _sanitize_list(value, cap=DELTA_MAX_SIGNATURES, sanitize_item=sanitize_block_signature)
 
 
 def sanitize_op_list(value: object) -> list[DeltaOpDict] | None:
     """Validate an untrusted op list, enforcing the wire count cap."""
-    if not isinstance(value, list) or len(value) > DELTA_MAX_OPS:
-        return None
-    out: list[DeltaOpDict] = []
-    for item in value:
-        clean = sanitize_delta_op(item)
-        if clean is None:
-            return None
-        out.append(clean)
-    return out
+    return _sanitize_list(value, cap=DELTA_MAX_OPS, sanitize_item=sanitize_delta_op)

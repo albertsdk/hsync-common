@@ -300,6 +300,3 @@ def compress_file(filepath: str) -> bytes:
     """Read and compress a file."""
     with open(filepath, "rb") as f:
         return compress_data(f.read())
-
-
-log.debug(f"Module {__name__} loaded")
