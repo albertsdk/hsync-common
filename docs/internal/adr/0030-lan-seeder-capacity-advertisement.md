@@ -93,6 +93,16 @@ requester discovers by being refused:
 - One fewer discovery key: `seed` leaves the TXT contract, the client's service
   listener/snapshot model and the Android mirror, and candidacy no longer consults
   a browser-cached hint that could contradict live state.
+- **The Android mirror implements the same admission shape, plus bounded bulk
+  parallelism.** Its downloader waits up to 2 s for a seeder's advertised slot and
+  then for an app-wide bound of four concurrent peer reads (per-seeder capacity is
+  claimed first, so one hot seeder cannot hold global capacity while queued),
+  falling back to the Primary only when the wait expires — the behaviour point 7
+  mandates, measured in `hsync-client/bench_lan_peer_transfer.py --latency`. Its
+  sync cycle downloads four files at a time instead of sequentially: the same
+  benchmark prices that at 3.1× less wall time on loopback and 3.6× behind a 40 ms
+  RTT for the master path, which is where the sequential loop's per-file round trip
+  dominated.
 - New obligations: strict validators, schemas and shared fixtures in
   `hsync-common`; admission/busy semantics plus the cycle acceptance scenario in
   `hsync-client`; contract parity tests in `hsync-android`.
