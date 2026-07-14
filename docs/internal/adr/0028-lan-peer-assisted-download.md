@@ -37,13 +37,16 @@ boundaries:
    an inventory to the master. One-shot clients may request peer sources but do
    not seed or publish. Inventory and serving contain regular files only. Seeder
    response-body concurrency (`HSYNC_LAN_PEER_READ_CAP`) defaults to two and is
-   configurable only in the bounded range 1–32; saturation returns 503 before
-   the file is opened.
+   configurable only in the bounded range 1–32; saturation answers `503` with a
+   `Retry-After` delay before the file is opened, which the requester honours as
+   a deferral of that source rather than a health failure (ADR-0030).
 4. `Capability.peer_download` means a node implements inventory, batch source
    lookup, and seeder semantics. A master advertises optional TXT
-   `peer_download=true` when its source endpoint is available; a slave advertises
-   optional `seed=true` only while its seeder is successfully bound. A serving
-   master or seeder also publishes `https` and `cert_fp` endpoint material.
+   `peer_download=true` when its source endpoint is available; a serving master
+   or seeder also publishes `https` and `cert_fp` endpoint material. Whether a
+   slave can serve *now* is deliberately not a discovery fact: it is decided by
+   its authenticated WSS session and the `serve_slots` capacity it advertises
+   there (ADR-0030), so a stale TXT record can never exclude a live seeder.
 5. We will keep `lan/1`. The WSS capability is authoritative after an
    authenticated handshake; TXT and no-key hello values are availability hints.
    Missing support or any peer-source failure degrades to master-only download.
