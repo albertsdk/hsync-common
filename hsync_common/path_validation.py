@@ -19,7 +19,13 @@ import re
 import unicodedata
 from pathlib import Path
 
-from hsync_common.constants import PARTIAL_DOWNLOAD_SUFFIX
+from hsync_common.constants import (
+    HSYNCFOLDER_FILENAME,
+    HSYNCIGNORE_FILENAME,
+    HSYNCSTATE_FILENAME,
+    HSYNCTOMBSTONES_FILENAME,
+    PARTIAL_DOWNLOAD_SUFFIX,
+)
 
 # =============================================================================
 # Forbidden Characters
@@ -197,7 +203,10 @@ def is_valid_filename(filename: str) -> bool:
     if has_problematic_trailing(filename):
         return False
 
-    return is_safe_path_component(filename)
+    # Separators/drive-letters/emptiness are already rejected by the guards
+    # above (FORBIDDEN_FILENAME_CHARS covers ``/``, ``\\`` and ``:``), so the
+    # only remaining traversal risk is a ``..`` component.
+    return not has_dotdot_component(filename)
 
 
 def has_dotdot_component(path: str) -> bool:
@@ -412,10 +421,10 @@ def safe_resolve_path(path: str, *, allow_absolute: bool = True) -> str | None:
 # stay rejected so an old peer cannot plant them.
 INTERNAL_FILENAMES: frozenset[str] = frozenset(
     {
-        ".hsyncignore",
-        ".hsyncfolder",
-        ".hsyncstate",
-        ".hsynctombstones",
+        HSYNCIGNORE_FILENAME,
+        HSYNCFOLDER_FILENAME,
+        HSYNCSTATE_FILENAME,
+        HSYNCTOMBSTONES_FILENAME,
     }
 )
 

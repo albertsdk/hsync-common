@@ -18,7 +18,6 @@ the shared protocol contract tests.
 
 from __future__ import annotations
 
-import json
 import re
 from collections.abc import Iterable
 from ipaddress import ip_address
@@ -26,9 +25,10 @@ from typing import Literal, NotRequired, TypedDict, TypeGuard
 from urllib.parse import urlsplit
 
 from hsync_common.constants import WS_MAX_MESSAGE_BYTES
-from hsync_common.hashing import is_sha256_hex
+from hsync_common.hashing import is_lower_sha256_hex
 from hsync_common.models.event import is_valid_cid
 from hsync_common.path_validation import is_valid_bucket_name, validate_remote_relpath
+from hsync_common.text import compact_json_bytes
 
 __all__ = [
     "LAN_INVENTORY_ACK_REASON_MAX_LENGTH",
@@ -192,7 +192,7 @@ def _is_wire_int(value: object) -> TypeGuard[int]:
 
 def _is_lower_sha256(value: object) -> TypeGuard[str]:
     """Accept only the canonical lowercase SHA-256 wire representation."""
-    return is_sha256_hex(value) and value == value.lower()
+    return is_lower_sha256_hex(value)
 
 
 def is_valid_serve_slots(value: object) -> TypeGuard[int]:
@@ -226,12 +226,7 @@ def _validated_path(value: object) -> str | None:
 def _fits_encoded_limit(value: object, limit: int) -> bool:
     """Whether the canonical compact UTF-8 JSON representation is bounded."""
     try:
-        encoded = json.dumps(
-            value,
-            ensure_ascii=False,
-            allow_nan=False,
-            separators=(",", ":"),
-        ).encode("utf-8")
+        encoded = compact_json_bytes(value)
     except (TypeError, ValueError, UnicodeError):
         return False
     return len(encoded) <= limit

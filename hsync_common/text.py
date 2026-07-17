@@ -17,6 +17,8 @@ Currently exposes loguru-safe formatting primitives:
   retry messages) or ``KeyError`` (e.g. JSON payloads).
 - :func:`safe_json_for_log` serializes any JSON-compatible object to a string
   via :func:`json.dumps` and then escapes its markup.
+- :func:`compact_json_bytes` serializes any JSON-compatible object to the
+  canonical compact UTF-8 wire form used across the LAN/peer protocol.
 """
 
 from __future__ import annotations
@@ -38,3 +40,22 @@ def escape_loguru_markup(s: str) -> str:
 def safe_json_for_log(obj: Any) -> str:
     """Serialize *obj* to JSON and escape loguru markup for safe logging."""
     return escape_loguru_markup(dumps(obj))
+
+
+def compact_json_bytes(obj: Any) -> bytes:
+    """Serialize *obj* to the canonical compact UTF-8 JSON wire form.
+
+    ``ensure_ascii=False``, ``allow_nan=False`` and ``separators=(",", ":")``
+    are the single canonical wire encoding: every LAN/peer payload must use it
+    so peers never diverge on serialization.
+
+    Consumers: ``hsync-client`` (LAN master, inventory and peer-source payloads),
+    ``hsync-common`` (``protocol.peer_download._fits_encoded_limit``), shared
+    fixtures/tests.
+    """
+    return dumps(
+        obj,
+        ensure_ascii=False,
+        allow_nan=False,
+        separators=(",", ":"),
+    ).encode("utf-8")

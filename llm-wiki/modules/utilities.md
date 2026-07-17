@@ -24,11 +24,14 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
 
 ## hashing.py
 
-- `is_sha256_hex` (`hashing.py:31`): wire-facing digest-shape gate — required
+- `is_sha256_hex` (`hashing.py:38`): wire-facing digest-shape gate — required
   before `hmac.compare_digest` (raises `TypeError` on non-ASCII input).
-- `adaptive_chunk_size` (`hashing.py:46`) picks a tier from file size.
-- `compute_sha256` (`hashing.py:67`) + async `compute_sha256_async`
-  (`hashing.py:84`).
+- `is_lower_sha256_hex` (`hashing.py:49`): lowercase-only variant, single
+  definition for the tombstone keys and the peer-download keys
+  (`tombstone._is_valid_key`, `peer_download._is_lower_sha256`).
+- `adaptive_chunk_size` (`hashing.py:62`) picks a tier from file size.
+- `compute_sha256` (`hashing.py:83`) + async `compute_sha256_async`
+  (`hashing.py:100`).
 
 ## delta/rolling_checksum.py
 
@@ -252,7 +255,10 @@ reconciliation, transfers, previews and server lines.
   (matching naive ISO strings): deterministic across hosts, independent of the
   caller's local timezone. `to_iso` and `conflict_timestamp` reject naive
   datetimes instead.
-- `escape_loguru_markup` (`text.py:28`), `safe_json_for_log` (`text.py:38`).
+- `escape_loguru_markup` (`text.py:30`), `safe_json_for_log` (`text.py:40`),
+  `compact_json_bytes` (`text.py:45`): the single canonical compact wire-JSON
+  encoder (`ensure_ascii=False`, `allow_nan=False`, `separators=(",", ":")`),
+  shared by the hsync-client LAN payloads and `protocol.peer_download` limits.
 - `load_env_file` (`env.py:21`).
 - `HSyncError` base (`exceptions.py:30`), `format_exception` (`:63`),
   `log_exception` (`:75`).

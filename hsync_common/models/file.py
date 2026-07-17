@@ -296,39 +296,27 @@ class File:
         Fast path: the production wire shape (``to_dict`` / server listing)
         always emits ``filepath``, ``ctime``, ``mtime``, ``size``,
         ``sha256sum`` and ``permissions``, so the common case resolves every
-        key with a single ``data[...]`` lookup (no ``dict.get`` default
-        machinery): ~1.4x faster than ``get`` on a full dict. Partial dicts
-        (hand-built test payloads with only a subset of keys) fall back to the
-        original ``get``-based decode so ``KeyError`` is never raised on a
-        legitimately optional field.
+        key with ``data[...]`` lookups (no ``dict.get`` default machinery):
+        ~1.4x faster than ``get`` on a full dict. Partial dicts (hand-built
+        test payloads with only a subset of keys) fall back to ``get``-based
+        decode so ``KeyError`` is never raised on a legitimately optional
+        field. The construction is shared by both paths: only the lookup
+        strategy (and the ``size`` default) differ.
         """
-        try:
-            filepath = _resolve_prefixed_path(
-                str(data["filepath"]) or "",
-                dir_prefix,
-                strip=strip_dir_prefix,
-            )
-            return cls(
-                filepath=filepath,
-                ctime=data["ctime"],
-                mtime=data["mtime"],
-                size=data["size"],
-                sha256sum=data["sha256sum"],
-                permissions=data["permissions"],
-                version=data.get("version"),
-            )
-        except KeyError:
-            filepath = _resolve_prefixed_path(
-                str(data.get("filepath") or ""),
-                dir_prefix,
-                strip=strip_dir_prefix,
-            )
-            return cls(
-                filepath=filepath,
-                ctime=data.get("ctime"),
-                mtime=data.get("mtime"),
-                size=data.get("size", 0),
-                sha256sum=data.get("sha256sum"),
-                permissions=data.get("permissions"),
-                version=data.get("version"),
-            )
+        required = ("filepath", "ctime", "mtime", "size", "sha256sum", "permissions")
+        fast = all(key in data for key in required)
+        lookup = data.__getitem__ if fast else data.get
+        filepath = _resolve_prefixed_path(
+            str(data.get("filepath") or ""),
+            dir_prefix,
+            strip=strip_dir_prefix,
+        )
+        return cls(
+            filepath=filepath,
+            ctime=lookup("ctime"),
+            mtime=lookup("mtime"),
+            size=data["size"] if fast else data.get("size", 0),
+            sha256sum=lookup("sha256sum"),
+            permissions=lookup("permissions"),
+            version=data.get("version"),
+        )

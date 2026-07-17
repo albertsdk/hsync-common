@@ -35,7 +35,7 @@ and is re-exported here for the historic import path.
 
 from typing import TypedDict, TypeGuard, cast
 
-from hsync_common.hashing import is_sha256_hex
+from hsync_common.hashing import is_lower_sha256_hex
 
 from ._util import _parse_wire_timestamp, relpath_in_bucket, tombstone_key
 from .event import is_valid_cid
@@ -90,7 +90,7 @@ def _is_valid_key(key: object) -> TypeGuard[str]:
     lowercase: uppercase variants from a peer are rejected (they would never
     match a locally computed key anyway).
     """
-    return is_sha256_hex(key) and key == key.lower()
+    return is_lower_sha256_hex(key)
 
 
 def _is_valid_sha256(value: object) -> TypeGuard[str | None]:

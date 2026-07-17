@@ -46,6 +46,19 @@ def is_sha256_hex(value: object) -> TypeGuard[str]:
     return isinstance(value, str) and bool(_SHA256_HEX_RE.fullmatch(value))
 
 
+def is_lower_sha256_hex(value: object) -> TypeGuard[str]:
+    """Return True when *value* is a lowercase SHA-256 hex digest.
+
+    Some wire fields are canonically lowercase hex (tombstone keys, peer-download
+    keys): ``hashlib.sha256(...).hexdigest()`` output. An uppercase variant is
+    rejected because it could never match a locally computed key anyway.
+
+    Consumers: ``hsync-common`` (``models.tombstone``, ``protocol.peer_download``);
+    available to ``hsync-client``/``hsync-server`` through this shared module.
+    """
+    return is_sha256_hex(value) and value == value.lower()
+
+
 def adaptive_chunk_size(file_size: int | None) -> int:
     """Pick an optimal read chunk size based on file size.
 
