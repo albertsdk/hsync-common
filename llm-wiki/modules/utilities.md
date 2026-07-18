@@ -111,7 +111,7 @@ formatting/hashing/parsing helper (DRY rule in `CLAUDE.md`).
 - Serialization: PEM cert/key (`:85`/`:90`), unencrypted PKCS#8
   `serialize_private_key_unencrypted` (`:106`).
 - Fingerprints: `compute_cert_fingerprint` (`:124`), `verify_cert_fingerprint`
-  (`:130`), `get_server_cert_fingerprint` (`:136`). Underpins TOFU pinning.
+  (`:130`). Underpins TOFU pinning.
 
 ## logger.py
 
