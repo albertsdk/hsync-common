@@ -276,6 +276,27 @@ class TestTombstoneStore:
         assert entry is not None
         assert entry["sha256"] == "new"
 
+    def test_record_same_timestamp_does_not_overwrite(self):
+        """record() and merge() must be consistent: same ts does not overwrite.
+        LWW strict-greater semantics avoid churn when timestamps are equal."""
+        now = int(time.time())
+        store = TombstoneStore()
+        store.record("f.txt", sha256sum="first", timestamp=now)
+        store.record("f.txt", sha256sum="second", timestamp=now)
+        assert store.get("f.txt")["sha256"] == "first"
+
+    def test_lww_tie_consistent_between_record_and_merge(self):
+        """record() and merge() behave the same way with identical timestamps."""
+        now = int(time.time())
+        key = tombstone_key("f.txt")
+        store = TombstoneStore()
+        # Record local
+        store.record("f.txt", sha256sum="local", timestamp=now)
+        # Merge remote with same ts must not overwrite
+        changed = store.merge({key: {"ts": now, "sha256": "remote"}})
+        assert changed == 0
+        assert store.get("f.txt")["sha256"] == "local"
+
     def test_clear(self):
         store = TombstoneStore()
         store.record("f.txt", timestamp=1)

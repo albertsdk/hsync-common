@@ -11,7 +11,7 @@ HSYNC is *master-authoritative* (the server, or the elected LAN master, is the
 source of truth), not a CRDT. To resolve concurrent edits correctly without
 trusting wall-clock timestamps, each peer remembers, per path, the content hash
 it last agreed on with the master (``base_hash``) plus the version lineage that
-produced it (``change_id``, ``origin_cid``). Comparing the local hash, the
+produced it (``version_id``, ``origin_cid``). Comparing the local hash, the
 remote hash and this base lets a peer tell whether only the local side, only the
 remote side, or *both* sides changed since the last successful sync — the same
 three-way strategy used by Syncthing/git, immune to clock skew.
@@ -34,20 +34,20 @@ __all__ = [
     "FileVersion",
     "SyncDecision",
     "SyncStateStore",
-    "new_change_id",
+    "new_version_id",
     "relpath_in_bucket",
     "resolve_three_way",
 ]
 
-# Length (hex chars) of a freshly minted change id; 16 bytes = 128 bits entropy.
-_CHANGE_ID_BYTES = 16
+# Length (hex chars) of a freshly minted version id; 16 bytes = 128 bits entropy.
+_VERSION_ID_BYTES = 16
 
 
 class FileVersion(TypedDict):
     """Recorded common-ancestor version for a single path."""
 
     base_hash: str  # content hash agreed on at the last successful sync
-    change_id: str  # opaque id of that version (lineage, not content-derived)
+    version_id: str  # opaque id of that version (lineage, not content-derived)
     origin_cid: str | None  # peer that authored the version (None if remote/unknown)
     ts: int  # wall-clock timestamp the base was recorded (unix seconds)
 
@@ -62,9 +62,9 @@ class SyncDecision(StrEnum):
     unknown_base = "unknown_base"  # no recorded base: caller falls back to legacy
 
 
-def new_change_id() -> str:
+def new_version_id() -> str:
     """Mint a fresh, opaque version id for a locally authored change."""
-    return secrets.token_hex(_CHANGE_ID_BYTES)
+    return secrets.token_hex(_VERSION_ID_BYTES)
 
 
 def resolve_three_way(
@@ -109,7 +109,7 @@ class SyncStateStore:
         self,
         relpath: str,
         base_hash: str,
-        change_id: str | None = None,
+        version_id: str | None = None,
         origin_cid: str | None = None,
         timestamp: int | float | None = None,
     ) -> None:
@@ -117,7 +117,7 @@ class SyncStateStore:
         ts = int(timestamp) if timestamp is not None else int(time.time())
         self._data[tombstone_key(relpath)] = FileVersion(
             base_hash=base_hash,
-            change_id=change_id or new_change_id(),
+            version_id=version_id or new_version_id(),
             origin_cid=origin_cid,
             ts=ts,
         )
@@ -187,7 +187,7 @@ class SyncStateStore:
                 continue
             data[key] = FileVersion(
                 base_hash=str(entry["base_hash"]),
-                change_id=str(entry.get("change_id", "")),
+                version_id=str(entry.get("version_id", "")),
                 origin_cid=entry.get("origin_cid"),
                 ts=ts,
             )
