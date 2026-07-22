@@ -22,7 +22,8 @@ error / 426; peers disconnect). No semver negotiation.
 - `EVENTS_SCHEMA_VERSION = 1` (`events.py:40`).
 - `UiEventName` StrEnum (`events.py:43`) — the structured events emitted by the
   client and consumed by desktop/android (incl. `sync_paused`,
-  `transfer_failed`, `fingerprint_changed`, `auth_required`, `pairing_needed`).
+  `transfer_failed`, `fingerprint_changed`, `auth_required`, `pairing_needed`,
+  `security_rejected`).
 - `UiEventDict` (`events.py:77`); build/serialize/parse: `build_event`
   (`:113`), `serialize_event` (`:135`), `parse_event_line` (`:140`).
 
