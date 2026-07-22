@@ -58,6 +58,42 @@ class TestDefaults:
         assert m.matches("document.txt.part") is True
         assert m.matches("sub/document.txt.part") is True
 
+    def test_internal_files_always_ignored(self, bucket):
+        # Engine-owned state files must never be synced: a peer that could
+        # push them would rewrite the victim's sync behaviour via the sync
+        # channel itself (poisoned .hsyncignore / .hsynctombstones).
+        m = IgnoreMatcher(str(bucket))
+        assert m.matches(".hsyncignore") is True
+        assert m.matches(".hsyncstate") is True
+        assert m.matches(".hsynctombstones") is True
+        assert m.matches("sub/.hsyncignore") is True
+
+    def test_internal_files_ignored_even_with_include_hidden(self, bucket):
+        m = IgnoreMatcher(str(bucket), include_hidden=True)
+        assert m.matches(".hsyncignore") is True
+        assert m.matches(".hsyncstate") is True
+        assert m.matches(".hsynctombstones") is True
+
+
+class TestDotfilePatterns:
+    """_to_relative must strip only leading "./", never the dot of dotfiles."""
+
+    def test_pattern_matches_dotfile(self, bucket):
+        _write_ignore(bucket, ".env\n")
+        m = IgnoreMatcher(str(bucket))
+        assert m.matches(".env") is True
+        assert m.matches("document.txt") is False
+
+    def test_pattern_matches_dotfile_with_relative_prefix(self, bucket):
+        _write_ignore(bucket, ".secret\n")
+        m = IgnoreMatcher(str(bucket))
+        assert m.matches("./.secret") is True
+
+    def test_dotfile_glob(self, bucket):
+        _write_ignore(bucket, ".*.log\n")
+        m = IgnoreMatcher(str(bucket))
+        assert m.matches(".debug.log") is True
+
 
 class TestGitignoreSyntax:
     def test_basic_glob(self, bucket):

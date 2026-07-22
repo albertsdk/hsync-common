@@ -376,3 +376,153 @@ def safe_resolve_path(path: str, *, allow_absolute: bool = True) -> str | None:
         return None
 
     return str(resolved)
+
+
+# =============================================================================
+# Wire-facing Remote Path Validation
+# =============================================================================
+#
+# The helpers below are the single point of truth for validating paths that
+# arrive from a remote peer (server, LAN master or LAN slave) inside events,
+# listings or transfer requests. They MUST be applied before any local
+# filesystem operation is derived from a remote-supplied path.
+
+# Filenames owned by the sync engine itself. They live inside the synced
+# bucket but must NEVER be accepted from the wire: a remote peer that could
+# (re)write them would alter the victim's sync behaviour (ignore rules,
+# merge-base state, deletion markers) using the sync channel itself.
+INTERNAL_FILENAMES: frozenset[str] = frozenset(
+    {
+        ".hsyncignore",
+        ".hsyncstate",
+        ".hsynctombstones",
+    }
+)
+
+
+def is_internal_name(name: str) -> bool:
+    """Return True if *name* is an internal sync-engine artifact.
+
+    Matches the basename against :data:`INTERNAL_FILENAMES` and the partial
+    download suffix (``.part``). The per-peer sentinel ``.hsynckeep`` is NOT
+    internal: it legitimately appears in delete events handled by clients.
+
+    Args:
+        name: A filename or path; only the basename is considered.
+
+    Returns:
+        True when the basename is an engine-owned artifact.
+    """
+    from hsync_common.constants import PARTIAL_DOWNLOAD_SUFFIX
+
+    base = name.replace("\\", "/").rstrip("/").rsplit("/", 1)[-1]
+    return base in INTERNAL_FILENAMES or base.endswith(PARTIAL_DOWNLOAD_SUFFIX)
+
+
+def validate_remote_relpath(rel: str) -> str | None:
+    """Validate a bucket-relative path received from a remote peer.
+
+    Rejects (returns ``None`` for):
+    - empty/non-string input, ``.`` and ``..`` components, absolute paths
+      and Windows drive letters;
+    - backslashes and any cross-platform forbidden/control characters
+      (protects Windows peers from Linux-legal but hostile names);
+    - Windows reserved names and problematic trailing characters in any
+      path component;
+    - internal sync-engine artifacts (see :data:`INTERNAL_FILENAMES`).
+
+    Args:
+        rel: The bucket-relative path to validate.
+
+    Returns:
+        The normalized relative path (leading/trailing slashes stripped)
+        when safe, ``None`` otherwise.
+    """
+    if not rel or not isinstance(rel, str):
+        return None
+
+    # Absolute paths and drive letters are never acceptable on the wire.
+    if not is_safe_path_component(rel):
+        return None
+
+    # Backslash and other cross-platform forbidden/control characters.
+    if has_forbidden_chars(rel, FORBIDDEN_PATH_CHARS) or has_control_chars(rel):
+        return None
+
+    rel = rel.strip("/")
+    if not rel:
+        return None
+
+    for part in rel.split("/"):
+        if not part or part in (".", ".."):
+            return None
+        if is_reserved_name(part) or has_problematic_trailing(part):
+            return None
+
+    if is_internal_name(rel):
+        return None
+
+    return rel
+
+
+def resolve_within(base_dir: str, rel: str) -> str | None:
+    """Resolve a remote-supplied relative path inside *base_dir*.
+
+    Combines lexical validation (:func:`validate_remote_relpath`) with
+    filesystem confinement: the resolved path must remain within
+    ``base_dir`` even after symlink resolution of existing components.
+
+    Args:
+        base_dir: The directory the path must stay within (e.g. the local
+            bucket root).
+        rel: The remote-supplied bucket-relative path.
+
+    Returns:
+        The confined absolute path, or ``None`` when the path is unsafe.
+    """
+    from pathlib import Path
+
+    clean = validate_remote_relpath(rel)
+    if clean is None:
+        return None
+
+    try:
+        base = Path(base_dir).resolve()
+        target = (base / clean).resolve()
+        target.relative_to(base)
+    except (OSError, ValueError):
+        return None
+
+    return str(target)
+
+
+def is_safe_symlink_target(symlink_path: str, target: str, bucket_dir: str) -> bool:
+    """Validate that a symlink target stays within the bucket directory.
+
+    Absolute targets must resolve inside *bucket_dir*; relative targets are
+    resolved from the symlink's parent directory.
+
+    Args:
+        symlink_path: Full path where the symlink will be created.
+        target: The target path the symlink will point to.
+        bucket_dir: The bucket directory that must contain the target.
+
+    Returns:
+        True if the resolved target is within the bucket, False otherwise.
+    """
+    from pathlib import Path
+
+    if not target:
+        return False
+
+    bucket_path = Path(bucket_dir).resolve()
+    if Path(target).is_absolute():
+        target_resolved = Path(target).resolve()
+    else:
+        target_resolved = (Path(symlink_path).parent / target).resolve()
+
+    try:
+        target_resolved.relative_to(bucket_path)
+        return True
+    except ValueError:
+        return False

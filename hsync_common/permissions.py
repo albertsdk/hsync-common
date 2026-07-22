@@ -23,6 +23,13 @@ from re import fullmatch
 # (setuid/setgid/sticky). This mirrors the low 12 bits of ``st_mode``.
 PERMISSION_MASK = 0o7777
 
+# Permission bits accepted from a remote peer: only the rwx triplets.
+# setuid/setgid/sticky bits must never be applied on behalf of a remote
+# peer — a synced file carrying ``4755`` would otherwise become a setuid
+# executable on every receiving host (a local privilege-escalation vector
+# when the daemon runs with elevated privileges).
+REMOTE_PERMISSION_MASK = 0o777
+
 
 def mode_to_octal(mode: int) -> str:
     """Convert a numeric ``st_mode`` to a canonical octal permission string.
@@ -62,6 +69,26 @@ def is_valid_octal_permissions(permissions: str) -> bool:
         True if the format is valid, False otherwise.
     """
     return bool(fullmatch(r"[0-7]{3,4}", permissions))
+
+
+def sanitize_remote_permissions(permissions: str) -> str:
+    """Strip special bits (setuid/setgid/sticky) from wire-supplied permissions.
+
+    Use this on any permission string received from a remote peer before
+    applying it to the local filesystem. The rwx triplets are preserved.
+
+    Args:
+        permissions: Octal permission string from a remote peer.
+
+    Returns:
+        Octal permission string masked to :data:`REMOTE_PERMISSION_MASK`.
+
+    Raises:
+        ValueError: If the string is not a valid octal permission.
+    """
+    if not is_valid_octal_permissions(permissions):
+        raise ValueError(f"Invalid octal permissions: {permissions!r}")
+    return format(octal_to_mode(permissions) & REMOTE_PERMISSION_MASK, "o").zfill(3)
 
 
 def get_permissions(obj_path: str) -> str:

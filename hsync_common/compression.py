@@ -219,9 +219,38 @@ def compress_data(data: bytes) -> bytes:
     return _compressor.compress(data)
 
 
-def decompress_data(data: bytes) -> bytes:
-    """Decompress Zstandard-compressed data."""
-    return _decompressor.decompress(data)
+def decompress_data(data: bytes, max_output_size: int | None = None) -> bytes:
+    """Decompress Zstandard-compressed data.
+
+    Args:
+        data: Compressed bytes.
+        max_output_size: Optional hard cap on the decompressed size in
+            bytes. MUST be passed whenever *data* comes from a remote peer:
+            without it a small crafted frame expands to an attacker-chosen
+            size in memory (decompression bomb). Enforced via a capped
+            streaming read (works for frames with or without an embedded
+            content size) so memory stays bounded by the cap.
+
+    Returns:
+        The decompressed bytes.
+
+    Raises:
+        zstd.ZstdError: On malformed input or when the decompressed size
+            exceeds *max_output_size*.
+    """
+    if max_output_size is None:
+        return _decompressor.decompress(data)
+
+    if max_output_size < 0:
+        raise ValueError("max_output_size must be >= 0")
+
+    from io import BytesIO
+
+    with _decompressor.stream_reader(BytesIO(data)) as reader:
+        out = reader.read(max_output_size + 1)
+    if len(out) > max_output_size:
+        raise zstd.ZstdError(f"Decompressed data exceeds max_output_size ({max_output_size} bytes)")
+    return out
 
 
 def compress_file(filepath: str) -> bytes:
