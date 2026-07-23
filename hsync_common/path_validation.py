@@ -428,6 +428,28 @@ def is_internal_name(name: str) -> bool:
     return base in _INTERNAL_FILENAMES_LOWER or base.endswith(PARTIAL_DOWNLOAD_SUFFIX.lower())
 
 
+# Path-carrying keys of a sync event payload (both may be present at once —
+# e.g. a payload crafted with a valid ``filepath`` and a malicious ``path``).
+# Single source of truth for every inbound event gate (server relay, client
+# dispatch), so the key set can never drift between peers.
+WIRE_PATH_KEYS = ("filepath", "path")
+
+
+def wire_relpaths(payload: dict) -> list[str]:
+    """Return every bucket-relative path carried by an event payload.
+
+    Both ``filepath`` and ``path`` may be present at once: validating only the
+    first would let a payload smuggle a malicious second key past the gate, so
+    every present key must be validated by the caller.
+    """
+    paths = []
+    for key in WIRE_PATH_KEYS:
+        value = payload.get(key)
+        if isinstance(value, str) and value:
+            paths.append(value)
+    return paths
+
+
 def validate_remote_relpath(rel: str) -> str | None:
     """Validate a bucket-relative path received from a remote peer.
 
@@ -524,14 +546,15 @@ def is_safe_symlink_target(symlink_path: str, target: str, bucket_dir: str) -> b
     if not target:
         return False
 
-    bucket_path = Path(bucket_dir).resolve()
-    if Path(target).is_absolute():
-        target_resolved = Path(target).resolve()
-    else:
-        target_resolved = (Path(symlink_path).parent / target).resolve()
-
     try:
+        bucket_path = Path(bucket_dir).resolve()
+        if Path(target).is_absolute():
+            target_resolved = Path(target).resolve()
+        else:
+            target_resolved = (Path(symlink_path).parent / target).resolve()
         target_resolved.relative_to(bucket_path)
         return True
-    except ValueError:
+    except (OSError, ValueError):
+        # Unresolvable input (e.g. embedded NUL byte, over-long component) or
+        # the target escapes the bucket — either way it is not safe.
         return False

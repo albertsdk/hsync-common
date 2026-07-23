@@ -19,6 +19,7 @@ from hsync_common.path_validation import (
     safe_resolve_path,
     sanitize_filename,
     validate_remote_relpath,
+    wire_relpaths,
 )
 
 
@@ -358,6 +359,23 @@ class TestResolveWithin:
         assert resolve_within(str(tmp_path), ".hsyncignore") is None
 
 
+class TestWireRelpaths:
+    """SSOT extraction of every path key carried by an event payload."""
+
+    def test_single_keys(self):
+        assert wire_relpaths({"filepath": "a/b.txt"}) == ["a/b.txt"]
+        assert wire_relpaths({"path": "a"}) == ["a"]
+
+    def test_both_keys_returned(self):
+        # The smuggling case: both keys present — the caller must see both.
+        assert wire_relpaths({"filepath": "ok.txt", "path": "../evil"}) == ["ok.txt", "../evil"]
+
+    def test_empty_and_non_string_ignored(self):
+        assert wire_relpaths({"filepath": "", "path": None}) == []
+        assert wire_relpaths({"filepath": 123}) == []
+        assert wire_relpaths({}) == []
+
+
 class TestIsSafeSymlinkTarget:
     def test_relative_target_within_bucket(self, tmp_path):
         assert is_safe_symlink_target(str(tmp_path / "sub" / "ln"), "../f.txt", str(tmp_path))
@@ -374,3 +392,9 @@ class TestIsSafeSymlinkTarget:
 
     def test_empty_target_rejected(self, tmp_path):
         assert not is_safe_symlink_target(str(tmp_path / "ln"), "", str(tmp_path))
+
+    def test_malformed_target_returns_false_not_raises(self, tmp_path):
+        # A remote symlink event with an unresolvable target (embedded NUL
+        # byte) must be rejected, not blow up the event-apply path.
+        assert not is_safe_symlink_target(str(tmp_path / "ln"), "x\x00y", str(tmp_path))
+        assert not is_safe_symlink_target(str(tmp_path / "ln"), "\x00", str(tmp_path))

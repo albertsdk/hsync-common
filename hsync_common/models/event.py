@@ -27,8 +27,13 @@ _CID_RE = _re_compile(CID_PATTERN)
 
 
 def is_valid_cid(value: object) -> bool:
-    """Return True when *value* is a well-formed client ID (see CID_PATTERN)."""
-    return isinstance(value, str) and bool(_CID_RE.match(value))
+    """Return True when *value* is a well-formed client ID (see CID_PATTERN).
+
+    Uses ``fullmatch``: with ``$``-anchored ``match`` a trailing ``\\n`` would
+    be accepted (Python's ``$`` also matches before a final newline), letting
+    a cid smuggle forged lines into logs.
+    """
+    return isinstance(value, str) and bool(_CID_RE.fullmatch(value))
 
 
 class EventDict(TypedDict):

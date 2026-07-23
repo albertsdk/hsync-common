@@ -33,8 +33,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   remote-supplied path is rejected as unsafe
 - New `is_valid_cid`/`CID_PATTERN` wire-facing client-ID format validation
   (`models/event.py`)
+- New `is_sha256_hex` wire-facing checksum-shape validator (`hashing.py`):
+  peer-supplied digests must pass it before `hmac.compare_digest`, which
+  raises `TypeError` on non-ASCII input
+- New `wire_relpaths`/`WIRE_PATH_KEYS` (`path_validation.py`): SSOT for the
+  set of path-carrying keys of an event payload (`filepath`, `path`), used by
+  both the server relay gate and the client dispatcher so the key set cannot
+  drift between peers
 
 ### Fixed
+- `is_valid_cid` no longer accepts a trailing newline: Python's `$` also
+  matches before a final `\n`, so a cid like `"abc\nForged log line"` passed
+  validation; the regex is now applied with `fullmatch`
+- `is_safe_symlink_target` no longer crashes on unresolvable targets
+  (embedded NUL byte, over-long components): resolution errors now return
+  `False` instead of propagating (remote DoS via a crafted symlink event)
+- `TombstoneStore.merge` no longer crashes on truthy non-dict payloads (JSON
+  array/string), and `TombstoneStore.load` no longer crashes at startup when
+  the `"tombstones"` member is not an object
 - `TombstoneStore.merge`/`load` no longer crash on non-finite float
   timestamps (`Infinity`/`NaN`, accepted by `json.loads`) — `int()` is now
   guarded against `OverflowError` and raw `bool` values are rejected
