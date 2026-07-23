@@ -45,7 +45,9 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
   `models/tombstone.py:59`): keys and `sha256` must be sha256 hex (64),
   `ts` must be `0 < ts ≤ now + TOMBSTONE_MAX_CLOCK_SKEW_SECONDS` (300 s, `:35`),
   store capped at `TOMBSTONE_MAX_ENTRIES` (100 000, `:39`) — anti-poisoning
-  for LAN gossip payloads.
+  for LAN gossip payloads. Raw `ts` is also type-hardened: `bool` rejected
+  outright, `int()` guarded against `OverflowError` from non-finite floats
+  (JSON `Infinity`/`NaN` are accepted by `json.loads`).
 - Persisted to the `.hsynctombstones` side-car (`constants.py:43`).
 
 ## Version / three-way merge

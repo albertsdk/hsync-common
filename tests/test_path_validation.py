@@ -275,6 +275,20 @@ class TestIsInternalName:
     def test_backslash_separators_normalised(self):
         assert is_internal_name("dir\\.hsyncignore") is True
 
+    def test_case_variants_rejected(self):
+        # On case-insensitive filesystems (Windows, default macOS) these are
+        # the SAME files as their lowercase counterparts: a remote peer must
+        # not overwrite the victim's engine artifacts via a case variant.
+        assert is_internal_name(".HSYNCIGNORE") is True
+        assert is_internal_name(".HsyncState") is True
+        assert is_internal_name("sub/dir/.HSYNCTOMBSTONES") is True
+        assert is_internal_name("file.txt.PART") is True
+
+    def test_validate_remote_relpath_rejects_case_variants(self):
+        assert validate_remote_relpath(".HSYNCIGNORE") is None
+        assert validate_remote_relpath("dir/.HsyncState") is None
+        assert validate_remote_relpath("report.pdf.PART") is None
+
 
 class TestValidateRemoteRelpath:
     def test_valid_relative_paths(self):
