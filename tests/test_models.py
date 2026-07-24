@@ -131,12 +131,12 @@ class TestFileSha256Cache:
         invalidate_sha256_cache("/nonexistent/path.txt")
 
     def test_sha256_cache_max_size_constant(self):
-        """O2: sha256_cache_MAX_SIZE must be a positive integer."""
+        """sha256_cache_MAX_SIZE must be a positive integer."""
         assert isinstance(SHA256_CACHE_MAX_SIZE, int)
         assert SHA256_CACHE_MAX_SIZE > 0
 
     def test_cache_evicts_oldest_when_full(self):
-        """O2: inserting beyond sha256_cache_MAX_SIZE evicts the LRU entry."""
+        """Inserting beyond sha256_cache_MAX_SIZE evicts the LRU entry."""
         clear_sha256_cache()
         # Fill the cache to the limit using fake paths
         for i in range(SHA256_CACHE_MAX_SIZE):
@@ -780,7 +780,7 @@ class TestRelpathInBucket:
         assert relpath_in_bucket("/bucket", "/bucket") == ""
 
     def test_path_outside_bucket_returns_empty(self):
-        # L19: a path outside the bucket must never be confused with an
+        # A path outside the bucket must never be confused with an
         # in-bucket path. relative_to raises ValueError -> "" (not the
         # raw input, which could be smuggled into a tombstone key).
         assert relpath_in_bucket("/other/a.txt", "/bucket") == ""
