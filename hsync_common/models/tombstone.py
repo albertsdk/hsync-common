@@ -109,8 +109,21 @@ def tombstone_key(relpath: str) -> str:
 
 
 def relpath_in_bucket(abs_path: str, bucket_dir: str) -> str:
-    """Return the bucket-relative path used as the tombstone identity."""
-    return str(abs_path).removeprefix(str(bucket_dir)).lstrip("/")
+    """Return the bucket-relative path used as the tombstone identity.
+
+    Uses :meth:`pathlib.Path.relative_to` so a sibling-prefix directory
+    (e.g. ``/data/bucket2`` vs ``/data/bucket``) is never confused with
+    the bucket itself: ``removeprefix`` would strip the shared prefix and
+    produce a bogus relative path (``2/x``), while ``relative_to`` raises
+    ``ValueError`` for paths outside the bucket.
+    """
+    try:
+        rel = str(Path(str(abs_path)).relative_to(str(bucket_dir)))
+        # relative_to of the bucket itself yields ".", normalise to "" so the
+        # caller treats the bucket root as an empty relative path.
+        return "" if rel == "." else rel
+    except ValueError:
+        return ""
 
 
 class TombstoneStore:
