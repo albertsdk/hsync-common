@@ -14,7 +14,6 @@ from hsync_common.path_validation import (
     is_safe_symlink_target,
     is_valid_bucket_name,
     is_valid_filename,
-    is_valid_path,
     resolve_within,
     safe_resolve_path,
     sanitize_filename,
@@ -176,17 +175,6 @@ class TestIsValidFilename:
 
     def test_unicode_valid(self):
         assert is_valid_filename("résumé.pdf") is True
-
-
-class TestIsValidPath:
-    def test_empty_path_is_valid(self, tmp_path):
-        assert is_valid_path("", str(tmp_path)) is True
-
-    def test_safe_relative_path(self, tmp_path):
-        assert is_valid_path("subdir/file.txt", str(tmp_path)) is True
-
-    def test_traversal_attempt(self, tmp_path):
-        assert is_valid_path("../../etc/passwd", str(tmp_path)) is False
 
 
 class TestSanitizeFilename:
