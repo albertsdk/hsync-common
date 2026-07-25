@@ -21,9 +21,10 @@ purely diagnostic.
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, NotRequired, TypedDict
+
+from hsync_common.time_utils import utc_now_iso
 
 __all__ = [
     "EVENTS_SCHEMA_VERSION",
@@ -113,11 +114,6 @@ class UiEventDict(TypedDict):
     winner: NotRequired[str]  # which side won: "remote" (master) or "local"
 
 
-def _utc_now_iso() -> str:
-    """Return the current UTC time as an ISO-8601 string with a ``Z`` suffix."""
-    return datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
-
-
 def build_event(
     event: UiEventName | str,
     *,
@@ -133,7 +129,7 @@ def build_event(
     """
     out: dict[str, Any] = {
         "schema_version": EVENTS_SCHEMA_VERSION,
-        "ts": ts or _utc_now_iso(),
+        "ts": ts or utc_now_iso(),
         "event": str(event),
     }
     out.update({k: v for k, v in payload.items() if v is not None})
