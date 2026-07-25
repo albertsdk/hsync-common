@@ -72,6 +72,10 @@ class UiEventName(StrEnum):
     transfer_failed = "transfer_failed"  # a file transfer gave up after retries
     # ── Mass-deletion guard ─────────────────────────────────────────
     sync_paused = "sync_paused"  # a safety guard paused part of a sync cycle
+    # ── Conflict resolution ─────────────────────────────────────────
+    conflict_resolved = (
+        "conflict_resolved"  # both sides diverged; master won, local saved as conflicted copy
+    )
     # ── Inbound path security ───────────────────────────────────────
     security_rejected = "security_rejected"  # unsafe remote path rejected
 
@@ -105,6 +109,8 @@ class UiEventDict(TypedDict):
     state: NotRequired[str]
     elapsed: NotRequired[int]
     fingerprint: NotRequired[str]
+    conflict_copy: NotRequired[str]  # path of the preserved local copy (conflict_resolved)
+    winner: NotRequired[str]  # which side won: "remote" (master) or "local"
 
 
 def _utc_now_iso() -> str:
