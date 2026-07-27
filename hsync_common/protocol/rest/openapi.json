@@ -1,6 +1,40 @@
 {
   "components": {
     "schemas": {
+      "BlockSignatureDict": {
+        "description": "Serialized signature of one base-file block.",
+        "properties": {
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "length": {
+            "title": "Length",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "strong": {
+            "title": "Strong",
+            "type": "string"
+          },
+          "weak": {
+            "title": "Weak",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "index",
+          "offset",
+          "length",
+          "weak",
+          "strong"
+        ],
+        "title": "BlockSignatureDict",
+        "type": "object"
+      },
       "Body_delete_file_api_v1_buckets__bucket__files_delete": {
         "properties": {
           "cid": {
@@ -17,6 +51,30 @@
           "filename"
         ],
         "title": "Body_delete_file_api_v1_buckets__bucket__files_delete",
+        "type": "object"
+      },
+      "Body_delta_apply_api_v1_buckets__bucket__files_delta_apply_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          },
+          "metadata": {
+            "title": "Metadata",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "metadata",
+          "file"
+        ],
+        "title": "Body_delta_apply_api_v1_buckets__bucket__files_delta_apply_post",
         "type": "object"
       },
       "Body_upload_file_api_v1_buckets__bucket__files_post": {
@@ -81,6 +139,35 @@
           "sha256sum"
         ],
         "title": "Body_upload_file_api_v1_buckets__bucket__files_post",
+        "type": "object"
+      },
+      "DeltaSignaturesRequest": {
+        "description": "POST body: signatures of the client's local base file.",
+        "properties": {
+          "block_size": {
+            "exclusiveMinimum": 0.0,
+            "title": "Block Size",
+            "type": "integer"
+          },
+          "path": {
+            "minLength": 1,
+            "title": "Path",
+            "type": "string"
+          },
+          "signatures": {
+            "items": {
+              "$ref": "#/components/schemas/BlockSignatureDict"
+            },
+            "title": "Signatures",
+            "type": "array"
+          }
+        },
+        "required": [
+          "path",
+          "block_size",
+          "signatures"
+        ],
+        "title": "DeltaSignaturesRequest",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -451,6 +538,226 @@
           }
         ],
         "summary": "Upload File",
+        "tags": [
+          "Authenticated Router"
+        ]
+      }
+    },
+    "/api/v1/buckets/{bucket}/files/delta/apply": {
+      "post": {
+        "description": "Apply a client-computed delta to the server-side base file.",
+        "operationId": "delta_apply_api_v1_buckets__bucket__files_delta_apply_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bucket",
+            "required": true,
+            "schema": {
+              "title": "Bucket",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_delta_apply_api_v1_buckets__bucket__files_delta_apply_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delta Apply",
+        "tags": [
+          "Authenticated Router"
+        ]
+      }
+    },
+    "/api/v1/buckets/{bucket}/files/delta/data/{token}": {
+      "get": {
+        "description": "Stream the parked literal payload for a valid download token.",
+        "operationId": "get_delta_data_api_v1_buckets__bucket__files_delta_data__token__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bucket",
+            "required": true,
+            "schema": {
+              "title": "Bucket",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Delta Data",
+        "tags": [
+          "Authenticated Router"
+        ]
+      }
+    },
+    "/api/v1/buckets/{bucket}/files/delta/signatures": {
+      "get": {
+        "description": "Return block signatures of the server-side base file (upload delta).\n\nThe client compares ``sha256`` with its expected ``base_hash`` first\n(early-out) and then scans its newer file against these signatures.",
+        "operationId": "get_delta_signatures_api_v1_buckets__bucket__files_delta_signatures_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bucket",
+            "required": true,
+            "schema": {
+              "title": "Bucket",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "title": "Path",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Delta Signatures",
+        "tags": [
+          "Authenticated Router"
+        ]
+      },
+      "post": {
+        "description": "Match client base signatures against the server file (download delta).\n\nReturns ``{delta: true, ...}`` with instructions and a token URL for the\nliteral payload, or ``{delta: false, reason}`` when a full transfer is\ncheaper (the client then falls back to a plain download).",
+        "operationId": "post_delta_signatures_api_v1_buckets__bucket__files_delta_signatures_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bucket",
+            "required": true,
+            "schema": {
+              "title": "Bucket",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeltaSignaturesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Post Delta Signatures",
         "tags": [
           "Authenticated Router"
         ]
