@@ -85,6 +85,7 @@ def _lan_txt_record() -> dict[str, Any]:
         "startup_time": "1700000000.5",
         "sync_direction": "bidirectional",
         "compression": "true",
+        "delta": "true",
     }
 
 
