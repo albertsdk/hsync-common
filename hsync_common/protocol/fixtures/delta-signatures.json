@@ -1,0 +1,30 @@
+{
+  "block_size": 4096,
+  "description": "Example block signatures for a 1 MB file with 4 KB blocks (256 blocks total)",
+  "file_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "file_size": 1048576,
+  "note": "Only first 2 and last block shown for brevity; actual file has 256 blocks",
+  "signatures": [
+    {
+      "index": 0,
+      "length": 4096,
+      "offset": 0,
+      "strong": "a1b2c3d4e5f67890123456789012345678901234567890123456789012345678",
+      "weak": 1234567890
+    },
+    {
+      "index": 1,
+      "length": 4096,
+      "offset": 4096,
+      "strong": "b2c3d4e5f6789012345678901234567890123456789012345678901234567890",
+      "weak": 2345678901
+    },
+    {
+      "index": 255,
+      "length": 4096,
+      "offset": 1044480,
+      "strong": "c3d4e5f678901234567890123456789012345678901234567890123456789012",
+      "weak": 3456789012
+    }
+  ]
+}

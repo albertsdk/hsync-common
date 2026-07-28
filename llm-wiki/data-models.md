@@ -62,6 +62,25 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
 - `SyncStateStore` (`models/version.py:100`) persists per-file base versions for
   the next reconciliation; backs the `.hsyncstate` side-car (`constants.py:51`).
 
+## Delta Transfer Models (`models/delta.py`)
+
+Wire models for rsync-style delta transfer (block-level sync):
+
+- `BlockSignature` / `BlockSignatureDict` (`models/delta.py:87`): signature of a
+  single base-file block (index, offset, length, weak Adler32, strong SHA-256)
+- `DeltaOp` / `DeltaOpDict` (`models/delta.py:108`): reconstruction operation
+  (copy from base or data from literal payload)
+- `DeltaInstructions` / `DeltaInstructionsDict` (`models/delta.py:137`): ordered
+  operations to rebuild the new file from base + literals
+- `DeltaApplyMetadata` / `DeltaApplyMetadataDict` (`models/delta.py:160`):
+  metadata for POST /delta/apply (upload delta) — includes cid, base/new SHA-256,
+  new_size, block_size, compressed flag, ops, optional mtime/permissions
+
+Sanitizers: `sanitize_block_signature` (`:165`), `sanitize_delta_op` (`:193`),
+`sanitize_signature_list` (`:219`), `sanitize_op_list` (`:232`) — validate
+untrusted payloads from peers, rejecting malformed shapes to prevent crashes
+or poisoning.
+
 ## Serialization & protocol tie-in
 
 `File`/`Dir`/`Symlink`/`Event` shapes are reflected into the WS and LAN JSON

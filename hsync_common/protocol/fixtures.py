@@ -239,6 +239,89 @@ def _pairing_scenarios() -> dict[str, Any]:
     }
 
 
+def _delta_signatures() -> dict[str, Any]:
+    """Example block signatures for a 1 MB file with 4 KB blocks.
+
+    Demonstrates the wire shape for GET /delta/signatures response. Only first 2
+    and last block shown for brevity; actual file has 256 blocks.
+    """
+    return {
+        "description": "Example block signatures for a 1 MB file with 4 KB blocks (256 blocks total)",
+        "file_size": 1048576,
+        "block_size": 4096,
+        "file_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "signatures": [
+            {
+                "index": 0,
+                "offset": 0,
+                "length": 4096,
+                "weak": 1234567890,
+                "strong": "a1b2c3d4e5f67890123456789012345678901234567890123456789012345678",
+            },
+            {
+                "index": 1,
+                "offset": 4096,
+                "length": 4096,
+                "weak": 2345678901,
+                "strong": "b2c3d4e5f6789012345678901234567890123456789012345678901234567890",
+            },
+            {
+                "index": 255,
+                "offset": 1044480,
+                "length": 4096,
+                "weak": 3456789012,
+                "strong": "c3d4e5f678901234567890123456789012345678901234567890123456789012",
+            },
+        ],
+        "note": "Only first 2 and last block shown for brevity; actual file has 256 blocks",
+    }
+
+
+def _delta_instructions() -> dict[str, Any]:
+    """Example delta instructions to rebuild a modified file from base + literals.
+
+    Demonstrates the wire shape for POST /delta/signatures response when delta=true.
+    Copy first block, insert 512 bytes of new data at offset 4096, copy remaining blocks.
+    """
+    return {
+        "description": "Example delta instructions to rebuild a modified file from base + literals",
+        "base_sha256": "a1b2c3d4e5f67890123456789012345678901234567890123456789012345678",
+        "new_sha256": "d4e5f67890123456789012345678901234567890123456789012345678901234",
+        "new_size": 1048576,
+        "block_size": 4096,
+        "ops": [
+            {"type": "copy", "offset": 0, "length": 4096, "data_offset": 0},
+            {"type": "data", "offset": 0, "length": 512, "data_offset": 0},
+            {"type": "copy", "offset": 8192, "length": 1040384, "data_offset": 0},
+        ],
+        "literal_size": 512,
+        "note": "Copy first block, insert 512 bytes of new data at offset 4096, copy remaining blocks",
+    }
+
+
+def _delta_apply_metadata() -> dict[str, Any]:
+    """Example metadata for POST /delta/apply (upload delta).
+
+    Demonstrates the wire shape for the metadata part in multipart/form-data.
+    """
+    return {
+        "description": "Example metadata for POST /delta/apply (upload delta)",
+        "cid": "client-abc123",
+        "base_sha256": "a1b2c3d4e5f67890123456789012345678901234567890123456789012345678",
+        "new_sha256": "d4e5f67890123456789012345678901234567890123456789012345678901234",
+        "new_size": 1048576,
+        "block_size": 4096,
+        "compressed": False,
+        "mtime": 1706457600.123456,
+        "permissions": "644",
+        "ops": [
+            {"type": "copy", "offset": 0, "length": 4096, "data_offset": 0},
+            {"type": "data", "offset": 0, "length": 512, "data_offset": 0},
+            {"type": "copy", "offset": 8192, "length": 1040384, "data_offset": 0},
+        ],
+    }
+
+
 def build_fixtures() -> dict[str, dict[str, Any]]:
     """Build every golden fixture, keyed by its snapshot file stem.
 
@@ -265,4 +348,7 @@ def build_fixtures() -> dict[str, dict[str, Any]]:
         "lan-txt-record": _lan_txt_record(),
         "lan-election-scenarios": _election_scenarios(),
         "lan-pairing-scenarios": _pairing_scenarios(),
+        "delta-signatures": _delta_signatures(),
+        "delta-instructions": _delta_instructions(),
+        "delta-apply-metadata": _delta_apply_metadata(),
     }
