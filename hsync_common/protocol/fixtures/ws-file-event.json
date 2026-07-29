@@ -10,6 +10,14 @@
     "name": "report.txt",
     "permissions": "644",
     "sha256sum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "size": 42
+    "size": 42,
+    "version": {
+      "origin_cid": "TestClientX1234567890",
+      "ts": 1700000500,
+      "vclock": {
+        "TestClientX1234567890": 3
+      },
+      "version_id": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"
+    }
   }
 }

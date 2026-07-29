@@ -6,18 +6,19 @@
 ## Context
 
 In LAN P2P mode ([ADR-0001](0001-server-vs-lan-modes.md)) there is no fixed
-server, yet reconciliation needs exactly **one authoritative node per bucket**.
-Two clients implement the LAN: the Python client and the Android client. If they
-elected masters by different rules they would split-brain — each believing a
-different peer is master — corrupting the bucket. mDNS/TXT discovery is also
+server, yet the bucket needs exactly **one node to host the transport hub** (the
+HTTPS/WSS server peers connect to and that relays events). Two clients
+implement the LAN: the Python client and the Android client. If they elected
+masters by different rules they would split-brain — each believing a different
+peer is master — corrupting the bucket. mDNS/TXT discovery is also
 unauthenticated, so election input is a hint, never proof.
 
 ## Decision
 
-We will make master election a **deterministic, total-order function** defined
-once in `hsync_common.protocol.lan` (`elect_master`, `election_sort_key`) and
-mirrored byte-for-byte by Android (`com.hsync.android.p2p.Election`). The winner
-is the eligible candidate with the smallest sort key, prioritised:
+We make master election a **deterministic, total-order function** defined once
+in `hsync_common.protocol.lan` (`elect_master`, `election_sort_key`) and mirrored
+byte-for-byte by Android (`com.hsync.android.p2p.Election`). The winner is the
+eligible candidate with the smallest sort key, prioritised:
 
 1. `server_ready` (an already-serving incumbent — avoids needless takeover),
 2. `force_master` (operator-pinned),
@@ -39,7 +40,10 @@ fixtures (`protocol/fixtures/lan-election-scenarios.json`) replayed in both
   `startup_time` tiebreaker.
 - Edge cases are first-class and observable via parsable log markers
   (`[MASTER CONFLICT]`, `[MASTER TAKEOVER]`, `[NO MASTER]`) and structured events.
-- The election decides *who serves*; *who to trust* is a separate concern
-  (TOFU pinning / pairing) documented in [lan-protocol.md](../../lan-protocol.md).
+- The election decides only *who serves* the transport hub; it confers no
+  authority over conflicts, which are resolved causally on every node
+  ([ADR-0022](0022-causal-vector-clock-conflict-model.md)). *Who to trust* is a
+  separate concern (TOFU pinning / pairing) documented in
+  [lan-protocol.md](../../lan-protocol.md).
 - Any change to ranking or TXT keys must regenerate the golden fixtures and the
   Android copy, keeping the human doc and the machine sources aligned.

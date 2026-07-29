@@ -191,7 +191,7 @@ that conflicts are detected on the next reconciliation rather than by timestamp
 alone. `FileVersion` is the `TypedDict` wire shape, and `resolve_three_way()`
 compares base/local/remote hashes to pick keep/overwrite/conflict.
 
-See [ADR 0006 — Master-authoritative conflict model](adr/0006-master-authoritative-conflict-model.md).
+See [ADR 0022 — Causal vector-clock conflict model](adr/0022-causal-vector-clock-conflict-model.md).
 
 ### Delta transfer models
 

@@ -6,5 +6,6 @@
   "protocol": "lan/1",
   "startup_time": "1700000000.5",
   "sync_direction": "bidirectional",
+  "vector_clocks": "true",
   "version": "1.0.0"
 }

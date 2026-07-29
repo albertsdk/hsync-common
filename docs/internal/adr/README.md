@@ -28,7 +28,7 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0003](0003-tombstone-gossip.md) | Tombstone gossip for deletions | Accepted |
 | [0004](0004-desktop-subprocess-contract.md) | Desktop ↔ client subprocess contract | Accepted |
 | [0005](0005-protocol-versioning.md) | Protocol versioning & capability negotiation | Accepted |
-| [0006](0006-master-authoritative-conflict-model.md) | Master-authoritative conflict model | Accepted |
+| [0006](0006-master-authoritative-conflict-model.md) | Master-authoritative conflict model | Superseded by [ADR-0022](0022-causal-vector-clock-conflict-model.md) |
 | [0007](0007-content-addressed-storage.md) | SHA-256 integrity verification and idempotent upload | Accepted |
 | [0008](0008-single-api-key-auth.md) | Single shared API key authentication | Accepted |
 | [0009](0009-rest-websocket-transport.md) | REST for data, WebSocket for events | Accepted |
@@ -43,6 +43,7 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0018](0018-origin-based-log-labels.md) | Origin-based log labels (`LOCAL ` / `REMOTE `) with unified verbs | Accepted |
 | [0019](0019-tombstone-clock-model.md) | Tombstone clock model: why LWW-by-time is acceptable | Accepted |
 | [0020](0020-lan-security-model.md) | LAN security model: TOFU pinning, LAN key, and strict pairing | Accepted |
+| [0022](0022-causal-vector-clock-conflict-model.md) | Causal vector-clock conflict model | Accepted |
 
 ## Related documents
 

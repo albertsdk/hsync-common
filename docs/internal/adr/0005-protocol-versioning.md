@@ -23,9 +23,10 @@ capabilities explicit, with a single source of truth in
   a breaking change to *that* channel's wire shape.
 - A mismatched `protocol_version` is a **hard failure** (REST → 426, WS →
   handshake closed, LAN → peer ignored), never a negotiation.
-- A `Capability` registry (`compression`, `tombstones`, `never_master`, `https`)
-  carried on every channel as **feature flags within the same protocol version** —
-  unknown tokens are dropped, never treated as a version conflict.
+- A `Capability` registry (`compression`, `tombstones`, `never_master`,
+  `https`, `delta`, `vector_clocks`) carried on every channel as **feature
+  flags within the same protocol version** — unknown tokens are dropped, never
+  treated as a version conflict.
 - All sides build/parse handshakes via the shared `build_*`/`parse_*` helpers;
   Android mirrors them in `Protocol.kt` and validates against golden fixtures.
 
@@ -37,6 +38,7 @@ capabilities explicit, with a single source of truth in
   reuses to gate its UI ([ADR-0004](0004-desktop-subprocess-contract.md)).
 - The capabilities document for the CLI/desktop builds on these same constants,
   so protocol versions and feature flags have one origin.
-- Because capabilities are *only* feature flags, per-peer private state (e.g. the
-  sync-state used by [ADR-0006](0006-master-authoritative-conflict-model.md))
-  needs no capability and is never exchanged on the wire.
+- `vector_clocks` advertises causal version metadata support
+  ([ADR-0022](0022-causal-vector-clock-conflict-model.md)): when absent, a peer
+  simply sends no version metadata and the receiver treats it as an empty clock
+  — never an error.

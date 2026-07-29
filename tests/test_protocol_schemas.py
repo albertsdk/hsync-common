@@ -77,7 +77,8 @@ class TestWsSchemaSource:
 
     def test_file_required_keys_match_filedict(self):
         defs = build_ws_schema()["$defs"]
-        assert defs["file"]["required"] == list(FileDict.__annotations__)
+        # ``version`` is NotRequired: only the always-present keys are required.
+        assert defs["file"]["required"] == sorted(FileDict.__required_keys__)
 
 
 class TestLanSchemaSource:
@@ -136,4 +137,4 @@ class TestEventConformance:
         payload = event.to_dict()
         assert set(defs["required"]) <= set(payload)
         assert payload["name"] in defs["properties"]["name"]["enum"]
-        assert set(payload["src"]) == set(FileDict.__annotations__)
+        assert set(payload["src"]) == set(FileDict.__required_keys__)

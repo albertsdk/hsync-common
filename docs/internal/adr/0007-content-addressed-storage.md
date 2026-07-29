@@ -91,7 +91,7 @@ Alternatives rejected:
 
 ## See also
 
-- [ADR-0006](0006-master-authoritative-conflict-model.md) — the conflict model
+- [ADR-0022](0022-causal-vector-clock-conflict-model.md) — the conflict model
   also relies on SHA-256 hashes.
 - [ADR-0003](0003-tombstone-gossip.md) — tombstone keys are also SHA-256 hashed
   for privacy.

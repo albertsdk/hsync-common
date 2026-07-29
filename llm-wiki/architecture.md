@@ -42,6 +42,24 @@ these constants:
 | `elect_master` / `election_sort_key` | `protocol/lan.py:67` | client `lan.py`, android `Election.kt` |
 | `evaluate_pin` / `lan_write_requires_key` | `protocol/pairing.py:85` | client `pinning.py`, android `Pairing.kt` |
 
+## Causal conflict model (ADR-0022)
+
+- `models/version.py` is the SSOT for per-file causal versions: `FileVersion`
+  (private, persisted), `VersionInfo` (wire form), `compare/tick/merge_vclocks`,
+  `resolve_three_way` (the §3.2 decision matrix) and `SyncStateStore`
+  (``.hsyncstate`` side-car). No node is authoritative: the server and the
+  elected LAN master arbitrate uploads causally against their stored version
+  and never decide by role.
+- Wire surface: `FileDict.version` (attach-always), upload form fields
+  `vclock`/`version_id`, delta-apply metadata, WS auth/TXT capability token
+  `vector_clocks` (same protocol versions: `api/1`, `ws/1`, `lan/1`).
+- Consumers: client `sync.py`/`sync_state.py`/`arbitration.py`, server
+  `versions.py`/`arbitration.py`, Android `Version.kt`/`Arbitration.kt`
+  mirrors. `protocol/fixtures.py` generates `causal-resolution-scenarios.json`
+  to pin Python and Kotlin to the same decision matrix.
+- See [ADR-0022](../docs/internal/adr/0022-causal-vector-clock-conflict-model.md)
+  and [decisions.md](decisions.md).
+
 ## Contract artifacts (generated, committed, drift-tested)
 
 | Artifact | Builder | Path constant |

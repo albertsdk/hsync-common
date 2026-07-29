@@ -60,6 +60,7 @@ LAN_TXT_OPTIONAL_KEYS: tuple[str, ...] = (
     "cert_fp",
     "compression",
     "delta",
+    "vector_clocks",
     "server_ready",
     "force_master",
     "never_master",
@@ -95,8 +96,28 @@ def _file_object() -> dict[str, Any]:
             "size": {"type": "integer"},
             "sha256sum": nullable_str,
             "permissions": nullable_str,
+            "version": {
+                "type": "object",
+                "title": "VersionInfo",
+                "description": (
+                    "Causal version metadata joined from the version store "
+                    "(ADR-0022). Optional: absent ⇒ empty vector clock."
+                ),
+                "properties": {
+                    "vclock": {
+                        "type": "object",
+                        "additionalProperties": {"type": "integer", "minimum": 0},
+                        "description": "Node cid → logical counter.",
+                    },
+                    "version_id": {"type": "string"},
+                    "origin_cid": {"type": ["string", "null"]},
+                    "ts": {"type": ["integer", "null"]},
+                },
+                "required": ["vclock", "version_id", "origin_cid", "ts"],
+                "additionalProperties": False,
+            },
         },
-        "required": list(FileDict.__annotations__),
+        "required": sorted(FileDict.__required_keys__),
         "additionalProperties": False,
     }
 
@@ -285,6 +306,7 @@ def build_lan_txt_schema() -> dict[str, Any]:
         "cert_fp": {"type": "string", "description": "TLS certificate fingerprint."},
         "compression": _TXT_BOOL_FLAG,
         "delta": _TXT_BOOL_FLAG,
+        "vector_clocks": _TXT_BOOL_FLAG,
         "server_ready": _TXT_BOOL_FLAG,
         "force_master": _TXT_BOOL_FLAG,
         "never_master": _TXT_BOOL_FLAG,

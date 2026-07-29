@@ -25,6 +25,7 @@ from typing import Any
 
 from hsync_common.models.event import Event, EventName
 from hsync_common.models.file import File
+from hsync_common.models.version import VersionInfo, resolve_three_way
 
 from .handshake import (
     PROTOCOL_VERSION_LAN,
@@ -70,6 +71,12 @@ def _file_event() -> dict[str, Any]:
             size=42,
             sha256sum="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
             permissions="644",
+            version=VersionInfo(
+                vclock={"TestClientX1234567890": 3},
+                version_id="a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+                origin_cid="TestClientX1234567890",
+                ts=_FIXTURE_MTIME,
+            ),
         ),
     )
     return dict(event.to_dict())
@@ -86,6 +93,7 @@ def _lan_txt_record() -> dict[str, Any]:
         "sync_direction": "bidirectional",
         "compression": "true",
         "delta": "true",
+        "vector_clocks": "true",
     }
 
 
@@ -314,11 +322,61 @@ def _delta_apply_metadata() -> dict[str, Any]:
         "compressed": False,
         "mtime": 1706457600.123456,
         "permissions": "644",
+        "vclock": {"TestClientX1234567890": 4},
+        "version_id": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
         "ops": [
             {"type": "copy", "offset": 0, "length": 4096, "data_offset": 0},
             {"type": "data", "offset": 0, "length": 512, "data_offset": 0},
             {"type": "copy", "offset": 8192, "length": 1040384, "data_offset": 0},
         ],
+    }
+
+
+# Cross-language causal-resolution scenarios. Each lists the inputs to
+# ``resolve_three_way`` and the expected :class:`SyncDecision`, *computed* from
+# the shared algorithm (never hand-written). Both the Python client tests and
+# the Android parity test replay these exact inputs and must reach the same
+# outcome, so a divergence fails a test instead of causing a split-brain.
+_VC = "TestClientA1234567890"  # 21-char cid (is_valid_cid-compliant)
+_VC_B = "TestClientB1234567890"
+_CAUSAL_SCENARIOS: tuple[
+    tuple[str, str | None, dict[str, int] | None, str | None, dict[str, int] | None, str | None],
+    ...,
+] = (
+    ("identical-content-in-sync", "h", {_VC: 1}, "h", {_VC: 1}, "h"),
+    ("both-absent-in-sync", None, None, None, None, "base"),
+    ("local-at-base-downloads", "base", {_VC: 1}, "remote", {_VC: 2}, "base"),
+    ("remote-at-base-uploads", "local", {_VC: 2}, "base", {_VC: 1}, "base"),
+    ("remote-dominates-downloads", "h1", {_VC: 1}, "h2", {_VC: 2}, "h0"),
+    ("local-dominates-uploads", "h2", {_VC: 2}, "h1", {_VC: 1}, "h0"),
+    ("concurrent-local-wins-tie-break", "zzz", {_VC: 2}, "aaa", {_VC_B: 2}, "base"),
+    ("concurrent-remote-wins-tie-break", "aaa", {_VC: 2}, "zzz", {_VC_B: 2}, "base"),
+    ("no-base-no-clocks-local-wins", "zzz", None, "aaa", None, None),
+    ("no-base-no-clocks-remote-wins", "aaa", None, "zzz", None, None),
+    ("no-base-remote-has-clock-dominates", "h1", None, "h2", {_VC_B: 1}, None),
+    ("no-base-local-has-clock-dominates", "h2", {_VC: 1}, "h1", None, None),
+    ("equal-clocks-different-hashes-concurrent", "zzz", {_VC: 1}, "aaa", {_VC: 1}, "base"),
+    ("relay-dominates-no-false-conflict", "h0", {_VC: 3}, "h1", {_VC: 3, _VC_B: 1}, "h0"),
+)
+
+
+def _causal_resolution_scenarios() -> dict[str, Any]:
+    """Serialized causal-resolution scenarios with expectations computed from the source."""
+    return {
+        "scenarios": [
+            {
+                "name": name,
+                "local_hash": local_hash,
+                "local_vclock": local_vclock,
+                "remote_hash": remote_hash,
+                "remote_vclock": remote_vclock,
+                "base_hash": base_hash,
+                "expected_decision": resolve_three_way(
+                    local_hash, local_vclock, remote_hash, remote_vclock, base_hash
+                ).value,
+            }
+            for name, local_hash, local_vclock, remote_hash, remote_vclock, base_hash in _CAUSAL_SCENARIOS
+        ]
     }
 
 
@@ -348,6 +406,7 @@ def build_fixtures() -> dict[str, dict[str, Any]]:
         "lan-txt-record": _lan_txt_record(),
         "lan-election-scenarios": _election_scenarios(),
         "lan-pairing-scenarios": _pairing_scenarios(),
+        "causal-resolution-scenarios": _causal_resolution_scenarios(),
         "delta-signatures": _delta_signatures(),
         "delta-instructions": _delta_instructions(),
         "delta-apply-metadata": _delta_apply_metadata(),

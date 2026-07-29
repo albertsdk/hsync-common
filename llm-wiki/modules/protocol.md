@@ -8,7 +8,7 @@ constants in consumers.
 | Symbol | Line | Purpose |
 | ------ | ---- | ------- |
 | `PROTOCOL_VERSION_REST/WS/LAN` | `handshake.py:44` | `api/1`, `ws/1`, `lan/1` |
-| `Capability` (StrEnum) | `handshake.py:49` | feature tokens; `ALL_CAPABILITIES` `:62`; includes `delta` for rsync-style block sync |
+| `Capability` (StrEnum) | `handshake.py:49` | feature tokens; `ALL_CAPABILITIES` `:62`; includes `delta` (rsync-style block sync) and `vector_clocks` (causal version metadata, ADR-0022) |
 | `encode_capabilities` / `decode_capabilities` | `handshake.py:65` / `:70` | tokens ⇄ enum set |
 | `WsAuthRequest` / `WsAuthResponse` TypedDicts | `handshake.py:82` / `:92` | WS auth frames |
 | `build_ws_auth_request` | `handshake.py:104` | client/android → server (protocol_version, app_version, capabilities, token) |
@@ -57,7 +57,7 @@ error / 426; peers disconnect). No semver negotiation.
 
 ## schemas.py — JSON-Schema builders (draft 2020-12)
 
-- Dialect const `schemas.py:45`; LAN TXT key sets `:49`/`:57`/`:66` (includes `delta` optional key for rsync-style block sync capability).
+- Dialect const `schemas.py:45`; LAN TXT key sets `:49`/`:57`/`:66` (includes `delta` and `vector_clocks` optional keys for their capabilities).
 - `build_ws_schema` (`schemas.py:223`) and `build_lan_txt_schema`
   (`schemas.py:269`) derive enums/objects from `handshake`, `events` and the
   `models/` types (object builders `_file_object` `:82` … `_event_message` `:135`).

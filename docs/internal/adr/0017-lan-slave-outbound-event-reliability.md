@@ -99,8 +99,8 @@ has a *different* pair and is never misclassified as an echo.
 
 - **Redundant uploads are possible in rare races** — e.g. the timer fires just
   as `on_closed` arrives, or a modification lands during a long upload. Both
-  converge on the final content via the stability check and the master's
-  last-write-wins semantics (ADR 0006); redundant network traffic is the
+  converge on the final content via the stability check and the causal
+  resolution at the master (ADR 0022); redundant network traffic is the
   accepted cost of the "never suppress" principle.
 - **~300 ms added latency** for atomic-rename uploads (the defer window).
   Negligible versus transfer time and bounded.
@@ -108,7 +108,7 @@ has a *different* pair and is never misclassified as an echo.
   echo-pair cache (TTL eviction). Both are small and session-bounded.
 - **Modification-during-long-upload is not fully solved**: a stale upload could
   complete after a newer one. The periodic resync remains the safety net,
-  consistent with the master-authoritative model (ADR 0006).
+  consistent with the causal resolution model (ADR 0022).
 
 ### Follow-up obligations
 
@@ -140,7 +140,7 @@ net for any missed events.
 
 ## References
 
-- [ADR 0006 — Master-authoritative conflict model](0006-master-authoritative-conflict-model.md) (last-write-wins on master)
+- [ADR 0022 — Causal vector-clock conflict model](0022-causal-vector-clock-conflict-model.md) (deterministic tie-break at the transport hub)
 - [ADR 0001 — Two sync modes: central server vs LAN P2P](0001-server-vs-lan-modes.md)
 - Implementation: `hsync-client/hsync_client/lan_websocket.py` (`LANSlaveFileEventHandler`),
   `hsync-android/app/src/main/java/com/hsync/android/p2p/LanSync.kt` and
