@@ -33,16 +33,22 @@ desktop, and Android apps.
 
 | Module | Purpose |
 |--------|---------|
-| `hsync_common.models` | Unified `File`, `Dir`, `Symlink`, `Event`, `SyncAction`, `Tombstone` models |
+| `hsync_common.models` | Unified `File`, `Dir`, `Symlink`, `Event`, `SyncAction`, `TombstoneStore`, `SyncStateStore`, delta transfer models |
+| `hsync_common.protocol` | Versioned wire protocol: versions, capabilities, WS auth, LAN election, pairing, JSON-Schema builders, fixtures |
+| `hsync_common.delta` | Rsync-style delta transfer algorithm: rolling checksum, block matching, decision heuristics |
+| `hsync_common.hashing` | SHA-256 computation, adaptive chunk sizing, hex digest validation |
 | `hsync_common.compression` | Zstandard helpers, `PRECOMPRESSED_EXTENSIONS`, `should_compress` |
+| `hsync_common.permissions` | Octal permission SSOT, remote permission sanitization |
 | `hsync_common.ignore` | `.hsyncignore` gitignore-style matcher (`IgnoreMatcher`) |
+| `hsync_common.path_validation` | Path safety helpers, remote-path validators |
 | `hsync_common.constants` | Shared constants (`HSYNCKEEP_FILENAME`, `HSYNCIGNORE_FILENAME`, `HSYNCTOMBSTONES_FILENAME`, …) |
-| `hsync_common.ssl_utils` | Shared SSL primitives |
+| `hsync_common.ssl_utils` | Shared SSL primitives, cert fingerprinting |
 | `hsync_common.logger` | `BaseInterceptHandler`, log rotation helpers |
-| `hsync_common.exceptions` | `HSyncError` base class |
-| `hsync_common.path_validation` | Path safety helpers |
+| `hsync_common.clock` | NTP-style clock offset computation |
+| `hsync_common.format` | Human-readable bytes/duration formatting |
 | `hsync_common.env` | Environment-variable parsing helpers |
 | `hsync_common.text` | Text utilities (e.g. `escape_loguru_braces`) |
+| `hsync_common.exceptions` | `HSyncError` base class |
 
 ## Ignore file (`.hsyncignore`)
 
