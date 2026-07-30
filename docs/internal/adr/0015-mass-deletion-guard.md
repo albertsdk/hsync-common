@@ -34,7 +34,7 @@ wipe every local file** on every connected peer — a mass data-loss event.
 |-------------|-----------------|
 | **Two-phase delete confirmation** (ask user each cycle) | Interrupts non-interactive daemon runs; impossible on embedded/NAS targets (WD OS5, systemd service) |
 | **Trash/recycle-bin by default** | Adds storage complexity; doesn't solve the root cause (the master is wrong); trash must be cleaned eventually |
-| **CRDT-based conflict resolution** | Requires per-file version vectors; incompatible with the existing protocol (content decisions use hashes + vector clocks, not deletion-time LWW) |
+| **CRDT-based conflict resolution** | The conflict model is already causal (per-file vector clocks, ADR-0022) and deletions are already causal tombstones (ADR-0003); the guard addresses a different failure mode — a master exposing a wrong listing — which no conflict model can detect |
 | **Per-file tombstone grace period** | Protects against spurious individual deletions but not a bulk wipe — 50 deleted files look the same as 1 deleted file to a tombstone check |
 | **Threshold-based guard (chosen)** | A simple, configurable, zero-maintenance safety net that catches the bulk-wipe scenario before any data is touched |
 
@@ -62,8 +62,10 @@ proceed unaffected.
 
 ### Non-goals
 
-- The guard does **not** validate individual delete decisions (that's the
-  tombstones' job — [ADR-0003](0003-tombstone-gossip.md)).
+- The guard does **not** validate individual delete decisions; a tombstone
+  causally **dominating** the local version is positive proof the deletion
+  descends from the common history and is applied unconditionally
+  ([ADR-0003](0003-tombstone-gossip.md)).
 - The guard does **not** recover deleted files — it prevents the deletion from
   happening in the first place. If a user or operator misconfigures a client
   (e.g. points it at a wrong, empty bucket and *disables* the guard), data can
@@ -120,6 +122,6 @@ effectively an automatic circuit breaker.
 ## References
 
 - [ADR-0022](0022-causal-vector-clock-conflict-model.md) — Causal vector-clock conflict model
-- [ADR-0003](0003-tombstone-gossip.md) — Tombstone Gossip
+- [ADR-0003](0003-tombstone-gossip.md) — Causal tombstone gossip for deletions
 - [ADR-0012](0012-rate-limiting.md) — Rate Limiting (similar threshold/bucket pattern)
 - Implementation: `hsync_client.sync._mass_deletion_blocked()` in `hsync-client/hsync_client/sync.py`

@@ -5,35 +5,67 @@
 # Copyright (C) 2025 Alberto Basso
 
 """
-Tombstone (deletion marker) store for HSYNC.
+Causal tombstone (deletion marker) store for HSYNC.
 
 A tombstone records that a file was deleted, so that a peer which was offline
 at deletion time does not resurrect the file during a full reconciliation.
-Each entry maps a hashed bucket-relative path to the deletion timestamp and
-the content hash of the removed file.
+Each entry maps a hashed bucket-relative path to the **causal** metadata of
+the deletion: the content hash of the removed file, an opaque version id, the
+author cid, the informational wall-clock timestamp, and a **vector clock**
+summarising the causal history of the path at deletion time (ADR-0003).
+
+Deletions follow the same causal model as content edits: the clock decides,
+never the wall clock. The recorded clock is the stored version clock advanced
+(ticked) by the deleter, so delete-vs-recreate and delete-vs-delete are
+resolved by causal dominance — ``ts`` is informational only and is consulted
+exclusively by the TTL prune (storage GC) and by anti-poisoning validation.
 
 The store is reused on both sides:
 - the server (and a LAN master) persists tombstones and serves them to clients;
-- a client/slave merges them using a last-writer-wins (LWW) strategy on the
-  deletion timestamp.
+- a client/slave merges them causally (dominance, then deterministic tie-break).
+
+Path helpers (``tombstone_key`` / ``relpath_in_bucket``) and the wire-timestamp
+parser are re-exported from ``._util`` for the historic consumers.
 """
 
 import json
 import time
-from hashlib import sha256
 from pathlib import Path
 from typing import TypedDict
 
 from hsync_common.hashing import is_sha256_hex
 
-# Default retention window before a tombstone is garbage-collected. Keeping a
-# bounded window caps file growth and lets a path be reused after a long time.
-TOMBSTONE_TTL_DAYS_DEFAULT = 30
+from ._util import _parse_wire_timestamp, relpath_in_bucket, tombstone_key
+from .event import is_valid_cid
+from .version import (
+    VCLOCK_MAX_ENTRIES,
+    VClockOrder,
+    compare_vclocks,
+    merge_vclocks,
+    new_version_id,
+    tick_vclock,
+)
+
+__all__ = [
+    "TOMBSTONE_MAX_CLOCK_SKEW_SECONDS",
+    "TOMBSTONE_MAX_ENTRIES",
+    "TOMBSTONE_TTL_DAYS_DEFAULT",
+    "TombstoneEntry",
+    "TombstoneStore",
+    "relpath_in_bucket",
+    "tombstone_key",
+    "tombstone_merge_decision",
+]
+
+# Default retention window before a tombstone is garbage-collected. This is
+# purely a *storage* bound: correctness never depends on it, because deletion
+# decisions are causal. A 90-day window gives offline peers a comfortable
+# margin to reconnect and learn about a deletion (ADR-0003).
+TOMBSTONE_TTL_DAYS_DEFAULT = 90
 
 # Tolerance for clock skew between peers when validating tombstone timestamps.
 # A deletion timestamp further in the future than this is rejected: an
-# attacker could otherwise plant far-future markers that never expire and
-# force-delete any local file whose content hash they know.
+# attacker could otherwise plant far-future markers that never expire.
 TOMBSTONE_MAX_CLOCK_SKEW_SECONDS = 300
 
 # Hard cap on the number of tombstones held in the store. Bounds memory/disk
@@ -42,10 +74,18 @@ TOMBSTONE_MAX_ENTRIES = 100_000
 
 
 class TombstoneEntry(TypedDict):
-    """Serialized deletion marker for a single path."""
+    """Serialized causal deletion marker for a single path.
 
-    ts: int  # deletion wall-clock timestamp (unix seconds)
+    Consumers: ``hsync-common`` (store), ``hsync-server`` / ``hsync-client``
+    (``tombstones.py`` wrappers and gossip endpoints), ``hsync-android``
+    (``Tombstones.kt`` mirror) and the shared fixtures.
+    """
+
     sha256: str | None  # content hash of the deleted file (None if unknown)
+    version_id: str  # opaque id of the deletion (lineage, not content-derived)
+    origin_cid: str | None  # peer that authored the deletion (None if unknown)
+    ts: int  # wall-clock timestamp of the deletion (informational only)
+    vclock: dict[str, int]  # causal history at deletion time: node cid -> counter
 
 
 def _is_valid_key(key: object) -> bool:
@@ -63,25 +103,26 @@ def _is_valid_sha256(value: object) -> bool:
     return value is None or _is_valid_key(value)
 
 
-def _parse_wire_timestamp(raw: object) -> int | None:
-    """Parse a timestamp from an untrusted wire/storage payload.
+def _parse_vclock(raw: object) -> dict[str, int] | None:
+    """Strictly parse a ``vclock`` from an untrusted payload.
 
-    Rejects ``bool`` (which is an ``int`` subclass), non-finite floats
-    (``NaN``, ``Infinity``) and non-numeric values, so a malformed entry
-    cannot produce a bogus timestamp of 0/1 or crash ``int()``.
-
-    Args:
-        raw: The raw timestamp value (int, float, str, etc.).
-
-    Returns:
-        The timestamp as a positive integer, or ``None`` when invalid.
+    Returns ``None`` on any structural violation (missing/non-dict clock,
+    more than ``VCLOCK_MAX_ENTRIES`` entries, ``bool`` or negative counters,
+    non-cid keys). An explicitly empty ``{}`` is a valid clock: it carries no
+    causal information and is dominated by any non-empty one.
     """
-    if isinstance(raw, bool) or not isinstance(raw, (int, float, str)):
+    if not isinstance(raw, dict) or len(raw) > VCLOCK_MAX_ENTRIES:
         return None
-    try:
-        return int(raw)
-    except (TypeError, ValueError, OverflowError):
-        return None
+    clock: dict[str, int] = {}
+    for key, value in raw.items():
+        # bool is a subclass of int — reject it explicitly (a `True` counter
+        # would silently parse as 1, masking a corrupt payload).
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            return None
+        if not is_valid_cid(key):
+            return None
+        clock[key] = value
+    return clock
 
 
 def _sanitize_entry(
@@ -91,8 +132,10 @@ def _sanitize_entry(
 ) -> TombstoneEntry | None:
     """Validate a (key, entry) pair from an untrusted payload.
 
-    Rejects malformed keys, missing/non-numeric timestamps, timestamps in
-    the future (beyond clock-skew tolerance) and malformed content hashes.
+    Rejects malformed keys, missing/non-numeric timestamps, timestamps in the
+    future (beyond clock-skew tolerance), malformed content hashes and any
+    structurally invalid vector clock. A tombstone without a valid ``vclock``
+    is **not** a legal deletion marker and is dropped.
 
     Args:
         key: The tombstone key (expected sha256 hex of the relpath).
@@ -105,41 +148,67 @@ def _sanitize_entry(
     if not _is_valid_key(key) or not isinstance(entry, dict) or "ts" not in entry:
         return None
     ts = _parse_wire_timestamp(entry["ts"])  # type: ignore[index]
-    if ts is None:
-        return None
-    if ts <= 0 or ts > now + TOMBSTONE_MAX_CLOCK_SKEW_SECONDS:
+    if ts is None or ts <= 0 or ts > now + TOMBSTONE_MAX_CLOCK_SKEW_SECONDS:
         return None
     sha = entry.get("sha256")  # type: ignore[union-attr]
     if not _is_valid_sha256(sha):
         return None
-    return TombstoneEntry(ts=ts, sha256=sha)  # type: ignore[typeddict-item]
+    vclock = _parse_vclock(entry.get("vclock"))  # type: ignore[union-attr]
+    if vclock is None:
+        return None
+    version_id = entry.get("version_id")  # type: ignore[union-attr]
+    if not isinstance(version_id, str):
+        version_id = ""
+    origin_cid = entry.get("origin_cid")  # type: ignore[union-attr]
+    if origin_cid is not None and not (isinstance(origin_cid, str) and is_valid_cid(origin_cid)):
+        return None
+    return TombstoneEntry(  # type: ignore[typeddict-item]
+        sha256=sha,
+        version_id=version_id,
+        origin_cid=origin_cid,
+        ts=ts,
+        vclock=vclock,
+    )
 
 
-def tombstone_key(relpath: str) -> str:
-    """Return the stable, privacy-preserving key for a bucket-relative path."""
-    return sha256(relpath.encode("utf-8")).hexdigest()
+def _prefer_incoming(existing: TombstoneEntry, incoming: TombstoneEntry) -> bool:
+    """Deterministic tie-break for concurrent tombstones (never wall clock).
 
-
-def relpath_in_bucket(abs_path: str, bucket_dir: str) -> str:
-    """Return the bucket-relative path used as the tombstone identity.
-
-    Uses :meth:`pathlib.Path.relative_to` so a sibling-prefix directory
-    (e.g. ``/data/bucket2`` vs ``/data/bucket``) is never confused with
-    the bucket itself: ``removeprefix`` would strip the shared prefix and
-    produce a bogus relative path (``2/x``), while ``relative_to`` raises
-    ``ValueError`` for paths outside the bucket.
+    Prefers the incoming entry when its content lineage sorts higher:
+    content hash first, then version id, then author cid. Both computed
+    locally from the same inputs, so all nodes pick the same winner.
     """
-    try:
-        rel = str(Path(str(abs_path)).relative_to(str(bucket_dir)))
-        # relative_to of the bucket itself yields ".", normalise to "" so the
-        # caller treats the bucket root as an empty relative path.
-        return "" if rel == "." else rel
-    except ValueError:
-        return ""
+    if (incoming["sha256"] or "") != (existing["sha256"] or ""):
+        return (incoming["sha256"] or "") > (existing["sha256"] or "")
+    if incoming["version_id"] != existing["version_id"]:
+        return incoming["version_id"] > existing["version_id"]
+    return (incoming["origin_cid"] or "") > (existing["origin_cid"] or "")
+
+
+def tombstone_merge_decision(existing: TombstoneEntry | None, incoming: TombstoneEntry) -> str:
+    """Pure causal decision for merging one remote tombstone ("adopt" | "keep").
+
+    The merge is decided by causal dominance of the vector clocks; on true
+    concurrency a deterministic content-based tie-break applies. Extracted as
+    a pure function so the shared golden fixtures can compute expected
+    outcomes from the algorithm itself and the Android mirror can run an
+    exact parity test (ADR-0003).
+
+    Consumers: ``hsync-common`` (``TombstoneStore.merge``, fixtures builder),
+    ``hsync-android`` (``Tombstones.kt`` parity test).
+    """
+    if existing is None:
+        return "adopt"
+    order = compare_vclocks(existing["vclock"], incoming["vclock"])
+    if order is VClockOrder.dominated:
+        return "adopt"
+    if order is VClockOrder.dominates:
+        return "keep"
+    return "adopt" if _prefer_incoming(existing, incoming) else "keep"
 
 
 class TombstoneStore:
-    """In-memory tombstone map with JSON persistence and LWW merge."""
+    """In-memory tombstone map with JSON persistence and causal merge."""
 
     def __init__(self, path: str | None = None, ttl_days: int = TOMBSTONE_TTL_DAYS_DEFAULT):
         self.path = path
@@ -151,25 +220,56 @@ class TombstoneStore:
         self,
         relpath: str,
         sha256sum: str | None = None,
+        origin_cid: str | None = None,
+        prev_vclock: dict[str, int] | None = None,
         timestamp: int | float | None = None,
     ) -> None:
-        """Record (or refresh, LWW) a deletion marker for a relative path."""
-        self.record_by_key(tombstone_key(relpath), sha256sum=sha256sum, timestamp=timestamp)
+        """Record a deletion marker for a relative path.
+
+        The recorded clock inherits the stored version clock for the path
+        (``prev_vclock``) — merged with any existing tombstone clock — and is
+        ticked by ``origin_cid``, so a subsequent delete-vs-recreate or
+        delete-vs-delete resolves causally (ADR-0003). Without an origin cid
+        the inherited clock is recorded un-ticked (still causally honest).
+        """
+        self.record_by_key(
+            tombstone_key(relpath),
+            sha256sum=sha256sum,
+            origin_cid=origin_cid,
+            prev_vclock=prev_vclock,
+            timestamp=timestamp,
+        )
 
     def record_by_key(
         self,
         key: str,
         sha256sum: str | None = None,
+        origin_cid: str | None = None,
+        prev_vclock: dict[str, int] | None = None,
         timestamp: int | float | None = None,
     ) -> None:
-        """Record (or refresh, LWW) a deletion marker for an already-hashed key."""
+        """Record a deletion marker for an already-hashed key (causal, see ``record``)."""
         ts = int(timestamp) if timestamp is not None else int(time.time())
         existing = self._data.get(key)
-        if existing is None or ts > existing["ts"]:
-            self._data[key] = TombstoneEntry(ts=ts, sha256=sha256sum)
+        inherited = existing["vclock"] if existing else prev_vclock
+        clock = merge_vclocks(inherited, prev_vclock)
+        if origin_cid:
+            clock = tick_vclock(clock, origin_cid)
+        self._data[key] = TombstoneEntry(
+            sha256=sha256sum,
+            version_id=new_version_id(),
+            origin_cid=origin_cid,
+            ts=ts,
+            vclock=clock,
+        )
 
     def clear(self, relpath: str) -> bool:
-        """Drop the marker for a relative path (e.g. when it is re-created)."""
+        """Drop the marker for a relative path (the path was re-created).
+
+        The deletion is superseded by the new content version, whose clock
+        dominates the tombstone clock; the marker itself is removed so peers
+        never apply a stale deletion to the re-created file.
+        """
         return self._data.pop(tombstone_key(relpath), None) is not None
 
     # ── query ───────────────────────────────────────────────────────
@@ -177,12 +277,22 @@ class TombstoneStore:
         """Return the marker for a relative path, if any."""
         return self._data.get(tombstone_key(relpath))
 
+    def get_by_key(self, key: str) -> TombstoneEntry | None:
+        """Return the marker for an already-hashed path key, if any."""
+        return self._data.get(key)
+
     def __len__(self) -> int:
         return len(self._data)
 
     # ── maintenance ─────────────────────────────────────────────────
     def prune(self, now: int | float | None = None) -> int:
-        """Remove expired markers; return the number of entries dropped."""
+        """Remove expired markers; return the number of entries dropped.
+
+        Purely a storage bound: correctness never depends on pruning, because
+        deletion decisions are causal. A peer offline beyond the retention
+        window may still resurrect a file, which is why the mass-deletion
+        guard remains the last line of defense (ADR-0015).
+        """
         if self.ttl_seconds <= 0:
             return 0
         cutoff = (int(now) if now is not None else int(time.time())) - self.ttl_seconds
@@ -191,17 +301,28 @@ class TombstoneStore:
             del self._data[k]
         return len(expired)
 
-    # ── transport (LWW) ─────────────────────────────────────────────
+    # ── transport (causal merge) ────────────────────────────────────
     def to_payload(self) -> dict[str, TombstoneEntry]:
         """Return a JSON-serializable copy keyed by hashed path."""
-        return {k: TombstoneEntry(ts=v["ts"], sha256=v["sha256"]) for k, v in self._data.items()}
+        return {
+            k: TombstoneEntry(
+                sha256=v["sha256"],
+                version_id=v["version_id"],
+                origin_cid=v["origin_cid"],
+                ts=v["ts"],
+                vclock=dict(v["vclock"]),
+            )
+            for k, v in self._data.items()
+        }
 
     def merge(self, payload: dict[str, TombstoneEntry] | None) -> int:
-        """Merge a remote payload using last-writer-wins; return change count.
+        """Merge a remote payload causally; return change count.
 
         The payload is untrusted (it may come from any LAN peer via gossip):
-        entries are validated and the store size is capped. Invalid entries
-        are skipped silently so one bad marker cannot poison the merge.
+        entries are strictly validated, invalid ones are skipped silently and
+        the store size is capped. For each key the merge keeps the dominant
+        clock; on true concurrency a deterministic content-based tie-break
+        decides — never the deletion timestamp.
         """
         if not isinstance(payload, dict):
             # A truthy non-dict payload (JSON array/string) must not crash the
@@ -214,9 +335,13 @@ class TombstoneStore:
             if clean is None:
                 continue
             existing = self._data.get(key)
-            if existing is None and len(self._data) >= TOMBSTONE_MAX_ENTRIES:
-                break
-            if existing is None or clean["ts"] > existing["ts"]:
+            if existing is None:
+                if len(self._data) >= TOMBSTONE_MAX_ENTRIES:
+                    break
+                self._data[key] = clean
+                changed += 1
+                continue
+            if tombstone_merge_decision(existing, clean) == "adopt":
                 self._data[key] = clean
                 changed += 1
         return changed

@@ -1,5 +1,5 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was distributed with this
+# License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 #
 # Copyright (C) 2025 Alberto Basso
@@ -22,9 +22,19 @@ preserved as a ``_conflicted_copy_`` (extrema ratio). No node is authoritative:
 the server and the elected LAN master are transport hubs only; every node
 applies the same algorithm (see ADR-0022).
 
-The store mirrors :class:`hsync_common.models.tombstone.TombstoneStore`: a
-hidden ``.hsyncstate`` side-car with atomic JSON persistence. It is private to
-each peer and never exchanged; the wire form is :class:`VersionInfo`.
+Deletions follow the same clock: a tombstone inherits the stored version clock
+for the path and is ticked by the deleter, so delete-vs-recreate and
+delete-vs-delete are causal too (ADR-0003). The wall clock is never consulted
+for any content decision.
+
+The store mirrors the tombstone store: a hidden ``.hsyncstate`` side-car with
+atomic JSON persistence. It is private to each peer and never exchanged; the
+wire form is :class:`VersionInfo`.
+
+The stored clock itself carries the node's own causal history only. It is
+validated as untrusted on load (structurally malformed entries are dropped)
+so a hand-edited or corrupted side-car degrades entry-by-entry rather than
+crashing startup or poisoning the merge base.
 """
 
 import json
@@ -34,11 +44,12 @@ from enum import StrEnum
 from pathlib import Path
 from typing import TypedDict
 
+from ._util import _parse_wire_timestamp, relpath_in_bucket, tombstone_key
 from .event import is_valid_cid
-from .tombstone import _parse_wire_timestamp, relpath_in_bucket, tombstone_key
 
 __all__ = [
     "FileVersion",
+    "VCLOCK_MAX_ENTRIES",
     "VClockOrder",
     "VersionInfo",
     "SyncDecision",
@@ -58,7 +69,7 @@ _VERSION_ID_BYTES = 16
 # Upper bound on the number of distinct node entries accepted in an ingested
 # vector clock. A cluster is small by the LAN threat model, so this guards only
 # against a maliciously bloated payload, not realistic growth.
-_VCLOCK_MAX_ENTRIES = 256
+VCLOCK_MAX_ENTRIES = 256
 
 
 class FileVersion(TypedDict):
@@ -72,7 +83,7 @@ class FileVersion(TypedDict):
     base_hash: str  # content hash agreed on at the last successful sync
     version_id: str  # opaque id of that version (lineage, not content-derived)
     origin_cid: str | None  # peer that authored the version (None if unknown)
-    ts: int  # wall-clock timestamp the base was recorded (unix seconds, informational only)
+    ts: int  # wall-clock timestamp the base was recorded (information only)
     vclock: dict[str, int]  # causal history: node cid -> logical counter
 
 
@@ -95,8 +106,9 @@ class VersionInfo(TypedDict):
 class VClockOrder(StrEnum):
     """Result of comparing two vector clocks.
 
-    Consumers: ``hsync-common`` (``resolve_three_way``), ``hsync-client``
-    (``sync._compare_files``) and ``hsync-android`` (``Version.kt`` mirror).
+    Consumers: ``hsync-common`` (``resolve_three_way``, tombstone merge),
+    ``hsync-client`` (``sync._compare_files``) and ``hsync-android``
+    (``Version.kt`` mirror).
     """
 
     equal = "equal"
@@ -146,9 +158,9 @@ def compare_vclocks(a: dict[str, int] | None, b: dict[str, int] | None) -> VCloc
     ``a`` dominates ``b`` iff ``a[k] >= b[k]`` for every key ``k`` and the two
     differ. Returns :attr:`VClockOrder.concurrent` when neither dominates.
 
-    Consumers: ``hsync-common`` (``resolve_three_way``), ``hsync-client``
-    (``sync._compare_files``), ``hsync-server`` (``arbitration.py``) and
-    ``hsync-android`` (``Version.compareVclocks`` mirror).
+    Consumers: ``hsync-common`` (``resolve_three_way``, ``TombstoneStore.merge``),
+    ``hsync-client`` (``sync._compare_files``), ``hsync-server``
+    (``arbitration.py``) and ``hsync-android`` (``Version.compareVclocks`` mirror).
     """
     a = a or {}
     b = b or {}
@@ -174,8 +186,8 @@ def tick_vclock(vclock: dict[str, int] | None, cid: str) -> dict[str, int]:
 
     Consumers: ``hsync-client`` (``sync_state.note_local_edit``,
     ``local_version_for_compare``, upload version fields), ``hsync-server``
-    (``arbitration.py`` self-record) and ``hsync-android``
-    (``Version.tickVclock`` mirror).
+    (``arbitration.py`` self-record), ``TombstoneStore.record`` (deletion tick)
+    and ``hsync-android`` (``Version.tickVclock`` mirror).
     """
     result = dict(vclock) if vclock else {}
     result[cid] = result.get(cid, 0) + 1
@@ -187,11 +199,13 @@ def merge_vclocks(a: dict[str, int] | None, b: dict[str, int] | None) -> dict[st
 
     Used when recording the agreed version after a sync: the winner's clock
     includes both histories, so third nodes recognise either side as an ancestor
-    and no false conflict propagates downstream.
+    and no false conflict propagates downstream. Also used to join concurrent
+    tombstone clocks (ADR-0003).
 
     Consumers: ``hsync-client`` (``sync_state.merge_and_record``),
     ``hsync-server`` (``arbitration.py`` record clock), receiver-local record
-    on accepted uploads and ``hsync-android`` (``Version.mergeVclocks`` mirror).
+    on accepted uploads, ``TombstoneStore`` and ``hsync-android``
+    (``Version.mergeVclocks`` mirror).
     """
     a = a or {}
     b = b or {}
@@ -210,7 +224,7 @@ def parse_version_info(data: object) -> VersionInfo | None:
     if not isinstance(data, dict):
         return None
     raw_vclock = data.get("vclock")
-    if not isinstance(raw_vclock, dict) or len(raw_vclock) > _VCLOCK_MAX_ENTRIES:
+    if not isinstance(raw_vclock, dict) or len(raw_vclock) > VCLOCK_MAX_ENTRIES:
         return None
     vclock: dict[str, int] = {}
     for key, value in raw_vclock.items():
@@ -245,7 +259,7 @@ def resolve_three_way(
     The hash decides content identity; the vector clock decides causality; the
     wall clock is never consulted. The matrix covers the *file-present-on-both-
     sides* case; callers handle absent-file (deletion) branches separately
-    (tombstones, ADR-0019).
+    (causal tombstones, ADR-0003).
 
     Args:
         local_hash: SHA-256 of the local file (None if absent).
@@ -285,6 +299,27 @@ def resolve_three_way(
     if (local_hash or "") > (remote_hash or ""):
         return SyncDecision.conflict_upload
     return SyncDecision.conflict_download
+
+
+def _parse_stored_vclock(raw: object) -> dict[str, int] | None:
+    """Parse a ``vclock`` read from the local side-car (validated as untrusted).
+
+    A structurally invalid clock (non-dict, oversized, ``bool``/negative
+    counters, non-cid keys, unknown-types) makes the whole entry unusable:
+    the caller drops it rather than fabricating an empty clock, which could
+    mask a corrupted common ancestor and flip a sync decision.
+    """
+    if not isinstance(raw, dict) or len(raw) > VCLOCK_MAX_ENTRIES:
+        return None
+    vclock: dict[str, int] = {}
+    for key, value in raw.items():
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            return None
+        key_str = str(key) if isinstance(key, str) else None
+        if key_str is None or not is_valid_cid(key_str):
+            return None
+        vclock[key_str] = value
+    return vclock
 
 
 class SyncStateStore:
@@ -357,9 +392,10 @@ class SyncStateStore:
     def load(self) -> None:
         """Load recorded versions from the backing JSON file, if present.
 
-        Tolerates side-cars written before vector clocks existed: an entry
-        without ``vclock`` loads with an empty clock (the ``base_hash`` fast
-        paths of :func:`resolve_three_way` remain valid).
+        Entries with a structurally invalid clock or missing mandatory fields
+        are dropped entry-by-entry: a corrupted side-car degrades safely
+        without crashing startup. Every accepted entry carries a valid clock,
+        because sync decisions are causal (ADR-0022/ADR-0003).
         """
         if not self.path:
             return
@@ -382,13 +418,15 @@ class SyncStateStore:
             ts = _parse_wire_timestamp(entry.get("ts", 0))
             if ts is None:
                 continue
-            vclock = _parse_stored_vclock(entry.get("vclock"))
-            data[key] = FileVersion(
+            parsed_vclock = _parse_stored_vclock(entry.get("vclock"))
+            if parsed_vclock is None:
+                continue
+            data[str(key)] = FileVersion(
                 base_hash=str(entry["base_hash"]),
                 version_id=str(entry.get("version_id", "")),
                 origin_cid=entry.get("origin_cid"),
                 ts=ts,
-                vclock=vclock,
+                vclock=parsed_vclock,
             )
         self._data = data
 
@@ -401,20 +439,3 @@ class SyncStateStore:
         tmp = p.with_suffix(p.suffix + ".tmp")
         tmp.write_text(json.dumps({"versions": self._data}), encoding="utf-8")
         tmp.replace(p)
-
-
-def _parse_stored_vclock(raw: object) -> dict[str, int]:
-    """Parse a ``vclock`` read from the local side-car (trusted, but validated).
-
-    Unlike :func:`parse_version_info` (untrusted wire input) this trusts the
-    local store's own data but still drops structurally-invalid entries so a
-    hand-edited side-car degrades entry-by-entry rather than crashing.
-    """
-    if not isinstance(raw, dict):
-        return {}
-    vclock: dict[str, int] = {}
-    for key, value in raw.items():
-        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-            continue
-        vclock[str(key)] = value
-    return vclock

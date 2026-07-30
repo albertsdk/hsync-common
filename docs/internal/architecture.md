@@ -97,8 +97,9 @@ hsync-common/
     │   ├── symlink.py           # Symlink model
     │   ├── event.py             # Event + EventName enum
     │   ├── sync_action.py       # SyncAction + SyncActionName enum
-    │   ├── tombstone.py         # TombstoneStore (deletion markers, LWW merge)
-    │   ├── version.py           # SyncStateStore + FileVersion (3-way merge state)
+    │   ├── _util.py             # Shared path/key/timestamp helpers (no model imports)
+    │   ├── tombstone.py         # TombstoneStore (causal deletion markers)
+    │   ├── version.py           # SyncStateStore + FileVersion (causal merge state)
     │   └── delta.py             # Delta transfer wire models (signatures, ops, instructions)
     ├── delta/                   # Rsync-style delta transfer algorithm
     │   ├── decision.py          # Block-size selection, is-delta-worthwhile heuristics
@@ -165,23 +166,31 @@ values: `download`, `upload`, `delete`, `delete_remote`, `nothing`.
 
 Records deletion markers so that a peer which was offline at deletion time does
 not resurrect a file during a full reconciliation. Each entry maps a hashed
-bucket-relative path to a `TombstoneEntry` (`ts`: deletion unix timestamp,
-`sha256`: content hash of the removed file, or `None`).
+bucket-relative path to a `TombstoneEntry` (`sha256`: content hash of the
+removed file or `None`, `version_id`, `origin_cid`, informational `ts`, and the
+causal `vclock` inherited from the deleted version and ticked by the deleter).
 
 Key features:
-- **Last-writer-wins merge** — `merge()` and `record()` keep the newest `ts`,
-  so server, LAN master and clients stay consistent.
+- **Causal merge** — `merge()`/`record()` are decided by vector-clock
+  dominance (with a deterministic content-based tie-break on true
+  concurrency); the deletion timestamp never decides anything. Each marker
+  inherits the stored version clock for the path and is ticked by the deleter,
+  so delete-vs-recreate and delete-vs-delete are causal
+  ([ADR-0003](adr/0003-tombstone-gossip.md)).
 - **Privacy-preserving keys** — paths are hashed (SHA-256) before storage.
-- **TTL pruning** — `prune()` garbage-collects markers older than
-  `TOMBSTONE_TTL_DAYS_DEFAULT` (30 days) so the store stays bounded.
-- **Untrusted-payload validation** — `merge()` and `load()` accept only
-  well-formed entries (SHA-256-hex keys and content hashes) with timestamps
-  up to 5 minutes in the future, and the store is capped at 100 000 entries:
-  a hostile peer cannot plant permanent or unbounded deletion markers through
-  the gossip channel.
+- **TTL pruning (storage bound only)** — `prune()` garbage-collects markers
+  older than `TOMBSTONE_TTL_DAYS_DEFAULT` (**90 days**) purely to keep the
+  store bounded; correctness never depends on pruning.
+- **Strict untrusted-payload validation** — `merge()` and `load()` accept only
+  well-formed entries: SHA-256-hex keys and content hashes, a strictly valid
+  `vclock` (dict, ≤ 256 entries, non-negative int counters with `bool`
+  rejected, valid cids only), timestamps up to 5 minutes in the future, and
+  the store is capped at 100 000 entries. An entry without a valid clock is
+  dropped — never loaded with a fabricated empty clock. A hostile peer cannot
+  plant permanent or unbounded deletion markers through the gossip channel.
 - **JSON persistence** — atomic `save()`/`load()` to the `.hsynctombstones`
-  side-car file, with a wire shape (`to_payload()`) reused by the REST endpoints
-  and the Android client.
+  side-car file, with a wire shape (`to_payload()`) reused by the REST
+  endpoints, the LAN gossip channel and the Android mirror (`Tombstones.kt`).
 
 ### SyncStateStore / FileVersion
 
@@ -318,7 +327,7 @@ Engine-owned artifacts (`.hsyncignore`, `.hsyncstate`, `.hsynctombstones`,
 | `HSYNCTOMBSTONES_FILENAME`   | `".hsynctombstones"` | Per-bucket deletion-marker side-car file |
 | `HSYNCSTATE_FILENAME`        | `".hsyncstate"`      | Per-bucket 3-way merge state side-car    |
 | `PARTIAL_DOWNLOAD_SUFFIX`    | `".part"`            | Suffix for in-progress downloads         |
-| `TOMBSTONE_TTL_DAYS_DEFAULT` | `30`                 | Retention window before tombstone GC     |
+| `TOMBSTONE_TTL_DAYS_DEFAULT` | `90`                 | Retention window before tombstone GC (storage bound only) |
 | `CHUNK_SIZE_SMALL`           | 8 KB                 | SHA-256 chunk size for files < 1 MB      |
 | `CHUNK_SIZE_MEDIUM`          | 64 KB                | SHA-256 chunk size for files < 100 MB    |
 | `CHUNK_SIZE_LARGE`           | 256 KB               | SHA-256 chunk size for files ≥ 100 MB    |

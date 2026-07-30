@@ -25,7 +25,7 @@ consequences accepted. Code answers "how"; these records answer "why".
 |---|---|---|
 | [0001](0001-server-vs-lan-modes.md) | Two sync modes: central server vs LAN P2P | Accepted |
 | [0002](0002-lan-master-election.md) | Deterministic LAN master election | Accepted |
-| [0003](0003-tombstone-gossip.md) | Tombstone gossip for deletions | Accepted |
+| [0003](0003-tombstone-gossip.md) | Causal tombstone gossip for deletions | Accepted |
 | [0004](0004-desktop-subprocess-contract.md) | Desktop ↔ client subprocess contract | Accepted |
 | [0005](0005-protocol-versioning.md) | Protocol versioning & capability negotiation | Accepted |
 | [0006](0006-master-authoritative-conflict-model.md) | Master-authoritative conflict model | Superseded by [ADR-0022](0022-causal-vector-clock-conflict-model.md) |
@@ -41,7 +41,6 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0016](0016-delta-transfer.md) | Delta transfer (rsync-style block sync) | Accepted |
 | [0017](0017-lan-slave-outbound-event-reliability.md) | LAN slave outbound event reliability (defer-to-close uploads, echo-pair rename caching) | Accepted (*terminology superseded by [ADR-0018](0018-origin-based-log-labels.md); algorithm still valid*) |
 | [0018](0018-origin-based-log-labels.md) | Origin-based log labels (`LOCAL ` / `REMOTE `) with unified verbs | Accepted |
-| [0019](0019-tombstone-clock-model.md) | Tombstone clock model: why LWW-by-time is acceptable | Accepted |
 | [0020](0020-lan-security-model.md) | LAN security model: TOFU pinning, LAN key, and strict pairing | Accepted |
 | [0022](0022-causal-vector-clock-conflict-model.md) | Causal vector-clock conflict model | Accepted |
 
