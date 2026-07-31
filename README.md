@@ -87,9 +87,11 @@ back to the legacy hidden-file check when no matcher is active.
 `hsync-common` is the shared foundation consumed by the other HSYNC projects:
 
 - [HSYNC Client](https://github.com/albertobasso/hsync-client/blob/main/README.md) - Sync client (Server Mode and LAN/P2P Mode)
-- [HSYNC Server](https://github.com/albertobasso/hsync-server/blob/main/README.md) - Central synchronization server
-- [HSYNC Desktop](https://github.com/albertobasso/hsync-desktop/blob/main/README.md) - Desktop GUI front-end *(in development)*
-- [HSYNC Android](https://github.com/albertobasso/hsync-android/blob/main/README.md) - Android app *(in development)*
+- [HSYNC Server](https://github.com/albertobasso/hsync-server/blob/main/README.md) - Central synchronization server (Server Mode)
+- [HSYNC Desktop](https://github.com/albertobasso/hsync-desktop/blob/main/docs/README.md) — desktop GUI front-end *(in development)*.
+
+> **Note:** The desktop GUI (`HSYNC Desktop`) is still under active development
+> and are not yet ready for production use.
 
 ## License
 
