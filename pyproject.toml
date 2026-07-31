@@ -34,9 +34,6 @@ filterwarnings = [
     "error::DeprecationWarning:tests.*",
     "default::Warning:hsync_common.*",
     "default::Warning:tests.*",
-    "ignore::urllib3.exceptions.InsecureRequestWarning",
-    "ignore::DeprecationWarning:pathspec.*",
-    "ignore::DeprecationWarning:watchdog.*",
 ]
 
 [tool.ruff]
