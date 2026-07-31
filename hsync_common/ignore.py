@@ -10,10 +10,12 @@ gitignore-style ignore filtering for HSYNC.
 This module provides :class:`IgnoreMatcher`, a thin wrapper around
 `pathspec` that combines three layers of rules:
 
-1. **Default hidden patterns** — the built-in regex used by
-   :func:`hsync_common.models.file.is_hidden_file` and
-   :func:`hsync_common.models.dir.is_hidden_dir`.  Active when
-   ``include_hidden=False`` (the default).
+1. **Default ignore patterns** — built-in gitignore-style patterns for
+   operating-system cache files (``.DS_Store``, ``Thumbs.db`` …) and
+   editor/office temporary files.  These are *always* active and cannot
+   be disabled, following the industry standard (Syncthing, rsync,
+   Nextcloud, OneDrive).  Dotfiles in general (``.env``, ``.config`` …)
+   are **not** excluded: they are synchronised normally.
 2. **Bucket-local ``.hsyncignore``** — gitignore-syntax file at the
    bucket root.  Always honoured when present.
 3. **Extra patterns** — additional gitignore patterns supplied by the
@@ -33,14 +35,17 @@ from pathlib import Path
 from pathspec import PathSpec
 from pathspec.patterns import GitWildMatchPattern
 
-from hsync_common.constants import HSYNCIGNORE_FILENAME, HSYNCKEEP_FILENAME
-from hsync_common.models.dir import _is_hidden_dir_basic
-from hsync_common.models.file import _is_hidden_file_basic, is_partial_file
+from hsync_common.constants import (
+    DEFAULT_IGNORE_PATTERNS,
+    HSYNCIGNORE_FILENAME,
+    HSYNCKEEP_FILENAME,
+)
+from hsync_common.models.file import is_partial_file
 from hsync_common.path_validation import is_internal_name
 
 
 class IgnoreMatcher:
-    """gitignore-style matcher with hidden-file fallback.
+    """gitignore-style matcher with built-in default patterns.
 
     The matcher is built around a *bucket root*; all paths passed to
     :meth:`match` are normalised relative to that root before being
@@ -48,19 +53,16 @@ class IgnoreMatcher:
 
     Attributes:
         bucket_root: Absolute path of the directory being synchronised.
-        include_hidden: When ``True`` the built-in hidden-file detection
-            is disabled and only ``.hsyncignore`` (plus extra patterns)
-            filters paths.
+        extra_patterns: Additional gitignore patterns supplied at
+            construction time (e.g. from ``--ignore-patterns``).
     """
 
     def __init__(
         self,
         bucket_root: str,
-        include_hidden: bool = False,
         extra_patterns: Iterable[str] | None = None,
     ) -> None:
         self.bucket_root = str(Path(bucket_root).resolve()) if bucket_root else ""
-        self.include_hidden = include_hidden
         self._extra_patterns = list(extra_patterns or [])
         self._spec: PathSpec = PathSpec.from_lines(GitWildMatchPattern, [])
         self._lock = threading.RLock()
@@ -79,6 +81,10 @@ class IgnoreMatcher:
         """
         patterns: list[str] = []
 
+        # Layer 1 — built-in default patterns (always active)
+        patterns.extend(DEFAULT_IGNORE_PATTERNS)
+
+        # Layer 2 — bucket-local .hsyncignore
         if self.bucket_root:
             ignore_path = Path(self.bucket_root) / HSYNCIGNORE_FILENAME
             if ignore_path.is_file():
@@ -89,6 +95,7 @@ class IgnoreMatcher:
                 except OSError:
                     pass
 
+        # Layer 3 — extra programmatic patterns
         patterns.extend(self._extra_patterns)
 
         with self._lock:
@@ -133,7 +140,7 @@ class IgnoreMatcher:
 
         # Engine-owned artifacts (.hsyncignore, .hsyncstate, .hsynctombstones)
         # and in-progress transfer artifacts (.part) are never synced,
-        # regardless of include_hidden or .hsyncignore rules.
+        # regardless of .hsyncignore rules.
         if is_internal_name(name):
             return True
         if not is_dir and is_partial_file(name):
@@ -147,13 +154,7 @@ class IgnoreMatcher:
         candidate = rel + ("/" if is_dir and not rel.endswith("/") else "")
 
         with self._lock:
-            if self._spec.match_file(candidate):
-                return True
-
-        if self.include_hidden:
-            return False
-
-        return _is_hidden_dir_basic(path) if is_dir else _is_hidden_file_basic(path)
+            return self._spec.match_file(candidate)
 
 
 # ----------------------------------------------------------------------
@@ -168,7 +169,7 @@ def set_active_matcher(matcher: IgnoreMatcher | None) -> None:
     """Install *matcher* as the process-wide active matcher.
 
     Passing ``None`` clears the active matcher, which causes
-    :func:`should_skip` to fall back to the legacy hidden-file checks
+    :func:`should_skip` to fall back to the built-in default patterns
     only.  This keeps existing code paths that have no notion of an
     ignore file working unchanged.
     """
@@ -183,12 +184,17 @@ def get_active_matcher() -> IgnoreMatcher | None:
         return _active_matcher
 
 
+# Fallback spec used when no matcher is installed (e.g. on the server).
+# Contains only the built-in default patterns.
+_fallback_spec: PathSpec = PathSpec.from_lines(GitWildMatchPattern, DEFAULT_IGNORE_PATTERNS)
+
+
 def should_skip(path: str, is_dir: bool = False) -> bool:
     """Convenience entry point used by sync engines.
 
     Delegates to the active :class:`IgnoreMatcher` when one is
-    installed, otherwise falls back to the built-in hidden-file
-    detection so legacy behaviour is preserved.
+    installed, otherwise falls back to the built-in default patterns
+    so legacy behaviour is preserved.
     """
     matcher = get_active_matcher()
     if matcher is not None:
@@ -197,4 +203,13 @@ def should_skip(path: str, is_dir: bool = False) -> bool:
     name = Path(path.rstrip("/")).name
     if name == HSYNCKEEP_FILENAME:
         return False
-    return _is_hidden_dir_basic(path) if is_dir else _is_hidden_file_basic(path)
+    if is_internal_name(name):
+        return True
+    if not is_dir and is_partial_file(name):
+        return True
+
+    rel = path.replace("\\", "/")
+    while rel.startswith("./"):
+        rel = rel[2:]
+    candidate = rel + ("/" if is_dir and not rel.endswith("/") else "")
+    return _fallback_spec.match_file(candidate)
