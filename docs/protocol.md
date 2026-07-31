@@ -82,7 +82,7 @@ produce identical results.
 
 ## See also
 
-- [LAN Protocol specification](LAN_PROTOCOL.md) — detailed LAN discovery, election,
+- [LAN Protocol specification](lan-protocol.md) — detailed LAN discovery, election,
   pairing, and security specification.
 - [Models guide](models.md) — data models used in protocol messages.
 - [Internal architecture](internal/architecture.md) — detailed protocol package
