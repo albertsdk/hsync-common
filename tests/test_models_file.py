@@ -183,11 +183,11 @@ class TestFileSha256Cache:
         clear_sha256_cache()
         # Fill the cache to the limit using fake paths
         for i in range(SHA256_CACHE_MAX_SIZE):
-            _set_cached_sha256(f"/fake/path/{i}.txt", "a" * 32, i)
+            _set_cached_sha256(f"/fake/path/{i}.txt", "a" * 32, i, 0)
         assert len(_sha256_cache) == SHA256_CACHE_MAX_SIZE
 
         # Adding one more entry should evict the oldest (/fake/path/0.txt)
-        _set_cached_sha256("/fake/path/overflow.txt", "b" * 32, 9999)
+        _set_cached_sha256("/fake/path/overflow.txt", "b" * 32, 9999, 0)
         assert len(_sha256_cache) == SHA256_CACHE_MAX_SIZE
         assert "/fake/path/0.txt" not in _sha256_cache
         assert "/fake/path/overflow.txt" in _sha256_cache
@@ -195,26 +195,36 @@ class TestFileSha256Cache:
         clear_sha256_cache()  # clean up for subsequent tests
 
     def test_cache_hit_returns_value_and_moves_to_end(self):
-        """A hit with matching mtime returns the cached sum and refreshes LRU order."""
+        """A hit with matching mtime+size returns the cached sum and refreshes LRU order."""
         clear_sha256_cache()
-        _set_cached_sha256("/a.txt", "a" * 64, mtime=10)
-        _set_cached_sha256("/b.txt", "b" * 64, mtime=20)
+        _set_cached_sha256("/a.txt", "a" * 64, mtime=10, size=5)
+        _set_cached_sha256("/b.txt", "b" * 64, mtime=20, size=5)
         # Hitting the oldest entry should move it to the end (most-recent).
-        assert _get_cached_sha256("/a.txt", 10) == "a" * 64
+        assert _get_cached_sha256("/a.txt", 10, 5) == "a" * 64
         assert next(reversed(_sha256_cache)) == "/a.txt"
         clear_sha256_cache()
 
     def test_cache_miss_on_mtime_change_evicts_entry(self):
         """A stale mtime drops the entry and returns None."""
         clear_sha256_cache()
-        _set_cached_sha256("/c.txt", "c" * 64, mtime=10)
-        assert _get_cached_sha256("/c.txt", 11) is None
+        _set_cached_sha256("/c.txt", "c" * 64, mtime=10, size=5)
+        assert _get_cached_sha256("/c.txt", 11, 5) is None
         assert "/c.txt" not in _sha256_cache
+        clear_sha256_cache()
+
+    def test_cache_miss_on_size_change_evicts_entry(self):
+        """Regression: same-second rewrites keep the same mtime (coarse 1s
+        granularity). The size is part of the validity key, so a changed size
+        must drop the stale digest instead of serving it."""
+        clear_sha256_cache()
+        _set_cached_sha256("/d.txt", "d" * 64, mtime=10, size=5)
+        assert _get_cached_sha256("/d.txt", 10, 6) is None
+        assert "/d.txt" not in _sha256_cache
         clear_sha256_cache()
 
     def test_cache_miss_on_unknown_path(self):
         clear_sha256_cache()
-        assert _get_cached_sha256("/never-seen.txt", 1) is None
+        assert _get_cached_sha256("/never-seen.txt", 1, 0) is None
 
 
 class TestComputeSha256ChunkSize:
@@ -267,6 +277,18 @@ class TestFileGet:
         result = File.get("data.txt", buckets_dir=str(tmp_path))
         assert result is not None
 
+    def test_get_stat_failure_degrades_to_none(self, monkeypatch):
+        """Regression: a file that vanishes between exists()/stat() and the
+        hash read (TOCTOU with the watcher/transfers sharing the bucket) must
+        degrade to None, never abort the sync scan with an OSError."""
+        import hsync_common.models.file as file_mod
+
+        def _boom(_path):
+            raise OSError("vanished")
+
+        monkeypatch.setattr(file_mod.Path, "stat", _boom)
+        assert File.get("/tmp/whatever.txt") is None
+
 
 class TestFileFromDict:
     def test_from_dict_with_strip(self):
@@ -287,3 +309,12 @@ class TestFileFromDict:
     def test_from_dict_no_prefix_keeps_filepath(self):
         f = File.from_dict({"filepath": "plain.txt", "size": 1}, strip_dir_prefix=False)
         assert f.filepath == "plain.txt"
+
+    def test_from_dict_sibling_prefix_is_not_mangled(self):
+        """Regression: a path sharing only the string prefix of the bucket is
+        NOT inside it. Component-aware stripping (Path.relative_to) keeps it
+        verbatim instead of producing a bogus relative path ("2/x")."""
+        f = File.from_dict(
+            {"filepath": "/base2/x.txt", "size": 1}, dir_prefix="/base", strip_dir_prefix=True
+        )
+        assert f.filepath == "/base2/x.txt"  # type: ignore[reportOperatorIssue]

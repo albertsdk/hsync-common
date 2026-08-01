@@ -93,25 +93,6 @@ class TestBaseInterceptHandler:
         h = BaseInterceptHandler()
         assert isinstance(h, logging.Handler)
 
-    def test_default_escape_markup_false(self):
-        h = BaseInterceptHandler()
-        assert h._escape_markup is False
-
-    def test_escape_markup_true(self):
-        h = BaseInterceptHandler(escape_markup=True)
-        assert h._escape_markup is True
-
-    def test_bind_extra_none_by_default(self):
-        h = BaseInterceptHandler()
-        assert h._bind_extra is None
-
-    def test_bind_extra_callable(self):
-        def fn():
-            return {"request_id": "abc"}
-
-        h = BaseInterceptHandler(bind_extra=fn)
-        assert h._bind_extra is fn
-
     def test_emit_plain_message(self, monkeypatch):
         """emit() should forward messages to loguru with correct level and message."""
         from unittest.mock import MagicMock

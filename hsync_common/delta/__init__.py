@@ -27,6 +27,7 @@ from hsync_common.delta.rolling_checksum import (
     compute_signatures,
     find_matches,
     find_matches_file,
+    signatures_for_data,
 )
 
 __all__ = [
@@ -42,4 +43,5 @@ __all__ = [
     "find_matches_file",
     "is_delta_worthwhile",
     "optimal_block_size",
+    "signatures_for_data",
 ]

@@ -24,15 +24,16 @@ def format_bytes(n: float, *, decimals: int = 1) -> str:
     """Format a byte count as a human-readable string using binary units.
 
     Bytes (``B``) are rendered as an integer; every larger unit is rendered
-    with ``decimals`` decimal places. A single space separates the value and
-    the unit (e.g. ``"500 B"``, ``"1.5 MB"``).
+    with ``decimals`` decimal places. The unit is attached directly after the
+    value with no separating space (e.g. ``"500B"``, ``"1.5MB"``) — the
+    compact form used across logs and UI.
 
     Args:
         n: Number of bytes (may be negative).
         decimals: Number of decimal places for units larger than bytes.
 
     Returns:
-        Human-readable string such as ``"1.5 MB"`` or ``"500 B"``.
+        Human-readable string such as ``"1.5MB"`` or ``"500B"``.
     """
     value = float(n)
     for unit in _BYTE_UNITS[:-1]:

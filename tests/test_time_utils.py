@@ -153,15 +153,15 @@ class TestToEpoch:
         assert to_epoch(dt) == self.SOME_EPOCH
 
     def test_from_datetime_naive(self):
-        """Naive datetimes are converted to epoch using .timestamp() which
-        treats them as local time. This is a CPython behaviour — the function
-        does not silently assume UTC for naive datetimes passed as objects."""
+        """A naive datetime is treated as UTC (documented contract), matching
+        the naive ISO-string path: the result is deterministic across hosts,
+        independent of the test runner's local timezone (regression: the
+        previous implementation delegated to .timestamp(), which interprets
+        naive datetimes as LOCAL time)."""
         dt = datetime(2025, 1, 20, 8, 0, 0)
         result = to_epoch(dt)
-        # We just check it returns an int; the exact value depends on the
-        # local timezone of the test runner. The important invariant is that
-        # callers should always pass aware datetimes or ISO strings.
-        assert isinstance(result, int)
+        # 2025-01-20T08:00:00 UTC == the SOME_EPOCH constant.
+        assert result == self.SOME_EPOCH
 
     def test_bool_rejected(self):
         with pytest.raises(TypeError, match="bool"):
