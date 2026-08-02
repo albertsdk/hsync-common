@@ -128,7 +128,11 @@ class IgnoreMatcher:
         """Normalise *path* to a POSIX bucket-root-relative form."""
         if not path:
             return ""
-        if Path(path).is_absolute() and self.bucket_root:
+        # Str-level absolute-path test: cheaper than constructing a Path object
+        # per scanned entry (called once per file during every scan).
+        if (
+            path.startswith("/") or path.startswith("\\") or (len(path) > 2 and path[1] == ":")
+        ) and self.bucket_root:
             try:
                 rel = relpath(path, self.bucket_root)
             except ValueError:
@@ -151,7 +155,14 @@ class IgnoreMatcher:
             is_dir: When ``True`` the trailing slash is appended so
                 gitignore directory-only patterns (``foo/``) match.
         """
-        name = Path(path.rstrip("/")).name
+        # Basename without constructing a Path object (hot: once per scanned
+        # entry). "dir/" -> rstrip -> "dir"; "a/b" -> rsplit -> "b"; "" -> "".
+        stripped = path.rstrip("/")
+        if not stripped:
+            name = ""
+        else:
+            sep = stripped.rfind("/")
+            name = stripped[sep + 1 :]
 
         # Sentinel file is always preserved
         if name == HSYNCKEEP_FILENAME:

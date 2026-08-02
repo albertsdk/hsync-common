@@ -190,6 +190,12 @@ LABEL_STYLES: dict[str, tuple[str, str]] = {
     label: LABEL_CATEGORIES[category] for label, category in _LABEL_CATEGORY_MAP.items()
 }
 
+#: ``LABEL_STYLES`` items ordered longest-first. Precomputed once at import so
+#: :func:`colorize_labels` no longer re-sorts the table for every log line.
+_STYLES_LONGEST_FIRST: tuple[tuple[str, tuple[str, str]], ...] = tuple(
+    sorted(LABEL_STYLES.items(), key=lambda item: len(item[0]), reverse=True)
+)
+
 
 def colorize_labels(message: str, use_colors: bool = True) -> str:
     """Add color tags to action labels in *message*.
@@ -211,9 +217,7 @@ def colorize_labels(message: str, use_colors: bool = True) -> str:
 
     # Longest-first avoids substring corruption:
     # "[REMOTE DOWNLOAD]" must be processed before "[DOWNLOAD]".
-    for label, (start_tag, end_tag) in sorted(
-        LABEL_STYLES.items(), key=lambda item: len(item[0]), reverse=True
-    ):
+    for label, (start_tag, end_tag) in _STYLES_LONGEST_FIRST:
         if label in message:
             message = message.replace(label, f"{start_tag}{label}{end_tag}")
     return message
@@ -255,12 +259,14 @@ def resolve_label(prefix: str, name: str) -> str:
         The resolved bracketed label string.
     """
     prefix = prefix.strip()
+    # Normalise the stem once (was computed twice for prefixed labels).
+    stem = name.replace(" ", "_")
     if prefix:
-        key = f"{prefix.replace(' ', '_').upper()}_{name.replace(' ', '_')}"
+        key = f"{prefix.replace(' ', '_').upper()}_{stem}"
         member = getattr(ActionLabel, key, None)
         if member is not None:
             return str(member)
-    member = getattr(ActionLabel, name.replace(" ", "_"), None)
+    member = getattr(ActionLabel, stem, None)
     if member is not None:
         return str(member)
     return f"[{prefix} {name}]" if prefix else f"[{name}]"
