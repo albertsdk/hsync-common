@@ -1,27 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- HSYNC horizontal logo: logomark + "HSYNC" logotype.
-     Flat, single color (brand green #16A34A), transparent background.
-     Logotype: custom geometric monoline letterforms on a 4x6 grid, stroke 40. -->
-<svg xmlns="http://www.w3.org/2000/svg" width="1660" height="512" viewBox="0 0 1660 512">
+<!-- HSYNC horizontal logo: unified monoline "HSYNC" string.
+     The H carries the double-headed sync arrow on its crossbar; the chevron
+     wing ends terminate on the stem centerlines so their round caps stay
+     hidden inside the letterform. Flat, single color (#16A34A), transparent. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1136" height="512" viewBox="0 0 1136 512">
   <title>HSYNC logo</title>
-  <!-- Logomark -->
-  <g fill="#16A34A">
-    <path d="M132,76 h48 a16,16 0 0 1 16,16 v328 a16,16 0 0 1 -16,16 h-48 a16,16 0 0 1 -16,-16 V92 a16,16 0 0 1 16,-16 z"/>
-    <path d="M332,76 h48 a16,16 0 0 1 16,16 v328 a16,16 0 0 1 -16,16 h-48 a16,16 0 0 1 -16,-16 V92 a16,16 0 0 1 16,-16 z"/>
-    <path d="M60,256 L140,192 L140,228 L372,228 L372,192 L452,256 L372,320 L372,284 L140,284 L140,320 Z"
-          stroke="#16A34A" stroke-width="24" stroke-linejoin="round"/>
-  </g>
-  <!-- Logotype "HSYNC" -->
-  <g fill="none" stroke="#16A34A" stroke-width="40" stroke-linecap="round" stroke-linejoin="round">
-    <!-- H -->
-    <path d="M584,168 V344 M728,168 V344 M584,256 H728"/>
+  <g transform="translate(8,0)" fill="none" stroke="#16A34A" stroke-width="40" stroke-linecap="round" stroke-linejoin="round">
+    <!-- H stems -->
+    <path d="M64,168 V344 M208,168 V344"/>
+    <!-- Left arrowhead: wings end on the left stem centerline -->
+    <path d="M64,228 L32,256 L64,284"/>
+    <!-- Arrow shaft (crossbar) -->
+    <path d="M32,256 H240"/>
+    <!-- Right arrowhead: wings end on the right stem centerline -->
+    <path d="M208,228 L240,256 L208,284"/>
     <!-- S -->
-    <path d="M944,168 L800,168 L800,256 L944,256 L944,344 L800,344"/>
+    <path d="M440,168 L296,168 L296,256 L440,256 L440,344 L296,344"/>
     <!-- Y -->
-    <path d="M1016,168 L1088,256 L1160,168 M1088,256 L1088,344"/>
+    <path d="M512,168 L584,256 L656,168 M584,256 L584,344"/>
     <!-- N -->
-    <path d="M1232,344 L1232,168 L1376,344 L1376,168"/>
+    <path d="M728,344 L728,168 L872,344 L872,168"/>
     <!-- C -->
-    <path d="M1592,168 L1448,168 L1448,344 L1592,344"/>
+    <path d="M1088,168 L944,168 L944,344 L1088,344"/>
   </g>
 </svg>
