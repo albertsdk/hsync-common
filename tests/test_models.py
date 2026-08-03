@@ -66,8 +66,12 @@ class TestIsHiddenFile:
         assert is_hidden_file("file.txt~") is True
 
     def test_vim_swap_is_hidden(self):
+        # Vim swap files are dotfiles; the `.*.sw?` pattern deliberately does
+        # not match non-hidden names (e.g. `animation.swf` must stay visible).
         assert is_hidden_file(".file.swp") is True
-        assert is_hidden_file("file.swp") is True
+        assert is_hidden_file(".file.swo") is True
+        assert is_hidden_file("file.swp") is False
+        assert is_hidden_file("file.swo") is False
 
     def test_hsynckeep_not_hidden(self):
         from hsync_common.constants import HSYNCKEEP_FILENAME
