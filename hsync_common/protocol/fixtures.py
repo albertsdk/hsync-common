@@ -80,6 +80,7 @@ def _file_event() -> dict[str, Any]:
                 version_id="a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
                 origin_cid="TestClientX1234567890",
                 ts=_FIXTURE_MTIME,
+                corrected_mtime=_FIXTURE_MTIME,
             ),
         ),
     )
@@ -354,30 +355,77 @@ def _delta_apply_metadata() -> dict[str, Any]:
 
 
 # Cross-language causal-resolution scenarios. Each lists the inputs to
-# ``resolve_three_way`` and the expected :class:`SyncDecision`, *computed* from
-# the shared algorithm (never hand-written). Both the Python client tests and
-# the Android parity test replay these exact inputs and must reach the same
-# outcome, so a divergence fails a test instead of causing a split-brain.
+# ``resolve_three_way`` — hashes, clocks and the ADR-0023 corrected mtimes —
+# and the expected :class:`SyncDecision`, *computed* from the shared algorithm
+# (never hand-written). Both the Python client tests and the Android parity
+# test replay these exact inputs and must reach the same outcome, so a
+# divergence fails a test instead of causing a split-brain.
 _VC = "TestClientA1234567890"  # 21-char cid (is_valid_cid-compliant)
 _VC_B = "TestClientB1234567890"
 _CAUSAL_SCENARIOS: tuple[
-    tuple[str, str | None, dict[str, int] | None, str | None, dict[str, int] | None, str | None],
+    tuple[
+        str,
+        str | None,
+        dict[str, int] | None,
+        str | None,
+        dict[str, int] | None,
+        str | None,
+        int,
+        int,
+    ],
     ...,
 ] = (
-    ("identical-content-in-sync", "h", {_VC: 1}, "h", {_VC: 1}, "h"),
-    ("both-absent-in-sync", None, None, None, None, "base"),
-    ("local-at-base-downloads", "base", {_VC: 1}, "remote", {_VC: 2}, "base"),
-    ("remote-at-base-uploads", "local", {_VC: 2}, "base", {_VC: 1}, "base"),
-    ("remote-dominates-downloads", "h1", {_VC: 1}, "h2", {_VC: 2}, "h0"),
-    ("local-dominates-uploads", "h2", {_VC: 2}, "h1", {_VC: 1}, "h0"),
-    ("concurrent-local-wins-tie-break", "zzz", {_VC: 2}, "aaa", {_VC_B: 2}, "base"),
-    ("concurrent-remote-wins-tie-break", "aaa", {_VC: 2}, "zzz", {_VC_B: 2}, "base"),
-    ("no-base-no-clocks-local-wins", "zzz", None, "aaa", None, None),
-    ("no-base-no-clocks-remote-wins", "aaa", None, "zzz", None, None),
-    ("no-base-remote-has-clock-dominates", "h1", None, "h2", {_VC_B: 1}, None),
-    ("no-base-local-has-clock-dominates", "h2", {_VC: 1}, "h1", None, None),
-    ("equal-clocks-different-hashes-concurrent", "zzz", {_VC: 1}, "aaa", {_VC: 1}, "base"),
-    ("relay-dominates-no-false-conflict", "h0", {_VC: 3}, "h1", {_VC: 3, _VC_B: 1}, "h0"),
+    # name, local_hash, local_vclock, remote_hash, remote_vclock, base_hash,
+    # local_corrected_mtime, remote_corrected_mtime
+    ("identical-content-in-sync", "h", {_VC: 1}, "h", {_VC: 1}, "h", 0, 0),
+    ("both-absent-in-sync", None, None, None, None, "base", 0, 0),
+    ("local-at-base-downloads", "base", {_VC: 1}, "remote", {_VC: 2}, "base", 0, 0),
+    ("remote-at-base-uploads", "local", {_VC: 2}, "base", {_VC: 1}, "base", 0, 0),
+    ("remote-dominates-downloads", "h1", {_VC: 1}, "h2", {_VC: 2}, "h0", 0, 0),
+    ("local-dominates-uploads", "h2", {_VC: 2}, "h1", {_VC: 1}, "h0", 0, 0),
+    # Hash-fallback tie-breaks (at least one corrected mtime unknown ⇒ 0).
+    ("concurrent-local-wins-tie-break", "zzz", {_VC: 2}, "aaa", {_VC_B: 2}, "base", 0, 0),
+    ("concurrent-remote-wins-tie-break", "aaa", {_VC: 2}, "zzz", {_VC_B: 2}, "base", 0, 0),
+    ("no-base-no-clocks-local-wins", "zzz", None, "aaa", None, None, 0, 0),
+    ("no-base-no-clocks-remote-wins", "aaa", None, "zzz", None, None, 0, 0),
+    ("no-base-remote-has-clock-dominates", "h1", None, "h2", {_VC_B: 1}, None, 0, 0),
+    ("no-base-local-has-clock-dominates", "h2", {_VC: 1}, "h1", None, None, 0, 0),
+    ("equal-clocks-different-hashes-concurrent", "zzz", {_VC: 1}, "aaa", {_VC: 1}, "base", 0, 0),
+    ("relay-dominates-no-false-conflict", "h0", {_VC: 3}, "h1", {_VC: 3, _VC_B: 1}, "h0", 0, 0),
+    # Corrected-mtime tie-breaks (ADR-0023): the newer corrected mtime wins and
+    # beats any hash order — the hash fallback is bypassed when both are known.
+    ("corrected-mtime-local-newer-wins", "aaa", {_VC: 2}, "zzz", {_VC_B: 2}, "base", 200, 100),
+    ("corrected-mtime-remote-newer-wins", "zzz", {_VC: 2}, "aaa", {_VC_B: 2}, "base", 100, 200),
+    (
+        "corrected-mtime-equal-falls-back-to-hash",
+        "zzz",
+        {_VC: 2},
+        "aaa",
+        {_VC_B: 2},
+        "base",
+        150,
+        150,
+    ),
+    (
+        "corrected-mtime-local-only-falls-back-to-hash",
+        "zzz",
+        {_VC: 2},
+        "aaa",
+        {_VC_B: 2},
+        "base",
+        100,
+        0,
+    ),
+    (
+        "corrected-mtime-remote-only-falls-back-to-hash",
+        "aaa",
+        {_VC: 2},
+        "zzz",
+        {_VC_B: 2},
+        "base",
+        0,
+        100,
+    ),
 )
 
 
@@ -392,11 +440,28 @@ def _causal_resolution_scenarios() -> dict[str, Any]:
                 "remote_hash": remote_hash,
                 "remote_vclock": remote_vclock,
                 "base_hash": base_hash,
+                "local_corrected_mtime": local_corrected,
+                "remote_corrected_mtime": remote_corrected,
                 "expected_decision": resolve_three_way(
-                    local_hash, local_vclock, remote_hash, remote_vclock, base_hash
+                    local_hash,
+                    local_vclock,
+                    remote_hash,
+                    remote_vclock,
+                    base_hash,
+                    local_corrected_mtime=local_corrected,
+                    remote_corrected_mtime=remote_corrected,
                 ).value,
             }
-            for name, local_hash, local_vclock, remote_hash, remote_vclock, base_hash in _CAUSAL_SCENARIOS
+            for (
+                name,
+                local_hash,
+                local_vclock,
+                remote_hash,
+                remote_vclock,
+                base_hash,
+                local_corrected,
+                remote_corrected,
+            ) in _CAUSAL_SCENARIOS
         ]
     }
 

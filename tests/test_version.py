@@ -132,6 +132,29 @@ class TestParseVersionInfo:
     def test_malformed_ts_returns_none(self):
         assert parse_version_info({"vclock": {}, "ts": "abc"}) is None
 
+    def test_corrected_mtime_parsed(self):
+        info = parse_version_info(
+            {"vclock": {}, "version_id": "v", "origin_cid": CID_A, "ts": 7, "corrected_mtime": 1234}
+        )
+        assert info is not None and info["corrected_mtime"] == 1234
+
+    def test_corrected_mtime_defaults_to_zero(self):
+        # Older payloads without the field parse fine with unknown ≃ 0 (the
+        # hash fallback applies natively when either side has it unset).
+        info = parse_version_info({"vclock": {}, "version_id": "v", "ts": 7})
+        assert info is not None and info["corrected_mtime"] == 0
+
+    def test_malformed_corrected_mtime_tolerated(self):
+        # A malformed chronological field degrades to the hash fallback, never
+        # to a protocol error.
+        for bad in ("abc", None, [1]):
+            info = parse_version_info({"vclock": {}, "ts": 7, "corrected_mtime": bad})
+            assert info is not None and info["corrected_mtime"] == 0
+
+    def test_bool_corrected_mtime_rejected_as_unknown(self):
+        info = parse_version_info({"vclock": {}, "ts": 7, "corrected_mtime": True})
+        assert info is not None and info["corrected_mtime"] == 0
+
 
 class TestResolveThreeWay:
     """The causal decision matrix (§3.2 of ADR-0022)."""
@@ -175,6 +198,120 @@ class TestResolveThreeWay:
     def test_concurrent_equal_hashes_impossible_in_sync(self):
         # Equal hashes would have hit rule 1 (in_sync) before reaching tie-break.
         assert resolve_three_way("h", {CID_A: 1}, "h", {CID_B: 1}, "base") is (SyncDecision.in_sync)
+
+    # ── corrected-mtime tie-break on true divergence (ADR-0023) ─────────────
+    def test_corrected_mtime_local_newer_wins(self):
+        # The raw wall clock is never read by the matrix: the decision comes
+        # exclusively from the corrected values supplied by the callers, even
+        # when the hash order would point the other way ("aaa" vs "zzz").
+        assert (
+            resolve_three_way(
+                "aaa",
+                {CID_A: 2},
+                "zzz",
+                {CID_B: 2},
+                "base",
+                local_corrected_mtime=200,
+                remote_corrected_mtime=100,
+            )
+            is SyncDecision.conflict_upload
+        )
+
+    def test_corrected_mtime_remote_newer_wins(self):
+        assert (
+            resolve_three_way(
+                "zzz",
+                {CID_A: 2},
+                "aaa",
+                {CID_B: 2},
+                "base",
+                local_corrected_mtime=100,
+                remote_corrected_mtime=200,
+            )
+            is SyncDecision.conflict_download
+        )
+
+    def test_equal_corrected_mtimes_fall_back_to_hash(self):
+        assert (
+            resolve_three_way(
+                "zzz",
+                {CID_A: 2},
+                "aaa",
+                {CID_B: 2},
+                "base",
+                local_corrected_mtime=150,
+                remote_corrected_mtime=150,
+            )
+            is SyncDecision.conflict_upload
+        )
+        assert (
+            resolve_three_way(
+                "aaa",
+                {CID_A: 2},
+                "zzz",
+                {CID_B: 2},
+                "base",
+                local_corrected_mtime=150,
+                remote_corrected_mtime=150,
+            )
+            is SyncDecision.conflict_download
+        )
+
+    def test_missing_corrected_mtime_falls_back_to_hash(self):
+        # A side without the field (0 = unknown) triggers the deterministic
+        # hash fallback so every peer still converges.
+        assert (
+            resolve_three_way(
+                "zzz",
+                {CID_A: 2},
+                "aaa",
+                {CID_B: 2},
+                "base",
+                local_corrected_mtime=100,
+                remote_corrected_mtime=0,
+            )
+            is SyncDecision.conflict_upload
+        )
+        assert (
+            resolve_three_way(
+                "aaa",
+                {CID_A: 2},
+                "zzz",
+                {CID_B: 2},
+                "base",
+                local_corrected_mtime=0,
+                remote_corrected_mtime=100,
+            )
+            is SyncDecision.conflict_download
+        )
+
+    def test_corrected_mtime_never_overrides_causality(self):
+        # Dominance wins regardless of which corrected mtime is newer: the
+        # chronological tie-break only applies to true divergence.
+        assert (
+            resolve_three_way(
+                "h1",
+                {CID_A: 1},
+                "h2",
+                {CID_A: 2},
+                "h0",
+                local_corrected_mtime=999,
+                remote_corrected_mtime=1,
+            )
+            is SyncDecision.download
+        )
+        assert (
+            resolve_three_way(
+                "h2",
+                {CID_A: 2},
+                "h1",
+                {CID_A: 1},
+                "h0",
+                local_corrected_mtime=1,
+                remote_corrected_mtime=999,
+            )
+            is SyncDecision.upload
+        )
 
     # ── unknown base, no clocks (replaces the old unknown_base legacy tie) ──
     def test_no_base_no_clocks_different_content_is_concurrent_tie_break(self):
@@ -470,8 +607,10 @@ class TestFileVersionTypedDict:
             "origin_cid": None,
             "ts": 1,
             "vclock": {},
+            "corrected_mtime": 0,
         }
         assert v["base_hash"] == "h"
+        assert v["corrected_mtime"] == 0
 
     def test_version_info_construct(self):
         vi: VersionInfo = {
@@ -479,5 +618,6 @@ class TestFileVersionTypedDict:
             "version_id": "v",
             "origin_cid": CID_A,
             "ts": 1,
+            "corrected_mtime": 0,
         }
         assert vi["vclock"] == {CID_A: 1}

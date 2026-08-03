@@ -16,16 +16,19 @@ both did (true concurrency), without trusting wall-clock timestamps — immune t
 clock skew and to the false conflicts that arise when files relay through
 intermediate nodes.
 
-On a true divergence (concurrent clocks) a deterministic, content-only tie-break
-picks the winner (highest SHA-256 lexicographically) and the losing content is
-preserved as a ``_conflicted_copy_`` (extrema ratio). No node is authoritative:
-the server and the elected LAN master are transport hubs only; every node
-applies the same algorithm (see ADR-0022).
+On a true divergence (concurrent clocks) a **chronological tie-break** picks the
+winner: the version with the higher clock-offset-corrected ``corrected_mtime``
+keeps the original path; when either side lacks the field (or the values tie)
+the deterministic SHA-256 fallback decides, and the losing content is preserved
+as a ``_conflicted_copy_`` (extrema ratio). No node is authoritative: the server
+and the elected LAN master are transport hubs only; every node applies the same
+algorithm (see ADR-0022 and ADR-0023).
 
 Deletions follow the same clock: a tombstone inherits the stored version clock
 for the path and is ticked by the deleter, so delete-vs-recreate and
-delete-vs-delete are causal too (ADR-0003). The wall clock is never consulted
-for any content decision.
+delete-vs-delete are causal too (ADR-0003). The raw wall clock is never
+consulted for any *causal* decision; it enters only the chronological tie-break
+through the offset-corrected ``corrected_mtime`` (ADR-0023).
 
 The store mirrors the tombstone store: a hidden ``.hsyncstate`` side-car with
 atomic JSON persistence. It is private to each peer and never exchanged; the
@@ -85,6 +88,7 @@ class FileVersion(TypedDict):
     origin_cid: str | None  # peer that authored the version (None if unknown)
     ts: int  # wall-clock timestamp the base was recorded (information only)
     vclock: dict[str, int]  # causal history: node cid -> logical counter
+    corrected_mtime: int  # local mtime + measured clock offset (ADR-0023)
 
 
 class VersionInfo(TypedDict):
@@ -101,6 +105,7 @@ class VersionInfo(TypedDict):
     version_id: str
     origin_cid: str | None
     ts: int
+    corrected_mtime: int  # chronological tie-break value (0 ⇒ absent, hash fallback)
 
 
 class VClockOrder(StrEnum):
@@ -244,7 +249,19 @@ def parse_version_info(data: object) -> VersionInfo | None:
     ts = _parse_wire_timestamp(data.get("ts", 0))
     if ts is None:
         return None
-    return VersionInfo(vclock=vclock, version_id=version_id, origin_cid=origin_cid, ts=ts)
+    result: VersionInfo = VersionInfo(
+        vclock=vclock, version_id=version_id, origin_cid=origin_cid, ts=ts, corrected_mtime=0
+    )
+    raw_corrected = data.get("corrected_mtime")
+    if raw_corrected is not None:
+        if isinstance(raw_corrected, bool) or not isinstance(raw_corrected, (int, float)):
+            # Tolerated like missing version metadata: an unknown/malformed
+            # chronological field degrades to the deterministic hash fallback.
+            return result
+        parsed_corrected = _parse_wire_timestamp(raw_corrected)
+        if parsed_corrected is not None:
+            result["corrected_mtime"] = parsed_corrected
+    return result
 
 
 def resolve_three_way(
@@ -253,13 +270,20 @@ def resolve_three_way(
     remote_hash: str | None,
     remote_vclock: dict[str, int] | None,
     base_hash: str | None,
+    *,
+    local_corrected_mtime: int = 0,
+    remote_corrected_mtime: int = 0,
 ) -> SyncDecision:
     """Decide the sync direction from content hashes and causal vector clocks.
 
-    The hash decides content identity; the vector clock decides causality; the
-    wall clock is never consulted. The matrix covers the *file-present-on-both-
-    sides* case; callers handle absent-file (deletion) branches separately
-    (causal tombstones, ADR-0003).
+    The hash decides content identity; the vector clock decides causality. On a
+    true causal divergence the **corrected mtime tie-break** decides the winner
+    chronologically (ADR-0023): the higher ``*_corrected_mtime`` wins the
+    original path. The raw wall clock is never consulted directly; when either
+    side lacks a corrected mtime (``0``) or the two tie, the deterministic
+    SHA-256 fallback decides so every peer still converges on the same winner.
+    The matrix covers the *file-present-on-both-sides* case; callers handle
+    absent-file (deletion) branches separately (causal tombstones, ADR-0003).
 
     Args:
         local_hash: SHA-256 of the local file (None if absent).
@@ -268,12 +292,16 @@ def resolve_three_way(
         remote_hash: SHA-256 of the advertised remote file (None if absent).
         remote_vclock: advertised remote clock (None/absent on the wire ⇒ empty).
         base_hash: SHA-256 of the last-synced common ancestor (None if unknown).
+        local_corrected_mtime: clock-offset-corrected mtime of the local
+            version (0 ⇒ unknown; hash fallback applies).
+        remote_corrected_mtime: clock-offset-corrected mtime of the remote
+            version (0 ⇒ unknown; hash fallback applies).
 
     Returns:
         The :class:`SyncDecision`. ``conflict_*`` signals a true divergence
         (concurrent clocks, or no causal information either way with differing
-        content): the deterministic tie-break picks the winner by highest hash
-        and the loser is preserved as a conflict copy.
+        content): the corrected-mtime tie-break picks the winner and the loser
+        is preserved as a conflict copy.
 
     Consumers: ``hsync-client`` (``sync._compare_files``,
     ``get_sync_actions``, realtime ``update_file``), ``hsync-server``
@@ -295,7 +323,15 @@ def resolve_three_way(
     if order is VClockOrder.dominated:
         return SyncDecision.download
     # concurrent (or equal-clock-anomaly, or both-empty with differing content):
-    # true divergence -> deterministic content-only tie-break.
+    # true divergence -> chronological corrected-mtime tie-break (ADR-0023),
+    # with the deterministic SHA-256 fallback when a side lacks the field or
+    # the two values tie.
+    if local_corrected_mtime > 0 and remote_corrected_mtime > 0:
+        if local_corrected_mtime > remote_corrected_mtime:
+            return SyncDecision.conflict_upload
+        if remote_corrected_mtime > local_corrected_mtime:
+            return SyncDecision.conflict_download
+    # fallback: highest SHA-256 lexicographically
     if (local_hash or "") > (remote_hash or ""):
         return SyncDecision.conflict_upload
     return SyncDecision.conflict_download
@@ -338,6 +374,7 @@ class SyncStateStore:
         origin_cid: str | None = None,
         timestamp: int | float | None = None,
         vclock: dict[str, int] | None = None,
+        corrected_mtime: int = 0,
     ) -> None:
         """Record (overwrite) the agreed base version for a relative path."""
         ts = int(timestamp) if timestamp is not None else int(time.time())
@@ -347,6 +384,7 @@ class SyncStateStore:
             origin_cid=origin_cid,
             ts=ts,
             vclock=dict(vclock) if vclock else {},
+            corrected_mtime=corrected_mtime,
         )
 
     def clear(self, relpath: str) -> bool:
@@ -421,12 +459,18 @@ class SyncStateStore:
             parsed_vclock = _parse_stored_vclock(entry.get("vclock"))
             if parsed_vclock is None:
                 continue
+            corrected = _parse_wire_timestamp(entry.get("corrected_mtime", 0))
+            # A side-car written before corrected_mtime existed has no field:
+            # 0 ⇒ unknown, the hash fallback applies natively.
+            if corrected is None:
+                continue
             data[str(key)] = FileVersion(
                 base_hash=str(entry["base_hash"]),
                 version_id=str(entry.get("version_id", "")),
                 origin_cid=entry.get("origin_cid"),
                 ts=ts,
                 vclock=parsed_vclock,
+                corrected_mtime=corrected,
             )
         self._data = data
 
