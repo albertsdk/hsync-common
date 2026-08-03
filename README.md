@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/hsync-logo-horizontal.svg" alt="HSYNC logo" width="480">
+</p>
+
 # hsync-common
 
 **hsync-common** is the shared foundation that all other HSYNC projects build
