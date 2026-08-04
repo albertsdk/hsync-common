@@ -60,6 +60,14 @@ class TestDefaults:
         m = IgnoreMatcher(str(bucket))
         assert m.matches("document.txt.part") is True
 
+    def test_editor_safe_save_temp_ignored(self, bucket):
+        """GNOME GIO safe-save temp files (.goutputstream-*) are excluded."""
+        m = IgnoreMatcher(str(bucket))
+        assert m.matches(".goutputstream-ABCD12") is True
+        assert m.matches("sub/.goutputstream-XYZ") is True
+        # The final file is NOT ignored
+        assert m.matches("hello.txt") is False
+
     def test_internal_files_always_ignored(self, bucket):
         # Engine-owned state files must never be synced: a peer that could
         # push them would rewrite the victim's sync behaviour via the sync
