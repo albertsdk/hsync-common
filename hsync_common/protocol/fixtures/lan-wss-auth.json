@@ -1,0 +1,9 @@
+{
+  "capabilities": [
+    "compression"
+  ],
+  "cid": "TestClientX1234567890",
+  "protocol_version": "lan/1",
+  "token": "example-api-token",
+  "type": "auth"
+}

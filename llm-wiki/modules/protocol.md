@@ -3,19 +3,23 @@
 Versioned wire contract + generators. This is the SSOT; never redefine these
 constants in consumers.
 
-## handshake.py — versions, capabilities, WS auth
+## handshake.py — versions, capabilities, WS + LAN-WSS auth
 
 | Symbol | Line | Purpose |
 | ------ | ---- | ------- |
-| `PROTOCOL_VERSION_REST/WS/LAN` | `handshake.py:44` | `api/1`, `ws/1`, `lan/1` |
-| `Capability` (StrEnum) | `handshake.py:49` | feature tokens; `ALL_CAPABILITIES` `:62`; includes `delta` (rsync-style block sync) and `vector_clocks` (causal version metadata, ADR-0022) |
-| `encode_capabilities` / `decode_capabilities` | `handshake.py:65` / `:70` | tokens ⇄ enum set |
-| `WsAuthRequest` / `WsAuthResponse` TypedDicts | `handshake.py:82` / `:92` | WS auth frames |
-| `build_ws_auth_request` | `handshake.py:104` | client/android → server (protocol_version, app_version, capabilities, token) |
-| `build_ws_auth_ok` / `build_ws_auth_error` | `handshake.py:117` / `:130` | server → client (ok lists server caps; error carries client_protocol_version) |
+| `PROTOCOL_VERSION_REST/WS/LAN` | `handshake.py:53` | `api/1`, `ws/1`, `lan/1` |
+| `Capability` (StrEnum) | `handshake.py:58` | feature tokens; `ALL_CAPABILITIES` `:71`; includes `delta` (rsync-style block sync) and `vector_clocks` (causal version metadata, ADR-0022) |
+| `encode_capabilities` / `decode_capabilities` | `handshake.py:74` / `:79` | tokens ⇄ enum set |
+| `WsAuthRequest` / `WsAuthResponse` TypedDicts | `handshake.py:91` / `:101` | WS auth frames |
+| `build_ws_auth_request` | `handshake.py:113` | client/android → server (protocol_version, app_version, capabilities, token) |
+| `build_ws_auth_ok` / `build_ws_auth_error` | `handshake.py:126` / `:139` | server → client (ok lists server caps; error carries client_protocol_version) |
+| `LanAuthRequiredFrame` / `LanAuthFrame` / `LanAuthResultFrame` / `LanHelloFrame` | `handshake.py:151`–`194` | LAN master⇄slave handshake TypedDicts (ADR-0024) |
+| `build_lan_auth_required` / `build_lan_auth` / `build_lan_auth_ok` / `build_lan_auth_failed` / `build_lan_hello` | `handshake.py:199`–`249` | LAN-WSS frame builders: greeting, auth frame (+token/cid), ok/failed replies, hello (both directions) |
 
 Strict policy: a protocol-version mismatch is a **hard fail** (server replies
-error / 426; peers disconnect). No semver negotiation.
+error / 426; peers disconnect / auth refused). Capabilities are feature flags
+within a version — intersection semantics, never cross-version negotiation
+(ADR-0024).
 
 ## events.py — UI/telemetry event stream
 
@@ -57,10 +61,12 @@ error / 426; peers disconnect). No semver negotiation.
 
 ## schemas.py — JSON-Schema builders (draft 2020-12)
 
-- Dialect const `schemas.py:45`; LAN TXT key sets `:49`/`:57`/`:66` (includes `delta` and `vector_clocks` optional keys for their capabilities).
-- `build_ws_schema` (`schemas.py:223`) and `build_lan_txt_schema`
-  (`schemas.py:269`) derive enums/objects from `handshake`, `events` and the
-  `models/` types (object builders `_file_object` `:82` … `_event_message` `:135`).
+- Dialect const `schemas.py:45`; LAN TXT key sets `:49`/`:57`/`:66` (includes `delta`, `vector_clocks` and `tombstones` optional keys for their capabilities).
+- `build_ws_schema` (`schemas.py:223`), `build_lan_wss_schema` (`:326`; pins
+  the auth/hello handshake frames, ADR-0024) and
+  `build_lan_txt_schema` (`:441`) derive enums/objects from `handshake`,
+  `events` and the `models/` types (object builders `_file_object` `:82` …
+  `_event_message` `:135`).
 
 ## fixtures.py — cross-language golden fixtures
 
@@ -79,10 +85,11 @@ error / 426; peers disconnect). No semver negotiation.
 ## __init__.py — paths & (de)serialization
 
 - Artifact path constants: `REST_OPENAPI_PATH` (`__init__.py:30`),
-  `WS_SCHEMA_PATH` (`:34`), `LAN_TXT_SCHEMA_PATH` (`:35`), `FIXTURES_DIR`
-  (`:39`), `ANDROID_FIXTURES_DIR` (`:45`).
-- Canonical dump/load: `dump_contract`/`load_contract` (`__init__.py:57`/`:66`),
-  with `dump_openapi`/`load_openapi` (`:71`/`:76`) reusing them.
+  `WS_SCHEMA_PATH` (`:34`), `LAN_TXT_SCHEMA_PATH` (`:36`),
+  `LAN_WSS_SCHEMA_PATH` (`:37`), `FIXTURES_DIR` (`:40`),
+  `ANDROID_FIXTURES_DIR` (`:46`).
+- Canonical dump/load: `dump_contract`/`load_contract` (`__init__.py:58`/`:67`),
+  with `dump_openapi`/`load_openapi` (`:72`/`:77`) reusing them.
 
 ## Change checklist
 

@@ -26,11 +26,16 @@ from pathlib import Path
 from hsync_common.protocol import (
     FIXTURES_DIR,
     LAN_TXT_SCHEMA_PATH,
+    LAN_WSS_SCHEMA_PATH,
     WS_SCHEMA_PATH,
     dump_contract,
 )
 from hsync_common.protocol.fixtures import build_fixtures
-from hsync_common.protocol.schemas import build_lan_txt_schema, build_ws_schema
+from hsync_common.protocol.schemas import (
+    build_lan_txt_schema,
+    build_lan_wss_schema,
+    build_ws_schema,
+)
 
 
 def export_schemas() -> list[Path]:
@@ -39,6 +44,7 @@ def export_schemas() -> list[Path]:
     for path, schema in (
         (WS_SCHEMA_PATH, build_ws_schema()),
         (LAN_TXT_SCHEMA_PATH, build_lan_txt_schema()),
+        (LAN_WSS_SCHEMA_PATH, build_lan_wss_schema()),
     ):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(dump_contract(schema), encoding="utf-8")
