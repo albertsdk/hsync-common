@@ -33,6 +33,7 @@ from hsync_common.protocol.handshake import PROTOCOL_VERSION_REST
 - **Using the utilities?** → See the [Utilities guide](utilities.md).
 - **Working with the protocol?** → Read the [Protocol guide](protocol.md).
 - **Implementing LAN P2P?** → The [LAN Protocol spec](lan-protocol.md) is the authoritative reference.
+- **Reading logs?** → The [Log Labels reference](log-labels.md) catalogs every action label across all projects.
 - **Working on the Android app?** → See [Android Mirroring](android-mirroring.md) for Kotlin/Python sync.
 - **Why were these decisions made?** → The [Architecture Decision Records](internal/adr/README.md) document the rationale.
 - **Contributing to the codebase?** → See the [Internal architecture](internal/architecture.md).
@@ -46,6 +47,7 @@ from hsync_common.protocol.handshake import PROTOCOL_VERSION_REST
 | [utilities.md](utilities.md) | Cross-cutting utilities: compression, hashing, ignore matcher, path validation, SSL, logging, clock, formatting, runtime detection. |
 | [protocol.md](protocol.md) | Versioned wire protocol: handshake, capabilities, LAN election, pairing, JSON-Schemas, fixtures. |
 | [lan-protocol.md](lan-protocol.md) | The LAN discovery, master-election, pairing, and security specification (authoritative reference). |
+| [log-labels.md](log-labels.md) | Canonical catalog of every action label across all projects: meaning, color category, and which project emits it. |
 | [android-mirroring.md](android-mirroring.md) | How Python models are mirrored in Kotlin for the Android app. |
 | [internal/architecture.md](internal/architecture.md) | Internal architecture — models, utilities, and the protocol package in detail. |
 | [internal/adr/](internal/adr/README.md) | Architecture Decision Records — the *why* behind the ecosystem's stable, cross-project decisions. |
