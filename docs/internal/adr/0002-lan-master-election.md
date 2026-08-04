@@ -38,7 +38,7 @@ fixtures (`protocol/fixtures/lan-election-scenarios.json`) replayed in both
   fields, so it is testable offline and immune to per-node clock skew beyond the
   `startup_time` tiebreaker.
 - Edge cases are first-class and observable via parsable log markers
-  (`[MASTER_CONFLICT]`, `[MASTER_TAKEOVER]`, `[NO_MASTER]`) and structured events.
+  (`[MASTER CONFLICT]`, `[MASTER TAKEOVER]`, `[NO MASTER]`) and structured events.
 - The election decides *who serves*; *who to trust* is a separate concern
   (TOFU pinning / pairing) documented in [lan-protocol.md](../../lan-protocol.md).
 - Any change to ranking or TXT keys must regenerate the golden fixtures and the

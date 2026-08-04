@@ -16,7 +16,7 @@ android).
 | [architecture.md](architecture.md) | Package layout, layering, consumer contract, how the protocol SSOT flows outward |
 | [data-models.md](data-models.md) | Dataclasses/TypedDicts in `models/` (File, Dir, Symlink, Event, SyncAction, Tombstone, Version) + serialization shapes |
 | [modules/protocol.md](modules/protocol.md) | `protocol/` package: versions, capabilities, handshake, events, LAN election, pairing, JSON-Schema builders, fixtures |
-| [modules/utilities.md](modules/utilities.md) | Cross-cutting helpers: hashing, compression, ignore, path validation, permissions, ssl, logger, env, text, clock, format |
+| [modules/utilities.md](modules/utilities.md) | Cross-cutting helpers: hashing, compression, ignore, path validation, permissions, ssl, logger, labels, env, text, clock, format |
 | [decisions.md](decisions.md) | Pointer to the committed ADRs under `../docs/internal/adr/` (ecosystem-wide decisions) |
 
 ## Quick facts
