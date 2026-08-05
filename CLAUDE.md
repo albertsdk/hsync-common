@@ -147,5 +147,11 @@ notable internal improvement, evaluate whether the change warrants an entry in
 `CHANGELOG.md` following the [Keep a Changelog](https://keepachangelog.com/)
 format. Add an entry under an `## [Unreleased]` section when relevant.
 
+* **Explicit User Confirmation Required**: Do not edit `CHANGELOG.md` unless the
+  user has explicitly confirmed the update for the current task. If an entry
+  appears warranted and the user has not already requested it, pause before
+  editing the file and ask whether they want the changelog updated. Proceed only
+  after an affirmative response; otherwise leave `CHANGELOG.md` unchanged.
+
 Irrelevant for: typo fixes, purely internal refactors with no behavioral change,
 CI/formatting-only changes, or doc updates that don't document new features.
