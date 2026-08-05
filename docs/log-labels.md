@@ -105,7 +105,7 @@ slaves (they then pull/apply the change).
 
 | Label | Category | Description | C | S | A | D |
 |-------|----------|-------------|---|---|---|---|
-| `[LAN MODIFY]` | modify | Master broadcasts a file modification (slaves pull new bytes). The trigger `(closed)`/`(modified)` shows whether it fired from `IN_CLOSE_WRITE` (reliable) or the `on_modified` debounce fallback | ✓ | | ✓ | ✓ |
+| `[LAN MODIFY]` | modify | Master broadcasts a file modification (slaves pull new bytes). The trigger `(closed)`/`(modified)` shows whether it fired from `IN_CLOSE_WRITE` (reliable) or the `on_modified` debounce fallback; `(dir)` marks a directory metadata event (inotify `IN_ATTRIB` on the parent when a child is created/written/renamed/removed) — directory `MODIFY` lines are stat-deduplicated so only genuine mtime changes propagate | ✓ | | ✓ | ✓ |
 | `[LAN CREATE]` | create | Master broadcasts a directory creation | ✓ | | ✓ | ✓ |
 | `[LAN RENAME]` | rename | Master broadcasts a rename/move | ✓ | | ✓ | ✓ |
 | `[LAN REMOVE]` | delete | Master broadcasts a removal | ✓ | | ✓ | ✓ |
