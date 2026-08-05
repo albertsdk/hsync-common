@@ -92,6 +92,7 @@ class ActionLabel(StrEnum):
     LAN_IGNORE_DEL = "[LAN IGNORE DEL]"
     LAN_SECURITY = "[LAN SECURITY]"
     LAN_ECHO = "[LAN ECHO]"
+    LAN_DOWNLOAD = "[LAN DOWNLOAD]"
 
     # ── Security / warnings ────────────────────────────────────────────
     SECURITY = "[SECURITY]"
@@ -140,6 +141,7 @@ _LABEL_CATEGORY_MAP: dict[str, str] = {
     ActionLabel.CLIENT_DIR: "create",
     ActionLabel.LAN_CREATE: "create",
     ActionLabel.LAN_SYMLINK: "create",
+    ActionLabel.LAN_DOWNLOAD: "transfer",
     ActionLabel.MODIFY: "modify",
     ActionLabel.LAN_MODIFY: "modify",
     ActionLabel.MOVE: "rename",
