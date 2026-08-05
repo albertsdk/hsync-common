@@ -16,6 +16,16 @@ single source of truth for:
 - The :data:`LABEL_STYLES` mapping (label -> color tags of its category).
 - :func:`colorize_labels` (apply color tags to a log message).
 
+**Two-level origin rule** (see ``docs/log-labels.md``):
+
+- **Prefixed labels** are emitted during continuous watching:
+  ``[LOCAL ...]`` marks an event originated by this node's local watcher,
+  ``[REMOTE ...]`` an event caused by a peer (the master for a slave, a
+  slave for the master, the central server in remote mode).
+- **Unprefixed labels** belong to the reconciliation/full-scan phase,
+  transfers, states and previews (e.g. ``[DOWNLOAD]``, ``[UPLOAD]``,
+  ``[IN SYNC]``, ``[SKIP]``) and to ``hsync-server``'s own log lines.
+
 Labels are grouped into **semantic categories** so the output is not a
 rainbow where every label has a different color, but a small set of
 distinct colors that convey the *kind* of operation at a glance:
@@ -31,7 +41,7 @@ distinct colors that convey the *kind* of operation at a glance:
 - **Warning/Guard** (yellow): guards, conflicts, security warnings, ignored
   deletions.
 - **Security** (red): rejected unsafe paths.
-- **Infrastructure** (magenta): transport-level messages (WebSocket, LAN).
+- **Infrastructure** (magenta): transport-level messages (WebSocket, echo).
 """
 
 from __future__ import annotations
@@ -47,12 +57,11 @@ class ActionLabel(StrEnum):
     achievable and dynamic-width tags keep the output clean and maintainable.
     """
 
-    # ── Sync operations ────────────────────────────────────────────────
+    # ── Sync operations (unprefixed: reconciliation, transfers, server) ──
     DOWNLOAD = "[DOWNLOAD]"
     UPLOAD = "[UPLOAD]"
     RESUME = "[RESUME]"
     MOVE = "[MOVE]"
-    REMOVE = "[REMOVE]"
     DELETE = "[DELETE]"
     CREATE = "[CREATE]"
     MODIFY = "[MODIFY]"
@@ -61,7 +70,6 @@ class ActionLabel(StrEnum):
     SYMLINK = "[SYMLINK]"
     IN_SYNC = "[IN SYNC]"
     SKIP = "[SKIP]"
-    IGNORE_DEL = "[IGNORE DEL]"
     CONFLICT = "[CONFLICT]"
     GUARD = "[GUARD]"
     TOMBSTONE = "[TOMBSTONE]"
@@ -73,26 +81,25 @@ class ActionLabel(StrEnum):
     TO_DELETE = "[TO DELETE]"
     TO_RENAME = "[TO RENAME]"
 
-    # ── LAN client operations ──────────────────────────────────────────
-    CLIENT_UP = "[CLIENT UP]"
-    CLIENT_DEL = "[CLIENT DEL]"
-    CLIENT_REN = "[CLIENT REN]"
-    CLIENT_DIR = "[CLIENT DIR]"
-    CLIENT_NEW = "[CLIENT NEW]"
-    CLIENT_KEEP = "[CLIENT KEEP]"
-    CLIENT_IGN = "[CLIENT IGN]"
+    # ── Local-origin watcher events (continuous watching) ──────────────
+    LOCAL_CREATE = "[LOCAL CREATE]"
+    LOCAL_MODIFY = "[LOCAL MODIFY]"
+    LOCAL_RENAME = "[LOCAL RENAME]"
+    LOCAL_DELETE = "[LOCAL DELETE]"
+    LOCAL_SYMLINK = "[LOCAL SYMLINK]"
+    LOCAL_IGNORE_DEL = "[LOCAL IGNORE DEL]"
+    LOCAL_KEEP = "[LOCAL KEEP]"
 
-    # ── LAN master broadcast ───────────────────────────────────────────
-    LAN_MODIFY = "[LAN MODIFY]"
-    LAN_CREATE = "[LAN CREATE]"
-    LAN_RENAME = "[LAN RENAME]"
-    LAN_REMOVE = "[LAN REMOVE]"
-    LAN_SYMLINK = "[LAN SYMLINK]"
-    LAN_DELETE = "[LAN DELETE]"
-    LAN_IGNORE_DEL = "[LAN IGNORE DEL]"
-    LAN_SECURITY = "[LAN SECURITY]"
-    LAN_ECHO = "[LAN ECHO]"
-    LAN_DOWNLOAD = "[LAN DOWNLOAD]"
+    # ── Remote-origin events (inbound dispatch / peer-caused) ──────────
+    REMOTE_CREATE = "[REMOTE CREATE]"
+    REMOTE_MODIFY = "[REMOTE MODIFY]"
+    REMOTE_RENAME = "[REMOTE RENAME]"
+    REMOTE_DELETE = "[REMOTE DELETE]"
+    REMOTE_SYMLINK = "[REMOTE SYMLINK]"
+    REMOTE_IGNORE_DEL = "[REMOTE IGNORE DEL]"
+    REMOTE_SECURITY = "[REMOTE SECURITY]"
+    REMOTE_ECHO = "[REMOTE ECHO]"
+    REMOTE_DOWNLOAD = "[REMOTE DOWNLOAD]"
 
     # ── Security / warnings ────────────────────────────────────────────
     SECURITY = "[SECURITY]"
@@ -132,37 +139,34 @@ _LABEL_CATEGORY_MAP: dict[str, str] = {
     ActionLabel.DOWNLOAD: "transfer",
     ActionLabel.RESUME: "transfer",
     ActionLabel.TO_DOWNLOAD: "transfer",
+    ActionLabel.REMOTE_DOWNLOAD: "transfer",
     ActionLabel.UPLOAD: "upload",
     ActionLabel.TO_UPLOAD: "upload",
-    ActionLabel.CLIENT_UP: "upload",
     ActionLabel.CREATE: "create",
     ActionLabel.SYMLINK: "create",
-    ActionLabel.CLIENT_NEW: "create",
-    ActionLabel.CLIENT_DIR: "create",
-    ActionLabel.LAN_CREATE: "create",
-    ActionLabel.LAN_SYMLINK: "create",
-    ActionLabel.LAN_DOWNLOAD: "transfer",
+    ActionLabel.LOCAL_CREATE: "create",
+    ActionLabel.REMOTE_CREATE: "create",
+    ActionLabel.LOCAL_SYMLINK: "create",
+    ActionLabel.REMOTE_SYMLINK: "create",
     ActionLabel.MODIFY: "modify",
-    ActionLabel.LAN_MODIFY: "modify",
+    ActionLabel.LOCAL_MODIFY: "modify",
+    ActionLabel.REMOTE_MODIFY: "modify",
     ActionLabel.MOVE: "rename",
     ActionLabel.RENAME: "rename",
     ActionLabel.TO_RENAME: "rename",
-    ActionLabel.CLIENT_REN: "rename",
-    ActionLabel.LAN_RENAME: "rename",
-    ActionLabel.REMOVE: "delete",
+    ActionLabel.LOCAL_RENAME: "rename",
+    ActionLabel.REMOTE_RENAME: "rename",
     ActionLabel.DELETE: "delete",
     ActionLabel.TO_DELETE: "delete",
-    ActionLabel.CLIENT_DEL: "delete",
-    ActionLabel.LAN_REMOVE: "delete",
-    ActionLabel.LAN_DELETE: "delete",
+    ActionLabel.LOCAL_DELETE: "delete",
+    ActionLabel.REMOTE_DELETE: "delete",
     ActionLabel.PERMISSION: "permission",
     ActionLabel.IN_SYNC: "in_sync",
     ActionLabel.SKIP: "in_sync",
     ActionLabel.SYNCED: "in_sync",
-    ActionLabel.CLIENT_KEEP: "in_sync",
-    ActionLabel.IGNORE_DEL: "warning",
-    ActionLabel.CLIENT_IGN: "warning",
-    ActionLabel.LAN_IGNORE_DEL: "warning",
+    ActionLabel.LOCAL_KEEP: "in_sync",
+    ActionLabel.LOCAL_IGNORE_DEL: "warning",
+    ActionLabel.REMOTE_IGNORE_DEL: "warning",
     ActionLabel.GUARD: "warning",
     ActionLabel.CONFLICT: "warning",
     ActionLabel.TOMBSTONE: "warning",
@@ -174,9 +178,9 @@ _LABEL_CATEGORY_MAP: dict[str, str] = {
     ActionLabel.FINGERPRINT_CHANGED: "warning",
     ActionLabel.AUTH_REQUIRED: "warning",
     ActionLabel.SECURITY: "security",
-    ActionLabel.LAN_SECURITY: "security",
+    ActionLabel.REMOTE_SECURITY: "security",
     ActionLabel.WS: "infrastructure",
-    ActionLabel.LAN_ECHO: "infrastructure",
+    ActionLabel.REMOTE_ECHO: "infrastructure",
 }
 
 #: Label -> (start_tag, end_tag) loguru color tags, derived from categories.
@@ -207,24 +211,33 @@ def colorize_labels(message: str, use_colors: bool = True) -> str:
 def resolve_label(prefix: str, name: str) -> str:
     """Resolve the bracketed label string for *name*, honouring an optional *prefix*.
 
+    Labels follow a **two-level origin rule** (see ``docs/log-labels.md``):
+
+    - ``"LOCAL "`` / ``"REMOTE "`` prefixes mark events during continuous
+      watching (local watcher vs peer-caused / inbound dispatch);
+    - the empty prefix ``""`` is reserved for the reconciliation/full-scan
+      phase, transfers, states, previews and ``hsync-server``'s own log
+      lines (e.g. ``[DOWNLOAD]``, ``[UPLOAD]``, ``[IN SYNC]``).
+
     The label is resolved through :class:`ActionLabel` so that
     :func:`colorize_labels` can match and colorize it. The mapping is:
 
-    - ``prefix=""``, ``name="CREATE"``     -> ``[CREATE]`` (``ActionLabel.CREATE``)
-    - ``prefix="LAN "``, ``name="CREATE"`` -> ``[LAN CREATE]`` (``ActionLabel.LAN_CREATE``)
-    - ``prefix=""``, ``name="IGNORE DEL"`` -> ``[IGNORE DEL]`` (``ActionLabel.IGNORE_DEL``)
+    - ``prefix=""``, ``name="CREATE"``        -> ``[CREATE]`` (``ActionLabel.CREATE``)
+    - ``prefix="LOCAL "``, ``name="CREATE"``  -> ``[LOCAL CREATE]`` (``ActionLabel.LOCAL_CREATE``)
+    - ``prefix="REMOTE "``, ``name="DELETE"`` -> ``[REMOTE DELETE]`` (``ActionLabel.REMOTE_DELETE``)
 
-    A LAN-prefixed name maps to the ``LAN_<NAME>`` member (e.g. ``LAN CREATE`` ->
-    ``LAN_CREATE``); an unprefixed name maps to ``<NAME>``. When no member matches
-    (e.g. an internal debug tag without a registered label), the label is
-    interpolated verbatim so it still prints, just uncolored.
+    A prefixed name maps to the ``<PREFIX>_<NAME>`` member (e.g.
+    ``REMOTE DELETE`` -> ``REMOTE_DELETE``, ``LOCAL IGNORE DEL`` ->
+    ``LOCAL_IGNORE_DEL``); an unprefixed name maps to ``<NAME>``. When no
+    member matches (e.g. an internal debug tag without a registered label),
+    the label is interpolated verbatim so it still prints, just uncolored.
 
     This is the single helper used by both the watchdog handlers
     (``BaseFileEventHandler._label``) and the inbound event dispatcher
     (``_tag``) so the two transports cannot drift apart.
 
     Args:
-        prefix: Optional log prefix (e.g. ``""`` or ``"LAN "``).
+        prefix: Optional log prefix (``""``, ``"LOCAL "`` or ``"REMOTE "``).
         name: Label stem without brackets (e.g. ``"CREATE"``, ``"IGNORE DEL"``).
 
     Returns:

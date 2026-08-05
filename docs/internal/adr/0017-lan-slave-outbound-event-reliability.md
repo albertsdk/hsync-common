@@ -16,7 +16,7 @@ event at the point where the decision must be made:
    (`IN_CREATE`) and `on_closed` (`IN_CLOSE_WRITE`) fire for a single
    `open(O_CREAT)+write+close`. The slave uploaded immediately in `on_created`
    for any non-empty file (the fast-path for files that arrive already complete
-   with no subsequent close), and again in `on_closed` — two `[CLIENT UP]` /
+   with no subsequent close), and again in `on_closed` — two upload-intent /
    `[UPLOAD]` pairs for one creation, with no coordination between the handlers.
    Worse, the `on_created` fast-path used the conservative stability poll
    (`from_closed=False`), which can falsely declare a *write-pause-write* file
@@ -116,7 +116,8 @@ has a *different* pair and is never misclassified as an echo.
   `LANSlaveFileEventHandler`; Android `LanSync.kt` + `InboundRenameEchoTracker.kt`).
 - Tests must cover: echo match / wrong-pair / expiry; `404` echo vs divergence;
   create defer / cancel-on-close / fire-on-no-close; cancel on delete/moved.
-- The `[CLIENT NEW]` log label semantics changed from "complete on create"
+- The slave's deferred-create debug log label (then `[CLIENT NEW]`, now
+  `[LOCAL CREATE]` — see ADR 0018) changed semantics from "complete on create"
   to "deferred to on_closed"; the log legend must reflect it if it documents
   that label.
 
