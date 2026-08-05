@@ -1,6 +1,8 @@
 """Tests for hsync_common.clock."""
 
+import socket
 import struct
+import threading
 import time
 from unittest.mock import patch
 
@@ -11,6 +13,7 @@ from hsync_common.clock import (
     ClockOffsetStore,
     _ntp64_to_unix,
     _parse_sntp_response,
+    _sntp_probe_once,
     _unix_to_ntp64,
     clamp_incoming_corrected_mtime,
     clamp_wire_corrected_mtime,
@@ -246,6 +249,59 @@ class TestParseSntpResponse:
     def test_kiss_of_death_returns_none(self):
         reply = _sntp_reply(100.0, stratum=0)  # Kiss-o'-Death ⇒ unusable
         assert _parse_sntp_response(reply, t1=0.0, t4=1.0) is None
+
+
+class TestSntpProbeOnce:
+    """Real loopback UDP round-trips (no mocks, internet-free)."""
+
+    def test_live_stub_round_trip(self):
+        """A loopback SNTP stub answering with a valid server reply yields a
+        finite (offset, rtt) pair through the connected-socket path."""
+        stub = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        stub.bind(("127.0.0.1", 0))
+        stub.settimeout(5.0)
+        port = stub.getsockname()[1]
+
+        def _serve_one() -> None:
+            try:
+                _request, peer = stub.recvfrom(48)
+                stub.sendto(_sntp_reply(time.time()), peer)
+            except OSError:
+                pass
+
+        server = threading.Thread(target=_serve_one, daemon=True)
+        server.start()
+        try:
+            result = _sntp_probe_once("127.0.0.1", port=port, timeout=5.0)
+        finally:
+            server.join(timeout=5.0)
+            stub.close()
+        assert result is not None
+        offset, rtt = result
+        assert abs(offset) < 5.0
+        assert 0.0 <= rtt < 5.0
+
+    def test_closed_port_fails_fast(self):
+        """Regression: a dead endpoint must fail fast, not after the timeout.
+
+        Test harnesses point ``HSYNC_NTP_HOSTS`` at a dead loopback port
+        expecting an internet-free *fast* failure; an unconnected UDP socket
+        instead blocked ``recvfrom`` until the timeout on every probe (3
+        probes x ``NTP_TIMEOUT_SECONDS`` added ~9s to every LAN startup).
+        """
+        probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        probe.bind(("127.0.0.1", 0))
+        closed_port = probe.getsockname()[1]
+        probe.close()
+
+        started = time.monotonic()
+        result = _sntp_probe_once("127.0.0.1", port=closed_port, timeout=2.0)
+        elapsed = time.monotonic() - started
+
+        assert result is None
+        # ECONNREFUSED on loopback is ~instant; before the fix this took the
+        # full 2.0s timeout. The 1.0s bound is generous for loaded CI hosts.
+        assert elapsed < 1.0
 
 
 class TestMeasureClockOffsetNtpMulti:
