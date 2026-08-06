@@ -1,6 +1,6 @@
 {
   "bucket": "bucket-1",
-  "cid": "client-1",
+  "cid": "client1",
   "compression": "true",
   "delta": "true",
   "protocol": "lan/1",
