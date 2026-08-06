@@ -153,7 +153,9 @@ reconciliation, transfers, previews and server lines.
 
 ## format.py / text.py / env.py / exceptions.py
 
-- `format_bytes` (`format.py:23`), `format_duration` (`format.py:47`).
+- `format_bytes` (`format.py:23`), `format_duration` (`format.py:47`) —
+  `subsecond=True` renders sub-second durations as `"120ms"` / `"5.2s"` for
+  transfer timing; default `False` preserves the whole-second compact style.
 - `escape_loguru_markup` (`text.py:28`), `safe_json_for_log` (`text.py:38`).
 - `load_env_file` (`env.py:21`).
 - `HSyncError` base (`exceptions.py:30`), `format_exception` (`:63`),
