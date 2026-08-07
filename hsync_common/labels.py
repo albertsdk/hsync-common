@@ -87,6 +87,7 @@ class ActionLabel(StrEnum):
     LOCAL_RENAME = "[LOCAL RENAME]"
     LOCAL_DELETE = "[LOCAL DELETE]"
     LOCAL_SYMLINK = "[LOCAL SYMLINK]"
+    LOCAL_SECURITY = "[LOCAL SECURITY]"
     LOCAL_IGNORE_DEL = "[LOCAL IGNORE DEL]"
     LOCAL_KEEP = "[LOCAL KEEP]"
 
@@ -178,6 +179,7 @@ _LABEL_CATEGORY_MAP: dict[str, str] = {
     ActionLabel.FINGERPRINT_CHANGED: "warning",
     ActionLabel.AUTH_REQUIRED: "warning",
     ActionLabel.SECURITY: "security",
+    ActionLabel.LOCAL_SECURITY: "security",
     ActionLabel.REMOTE_SECURITY: "security",
     ActionLabel.WS: "infrastructure",
     ActionLabel.REMOTE_ECHO: "infrastructure",
