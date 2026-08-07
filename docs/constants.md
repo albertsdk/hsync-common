@@ -18,8 +18,11 @@ transfer thresholds.
 |----------|-------|-------------|
 | `HSYNCKEEP_FILENAME` | `".hsynckeep"` | Sentinel file placed in empty directories to force sync of the directory structure (like `.gitkeep`). Always preserved regardless of ignore rules. |
 | `HSYNCIGNORE_FILENAME` | `".hsyncignore"` | Per-bucket gitignore-style ignore file. |
-| `HSYNCTOMBSTONES_FILENAME` | `".hsynctombstones"` | Per-bucket deletion-marker side-car file. |
-| `HSYNCSTATE_FILENAME` | `".hsyncstate"` | Per-peer 3-way merge state side-car file. |
+| `HSYNCFOLDER_FILENAME` | `".hsyncfolder"` | Folder-identity marker (UUIDv4) at the bucket root. |
+| `SYNCSTATE_DB_FILENAME` | `"syncstate.db"` | Installation-level causal-state database (outside the bucket). |
+| `HSYNC_STATE_DIR_ENV` | `"HSYNC_STATE_DIR"` | Environment override for the state directory that holds `syncstate.db`. |
+| `HSYNCTOMBSTONES_FILENAME` | `".hsynctombstones"` | Legacy name; rejected on the wire, no longer written. |
+| `HSYNCSTATE_FILENAME` | `".hsyncstate"` | Legacy name; rejected on the wire, no longer written. |
 
 ## Partial transfer artifacts
 

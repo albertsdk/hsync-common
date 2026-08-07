@@ -83,9 +83,11 @@ class TestDefaults:
         # channel itself (poisoned .hsyncignore / .hsynctombstones).
         m = IgnoreMatcher(str(bucket))
         assert m.matches(".hsyncignore") is True
+        assert m.matches(".hsyncfolder") is True
         assert m.matches(".hsyncstate") is True
         assert m.matches(".hsynctombstones") is True
         assert m.matches("sub/.hsyncignore") is True
+        assert m.matches("sub/.hsyncfolder") is True
 
     def test_default_patterns_cannot_be_disabled(self, bucket):
         """Default patterns are always active — there is no way to disable them."""

@@ -12,8 +12,10 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
 | `Symlink` | `models/symlink.py:14` | — | `filepath`, `target`, `name`, times |
 | `Event` | `models/event.py:63` | `EventDict` (`models/event.py:34`) | FS change; `EventName` enum `models/event.py:44`; `is_valid_cid` wire validator `models/event.py:29` |
 | `SyncAction` | `models/sync_action.py:31` | — | decision; `SyncActionName` enum `models/sync_action.py:14` |
-| `TombstoneStore` | `models/tombstone.py:210` | `TombstoneEntry` (`models/tombstone.py:76`) | causal deletion markers (vclock merge) |
-| `SyncStateStore` / `FileVersion` | `models/version.py:100` / `:46` | `FileVersion` TypedDict | 3-way merge state |
+| `TombstoneStore` | `models/tombstone.py` | `TombstoneEntry` (`models/tombstone.py`) | causal deletion markers (vclock merge); SQLite-backed |
+| `SyncStateStore` / `FileVersion` | `models/version.py` | `FileVersion` TypedDict | 3-way merge state; SQLite-backed |
+| `StateDb` | `models/sqlstore.py` | — | installation `syncstate.db` (ADR-0025) |
+| folder marker | `models/folder.py` | — | `.hsyncfolder` UUIDv4 + `default_state_dir` |
 
 ## File
 
@@ -91,7 +93,9 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
 - Cross-language parity: `protocol/fixtures.py` builds
   `causal-tombstone-scenarios` from `tombstone_merge_decision` (never
   hand-written); the committed JSON is replayed by the Android parity test.
-- Persisted to the `.hsynctombstones` side-car (`constants.py:43`).
+- Persisted in the installation `syncstate.db` (`models/sqlstore.py`), keyed
+  by folder UUID from `.hsyncfolder` (`models/folder.py`, ADR-0025). The wire
+  payload (`to_payload`) is unchanged.
 
 ## Version / causal merge
 
@@ -116,12 +120,14 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
 - `SyncDecision`: `in_sync`, `upload`, `download`, `conflict_upload`,
   `conflict_download` (tie-break loser preserved as a conflicted copy).
 - Version-id minting: `new_version_id` (`_VERSION_ID_BYTES = 16`).
-- `SyncStateStore` persists per-file versions for the next reconciliation; backs
-  the `.hsyncstate` side-car (`constants.py`). The model is strictly causal:
-  `load()` drops entries without a structurally valid `vclock` (no fabricated
-  empty clocks) — a corrupted entry degrades entry-by-entry instead of
-  crashing startup. `corrected_mtime` is persisted alongside and defaulted to 0
-  when absent from an older side-car.
+- `SyncStateStore` persists per-file versions for the next reconciliation in
+  the installation `syncstate.db` (`models/sqlstore.py`), keyed by folder UUID
+  (`models/folder.py`, ADR-0025). Constructor is `db_path=` + `folder_id=`;
+  method semantics (`record`/`clear`/`retain`/`get`/`load`/`save`) are
+  unchanged. The model is strictly causal: `load()` drops rows without a
+  structurally valid `vclock` (no fabricated empty clocks) — a corrupted row
+  degrades entry-by-entry instead of crashing startup. `corrected_mtime` is
+  persisted alongside and defaulted to 0 when NULL.
 
 ## Delta Transfer Models (`models/delta.py`)
 

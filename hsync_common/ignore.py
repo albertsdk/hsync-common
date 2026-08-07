@@ -168,7 +168,8 @@ class IgnoreMatcher:
         if name == HSYNCKEEP_FILENAME:
             return False
 
-        # Engine-owned artifacts (.hsyncignore, .hsyncstate, .hsynctombstones)
+        # Engine-owned artifacts (.hsyncignore, .hsyncfolder, leftover
+        # .hsyncstate / .hsynctombstones)
         # and in-progress transfer artifacts (.part) are never synced,
         # regardless of .hsyncignore rules.
         if is_internal_name(name):

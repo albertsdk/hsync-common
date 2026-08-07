@@ -462,12 +462,13 @@ class TestTombstoneStore:
 
     def test_save_and_load(self, tmp_path):
         now = int(time.time())
-        path = str(tmp_path / "sub" / ".hsynctombstones")
-        store = TombstoneStore(path=path, ttl_days=90)
+        folder_id = "22222222-2222-4222-8222-222222222222"
+        db_path = str(tmp_path / "syncstate.db")
+        store = TombstoneStore(db_path=db_path, folder_id=folder_id, ttl_days=90)
         store.record("a/b.txt", sha256sum="f" * 64, origin_cid=_CID_A, timestamp=now)
         store.save()
 
-        reloaded = TombstoneStore(path=path, ttl_days=90)
+        reloaded = TombstoneStore(db_path=db_path, folder_id=folder_id, ttl_days=90)
         reloaded.load()
         entry = reloaded.get("a/b.txt")
         assert entry is not None
@@ -476,39 +477,47 @@ class TestTombstoneStore:
         assert entry["vclock"] == {_CID_A: 1}
 
     def test_load_drops_poisoned_entries(self, tmp_path):
+        from hsync_common.models.sqlstore import get_state_db
+
         now = int(time.time())
-        path = tmp_path / ".hsynctombstones"
-        path.write_text(
-            json.dumps(
-                {
-                    "tombstones": {
-                        tombstone_key("ok.txt"): _tomb(None, {_CID_A: 1}, now),
-                        tombstone_key("future.txt"): _tomb(None, {_CID_A: 1}, now + 10_000_000),
-                        "bad-key": _tomb(None, {_CID_A: 1}, now),
-                        tombstone_key("badsha.txt"): _tomb("xyz", {_CID_A: 1}, now),
-                        tombstone_key("novclock.txt"): {"ts": now, "sha256": None},
-                        tombstone_key("negclock.txt"): _tomb(None, {_CID_A: -1}, now),
-                    }
-                }
-            ),
-            encoding="utf-8",
-        )
-        store = TombstoneStore(path=str(path))
+        folder_id = "22222222-2222-4222-8222-222222222222"
+        db_path = str(tmp_path / "syncstate.db")
+        store = TombstoneStore(db_path=db_path, folder_id=folder_id)
+        store.load()
+        db = get_state_db(db_path)
+
+        def _insert(key, sha, ts, vclock):
+            db.conn.execute(
+                """
+                INSERT INTO tombstones
+                  (folder_id, key, sha256sum, version_id, origin_cid, ts, vclock)
+                VALUES (?, ?, ?, 'v', NULL, ?, ?)
+                """,
+                (folder_id, key, sha, ts, vclock),
+            )
+
+        _insert(tombstone_key("ok.txt"), None, now, json.dumps({_CID_A: 1}))
+        _insert(tombstone_key("future.txt"), None, now + 10_000_000, json.dumps({_CID_A: 1}))
+        _insert("bad-key", None, now, json.dumps({_CID_A: 1}))
+        _insert(tombstone_key("badsha.txt"), "xyz", now, json.dumps({_CID_A: 1}))
+        _insert(tombstone_key("novclock.txt"), None, now, "")
+        _insert(tombstone_key("negclock.txt"), None, now, json.dumps({_CID_A: -1}))
         store.load()
         assert len(store) == 1
         assert store.get("ok.txt") is not None
 
-    def test_load_missing_file_is_noop(self, tmp_path):
-        store = TombstoneStore(path=str(tmp_path / "absent.json"))
+    def test_load_missing_db_is_empty(self, tmp_path):
+        store = TombstoneStore(
+            db_path=str(tmp_path / "absent.db"),
+            folder_id="22222222-2222-4222-8222-222222222222",
+        )
         store.load()
         assert len(store) == 0
 
-    def test_load_corrupt_file_is_noop(self, tmp_path):
-        path = tmp_path / ".hsynctombstones"
-        path.write_text("{not json", encoding="utf-8")
-        store = TombstoneStore(path=str(path))
-        store.load()
-        assert len(store) == 0
+    def test_save_without_backend_is_noop(self):
+        store = TombstoneStore()
+        store.record("x.txt")
+        store.save()
 
     def test_merge_rejects_non_dict_payload(self):
         # Gossip payloads are untrusted: a JSON array/string must be ignored,
@@ -517,13 +526,6 @@ class TestTombstoneStore:
         assert store.merge(["not", "a", "dict"]) == 0  # type: ignore[arg-type]
         assert store.merge("string") == 0  # type: ignore[arg-type]
         assert store.merge(None) == 0
-        assert len(store) == 0
-
-    def test_load_malformed_tombstones_member_is_noop(self, tmp_path):
-        path = tmp_path / ".hsynctombstones"
-        path.write_text(json.dumps({"tombstones": ["not", "a", "dict"]}), encoding="utf-8")
-        store = TombstoneStore(path=str(path))
-        store.load()
         assert len(store) == 0
 
 

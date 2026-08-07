@@ -32,8 +32,8 @@ differences between the Python and Kotlin implementations.
 | Sync actions | `hsync_common.models.sync_action.SyncActionName` | `com.hsync.android.data.model.SyncAction` | `NOTHING`, `DOWNLOAD`, `UPLOAD`, `DELETE`, `RENAME` |
 | Protocol version | `hsync_common.protocol.handshake` | `com.hsync.android.data.api.Protocol` | `VERSION_REST`, `VERSION_WS`, `VERSION_LAN`, capability tokens |
 | Compression | `hsync_common.compression` | `com.hsync.android.util.CompressionManager` | Zstandard via `zstd-jni`, level 3 |
-| Tombstone store | `hsync_common.models.tombstone` | `com.hsync.android.util.TombstoneStore` (`Tombstones.kt`) | JSON persistence, TTL pruning (storage GC), causal vclock merge |
-| Sync state (three-way merge) | `hsync_common.models.version` | `com.hsync.android.util.SyncStateStore` (`Version.kt`) | `FileVersion`, `resolveThreeWay`, `.hsyncstate` side-car |
+| Tombstone store | `hsync_common.models.tombstone` | `com.hsync.android.util.TombstoneStore` (`Tombstones.kt`) | TTL pruning (storage GC), causal vclock merge; Android persistence mirrors ADR-0025 SQLite |
+| Sync state (three-way merge) | `hsync_common.models.version` | `com.hsync.android.util.SyncStateStore` (`Version.kt`) | `FileVersion`, `resolveThreeWay`; Python store is SQLite (ADR-0025) |
 | Delta engine | `hsync_common.delta` | `com.hsync.android.util.DeltaEngine` | Rolling Adler32, block signatures, find_matches, apply_delta |
 | Delta decision | `hsync_common.delta.decision` | `com.hsync.android.util.DeltaDecision` | Block size thresholds, worthwhileness gate |
 | Delta transfer | `hsync_client.delta_transfer` | `com.hsync.android.util.DeltaTransfer` | Client-side upload/download delta orchestration |
@@ -128,7 +128,8 @@ is `hsync_common/constants.py`:
 VERSION = "1.0.0"
 HSYNCKEEP_FILENAME = ".hsynckeep"
 HSYNCIGNORE_FILENAME = ".hsyncignore"
-HSYNCTOMBSTONES_FILENAME = ".hsynctombstones"
+HSYNCFOLDER_FILENAME = ".hsyncfolder"
+HSYNCTOMBSTONES_FILENAME = ".hsynctombstones"  # legacy wire rejection only
 TOMBSTONE_TTL_DAYS_DEFAULT = 90
 CHUNK_SIZE_SMALL = 8192  # 8 KB
 CHUNK_SIZE_MEDIUM = 65536  # 64 KB
@@ -142,7 +143,8 @@ distributed across the Kotlin files that mirror their Python counterparts:
 |----------|-----------------|
 | `VERSION` | `com.hsync.android.data.api.Protocol` (`VERSION_REST`, `VERSION_WS`, `VERSION_LAN`) |
 | `HSYNCKEEP_FILENAME`, `HSYNCIGNORE_FILENAME` | `com.hsync.android.util.IgnoreMatcher` (companion object) |
-| `HSYNCTOMBSTONES_FILENAME` | Referenced as a string literal in `PathValidation.kt` / `IgnoreMatcher.kt` |
+| `HSYNCFOLDER_FILENAME` | Referenced as a string literal in `PathValidation.kt` |
+| `HSYNCTOMBSTONES_FILENAME` | Referenced as a string literal in `PathValidation.kt` / `IgnoreMatcher.kt` (legacy rejection) |
 | `TOMBSTONE_TTL_DAYS_DEFAULT` | `com.hsync.android.util.Tombstones.kt` (`TOMBSTONE_TTL_DAYS_DEFAULT = 90L`) |
 | `CHUNK_SIZE_SMALL/MEDIUM/LARGE` | Not exposed as named constants; `FileHashUtils` uses a fixed 8 KB buffer |
 | `DELTA_*` constants | `com.hsync.android.util.DeltaConfig` |

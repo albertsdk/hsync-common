@@ -52,7 +52,7 @@ algorithm in Kotlin (SNTP and HTTP/RTT).
 is recorded/advertised** (self-record and upload/listings/events metadata) and
 carried alongside the vector clock:
 
-- `FileVersion` (private side-car) and `VersionInfo` (wire form, inside
+- `FileVersion` (private store) and `VersionInfo` (wire form, inside
   `FileDict["version"]`) both gain the integer field.
 - Wire parsing stays tolerant: an absent or malformed ``corrected_mtime``
   parses as 0 (unknown), which triggers the *hash fallback* — never a
