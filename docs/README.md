@@ -32,6 +32,7 @@ from hsync_common.protocol.handshake import PROTOCOL_VERSION_REST
 - **Understanding the shared models?** → Read the [Models guide](models.md).
 - **Using the utilities?** → See the [Utilities guide](utilities.md).
 - **Working with the protocol?** → Read the [Protocol guide](protocol.md).
+- **Understanding authentication?** → The [Authentication](authentication.md) spec covers CID format, message schema, and protocol versioning shared by all components.
 - **Implementing LAN P2P?** → The [LAN Protocol spec](lan-protocol.md) is the authoritative reference.
 - **Reading logs?** → The [Log Labels reference](log-labels.md) catalogs every action label across all projects.
 - **Working on the Android app?** → See [Android Mirroring](android-mirroring.md) for Kotlin/Python sync.
@@ -46,6 +47,7 @@ from hsync_common.protocol.handshake import PROTOCOL_VERSION_REST
 | [models.md](models.md) | The shared data models: File, Dir, Symlink, Event, SyncAction, TombstoneStore, SyncStateStore, delta models. |
 | [utilities.md](utilities.md) | Cross-cutting utilities: compression, hashing, ignore matcher, path validation, SSL, logging, clock, formatting, runtime detection. |
 | [protocol.md](protocol.md) | Versioned wire protocol: handshake, capabilities, LAN election, pairing, JSON-Schemas, fixtures. |
+| [authentication.md](authentication.md) | Shared authentication contracts: CID format, message schema, protocol version negotiation, cross-language enforcement. |
 | [lan-protocol.md](lan-protocol.md) | The LAN discovery, master-election, pairing, and security specification (authoritative reference). |
 | [log-labels.md](log-labels.md) | Canonical catalog of every action label across all projects: meaning, color category, and which project emits it. |
 | [android-mirroring.md](android-mirroring.md) | How Python models are mirrored in Kotlin for the Android app. |
