@@ -46,12 +46,18 @@ class TestResolveThreeWay:
 class TestSyncStateStoreMutation:
     def test_record_and_get(self):
         store = SyncStateStore()
-        store.record("a/b.txt", base_hash="hh", change_id="cid", origin_cid="peer1", timestamp=42)
+        store.record(
+            "a/b.txt",
+            base_hash="hh",
+            change_id="cid",
+            origin_cid="TestClientPeer1111111",
+            timestamp=42,
+        )
         entry = store.get("a/b.txt")
         assert entry is not None
         assert entry["base_hash"] == "hh"
         assert entry["change_id"] == "cid"
-        assert entry["origin_cid"] == "peer1"
+        assert entry["origin_cid"] == "TestClientPeer1111111"
         assert entry["ts"] == 42
 
     def test_record_defaults_change_id_and_ts(self):
