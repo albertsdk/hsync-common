@@ -122,6 +122,101 @@
         "title": "Body_upload_file_api_v1_buckets__bucket__files_post",
         "type": "object"
       },
+      "CreateBucketRequest": {
+        "properties": {
+          "bucket": {
+            "description": "Bucket name",
+            "title": "Bucket",
+            "type": "string"
+          },
+          "owner": {
+            "description": "Owner account id or name",
+            "title": "Owner",
+            "type": "string"
+          }
+        },
+        "required": [
+          "bucket",
+          "owner"
+        ],
+        "title": "CreateBucketRequest",
+        "type": "object"
+      },
+      "CreateClientRequest": {
+        "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "RFC3339 UTC expiry timestamp",
+            "title": "Expires At"
+          },
+          "name": {
+            "description": "Account name (1-64 chars, alphanumeric with . _ -)",
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "default": "client",
+            "description": "Account role: 'admin' or 'client'",
+            "title": "Role",
+            "type": "string"
+          },
+          "valid_days": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Key validity in days (≥1)",
+            "title": "Valid Days"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CreateClientRequest",
+        "type": "object"
+      },
+      "GrantMemberRequest": {
+        "properties": {
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Target account id",
+            "title": "Client Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Target account name",
+            "title": "Name"
+          }
+        },
+        "title": "GrantMemberRequest",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -133,6 +228,117 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "RotateKeyRequest": {
+        "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "RFC3339 UTC expiry for the new key",
+            "title": "Expires At"
+          },
+          "grace_seconds": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Grace period for old key (≥1 second)",
+            "title": "Grace Seconds"
+          },
+          "valid_days": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Key validity in days (≥1)",
+            "title": "Valid Days"
+          }
+        },
+        "title": "RotateKeyRequest",
+        "type": "object"
+      },
+      "SetExpiryRequest": {
+        "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "RFC3339 UTC expiry timestamp",
+            "title": "Expires At"
+          },
+          "none": {
+            "default": false,
+            "description": "Remove expiry",
+            "title": "None",
+            "type": "boolean"
+          },
+          "valid_days": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Key validity in days (≥1)",
+            "title": "Valid Days"
+          }
+        },
+        "title": "SetExpiryRequest",
+        "type": "object"
+      },
+      "TransferOwnerRequest": {
+        "properties": {
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Target account id",
+            "title": "Client Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Target account name",
+            "title": "Name"
+          }
+        },
+        "title": "TransferOwnerRequest",
         "type": "object"
       },
       "ValidationError": {
@@ -189,9 +395,405 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/admin/buckets": {
+      "get": {
+        "description": "List all buckets (FS ∪ membership), including orphans and ghosts.",
+        "operationId": "list_all_buckets_api_v1_admin_buckets_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List All Buckets",
+        "tags": [
+          "Admin"
+        ]
+      },
+      "post": {
+        "description": "Create a bucket on behalf of a specified owner (admin only).",
+        "operationId": "create_bucket_on_behalf_api_v1_admin_buckets_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBucketRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Bucket On Behalf",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/api/v1/admin/clients": {
+      "get": {
+        "description": "List all accounts (never includes hashes or secrets).",
+        "operationId": "list_clients_api_v1_admin_clients_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Clients",
+        "tags": [
+          "Admin"
+        ]
+      },
+      "post": {
+        "description": "Create a new account. Returns the token once.",
+        "operationId": "create_client_api_v1_admin_clients_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateClientRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Client",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/api/v1/admin/clients/{client_id}": {
+      "delete": {
+        "description": "Delete an account. Use ?cascade=true to delete owned buckets.",
+        "operationId": "delete_client_api_v1_admin_clients__client_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "client_id",
+            "required": true,
+            "schema": {
+              "title": "Client Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cascade",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Cascade",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Client",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/api/v1/admin/clients/{client_id}/disable": {
+      "post": {
+        "description": "Disable an account (blocks auth, closes WS). Self-disable → 409.",
+        "operationId": "disable_client_api_v1_admin_clients__client_id__disable_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "client_id",
+            "required": true,
+            "schema": {
+              "title": "Client Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Disable Client",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/api/v1/admin/clients/{client_id}/enable": {
+      "post": {
+        "description": "Enable a previously disabled account.",
+        "operationId": "enable_client_api_v1_admin_clients__client_id__enable_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "client_id",
+            "required": true,
+            "schema": {
+              "title": "Client Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Enable Client",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/api/v1/admin/clients/{client_id}/expiry": {
+      "patch": {
+        "description": "Set, extend, or remove the key expiry.",
+        "operationId": "set_expiry_api_v1_admin_clients__client_id__expiry_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "client_id",
+            "required": true,
+            "schema": {
+              "title": "Client Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetExpiryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Expiry",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/api/v1/admin/clients/{client_id}/rotate-key": {
+      "post": {
+        "description": "Rotate the account's key. Returns the new token once.",
+        "operationId": "rotate_key_api_v1_admin_clients__client_id__rotate_key_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "client_id",
+            "required": true,
+            "schema": {
+              "title": "Client Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RotateKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rotate Key",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
     "/api/v1/buckets": {
       "post": {
-        "description": "Create a new storage bucket.\n\nCreates a directory in the buckets storage area with the specified name.\nBucket names must be alphanumeric (hyphens and underscores allowed,\nbut not at the beginning or end).\n\nArgs:\n    bucket: Name for the new bucket.\n\nReturns:\n    JSON response confirming creation or conflict if exists.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.",
+        "description": "Create a new bucket. The creator becomes the owner.\n\nReturns 409 if the bucket name is already taken (directory exists).",
         "operationId": "create_bucket_api_v1_buckets_post",
         "parameters": [
           {
@@ -237,7 +839,7 @@
     },
     "/api/v1/buckets/{bucket}": {
       "delete": {
-        "description": "Delete a bucket and all its contents.\n\nPermanently removes the bucket directory and all files/subdirectories.\nThis operation cannot be undone.\n\nArgs:\n    bucket: Name of the bucket to delete.\n\nReturns:\n    JSON response confirming deletion.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    BucketNotFoundError: If bucket does not exist.\n    DeleteError: If deletion fails.",
+        "description": "Delete a bucket and all its contents (admin only).\n\nCleans up: filesystem directory, DB rows (membership, versions,\ntombstones, bucket mapping).  Non-admin callers get 403; non-existent\nor inaccessible buckets return 404.",
         "operationId": "delete_bucket_api_v1_buckets__bucket__delete",
         "parameters": [
           {
@@ -281,7 +883,7 @@
         ]
       },
       "get": {
-        "description": "Get bucket information including timestamps in ISO 8601 UTC with Z suffix (e.g. 2025-01-15T08:30:00.000Z).",
+        "description": "Get bucket information including timestamps in ISO 8601 UTC with Z suffix.",
         "operationId": "Get_bucket_information_api_v1_buckets__bucket__get",
         "parameters": [
           {
@@ -441,7 +1043,7 @@
         ]
       },
       "post": {
-        "description": "Upload a file to a bucket with resumable upload support.\n\nHandles file upload with integrity verification (SHA-256), timestamp\npreservation, and permission setting. Broadcasts an \"added\" event\nto all connected WebSocket clients.\n\nSupports resumable uploads: if offset > 0, the incoming data is\nappended to an existing partial file (.part extension).\n\nArgs:\n    bucket: Target bucket name.\n    cid: Client ID for event broadcasting.\n    file: The file to upload.\n    path: Subdirectory path within the bucket.\n    ctime: Creation time as Unix epoch seconds (int) or ISO 8601 string\n        (e.g. ``2025-01-15T08:30:00Z``). Naive strings are treated as UTC.\n    mtime: Modification time as Unix epoch seconds (int) or ISO 8601 string\n        (e.g. ``2025-01-15T08:30:00Z``). Naive strings are treated as UTC.\n    sha256sum: Expected SHA-256 checksum for integrity verification.\n    permissions: File permissions as an octal string (e.g., '644').\n    offset: Byte offset for resumable uploads (0 for new uploads).\n    size: Total file size (required for resumable uploads).\n\nReturns:\n    JSON response confirming upload or conflict if identical file exists.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    InvalidPathError: If path is invalid.\n    InvalidPermissionFormatError: If permission format is invalid.\n    InvalidFilenameError: If filename contains forbidden characters or is reserved.\n    ChecksumMismatchError: If SHA-256 checksum verification fails.\n    UploadError: If upload operation fails.",
+        "description": "Upload a file to a bucket with resumable upload support.\n\nHandles file upload with integrity verification (SHA-256), timestamp\npreservation, and permission setting. Broadcasts an \"added\" event\nto all connected WebSocket clients.\n\nSupports resumable uploads: if offset > 0, the incoming data is\nappended to an existing partial file (.part extension).\n\nArgs:\n    bucket: Target bucket name.\n    cid: Client ID for event broadcasting.\n    file: The file to upload.\n    path: Subdirectory path within the bucket.\n    ctime: Creation time as Unix epoch seconds (int) or ISO 8601 string\n        (e.g. ``2025-01-15T08:30:00Z``). Naive strings are treated as UTC.\n    mtime: Modification time as Unix epoch seconds (int) or ISO 8601 string\n        (e.g. ``2025-01-15T08:30:00Z``). Naive strings are treated as UTC.\n    sha256sum: Expected SHA-256 checksum for integrity verification.\n    permissions: File permissions as an octal string (e.g., '644').\n    offset: Byte offset for resumable uploads (0 for new uploads).\n    size: Total file size (required for resumable uploads).\n\nReturns:\n    JSON response confirming upload or conflict if identical file exists.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    InvalidPathError: If path is invalid.\n    InvalidPermissionFormatError: If permission format is invalid.\n    InvalidFilenameError: If filename contains forbidden characters or is reserved.\n    ChecksumMismatchError: If SHA-256 checksum verification fails.\n        UploadError: If upload operation fails.",
         "operationId": "upload_file_api_v1_buckets__bucket__files_post",
         "parameters": [
           {
@@ -840,6 +1442,217 @@
           }
         ],
         "summary": "Get Upload Status",
+        "tags": [
+          "Authenticated Router"
+        ]
+      }
+    },
+    "/api/v1/buckets/{bucket}/members": {
+      "get": {
+        "description": "List members of a bucket (owner/admin only; member gets 403).",
+        "operationId": "list_members_api_v1_buckets__bucket__members_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bucket",
+            "required": true,
+            "schema": {
+              "title": "Bucket",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Members",
+        "tags": [
+          "Authenticated Router"
+        ]
+      },
+      "post": {
+        "description": "Grant membership to an account (owner/admin only).",
+        "operationId": "grant_member_api_v1_buckets__bucket__members_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bucket",
+            "required": true,
+            "schema": {
+              "title": "Bucket",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantMemberRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Grant Member",
+        "tags": [
+          "Authenticated Router"
+        ]
+      }
+    },
+    "/api/v1/buckets/{bucket}/members/{client_id}": {
+      "delete": {
+        "description": "Revoke membership (owner/admin only; last owner must transfer first).",
+        "operationId": "revoke_member_api_v1_buckets__bucket__members__client_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bucket",
+            "required": true,
+            "schema": {
+              "title": "Bucket",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "client_id",
+            "required": true,
+            "schema": {
+              "title": "Client Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Revoke Member",
+        "tags": [
+          "Authenticated Router"
+        ]
+      }
+    },
+    "/api/v1/buckets/{bucket}/owner": {
+      "post": {
+        "description": "Transfer ownership or reclaim an orphan bucket (owner/admin only).\n\nIf the bucket has an owner, this transfers ownership (ex-owner stays\nmember).  If the bucket has no owner (orphan), only admin can reclaim.",
+        "operationId": "transfer_or_reclaim_owner_api_v1_buckets__bucket__owner_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bucket",
+            "required": true,
+            "schema": {
+              "title": "Bucket",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferOwnerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Transfer Or Reclaim Owner",
         "tags": [
           "Authenticated Router"
         ]
