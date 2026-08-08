@@ -148,6 +148,16 @@ class SyncStateStore:
         entry = self.get(relpath)
         return entry["base_hash"] if entry else None
 
+    def iter_entries(self) -> list[tuple[str, FileVersion]]:
+        """Return all (relpath, version) entries as a snapshot.
+
+        Used by the sync engine to inspect the merge base so it can detect
+        files that were deleted locally between one-shot sync cycles (the
+        entry exists in the store but the file is no longer listed by
+        get_files_local).
+        """
+        return list(self._data.items())
+
     def __len__(self) -> int:
         return len(self._data)
 
