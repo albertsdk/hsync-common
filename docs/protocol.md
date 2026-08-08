@@ -34,7 +34,7 @@ The canonical capability document is in `hsync_common.protocol.capabilities`.
 The first frame on a WebSocket connection must be an `auth` message:
 
 ```json
-{"type": "auth", "token": "<api_key>", "version": "1.0.0"}
+{"type": "auth", "token": "<api_key>", "protocol_version": "ws/1", "app_version": "1.0.0", "capabilities": []}
 ```
 
 The server replies with `{"type": "auth", "status": "ok", ...}` on success, or
