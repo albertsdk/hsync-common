@@ -48,29 +48,47 @@ class Dir:
     Attributes:
         path: Absolute or relative path to the directory.
         permissions: Octal permission string (e.g., '755').
+        recursive: When a ``deleted`` event carries this flag, the directory
+            deletion applies recursively: every descendant is removed along
+            with the directory itself (a single message replaces one
+            per-descendant message).
     """
 
-    def __init__(self, path: str | None = None, permissions: str | None = None):
+    def __init__(
+        self,
+        path: str | None = None,
+        permissions: str | None = None,
+        recursive: bool | None = None,
+    ):
         """
         Initialize a Dir instance.
 
         Args:
             path: Path to the directory.
             permissions: Octal permission string.
+            recursive: Whether the directory event is recursive (deletion only).
         """
         self.path = path
         self.permissions = permissions
+        self.recursive = recursive
 
     def __repr__(self) -> str:
         """Return string representation of the Dir instance."""
         return f"{self.__class__.__name__}(path={self.path}, permissions={self.permissions})"
 
     def to_dict(self) -> dict:
-        """Convert the Dir instance to a dictionary."""
-        return {
+        """Convert the Dir instance to a dictionary.
+
+        The ``recursive`` key is emitted only when set (truthy) so
+        non-recursive events keep the historical wire shape.
+        """
+        data: dict[str, object] = {
             "path": self.path,
             "permissions": self.permissions,
         }
+        if self.recursive:
+            data["recursive"] = True
+        return data
 
     @classmethod
     def from_dict(cls, data: dict, localpath: str, strip_localpath: bool = False) -> "Dir":
@@ -78,7 +96,8 @@ class Dir:
         Create a Dir instance from a dictionary.
 
         Args:
-            data: Dictionary containing 'path' and optionally 'permissions'.
+            data: Dictionary containing 'path', optionally 'permissions' and
+                'recursive'.
             localpath: Base path for resolving relative paths.
             strip_localpath: If True, remove localpath prefix from path.
 
@@ -91,6 +110,7 @@ class Dir:
         return cls(
             path=path,
             permissions=data.get("permissions"),
+            recursive=bool(data.get("recursive", False)) or None,
         )
 
     @classmethod
