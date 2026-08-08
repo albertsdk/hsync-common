@@ -85,8 +85,8 @@ Android).
 - ``journal_mode=WAL``, ``synchronous=FULL``, ``busy_timeout=5000``,
   ``foreign_keys=ON``, ``user_version=1``. WAL probe falls back to
   ``journal_mode=DELETE`` on filesystems that reject WAL.
-- ``retain()`` uses a temp-table anti-join (or chunked ``IN`` of ~500 ids)
-  so SQLite's parameter limit is never hit.
+- ``retain()`` uses a temp-table anti-join so SQLite's parameter limit is
+  never hit.
 
 ### Wire hardening
 
