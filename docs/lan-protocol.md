@@ -24,7 +24,7 @@ lives in `LAN_TXT_KEYS`; do not introduce keys outside it.
 
 | Key | Type | Notes |
 |---|---|---|
-| `cid` | string | Unique client id; strictly alphanumeric (`[A-Za-z0-9]{1,64}`), so it always starts with a letter or digit; final election tiebreaker. |
+| `cid` | string | Unique client id; strictly alphanumeric (`[A-Za-z0-9]{21}`), so it always starts with a letter or digit; final election tiebreaker. |
 | `bucket` | string | Bucket served/synced. |
 | `version` | string | Semantic app version (informational only). |
 | `protocol` | string | LAN protocol version (`lan/1`); mismatched peers are ignored. |
@@ -280,7 +280,7 @@ scraping log wording: `fingerprint_changed` (pin mismatch, connection refused),
 
 Every client-ID received from a remote peer (WebSocket auth/hello message, HTTP
 query parameter `?cid=`, delta token metadata) **MUST** pass `is_valid_cid()`
-(`hsync_common.models.event`, pattern `^[A-Za-z0-9]{1,64}$`, `fullmatch`) before
+(`hsync_common.models.event`, pattern `^[A-Za-z0-9]{21}$`, `fullmatch`) before
 it is trusted for log lines, echo suppression, or event attribution.  A CID that
 fails validation is rejected at the transport level (WebSocket close / HTTP 4xx)
 rather than silently falling back to `"unknown"`.  This prevents log injection

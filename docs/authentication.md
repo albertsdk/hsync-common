@@ -9,24 +9,72 @@ documented in the consuming projects:
 - **Server-side**: [`hsync-server/docs/authentication.md`](https://github.com/albertobasso/hsync-server/blob/main/docs/authentication.md)
 - **Client-side**: [`hsync-client/docs/authentication.md`](https://github.com/albertobasso/hsync-client/blob/main/docs/authentication.md)
 
-## Client ID (CID) format
+## What is a CID?
 
-Every HSYNC peer is identified by a **CID** — a strictly alphanumeric NanoID-style
+A **CID** (Client ID) is an **ephemeral session identifier** generated locally
+by each HSYNC peer at startup. It is **never assigned by a server** — every
+peer (desktop client, Android client, server-mode peer acting as a client)
+creates its own cryptographically random CID on launch and discards it on
+shutdown.
+
+The CID serves three purposes across the protocol:
+
+1. **Echo suppression** — every filesystem event broadcast carries the
+   originator's CID. A peer that receives its own CID back from the relay
+   (server or LAN master) silently discards the event, preventing an
+   infinite echo loop.
+
+2. **Event attribution** — log lines and debug output tag each operation
+   with the originating CID, making it possible to trace which peer
+   triggered which sync action.
+
+3. **Master election tiebreaker** — in LAN mode, when two peers start at
+   exactly the same `startup_time` (same-second), the peer with the
+   lexicographically **lowest CID** wins the election. This is a
+   deterministic, always-available fallback.
+
+Key properties:
+
+| Property | Detail |
+|---|---|
+| **Lifetime** | Ephemeral — regenerated on every restart |
+| **Origin** | Generated locally (Python: `get_cid()`, Kotlin: `ClientId.newClientId()`) |
+| **Secrecy** | Not a secret — the CID is broadcast openly on mDNS and embedded in every event |
+| **Uniqueness** | Statistically unique per session (~125 bits of entropy) |
+| **Authenticity** | May be authenticated (bound to a shared `API_KEY` or `LAN_KEY`) or unauthenticated (hello mode) |
+
+### Authenticated vs unauthenticated CID
+
+A CID alone is not a proof of identity. Its trustworthiness depends on the
+transport context:
+
+- **Server Mode**: the CID arrives alongside a validated `API_KEY` → **authenticated**.
+- **LAN P2P with `LAN_KEY`**: the CID is bound to the shared secret → **authenticated**.
+- **LAN P2P without `LAN_KEY` (hello mode)**: the CID is self-declared and
+  unverified → **unauthenticated** — the master ignores it for echo suppression
+  and qualifies it in logs.
+
+The distinction matters for security: an unauthenticated CID must never be
+trusted for event attribution or origin tracking, since any host on the LAN
+can advertise any CID. See the table in [CID propagation](#cid-propagation).
+
+## CID format
+
+Every HSYNC peer is identified by a **CID** — a strictly alphanumeric
 string. The canonical pattern is enforced by `hsync_common.models.event.is_valid_cid`:
 
 ```
-^[A-Za-z0-9]{1,64}$
+^[A-Za-z0-9]{21}$
 ```
 
 | Property | Value |
 |---|---|
 | Alphabet | `A-Z a-z 0-9` (62 symbols) |
-| Min length | 1 |
-| Max length | 64 |
+| Length | 21 (fixed) |
 | Match mode | **fullmatch** (not `match` — trailing `\n` is rejected) |
-| Default length | 21 characters (~125 bits of entropy) |
-| Python validator | `hsync_common.models.event.is_valid_cid(value)` |
-| Kotlin validator | `CID_PATTERN.matcher(value).matches()` in `LanWebSocketServer` / `LanServer` |
+| Entropy | ~125 bits (log₂(62²¹)) |
+| Python validator | `hsync_common.models.event.is_valid_cid(value)` (`^[A-Za-z0-9]{21}$`) |
+| Kotlin validator | `CID_PATTERN.matcher(value).matches()` in `LanWebSocketServer` / `LanServer` (`^[A-Za-z0-9]{21}$`) |
 
 A CID that fails validation **must be rejected at the transport level** (WebSocket
 close with `reason: "invalid_cid"`, or HTTP 4xx) — never silently replaced with a
