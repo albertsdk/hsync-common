@@ -18,6 +18,7 @@ from hsync_common.models.event import Event, EventName, is_valid_cid
 from hsync_common.models.file import (
     SHA256_CACHE_MAX_SIZE,
     File,
+    FileDict,
     _get_cached_sha256,
     _set_cached_sha256,
     _sha256_cache,
@@ -133,6 +134,13 @@ class TestFileInit:
     def test_time_as_isoformat_string(self):
         f = File(mtime="2025-01-01T00:00:00+00:00")
         assert isinstance(f.mtime, int)
+        # Pin the exact parsed value: an int cast of "now" would also satisfy
+        # isinstance but would be a parsing regression.
+        assert f.mtime == 1735689600
+
+    def test_invalid_time_string_raises(self):
+        with pytest.raises(ValueError):
+            File(mtime="not-a-timestamp")
 
     def test_none_time(self):
         f = File()
@@ -144,10 +152,20 @@ class TestFileToDict:
     def test_to_dict_keys(self):
         f = File(filepath="/tmp/a.txt", size=10)
         d = f.to_dict()
-        assert "filepath" in d
-        assert "name" in d
-        assert "size" in d
-        assert "sha256sum" in d
+        # FileDict is the wire contract (its keys drive the WS schema): the
+        # serialized dict must contain exactly those keys, no more, no less.
+        assert set(d) == set(FileDict.__annotations__)
+
+    def test_to_dict_values(self):
+        f = File(filepath="/tmp/a.txt", size=10, sha256sum="ab" * 32, permissions="644")
+        d = f.to_dict()
+        assert d["filepath"] == "/tmp/a.txt"
+        assert d["name"] == "a.txt"
+        assert d["size"] == 10
+        assert d["sha256sum"] == "ab" * 32
+        assert d["permissions"] == "644"
+        assert d["ctime"] is None
+        assert d["mtime"] is None
 
 
 class TestFileSha256Cache:
@@ -385,6 +403,18 @@ class TestSymlinkModel:
         assert s.name == "link.txt"
         assert s.target == "/tmp/real.txt"
 
+    def test_target_empty_rejected(self):
+        with pytest.raises(ValueError):
+            Symlink(filepath="/tmp/link.txt", target="")
+
+    def test_target_null_byte_rejected(self):
+        with pytest.raises(ValueError, match="null byte"):
+            Symlink(filepath="/tmp/link.txt", target="a\x00b")
+
+    def test_target_over_long_rejected(self):
+        with pytest.raises(ValueError, match="maximum length"):
+            Symlink(filepath="/tmp/link.txt", target="a" * 4097)
+
     def test_to_dict(self):
         s = Symlink(filepath="/tmp/link.txt", target="/tmp/real.txt")
         d = s.to_dict()
@@ -470,6 +500,15 @@ class TestSyncAction:
         assert "file" in d
         assert "name" in d
         assert d["name"] == SyncActionName.upload
+        assert d["timedelta"] == "10s"
+        assert d["conflict"] is False
+
+    def test_to_dict_includes_conflict_flag(self):
+        # The conflict signal must survive serialization: a consumer that
+        # only sees the dict would otherwise overwrite the local copy.
+        f = File(filepath="/tmp/f.txt", size=0)
+        sa = SyncAction(file=f, name=SyncActionName.download, conflict=True)
+        assert sa.to_dict()["conflict"] is True
 
     def test_format_timedelta_includes_days(self):
         f = File(filepath="/tmp/f.txt", size=0)
@@ -595,6 +634,37 @@ class TestEventModel:
         )
         assert event.dst is not None
         assert event.dst.filepath == "new.txt"  # type: ignore[reportAttributeAccessIssue]
+
+    def test_event_normalizes_src_and_dst_in_place(self):
+        # Event rewrites the caller's src/dst objects (documented contract):
+        # the same instances appear, normalized, on the event.
+        src = File(filepath="/base/old.txt", size=5)
+        dst = File(filepath="/base/new.txt", size=5)
+        event = Event(
+            cid="c",
+            localpath="/base",
+            bucket="b",
+            name=EventName.renamed,
+            src=src,
+            dst=dst,
+        )
+        assert event.src is src
+        assert event.dst is dst
+        assert src.filepath == "old.txt"
+        assert dst.filepath == "new.txt"
+
+    def test_shared_string_prefix_is_not_stripped(self):
+        # "/base2" merely shares the leading characters of "/base" — it is
+        # NOT inside it. String-prefix stripping would mangle the path to
+        # "2/x.txt"; component-aware stripping must keep it verbatim.
+        src = File(filepath="/base2/x.txt", size=1)
+        event = Event(cid="c", localpath="/base", bucket="b", name=EventName.added, src=src)
+        assert event.src.filepath == "/base2/x.txt"  # type: ignore[reportAttributeAccessIssue]
+
+    def test_localpath_with_trailing_slash_strips_cleanly(self):
+        src = File(filepath="/base/sub/f.txt", size=1)
+        event = Event(cid="c", localpath="/base/", bucket="b", name=EventName.added, src=src)
+        assert event.src.filepath == "sub/f.txt"  # type: ignore[reportAttributeAccessIssue]
 
     def test_event_without_strip_prepends_localpath(self):
         src = File(filepath="sub/f.txt", size=5)

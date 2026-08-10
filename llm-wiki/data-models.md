@@ -34,7 +34,16 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
 - `is_valid_cid` (`models/event.py:29`): strictly-alphanumeric client-ID check
   (`^[A-Za-z0-9]{21}$`) for peer-supplied client IDs — no `-`/`_`, so a cid
   always starts with a letter/digit (`fullmatch` — a trailing `\n` is rejected).
-- `SyncActionName` (`models/sync_action.py:14`): `download, upload, delete, nothing`.
+- `Event.__init__` normalizes src/dst paths **in place** (the caller's objects
+  are rewritten). Stripping `localpath` is component-aware via
+  `Path.relative_to`: a path merely sharing the string prefix (e.g. `/base2`
+  vs `/base`) is kept verbatim instead of being mangled (`2/x`).
+- `SyncActionName` (`models/sync_action.py:14`): `download, upload, delete,
+  delete_remote, nothing`.
+- `SyncAction.to_dict` (`models/sync_action.py:72`) serializes
+  `file, name, timedelta, conflict` — the `conflict` flag is part of the
+  serialized shape so the "preserve the local copy first" signal survives
+  serialization.
 
 ## TombstoneStore (deletion markers)
 
@@ -62,6 +71,9 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
   `_CHANGE_ID_BYTES = 16`).
 - `SyncStateStore` (`models/version.py:100`) persists per-file base versions for
   the next reconciliation; backs the `.hsyncstate` side-car (`constants.py:51`).
+  `load()` is hardened like `TombstoneStore.load()`: a non-dict `versions`
+  member, non-dict entries, and `ts` values that are bool/non-numeric/non-finite
+  are skipped instead of crashing startup.
 
 ## Delta Transfer Models (`models/delta.py`)
 

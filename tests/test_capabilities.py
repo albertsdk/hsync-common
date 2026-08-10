@@ -83,6 +83,36 @@ class TestParseCapabilities:
         del doc["cli_options"]  # type: ignore[reportGeneralTypeIssues]
         assert parse_capabilities(json.dumps(doc)) is None
 
+    def test_rejects_string_cli_options(self):
+        # Key presence alone is not enough: a plain-string cli_options would
+        # make supports_cli_option match substrings instead of flags.
+        doc = build_capabilities(app_version="1.0.0", cli_options=[])
+        doc["cli_options"] = "--never-master"  # type: ignore[typeddict-item]
+        assert parse_capabilities(json.dumps(doc)) is None
+
+    def test_rejects_non_list_capabilities(self):
+        doc = build_capabilities(app_version="1.0.0", cli_options=[])
+        doc["capabilities"] = "compression"  # type: ignore[typeddict-item]
+        assert parse_capabilities(json.dumps(doc)) is None
+
+    def test_rejects_non_string_list_entries(self):
+        doc = build_capabilities(app_version="1.0.0", cli_options=[])
+        doc["cli_options"] = [42]  # type: ignore[list-item]
+        assert parse_capabilities(json.dumps(doc)) is None
+
+    def test_rejects_malformed_protocol_version(self):
+        doc = build_capabilities(app_version="1.0.0", cli_options=[])
+        doc["protocol_version"] = {"rest": 1, "ws": "ws/1"}  # type: ignore[typeddict-item]
+        assert parse_capabilities(json.dumps(doc)) is None
+
+    def test_rejects_wrong_scalar_types(self):
+        doc = build_capabilities(app_version="1.0.0", cli_options=[])
+        doc["app_version"] = 123  # type: ignore[typeddict-item]
+        assert parse_capabilities(json.dumps(doc)) is None
+        doc2 = build_capabilities(app_version="1.0.0", cli_options=[])
+        doc2["events_schema_version"] = True  # type: ignore[typeddict-item]
+        assert parse_capabilities(json.dumps(doc2)) is None
+
 
 class TestSupportsCliOption:
     def test_present_flag(self):

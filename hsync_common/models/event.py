@@ -99,11 +99,28 @@ class Event:
         def correct_path(
             entity: File | Dir | Symlink, localpath: str, strip_localpath: bool
         ) -> None:
-            """Normalize the path of a File, Dir, or Symlink entity."""
+            """Normalize the path of a File, Dir, or Symlink entity.
+
+            Stripping uses :meth:`pathlib.Path.relative_to` (component-aware),
+            never a string prefix: a path that merely shares the leading
+            characters of *localpath* (e.g. ``/base2/x`` vs ``/base``) is not
+            inside it and must be kept verbatim instead of being mangled into
+            a bogus relative path (``2/x``). The entity is rewritten in place:
+            callers must not reuse the src/dst objects after construction.
+            """
             path = str(entity.path) if isinstance(entity, Dir) else str(entity.filepath)
 
             if strip_localpath:
-                path = path.removeprefix(localpath).lstrip("/")
+                try:
+                    rel = str(Path(path).relative_to(localpath))
+                except ValueError:
+                    # Not under localpath: keep the original path rather than
+                    # emitting a corrupted relative one.
+                    pass
+                else:
+                    # relative_to of localpath itself yields "." — normalize
+                    # to "" so the bucket root stays an empty relative path.
+                    path = "" if rel == "." else rel
             else:
                 path = str(Path(localpath) / path.lstrip("/"))
 
