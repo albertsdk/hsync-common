@@ -109,6 +109,12 @@ Diff inspection and executed checks are required; stating that the implementatio
 
 Every bug fix needs a regression test that fails before and passes after the fix. New behavior must cover success and relevant failure/boundary paths. Every protocol change must update generated schemas and committed fixtures, test drift, and update affected Python consumers and Android parity tests atomically. A test may be omitted only when genuinely impractical, with reason and alternative verification reported.
 
+**Black-box tests (`test_bb_*`)** must verify the public contract, never the implementation. Every new `test_bb_*` test must be able to answer **YES** to all of these questions:
+
+* Does the test use only public REST endpoints, documented CLI commands, or protocol WebSocket frames?
+* If the internal implementation were completely rewritten while keeping the same contract, would the test still pass?
+* Does the test verify a behavior that the end user or a remote client can actually observe?
+
 ### 5. Bounded Correction Cycle
 
 Fix issues found and repeat relevant verification for at most two review-and-correction cycles unless the user requests more. Do not finalize with known failures. Report environmental or pre-existing blockers precisely, and never claim an unexecuted check passed.
