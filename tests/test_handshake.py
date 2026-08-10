@@ -86,13 +86,13 @@ class TestWsAuthBuilders:
         assert frame["type"] == "auth"
         assert frame["status"] == "ok"
         assert frame["protocol_version"] == PROTOCOL_VERSION_WS
-        assert frame["app_version"] == "1.0.0"
-        assert frame["capabilities"] == ["compression"]
+        assert frame["app_version"] == "1.0.0"  # type: ignore[reportTypedDictNotRequiredAccess]
+        assert frame["capabilities"] == ["compression"]  # type: ignore[reportTypedDictNotRequiredAccess]
 
     def test_build_error(self):
         frame = build_ws_auth_error(error="protocol_incompatible", client_protocol_version="ws/999")
         assert frame["type"] == "auth"
         assert frame["status"] == "error"
-        assert frame["error"] == "protocol_incompatible"
+        assert frame["error"] == "protocol_incompatible"  # type: ignore[reportTypedDictNotRequiredAccess]
         assert frame["protocol_version"] == PROTOCOL_VERSION_WS
-        assert frame["client_protocol_version"] == "ws/999"
+        assert frame["client_protocol_version"] == "ws/999"  # type: ignore[reportTypedDictNotRequiredAccess]

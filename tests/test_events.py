@@ -21,24 +21,24 @@ class TestBuildEvent:
     def test_accepts_plain_string_event(self):
         ev = build_event("status", status="connected")
         assert ev["event"] == "status"
-        assert ev["status"] == "connected"
+        assert ev["status"] == "connected"  # type: ignore[reportTypedDictNotRequiredAccess]
 
     def test_explicit_ts_is_preserved(self):
         ev = build_event(UiEventName.peers, ts="2026-06-19T10:00:00Z", count=3)
         assert ev["ts"] == "2026-06-19T10:00:00Z"
-        assert ev["count"] == 3
+        assert ev["count"] == 3  # type: ignore[reportTypedDictNotRequiredAccess]
 
     def test_drops_none_payload_values(self):
         ev = build_event(UiEventName.transfer, op="download", file="a.txt", size=None)
         assert "size" not in ev
-        assert ev["op"] == "download"
-        assert ev["file"] == "a.txt"
+        assert ev["op"] == "download"  # type: ignore[reportTypedDictNotRequiredAccess]
+        assert ev["file"] == "a.txt"  # type: ignore[reportTypedDictNotRequiredAccess]
 
     def test_keeps_falsey_non_none_values(self):
         ev = build_event(UiEventName.role, is_master=False)
-        assert ev["is_master"] is False
+        assert ev["is_master"] is False  # type: ignore[reportTypedDictNotRequiredAccess]
         ev2 = build_event(UiEventName.progress, transferred=0, total=10)
-        assert ev2["transferred"] == 0
+        assert ev2["transferred"] == 0  # type: ignore[reportTypedDictNotRequiredAccess]
 
 
 class TestSerializeEvent:
