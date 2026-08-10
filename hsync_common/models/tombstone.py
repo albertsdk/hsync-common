@@ -63,6 +63,27 @@ def _is_valid_sha256(value: object) -> bool:
     return value is None or _is_valid_key(value)
 
 
+def _parse_wire_timestamp(raw: object) -> int | None:
+    """Parse a timestamp from an untrusted wire/storage payload.
+
+    Rejects ``bool`` (which is an ``int`` subclass), non-finite floats
+    (``NaN``, ``Infinity``) and non-numeric values, so a malformed entry
+    cannot produce a bogus timestamp of 0/1 or crash ``int()``.
+
+    Args:
+        raw: The raw timestamp value (int, float, str, etc.).
+
+    Returns:
+        The timestamp as a positive integer, or ``None`` when invalid.
+    """
+    if isinstance(raw, bool) or not isinstance(raw, (int, float, str)):
+        return None
+    try:
+        return int(raw)
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
 def _sanitize_entry(
     key: object,
     entry: object,
@@ -83,17 +104,8 @@ def _sanitize_entry(
     """
     if not _is_valid_key(key) or not isinstance(entry, dict) or "ts" not in entry:
         return None
-    raw_ts = entry["ts"]  # type: ignore[index]
-    if isinstance(raw_ts, bool):
-        # bool is an int subclass: reject it on the RAW value, before int()
-        # would silently turn True into a valid-looking timestamp of 1.
-        return None
-    try:
-        ts = int(raw_ts)  # type: ignore[call-overload]
-    except (TypeError, ValueError, OverflowError):
-        # Non-numeric ts, or a non-finite float (JSON ``Infinity``/``NaN``
-        # are accepted by json.loads and would crash int() with
-        # OverflowError/ValueError) — reject instead of blowing up the merge.
+    ts = _parse_wire_timestamp(entry["ts"])  # type: ignore[index]
+    if ts is None:
         return None
     if ts <= 0 or ts > now + TOMBSTONE_MAX_CLOCK_SKEW_SECONDS:
         return None
@@ -142,11 +154,7 @@ class TombstoneStore:
         timestamp: int | float | None = None,
     ) -> None:
         """Record (or refresh, LWW) a deletion marker for a relative path."""
-        ts = int(timestamp) if timestamp is not None else int(time.time())
-        key = tombstone_key(relpath)
-        existing = self._data.get(key)
-        if existing is None or ts >= existing["ts"]:
-            self._data[key] = TombstoneEntry(ts=ts, sha256=sha256sum)
+        self.record_by_key(tombstone_key(relpath), sha256sum=sha256sum, timestamp=timestamp)
 
     def record_by_key(
         self,

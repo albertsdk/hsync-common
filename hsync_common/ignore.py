@@ -203,9 +203,10 @@ def get_active_matcher() -> IgnoreMatcher | None:
         return _active_matcher
 
 
-# Fallback spec used when no matcher is installed (e.g. on the server).
-# Contains only the built-in default patterns.
-_fallback_spec: PathSpec = PathSpec.from_lines(GitWildMatchPattern, DEFAULT_IGNORE_PATTERNS)
+# Fallback matcher used when no matcher is installed (e.g. on the server).
+# bucket_root="" → reload() skips .hsyncignore I/O and uses only the built-in
+# default patterns, exactly matching the legacy behaviour of should_skip.
+_fallback_matcher = IgnoreMatcher("")
 
 
 def should_skip(path: str, is_dir: bool = False) -> bool:
@@ -216,19 +217,4 @@ def should_skip(path: str, is_dir: bool = False) -> bool:
     so legacy behaviour is preserved.
     """
     matcher = get_active_matcher()
-    if matcher is not None:
-        return matcher.matches(path, is_dir=is_dir)
-
-    name = Path(path.rstrip("/")).name
-    if name == HSYNCKEEP_FILENAME:
-        return False
-    if is_internal_name(name):
-        return True
-    if not is_dir and is_partial_file(name):
-        return True
-
-    rel = path.replace("\\", "/")
-    while rel.startswith("./"):
-        rel = rel[2:]
-    candidate = rel + ("/" if is_dir and not rel.endswith("/") else "")
-    return _fallback_spec.match_file(candidate)
+    return (matcher or _fallback_matcher).matches(path, is_dir=is_dir)

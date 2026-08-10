@@ -177,24 +177,31 @@ def color_output_enabled(*, no_color: bool = False) -> bool:
 # =============================================================================
 
 
-def _read_int_file(path: Path) -> int | None:
-    """Read an integer from a cgroup pseudo-file; None on any failure."""
+def _read_cgroup_text(path: Path) -> str | None:
+    """Read a cgroup pseudo-file as ASCII, returning None on any I/O failure."""
     try:
-        raw = path.read_text(encoding="ascii", errors="replace").strip()
+        return path.read_text(encoding="ascii", errors="replace")
     except OSError:
         return None
+
+
+def _read_int_file(path: Path) -> int | None:
+    """Read an integer from a cgroup pseudo-file; None on any failure."""
+    raw = _read_cgroup_text(path)
+    if raw is None:
+        return None
     try:
-        return int(raw)
+        return int(raw.strip())
     except ValueError:
         return None
 
 
 def _read_memory_limit_v2(root: Path) -> int | None:
     """cgroup v2 memory limit (``memory.max``); None when ``max``/unknown."""
-    try:
-        raw = (root / "memory.max").read_text(encoding="ascii", errors="replace").strip()
-    except OSError:
+    raw = _read_cgroup_text(root / "memory.max")
+    if raw is None:
         return None
+    raw = raw.strip()
     if raw == "max":
         return None
     try:

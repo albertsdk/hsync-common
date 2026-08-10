@@ -1,7 +1,7 @@
 # ADR 0015 — Mass-Deletion Safety Guard
 
 - **Status:** Accepted
-- **Date:** 2025-10-15
+- **Date:** 2026-10-15
 
 ## Context
 
@@ -34,7 +34,7 @@ wipe every local file** on every connected peer — a mass data-loss event.
 |-------------|-----------------|
 | **Two-phase delete confirmation** (ask user each cycle) | Interrupts non-interactive daemon runs; impossible on embedded/NAS targets (WD OS5, systemd service) |
 | **Trash/recycle-bin by default** | Adds storage complexity; doesn't solve the root cause (the master is wrong); trash must be cleaned eventually |
-| **CRDT-based conflict resolution** | Violates the fundamental architecture decision (ADR 0006: master authoritative); requires per-file version vectors; incompatible with the existing protocol |
+| **CRDT-based conflict resolution** | Violates the fundamental architecture decision ([ADR-0006](0006-master-authoritative-conflict-model.md): master authoritative); requires per-file version vectors; incompatible with the existing protocol |
 | **Per-file tombstone grace period** | Protects against spurious individual deletions but not a bulk wipe — 50 deleted files look the same as 1 deleted file to a tombstone check |
 | **Threshold-based guard (chosen)** | A simple, configurable, zero-maintenance safety net that catches the bulk-wipe scenario before any data is touched |
 
@@ -63,7 +63,7 @@ proceed unaffected.
 ### Non-goals
 
 - The guard does **not** validate individual delete decisions (that's the
-  tombstones' job — ADR 0003).
+  tombstones' job — [ADR-0003](0003-tombstone-gossip.md)).
 - The guard does **not** recover deleted files — it prevents the deletion from
   happening in the first place. If a user or operator misconfigures a client
   (e.g. points it at a wrong, empty bucket and *disables* the guard), data can
@@ -103,7 +103,7 @@ effectively an automatic circuit breaker.
   `--no-mass-delete-guard` or raise the thresholds for that session.
 - **Does not protect against slow, incremental data loss.** If an attacker or
   a buggy client deletes files at a rate of 10 per cycle, the guard will never
-  trip. The tombstones (ADR 0003) and `--ignore-delete` flag are the defenses
+  trip. The tombstones ([ADR-0003](0003-tombstone-gossip.md)) and `--ignore-delete` flag are the defenses
   for that class of problem.
 - **Adds a small constant-time overhead** per sync cycle: counting the delete
   actions against the thresholds. This is negligible compared to the I/O cost
@@ -119,7 +119,7 @@ effectively an automatic circuit breaker.
 
 ## References
 
-- [ADR 0006 — Master-Authoritative Conflict Model](0006-master-authoritative-conflict-model.md)
-- [ADR 0003 — Tombstone Gossip](0003-tombstone-gossip.md)
-- [ADR 0012 — Rate Limiting](0012-rate-limiting.md) (similar threshold/bucket pattern)
+- [ADR-0006](0006-master-authoritative-conflict-model.md) — Master-Authoritative Conflict Model
+- [ADR-0003](0003-tombstone-gossip.md) — Tombstone Gossip
+- [ADR-0012](0012-rate-limiting.md) — Rate Limiting (similar threshold/bucket pattern)
 - Implementation: `hsync_client.sync._mass_deletion_blocked()` in `hsync-client/hsync_client/sync.py`

@@ -205,11 +205,6 @@ class File:
         """Compute the SHA-256 checksum of a file with adaptive chunk size."""
         return compute_sha256(filepath, adaptive_chunk_size(file_size))
 
-    @staticmethod
-    def _get_permissions(obj_path: str) -> str:
-        """Get file permissions as a canonical octal string."""
-        return get_permissions(obj_path)
-
     def to_dict(self) -> FileDict:
         """Convert the File instance to a FileDict."""
         return FileDict(
@@ -243,7 +238,7 @@ class File:
                 mtime=file_mtime,
                 size=file_size,
                 sha256sum=sha256sum,
-                permissions=cls._get_permissions(file_path),
+                permissions=get_permissions(file_path),
             )
         else:
             return None
@@ -256,16 +251,11 @@ class File:
         strip_dir_prefix: bool = True,
     ) -> "File":
         """Create a File instance from a dictionary."""
-        if strip_dir_prefix and not dir_prefix:
-            raise ValueError("Set dir_prefix to strip it.")
+        from hsync_common.models import _resolve_prefixed_path
 
-        data_filepath = data.get("filepath", "")
-        if strip_dir_prefix and dir_prefix:
-            filepath = str(data_filepath).removeprefix(dir_prefix).lstrip("/")
-        elif dir_prefix:
-            filepath = str(Path(dir_prefix) / str(data_filepath).lstrip("/"))
-        else:
-            filepath = str(data_filepath)
+        filepath = _resolve_prefixed_path(
+            data.get("filepath", ""), dir_prefix, strip=strip_dir_prefix
+        )
 
         return cls(
             filepath=filepath,
