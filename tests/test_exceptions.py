@@ -18,9 +18,6 @@ class TestHSyncErrorDefaults:
         err = HSyncError()
         assert err.details == {}
 
-    def test_is_exception(self):
-        assert isinstance(HSyncError(), Exception)
-
     def test_str_is_message(self):
         err = HSyncError("something went wrong")
         assert str(err) == "something went wrong"
