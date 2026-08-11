@@ -26,8 +26,11 @@ clock-independent three-way merge, centralised in
   skew): only-local-changed → upload, only-remote-changed → download, both
   changed → **conflict**, no base → fall back to the legacy mtime/hash heuristic.
 - **Conflict-first**: on genuine divergence the remote (master) wins, but the
-  local content is always preserved as `.conflict-<host>-<timestamp>` before any
-  overwrite — no silent data loss.
+  local content is always preserved as `<stem>_conflicted_copy_<ISO8601-UTC>_<cid>.<ext>`
+  before any overwrite — no silent data loss. The naming convention is unified
+  between client (`_save_conflict_copy`) and server (`upload.py`) and always
+  uses UTC timestamps to avoid cross-timezone ambiguity. A `conflict_resolved`
+  UI event is emitted so the Desktop GUI can surface the conflict immediately.
 - The base is recorded after each successful sync, cleared on deletion and kept
   bounded via `retain()`. Android mirrors all of this (`util/Version.kt`).
 
