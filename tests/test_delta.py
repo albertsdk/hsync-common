@@ -244,8 +244,10 @@ class TestApplyDelta:
         ops, literals = find_matches(new, sigs, block_size)
         written = apply_delta(base_path, ops, literals, out_path)
         assert written == len(new)
-        assert open(out_path, "rb").read() == new  # noqa: SIM115
-        assert sha256(open(out_path, "rb").read()).hexdigest() == sha256(new).hexdigest()  # noqa: SIM115
+        with open(out_path, "rb") as f:
+            assert f.read() == new
+        with open(out_path, "rb") as f:
+            assert sha256(f.read()).hexdigest() == sha256(new).hexdigest()
 
     def test_roundtrip_identical(self, tmp_path):
         data = _base_bytes(size=BLOCK * 7)
@@ -275,7 +277,8 @@ class TestApplyDelta:
         out_path = str(tmp_path / "out.bin")
         with open(lit_path, "rb") as stream:
             apply_delta(base_path, ops, stream, out_path)
-        assert open(out_path, "rb").read() == new  # noqa: SIM115
+        with open(out_path, "rb") as f:
+            assert f.read() == new
 
     def test_copy_past_base_end_raises(self, tmp_path):
         base_path = _write(tmp_path / "base.bin", b"short")
@@ -474,7 +477,8 @@ class TestProperty:
         ops, literals = find_matches(bytes(new), sigs, BLOCK)
         out_path = str(tmp_path / "out.bin")
         apply_delta(base_path, ops, literals, out_path)
-        assert open(out_path, "rb").read() == bytes(new)  # noqa: SIM115
+        with open(out_path, "rb") as f:
+            assert f.read() == bytes(new)
         # ops coverage is exact: total op length == new file size, contiguous
         assert sum(op.length for op in ops) == len(new)
         # sanity: ops reference valid ranges
@@ -497,5 +501,6 @@ class TestProperty:
         ops, literals = find_matches_file(new_path, sigs, block)
         out_path = str(tmp_path / "out.bin")
         apply_delta(base_path, ops, literals, out_path)
-        assert open(out_path, "rb").read() == bytes(new)  # noqa: SIM115
+        with open(out_path, "rb") as f:
+            assert f.read() == bytes(new)
         assert len(literals) < size // 2  # delta actually saved bandwidth
