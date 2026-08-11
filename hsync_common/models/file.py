@@ -6,7 +6,7 @@ This module defines the File class representing a file with its metadata
 """
 
 from collections import OrderedDict
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import TypedDict
 
@@ -16,6 +16,7 @@ from hsync_common.constants import (
 )
 from hsync_common.hashing import adaptive_chunk_size, compute_sha256
 from hsync_common.permissions import get_permissions
+from hsync_common.time_utils import to_epoch
 
 # =============================================================================
 # SHA-256 Cache
@@ -185,20 +186,23 @@ class File:
             f"permissions={self.permissions})"
         )
 
-    def _parse_time(self, time: str | int | float | datetime | None) -> int | None:
+    def _parse_time(self, value: str | int | float | datetime | None) -> int | None:
         """Parse various time formats to Unix timestamp.
+
+        Delegates to :func:`hsync_common.time_utils.to_epoch` — the single
+        source of truth for timestamp parsing.  Bools are silently mapped to
+        ``None`` (Python ``bool`` is a subclass of ``int``, so ``True``/``False``
+        would otherwise parse as epoch 0/1 — a common source of bugs).
 
         OverflowError and ValueError from malformed or extreme time values
         are allowed to propagate; callers must catch them (the __init__
         constructor wraps them in a ValueError for all init paths).
         """
-        if isinstance(time, datetime):
-            return int(time.timestamp())
-        elif isinstance(time, str):
-            return int(datetime.fromisoformat(time).timestamp())
-        elif isinstance(time, (int, float)) and not isinstance(time, bool):
-            return int(datetime.fromtimestamp(time, UTC).timestamp())
-        return None
+        try:
+            return to_epoch(value)
+        except TypeError:
+            # bool is not a valid timestamp (rejected by to_epoch).
+            return None
 
     @staticmethod
     def _compute_sha256(filepath: str, file_size: int | None = None) -> str:
