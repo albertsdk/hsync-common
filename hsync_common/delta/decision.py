@@ -55,26 +55,17 @@ def changed_block_ratio(
     base_size: int,
     block_size: int,
 ) -> float:
-    """Fraction of base blocks *not* reused by copy ops (0.0 = identical).
+    """Fraction of base-file bytes *not* reused by copy ops (0.0 = identical).
 
-    A base block is "reused" when at least one copy op references its byte
-    range; everything else counts as changed. Returns 1.0 for an empty base
-    (nothing reusable) or invalid inputs.
+    Counts the actual bytes referenced by copy operations rather than the
+    number of blocks they touch, so partial-block reuse is measured accurately.
+    Returns 1.0 for an empty base (nothing reusable) or invalid inputs.
     """
     if base_size <= 0 or block_size <= 0:
         return 1.0
-    total_blocks = (base_size + block_size - 1) // block_size
-    if total_blocks == 0:
-        return 1.0
-    reused: set[int] = set()
-    for op in ops:
-        if op.type != OP_TYPE_COPY:
-            continue
-        first = op.offset // block_size
-        last = (op.offset + op.length - 1) // block_size
-        reused.update(range(first, last + 1))
-    matched = min(len(reused), total_blocks)
-    return 1.0 - (matched / total_blocks)
+    reused_bytes = sum(op.length for op in ops if op.type == OP_TYPE_COPY)
+    reused_bytes = min(reused_bytes, base_size)
+    return 1.0 - (reused_bytes / base_size)
 
 
 def is_delta_worthwhile(

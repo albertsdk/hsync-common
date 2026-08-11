@@ -19,7 +19,7 @@ clock-independent three-way merge, centralised in
 `hsync_common.models.version`:
 
 - Each peer remembers, per path, the content hash it last agreed on with the
-  authoritative node (`base_hash`) plus its lineage (`change_id`, `origin_cid`,
+  authoritative node (`base_hash`) plus its lineage (`version_id`, `origin_cid`,
   `ts`) — `FileVersion`, persisted in a private `.hsyncstate` side-car
   (`SyncStateStore`), **never exchanged on the wire**.
 - `resolve_three_way(local, remote, base)` compares hashes only (immune to clock
