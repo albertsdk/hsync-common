@@ -230,19 +230,3 @@ def should_skip(path: str, is_dir: bool = False) -> bool:
     """
     matcher = get_active_matcher()
     return (matcher or _fallback_matcher).matches(path, is_dir=is_dir)
-
-
-def is_ignored(path: str, is_dir: bool = False) -> bool:
-    """Return True when *path* should be excluded from synchronisation.
-
-    When a process-wide :class:`IgnoreMatcher` is active (installed by the
-    client at startup) it is consulted so that ``.hsyncignore`` rules and
-    extra patterns are honoured. When no matcher is installed (e.g. on the
-    server) the built-in default ignore patterns
-    (:data:`hsync_common.constants.DEFAULT_IGNORE_PATTERNS`) are used.
-
-    Following the industry standard (Syncthing, rsync, Nextcloud, OneDrive),
-    dotfiles in general (``.env``, ``.config`` …) are **not** excluded: only
-    OS cache files and editor/office temporary files are filtered by default.
-    """
-    return should_skip(path, is_dir=is_dir)

@@ -325,10 +325,6 @@ class TombstoneStore:
         """Return the marker for a relative path, if any."""
         return self._data.get(tombstone_key(relpath))
 
-    def get_by_key(self, key: str) -> TombstoneEntry | None:
-        """Return the marker for an already-hashed path key, if any."""
-        return self._data.get(key)
-
     def __len__(self) -> int:
         return len(self._data)
 

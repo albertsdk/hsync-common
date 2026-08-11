@@ -152,13 +152,6 @@ def new_version_id() -> str:
     return secrets.token_hex(_VERSION_ID_BYTES)
 
 
-def _clock_value(vclock: dict[str, int] | None, cid: str) -> int:
-    """Return the counter for *cid*, treating a missing clock/key as 0."""
-    if not vclock:
-        return 0
-    return vclock.get(cid, 0)
-
-
 def compare_vclocks(a: dict[str, int] | None, b: dict[str, int] | None) -> VClockOrder:
     """Compare two vector clocks (absent ⇒ empty).
 
