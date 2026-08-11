@@ -32,9 +32,12 @@ from hsync_common.protocol.handshake import PROTOCOL_VERSION_REST
 - **Understanding the shared models?** → Read the [Models guide](models.md).
 - **Using the utilities?** → See the [Utilities guide](utilities.md).
 - **Working with the protocol?** → Read the [Protocol guide](protocol.md).
+- **Configuring ignore rules?** → Read the [Ignore file guide](ignore-file.md) for `.hsyncignore` syntax and API reference.
 - **Understanding authentication?** → The [Authentication](authentication.md) spec covers CID format, message schema, and protocol versioning shared by all components.
 - **Implementing LAN P2P?** → The [LAN Protocol spec](lan-protocol.md) is the authoritative reference.
 - **Reading logs?** → The [Log Labels reference](log-labels.md) catalogs every action label across all projects.
+- **Working with delta transfers?** → The [Delta transfer guide](delta.md) documents the rsync-style block-level sync API.
+- **Checking protocol constants?** → The [Constants reference](constants.md) lists all canonical values.
 - **Working on the Android app?** → See [Android Mirroring](android-mirroring.md) for Kotlin/Python sync.
 - **Why were these decisions made?** → The [Architecture Decision Records](internal/adr/README.md) document the rationale.
 - **Contributing to the codebase?** → See the [Internal architecture](internal/architecture.md).
@@ -45,11 +48,14 @@ from hsync_common.protocol.handshake import PROTOCOL_VERSION_REST
 | -------- | -------------- |
 | [usage.md](usage.md) | How to integrate hsync-common as a dependency, import paths, versioning. |
 | [models.md](models.md) | The shared data models: File, Dir, Symlink, Event, SyncAction, TombstoneStore, SyncStateStore, delta models. |
-| [utilities.md](utilities.md) | Cross-cutting utilities: compression, hashing, ignore matcher, path validation, SSL, logging, clock, formatting, runtime detection. |
+| [utilities.md](utilities.md) | Cross-cutting utilities: compression, hashing, path validation, SSL, logging, clock, formatting, runtime detection. |
 | [protocol.md](protocol.md) | Versioned wire protocol: handshake, capabilities, LAN election, pairing, JSON-Schemas, fixtures. |
 | [authentication.md](authentication.md) | Shared authentication contracts: CID format, message schema, protocol version negotiation, cross-language enforcement. |
 | [lan-protocol.md](lan-protocol.md) | The LAN discovery, master-election, pairing, and security specification (authoritative reference). |
 | [log-labels.md](log-labels.md) | Canonical catalog of every action label across all projects: meaning, color category, and which project emits it. |
+| [ignore-file.md](ignore-file.md) | `.hsyncignore` syntax, three-layer matching, IgnoreMatcher API reference, hot-reload, ReDoS protection. |
+| [constants.md](constants.md) | Canonical constants: version, sentinel filenames, chunk sizes, delta transfer thresholds. |
+| [delta.md](delta.md) | Rsync-style block-level delta transfer: decision heuristics, rolling checksum engine, matching, reconstruction. |
 | [android-mirroring.md](android-mirroring.md) | How Python models are mirrored in Kotlin for the Android app. |
 | [internal/architecture.md](internal/architecture.md) | Internal architecture — models, utilities, and the protocol package in detail. |
 | [internal/adr/](internal/adr/README.md) | Architecture Decision Records — the *why* behind the ecosystem's stable, cross-project decisions. |
