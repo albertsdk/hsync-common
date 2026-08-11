@@ -42,6 +42,7 @@ from .handshake import (
     build_ws_auth_error,
     build_ws_auth_ok,
     build_ws_auth_request,
+    build_ws_presence,
 )
 from .lan import ElectionCandidate, elect_master
 from .pairing import (
@@ -105,6 +106,8 @@ def _lan_txt_record() -> dict[str, Any]:
         "delta": "true",
         "vector_clocks": "true",
         "tombstones": "true",
+        "server_ready": "true",
+        "connected": "3",
     }
 
 
@@ -565,6 +568,7 @@ def build_fixtures() -> dict[str, dict[str, Any]]:
         ),
         "ws-ping": {"type": "ping"},
         "ws-pong": {"type": "pong"},
+        "ws-presence": dict(build_ws_presence(connected=3, total=5)),
         "ws-file-event": _file_event(),
         "lan-txt-record": _lan_txt_record(),
         "lan-wss-auth-required": dict(build_lan_auth_required(capabilities=_FIXTURE_CAPS)),

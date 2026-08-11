@@ -1658,6 +1658,52 @@
         ]
       }
     },
+    "/api/v1/buckets/{bucket}/presence": {
+      "get": {
+        "description": "Get presence counters for the bucket share.\n\nReturns:\n    JSON response with:\n    - connected: accounts currently connected to this bucket (self included)\n    - total: accounts with access to this bucket (self included)\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    BucketNotFoundError: If bucket is unknown or the caller has no access.",
+        "operationId": "get_presence_api_v1_buckets__bucket__presence_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bucket",
+            "required": true,
+            "schema": {
+              "title": "Bucket",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Presence",
+        "tags": [
+          "Authenticated Router"
+        ]
+      }
+    },
     "/api/v1/buckets/{bucket}/symlinks": {
       "post": {
         "description": "Create a symlink inside a bucket.\n\nThe peer sends the symlink structurally (path + target); the server\ncreates the link in the filesystem, never dereferencing it. Escaping\ntargets are rejected via ``is_safe_symlink_target``.\n\nArgs:\n    bucket: Target bucket name.\n    path: Bucket-relative path for the symlink to create.\n    target: The symlink target (what it points to).\n    cid: Optional client ID (for echo suppression on LAN master;\n        unused on the central server).\n\nReturns:\n    201 on success, 400 on invalid/unsafe input or non-empty directory\n    at the destination.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    InvalidPathError: If path is invalid.",

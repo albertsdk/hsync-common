@@ -20,6 +20,11 @@
       ],
       "type": "string"
     },
+    "connected": {
+      "description": "Count of clients currently connected to this bucket's share (master included). Present only on a serving master; informational, never part of the election.",
+      "pattern": "^[0-9]+$",
+      "type": "string"
+    },
     "delta": {
       "enum": [
         "true"
