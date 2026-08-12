@@ -101,8 +101,8 @@ wire format itself is untouched.
   ``HSYNC_STATE_DIR_ENV``, ``SYNCSTATE_DB_FILENAME``
 - ``hsync_common/models/folder.py`` — marker + state-dir helpers
 - ``hsync_common/models/sqlstore.py`` — connection, schema, statements
-- ``hsync_common/models/version.py`` — ``SyncStateStore`` SQLite backend
-- ``hsync_common/models/tombstone.py`` — ``TombstoneStore`` SQLite backend
+- ``hsync_common/models/version_store.py`` — ``SyncStateStore`` SQLite backend (re-exported from ``models/version.py``)
+- ``hsync_common/models/tombstone_store.py`` — ``TombstoneStore`` SQLite backend (re-exported from ``models/tombstone.py``)
 - ``hsync_common/path_validation.py`` — ``INTERNAL_FILENAMES``
 - Consumers (later): ``hsync-client`` ``sync_state.py`` / ``tombstones.py``,
   ``hsync-server`` ``versions.py`` / ``tombstones.py`` / ``config.py``,

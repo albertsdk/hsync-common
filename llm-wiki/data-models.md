@@ -12,8 +12,8 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
 | `Symlink` | `models/symlink.py:14` | — | `filepath`, `target`, `name`, times |
 | `Event` | `models/event.py:63` | `EventDict` (`models/event.py:34`) | FS change; `EventName` enum `models/event.py:44`; `is_valid_cid` wire validator `models/event.py:29` |
 | `SyncAction` | `models/sync_action.py:31` | — | decision; `SyncActionName` enum `models/sync_action.py:14` |
-| `TombstoneStore` | `models/tombstone.py` | `TombstoneEntry` (`models/tombstone.py`) | causal deletion markers (vclock merge); SQLite-backed |
-| `SyncStateStore` / `FileVersion` | `models/version.py` | `FileVersion` TypedDict | 3-way merge state; SQLite-backed |
+| `TombstoneStore` | `models/tombstone_store.py:67` | `TombstoneEntry` (`models/tombstone.py:71`) | causal deletion markers (vclock merge); SQLite-backed; re-exported from `models/tombstone.py` |
+| `SyncStateStore` / `FileVersion` | `models/version_store.py:106` / `models/version.py:70` | `FileVersion` TypedDict | 3-way merge state; SQLite-backed; `SyncStateStore` re-exported from `models/version.py` |
 | `StateDb` | `models/sqlstore.py` | — | installation `syncstate.db` (ADR-0025) |
 | folder marker | `models/folder.py` | — | `.hsyncfolder` UUIDv4 + `default_state_dir` |
 
@@ -66,23 +66,23 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
   outside path to `tombstone_key("")` would corrupt the root's causal state.
   Callers skip `None`/`""` relpaths (`if not relpath`).
 - `TombstoneEntry`: `{sha256: str|None, version_id: str, origin_cid: str|None,
-  ts: int, vclock: dict[str,int]}` (`models/tombstone.py:76`).
+  ts: int, vclock: dict[str,int]}` (`models/tombstone.py:71`).
 - **Causal record** (`record`/`record_by_key`): the marker inherits the stored
   version clock for the path (`prev_vclock`) and is ticked by the deleter cid
   (`tick_vclock`) — the deletion is an operation in the same causal history as
   edits (ADR-0003). Without an origin cid the inherited clock is recorded
   un-ticked.
 - **Causal merge** (`merge`, pure decision in `tombstone_merge_decision`,
-  `models/tombstone.py:188`): dominance decides `adopt`/`keep`
+  `models/tombstone.py:183`): dominance decides `adopt`/`keep`
   (`compare_vclocks`); true concurrency resolves via deterministic content
   tie-break (content hash → version_id → origin_cid); **`ts` never decides**.
 - TTL GC via `prune()` bounded by `TOMBSTONE_TTL_DAYS_DEFAULT = 90`
-  (`models/tombstone.py:64`) — a **storage bound only**, correctness does not
+  (`models/tombstone.py:59`) — a **storage bound only**, correctness does not
   depend on it.
 - Strict wire validation (`merge()`/`load()` via `_sanitize_entry`,
-  `models/tombstone.py:128`): keys and `sha256` must be sha256 hex (64),
+  `models/tombstone.py:123`): keys and `sha256` must be sha256 hex (64),
   `ts` must be `0 < ts ≤ now + TOMBSTONE_MAX_CLOCK_SKEW_SECONDS` (300 s),
-  the `vclock` must parse strictly (`_parse_vclock`, `:106`: dict, ≤
+  the `vclock` must parse strictly (`_parse_vclock`, `:101`: dict, ≤
   `VCLOCK_MAX_ENTRIES` entries, non-negative int counters with `bool`
   rejected, valid cids only) — an entry without a valid clock is dropped,
   never loaded with a fabricated empty clock. Store capped at
@@ -95,11 +95,12 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
   hand-written); the committed JSON is replayed by the Android parity test.
 - Persisted in the installation `syncstate.db` (`models/sqlstore.py`), keyed
   by folder UUID from `.hsyncfolder` (`models/folder.py`, ADR-0025). The wire
-  payload (`to_payload`) is unchanged.
+  payload (`to_payload`) is unchanged. The store class lives in
+  `models/tombstone_store.py:67` (re-exported from `models/tombstone.py`).
 
 ## Version / causal merge
 
-- `FileVersion` TypedDict (`models/version.py`) carries per-file `base_hash`,
+- `FileVersion` TypedDict (`models/version.py:70`) carries per-file `base_hash`,
   `version_id`, `origin_cid`, `ts` (informational), `corrected_mtime`
   (ADR-0023) and the causal `vclock` (`dict[str, int]` mapping node cid →
   logical counter).
@@ -127,7 +128,8 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
   unchanged. The model is strictly causal: `load()` drops rows without a
   structurally valid `vclock` (no fabricated empty clocks) — a corrupted row
   degrades entry-by-entry instead of crashing startup. `corrected_mtime` is
-  persisted alongside and defaulted to 0 when NULL.
+  persisted alongside and defaulted to 0 when NULL. The store class lives in
+  `models/version_store.py:106` (re-exported from `models/version.py`).
 
 ## Delta Transfer Models (`models/delta.py`)
 
