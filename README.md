@@ -73,6 +73,15 @@ desktop application.
 > **Note:** The desktop GUI (`HSYNC Desktop`) and the Android app (`HSYNC Android`)
 > are still under active development and are not yet ready for production use.
 
+## Security
+
+To report a vulnerability, please use GitHub's **Private Vulnerability Reporting**:
+
+👉 **[Report a vulnerability](https://github.com/albertobasso/hsync-common/security/advisories/new)**
+
+See our [Security Policy](SECURITY.md) for supported versions and hardening
+recommendations.
+
 ## Disclaimer
 
 > [!WARNING]
