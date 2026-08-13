@@ -13,9 +13,58 @@ imports from neither, so the causal models can cross-reference each other
 without circular imports.
 """
 
+import json
 from pathlib import Path
 
-__all__ = ["_parse_wire_timestamp", "relpath_in_bucket", "tombstone_key"]
+__all__ = [
+    "_parse_wire_timestamp",
+    "_resolve_prefixed_path",
+    "_vclock_to_json",
+    "relpath_in_bucket",
+    "tombstone_key",
+]
+
+
+def _vclock_to_json(vclock: dict[str, int]) -> str:
+    """Serialize a validated vector clock for a ``vclock`` SQLite column."""
+    return json.dumps(vclock, separators=(",", ":"), sort_keys=True)
+
+
+def _resolve_prefixed_path(data_filepath: str, prefix: str | None, *, strip: bool) -> str:
+    """Resolve a filepath from a serialized dict with an optional prefix.
+
+    Shared across :meth:`File.from_dict`, :meth:`Symlink.from_dict`,
+    :meth:`Dir.from_dict` and :class:`Event` so the serialisation contract is
+    defined once.
+
+    Args:
+        data_filepath: Raw ``filepath`` / ``path`` value from the dict.
+        prefix: Base directory prefix (``dir_prefix`` / ``localpath``).
+        strip: When ``True`` the prefix is stripped from *data_filepath*
+            (making it bucket-relative, component-aware: a path outside
+            *prefix* is kept verbatim); when ``False`` the prefix is
+            prepended (making it absolute).
+
+    Returns:
+        The resolved path string.
+
+    Raises:
+        ValueError: When *strip* is ``True`` but *prefix* is falsy.
+    """
+    if strip and not prefix:
+        raise ValueError("Set dir_prefix to strip it.")
+    if strip and prefix:
+        try:
+            rel = str(Path(data_filepath).relative_to(prefix))
+        except ValueError:
+            # Not under prefix: keep the original path verbatim. Component-aware
+            # stripping never mangles a sibling path that merely shares the
+            # string prefix (e.g. "/base2/x" vs "/base" must not become "2/x").
+            return str(data_filepath)
+        return "" if rel == "." else rel.lstrip("/")
+    if prefix:
+        return str(Path(prefix) / str(data_filepath).lstrip("/"))
+    return str(data_filepath)
 
 
 def _parse_wire_timestamp(raw: object) -> int | None:

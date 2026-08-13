@@ -23,6 +23,7 @@ from __future__ import annotations
 import sqlite3
 import time
 from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from pathlib import Path
 
 __all__ = [
@@ -166,6 +167,32 @@ class StateDb:
             self._conn.execute("ROLLBACK")
         except sqlite3.Error:
             pass
+
+    @contextmanager
+    def transaction(self) -> Iterator[None]:
+        """Yield inside a reserved write transaction.
+
+        Opens ``BEGIN IMMEDIATE``; when a transaction is already open (a
+        nested flush inside a caller-held transaction) the resulting
+        ``sqlite3.OperationalError`` is tolerated and the caller's transaction
+        is used as-is. Commits on clean exit, rolls back on error.
+
+        Consumers: ``SyncStateStore.save``, ``TombstoneStore.save``.
+        """
+        own_txn = False
+        try:
+            self.begin_immediate()
+            own_txn = True
+        except sqlite3.OperationalError:
+            own_txn = False
+        try:
+            yield
+            if own_txn:
+                self.commit()
+        except Exception:
+            if own_txn:
+                self.rollback()
+            raise
 
     def ensure_folder(self, folder_id: str, canonical_path: str = "") -> None:
         """Insert the ``folders`` row if missing; refresh ``canonical_path``."""

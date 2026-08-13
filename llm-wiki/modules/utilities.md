@@ -153,9 +153,9 @@ reconciliation, transfers, previews and server lines.
 
 ## clock.py (clock-offset SSOT, ADR-0023)
 
-- `compute_clock_offset` (`clock.py:86`) / `measure_clock_offset` (`:123`);
-  `CLOCK_SKEW_THRESHOLD = 5.0` (`:57`). NTP-style HTTP/RTT offset against the
-  server/master `/api/v1/time` endpoint (client-server mode).
+- `compute_clock_offset` (`clock.py:86`) / `measure_clock_offset` (`:123`):
+  NTP-style HTTP/RTT offset against the server/master `/api/v1/time` endpoint
+  (client-server mode).
   `measure_clock_offset` returns `None` on non-200 or when `timestamp` is
   missing/null/bool/non-numeric/non-finite — a malformed payload degrades the
   measurement, it never raises into the caller.

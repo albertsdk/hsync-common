@@ -7,7 +7,6 @@ import zstandard as zstd
 
 from hsync_common.compression import (
     MIN_SIZE_FOR_COMPRESSION,
-    MIN_SIZE_FOR_DOWNLOAD,
     MIN_SIZE_FOR_LAN,
     MIN_SIZE_FOR_UPLOAD,
     PRECOMPRESSED_EXTENSIONS,
@@ -194,11 +193,8 @@ class TestShouldCompress:
 
 
 class TestShouldCompressContextual:
-    def test_download_alias_matches_base_threshold(self):
-        assert MIN_SIZE_FOR_DOWNLOAD == MIN_SIZE_FOR_COMPRESSION
-
-    def test_upload_threshold_greater_than_download(self):
-        assert MIN_SIZE_FOR_UPLOAD > MIN_SIZE_FOR_DOWNLOAD
+    def test_upload_threshold_greater_than_base(self):
+        assert MIN_SIZE_FOR_UPLOAD > MIN_SIZE_FOR_COMPRESSION
 
     def test_lan_threshold_greater_than_upload(self):
         assert MIN_SIZE_FOR_LAN > MIN_SIZE_FOR_UPLOAD

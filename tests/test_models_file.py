@@ -4,13 +4,6 @@ from datetime import UTC, datetime
 
 import pytest
 
-from hsync_common.constants import (
-    CHUNK_SIZE_LARGE,
-    CHUNK_SIZE_MEDIUM,
-    CHUNK_SIZE_SMALL,
-    FILE_SIZE_MEDIUM,
-    FILE_SIZE_SMALL,
-)
 from hsync_common.models.file import (
     SHA256_CACHE_MAX_SIZE,
     File,
@@ -226,29 +219,6 @@ class TestFileSha256Cache:
     def test_cache_miss_on_unknown_path(self):
         clear_sha256_cache()
         assert _get_cached_sha256("/never-seen.txt", 1, 0) is None
-
-
-class TestComputeSha256ChunkSize:
-    """The adaptive chunk size must not change the resulting digest."""
-
-    def _expected(self, content: bytes) -> str:
-        from hashlib import sha256
-
-        return sha256(content).hexdigest()
-
-    @pytest.mark.parametrize(
-        "file_size",
-        [None, 0, FILE_SIZE_SMALL, FILE_SIZE_MEDIUM],
-    )
-    def test_digest_is_stable_across_chunk_branches(self, tmp_path, file_size):
-        content = b"chunk-size-branch-content"
-        f = tmp_path / "blob.bin"
-        f.write_bytes(content)
-        digest = File._compute_sha256(str(f), file_size=file_size)
-        assert digest == self._expected(content)
-
-    def test_chunk_constants_are_ordered(self):
-        assert CHUNK_SIZE_SMALL < CHUNK_SIZE_MEDIUM < CHUNK_SIZE_LARGE
 
 
 class TestFileRepr:

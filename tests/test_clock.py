@@ -9,7 +9,6 @@ from unittest.mock import patch
 import pytest
 
 from hsync_common.clock import (
-    CLOCK_SKEW_THRESHOLD,
     ClockOffsetStore,
     _ntp64_to_unix,
     _parse_sntp_response,
@@ -50,12 +49,6 @@ class _FakeGet:
     def __call__(self, url: str, **kwargs) -> _FakeResponse:
         self.calls.append({"url": url, **kwargs})
         return self._response
-
-
-class TestThreshold:
-    def test_threshold_is_positive_number(self):
-        assert isinstance(CLOCK_SKEW_THRESHOLD, (int, float))
-        assert CLOCK_SKEW_THRESHOLD > 0
 
 
 class TestComputeClockOffset:

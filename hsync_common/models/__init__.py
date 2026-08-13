@@ -11,46 +11,6 @@ This package contains the canonical data classes for file synchronization
 operations, shared between hsync-client and hsync-server.
 """
 
-from pathlib import Path
-
-
-def _resolve_prefixed_path(data_filepath: str, prefix: str | None, *, strip: bool) -> str:
-    """Resolve a filepath from a serialized dict with an optional prefix.
-
-    Shared across :meth:`File.from_dict`, :meth:`Symlink.from_dict` and
-    :meth:`Dir.from_dict` so the serialisation contract is defined once.
-
-    Args:
-        data_filepath: Raw ``filepath`` / ``path`` value from the dict.
-        prefix: Base directory prefix (``dir_prefix`` / ``localpath``).
-        strip: When ``True`` the prefix is stripped from *data_filepath*
-            (making it bucket-relative, component-aware: a path outside
-            *prefix* is kept verbatim); when ``False`` the prefix is
-            prepended (making it absolute).
-
-    Returns:
-        The resolved path string.
-
-    Raises:
-        ValueError: When *strip* is ``True`` but *prefix* is falsy.
-    """
-    if strip and not prefix:
-        raise ValueError("Set dir_prefix to strip it.")
-    if strip and prefix:
-        try:
-            rel = str(Path(data_filepath).relative_to(prefix))
-        except ValueError:
-            # Not under prefix: keep the original path verbatim. Component-aware
-            # stripping (matching Event.correct_path) never mangles a sibling
-            # path that merely shares the string prefix (e.g. "/base2/x" vs
-            # "/base" must not become "2/x").
-            return str(data_filepath)
-        return "" if rel == "." else rel.lstrip("/")
-    if prefix:
-        return str(Path(prefix) / str(data_filepath).lstrip("/"))
-    return str(data_filepath)
-
-
 from hsync_common.models.delta import (
     BlockSignature,
     BlockSignatureDict,

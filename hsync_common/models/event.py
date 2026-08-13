@@ -7,10 +7,10 @@ between client and server via WebSocket.
 """
 
 from enum import StrEnum
-from pathlib import Path
 from re import compile as _re_compile
 from typing import TYPE_CHECKING, TypedDict
 
+from ._util import _resolve_prefixed_path
 from .dir import Dir
 from .file import File
 from .symlink import Symlink
@@ -66,41 +66,27 @@ class EventName(StrEnum):
     symlink = "symlink"
 
 
-def _correct_path(
-    entity: File | Dir | Symlink, localpath: Path | str, strip_localpath: bool
-) -> None:
-    """Normalize the path of a File, Dir, or Symlink entity.
+def _apply_path(entity: File | Dir | Symlink, localpath: str, strip_localpath: bool) -> None:
+    """Normalize the path of a File, Dir, or Symlink entity in place.
 
-    Stripping uses :meth:`pathlib.Path.relative_to` (component-aware),
-    never a string prefix: a path that merely shares the leading
-    characters of *localpath* (e.g. ``/base2/x`` vs ``/base``) is not
-    inside it and must be kept verbatim instead of being mangled into
-    a bogus relative path (``2/x``). The entity is rewritten in place:
-    callers must not reuse the src/dst objects after construction.
-
-    Promoted to a module-level helper (from a per-``Event`` closure) so the
-    function object is created once per process instead of once per instance.
+    Delegates to :func:`._util._resolve_prefixed_path` so the strip/prepend
+    contract is defined once (component-aware stripping, never a string
+    prefix). The entity is rewritten in place: callers must not reuse the
+    src/dst objects after construction.
     """
     path = str(entity.path) if isinstance(entity, Dir) else str(entity.filepath)
 
-    if strip_localpath:
-        try:
-            rel = str(Path(path).relative_to(localpath))
-        except ValueError:
-            # Not under localpath: keep the original path rather than
-            # emitting a corrupted relative one.
-            pass
-        else:
-            # relative_to of localpath itself yields "." — normalize
-            # to "" so the bucket root stays an empty relative path.
-            path = "" if rel == "." else rel
+    if strip_localpath and not localpath:
+        # Nothing to strip: keep the path verbatim (relative_to rejects an
+        # empty prefix; the previous behaviour kept the original path).
+        new_path = path
     else:
-        path = str(Path(localpath) / path.lstrip("/"))
+        new_path = _resolve_prefixed_path(path, localpath, strip=strip_localpath)
 
     if isinstance(entity, Dir):
-        entity.path = path
+        entity.path = new_path
     else:
-        entity.filepath = path
+        entity.filepath = new_path
 
 
 class Event:
@@ -133,14 +119,11 @@ class Event:
         self.bucket = bucket
         self.name = name.value
 
-        # Path objects are parsed once per Event (was once per entity per call).
-        lp = Path(localpath)
-
-        _correct_path(src, lp, strip_localpath)
+        _apply_path(src, localpath, strip_localpath)
         self.src = src
 
         if dst is not None:
-            _correct_path(dst, lp, strip_localpath)
+            _apply_path(dst, localpath, strip_localpath)
         self.dst = dst
 
     def __repr__(self) -> str:
