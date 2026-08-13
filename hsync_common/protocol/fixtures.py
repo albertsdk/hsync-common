@@ -25,6 +25,7 @@ from typing import Any
 
 from hsync_common.models.event import Event, EventName
 from hsync_common.models.file import File
+from hsync_common.models.tombstone import TombstoneEntry, tombstone_merge_decision
 from hsync_common.models.version import VersionInfo, resolve_three_way
 
 from .handshake import (
@@ -380,6 +381,77 @@ def _causal_resolution_scenarios() -> dict[str, Any]:
     }
 
 
+# Cross-language causal tombstone-merge scenarios. Each lists a stored marker
+# (or ``None``) and an incoming remote marker, with the expected decision
+# (``adopt`` | ``keep``) *computed from the shared algorithm* via
+# ``tombstone_merge_decision`` — never hand-written. The Android parity test
+# replays these exact inputs and must reach the same outcome (ADR-0003).
+_TVC = "TestClientA1234567890"
+_TVC_B = "TestClientB1234567890"
+_TOMB_TS = 1_700_000_000  # stable informational timestamp (never decides)
+
+
+def _tomb_entry(
+    sha: str,
+    vclock: dict[str, int],
+    version_id: str = "v1",
+    origin_cid: str | None = _TVC,
+) -> TombstoneEntry:
+    return TombstoneEntry(
+        sha256=sha, version_id=version_id, origin_cid=origin_cid, ts=_TOMB_TS, vclock=vclock
+    )
+
+
+_TOMBSTONE_SCENARIOS: tuple[tuple[str, TombstoneEntry | None, TombstoneEntry], ...] = (
+    ("no-existing-adopts", None, _tomb_entry("aaa", {_TVC: 1})),
+    (
+        "existing-dominates-keeps",
+        _tomb_entry("aaa", {_TVC: 2, _TVC_B: 1}),
+        _tomb_entry("bbb", {_TVC: 1}),
+    ),
+    (
+        "incoming-dominates-adopts",
+        _tomb_entry("aaa", {_TVC: 1}),
+        _tomb_entry("bbb", {_TVC: 2, _TVC_B: 1}),
+    ),
+    (
+        "concurrent-incoming-wins-sha",
+        _tomb_entry("aaa", {_TVC: 2}),
+        _tomb_entry("zzz", {_TVC_B: 2}),
+    ),
+    (
+        "concurrent-existing-wins-sha",
+        _tomb_entry("zzz", {_TVC: 2}),
+        _tomb_entry("aaa", {_TVC_B: 2}),
+    ),
+    (
+        "equal-clock-anomaly-incoming-wins-sha",
+        _tomb_entry("aaa", {_TVC: 1}),
+        _tomb_entry("zzz", {_TVC: 1}, version_id="v1", origin_cid=_TVC_B),
+    ),
+    (
+        "equal-clock-anomaly-existing-wins-sha",
+        _tomb_entry("zzz", {_TVC: 1}),
+        _tomb_entry("aaa", {_TVC: 1}, version_id="v1", origin_cid=_TVC_B),
+    ),
+)
+
+
+def _causal_tombstone_scenarios() -> dict[str, Any]:
+    """Serialized causal tombstone-merge scenarios with computed expectations."""
+    return {
+        "scenarios": [
+            {
+                "name": name,
+                "existing": None if existing is None else dict(existing),
+                "incoming": dict(incoming),
+                "expected_decision": tombstone_merge_decision(existing, incoming),
+            }
+            for name, existing, incoming in _TOMBSTONE_SCENARIOS
+        ]
+    }
+
+
 def build_fixtures() -> dict[str, dict[str, Any]]:
     """Build every golden fixture, keyed by its snapshot file stem.
 
@@ -407,6 +479,7 @@ def build_fixtures() -> dict[str, dict[str, Any]]:
         "lan-election-scenarios": _election_scenarios(),
         "lan-pairing-scenarios": _pairing_scenarios(),
         "causal-resolution-scenarios": _causal_resolution_scenarios(),
+        "causal-tombstone-scenarios": _causal_tombstone_scenarios(),
         "delta-signatures": _delta_signatures(),
         "delta-instructions": _delta_instructions(),
         "delta-apply-metadata": _delta_apply_metadata(),
