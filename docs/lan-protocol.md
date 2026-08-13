@@ -32,7 +32,8 @@ lives in `LAN_TXT_KEYS`; do not introduce keys outside it.
 | `sync_direction` | string | `bidirectional` (preferred), `upload-only`, `download-only`. |
 
 **Optional keys** (present only when meaningful/true): `group`, `https`,
-`cert_fp`, `compression`, `delta`, `server_ready`, `force_master`, `never_master`.
+`cert_fp`, `compression`, `delta`, `vector_clocks`, `server_ready`,
+`force_master`, `never_master`.
 
 These keys are optional at the record level because a node only advertises them
 once it is **serving as master**. A master, however, **must** advertise both
@@ -49,6 +50,12 @@ distinct partition, so an ungrouped peer matches only other ungrouped peers.
 Peers in a different partition are dropped before election.
 
 ## Master election
+
+Election decides only **who serves** the transport hub (the HTTPS/WSS server
+peers connect to and that relays file events). It confers **no authority over
+conflicts**: every node resolves concurrently with vector clocks
+([ADR-0022](internal/adr/0022-causal-vector-clock-conflict-model.md)), so the
+elected master never wins a divergence by role.
 
 Election runs on every discovery change (peer added, updated, removed) and when
 the local `server_ready` state changes. The candidate set is the local node plus

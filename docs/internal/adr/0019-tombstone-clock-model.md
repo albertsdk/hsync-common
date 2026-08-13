@@ -10,12 +10,12 @@ different primitives:
 
 | Primitive | Resolution | Basis | ADR |
 |-----------|-----------|-------|-----|
-| File edits | Three-way merge | Content hash (SHA-256), clock-independent | [ADR-0006](0006-master-authoritative-conflict-model.md) |
+| File edits | Causal vector-clock merge | Content hash (SHA-256) + vector clocks, clock-independent | [ADR-0022](0022-causal-vector-clock-conflict-model.md) |
 | Deletion markers | Last-Writer-Wins (LWW) | Deletion timestamp | [ADR-0003](0003-tombstone-gossip.md) |
 
-[ADR-0006](0006-master-authoritative-conflict-model.md) explicitly rejects wall-clock
-trust: *"Resolution no longer depends on synchronised clocks; the base hash, not
-the timestamp, decides direction."*
+[ADR-0022](0022-causal-vector-clock-conflict-model.md) explicitly rejects wall-clock
+trust for content decisions: the content hash and the vector clock decide
+direction, never the wall clock (which is informational only).
 
 [ADR-0003](0003-tombstone-gossip.md) uses `merge()`/`record()` keeping the newest
 `ts` for convergent tombstone state. This apparent contradiction deserves an
@@ -67,14 +67,14 @@ additional safety layers.
 
 | Alternative | Rejected because |
 |-------------|-----------------|
-| **Hash-based tombstone merge** (like ADR-0006) | Deletions have no content to hash; the only identity is the path. A path-based merge without timestamps degenerates to "delete always wins" — which is strictly more aggressive than LWW and would cause false deletions on partition heal. |
+| **Hash-based tombstone merge** (like ADR-0022) | Deletions have no content to hash; the only identity is the path. A path-based merge without timestamps degenerates to "delete always wins" — which is strictly more aggressive than LWW and would cause false deletions on partition heal. |
 | **Vector clocks per tombstone** | Adds complexity disproportionate to the benefit: tombstones are binary markers with a 30-day TTL, not long-lived mutable state. |
 | **Lamport timestamps** | Still wall-clock-dependent (logical clocks need initialisation); requires causal history tracking across the fleet. |
 
 ## Consequences
 
 - The two-tier clock trust model is now explicit: **never trust clocks for
-  content integrity** (ADR-0006), **accept clock skew as cosmetic for deletion
+  content integrity** (ADR-0022), **accept clock skew as cosmetic for deletion
   metadata** (ADR-0003).
 - The 30-day TTL is the primary defense against clock-skew-induced resurrection;
   reducing the TTL increases risk.
@@ -84,5 +84,5 @@ additional safety layers.
 ## See also
 
 - [ADR-0003](0003-tombstone-gossip.md) — Tombstone gossip for deletions
-- [ADR-0006](0006-master-authoritative-conflict-model.md) — Master-authoritative conflict model
+- [ADR-0022](0022-causal-vector-clock-conflict-model.md) — Causal vector-clock conflict model
 - [ADR-0015](0015-mass-deletion-guard.md) — Mass-deletion safety guard

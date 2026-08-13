@@ -41,4 +41,4 @@ Tombstones are advertised as the `tombstones` capability
   human-readable for debugging.
 - Tombstone LWW resolves *deletions* by time; concurrent *edits* are resolved by
   the separate, clock-independent conflict model
-  ([ADR-0006](0006-master-authoritative-conflict-model.md)).
+  ([ADR-0022](0022-causal-vector-clock-conflict-model.md)).

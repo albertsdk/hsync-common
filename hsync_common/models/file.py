@@ -8,7 +8,7 @@ This module defines the File class representing a file with its metadata
 from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
-from typing import TypedDict
+from typing import TYPE_CHECKING, NotRequired, TypedDict
 
 from hsync_common.constants import (
     PARTIAL_DELTA_SUFFIX,
@@ -17,6 +17,11 @@ from hsync_common.constants import (
 from hsync_common.hashing import adaptive_chunk_size, compute_sha256
 from hsync_common.permissions import get_permissions
 from hsync_common.time_utils import to_epoch
+
+if TYPE_CHECKING:
+    # Imported only for type checking to avoid a circular import: version.py
+    # imports is_valid_cid from event.py, which imports File from this module.
+    from .version import VersionInfo
 
 # =============================================================================
 # SHA-256 Cache
@@ -90,6 +95,11 @@ class FileDict(TypedDict):
     size: int
     sha256sum: str | None
     permissions: str | None
+    # Causal version metadata joined from the version store by producers
+    # (server/master listings, events). Optional: absent ⇒ empty clock.
+    # Consumers: hsync-server (list JOIN), hsync-client (remote decode),
+    # hsync-android (FileInfo.version mirror).
+    version: NotRequired["VersionInfo"]
 
 
 def is_partial_file(file_path: str) -> bool:
@@ -150,6 +160,8 @@ class File:
         size: File size in bytes.
         sha256sum: SHA-256 checksum of file content.
         permissions: Octal permission string (e.g., '644').
+        version: Optional causal version metadata (joined from the store by
+            producers; None for files read fresh from disk).
     """
 
     def __init__(
@@ -160,6 +172,7 @@ class File:
         size: int = 0,
         sha256sum: str | None = None,
         permissions: str | None = None,
+        version: "VersionInfo | None" = None,
     ):
         self.filepath = filepath
         self.name = Path(filepath).name if filepath else None
@@ -168,6 +181,7 @@ class File:
         self.size = size
         self.sha256sum = sha256sum
         self.permissions = permissions
+        self.version = version
         try:
             self.ctime = self._parse_time(ctime)
             self.mtime = self._parse_time(mtime)
@@ -183,7 +197,8 @@ class File:
             f"mtime={self.mtime}, "
             f"size={self.size}, "
             f"sha256sum={self.sha256sum}, "
-            f"permissions={self.permissions})"
+            f"permissions={self.permissions}, "
+            f"version={self.version})"
         )
 
     def _parse_time(self, value: str | int | float | datetime | None) -> int | None:
@@ -211,7 +226,7 @@ class File:
 
     def to_dict(self) -> FileDict:
         """Convert the File instance to a FileDict."""
-        return FileDict(
+        result = FileDict(
             filepath=self.filepath,
             name=self.name,
             ctime=self.ctime,
@@ -220,6 +235,9 @@ class File:
             sha256sum=self.sha256sum,
             permissions=self.permissions,
         )
+        if self.version is not None:
+            result["version"] = self.version
+        return result
 
     @classmethod
     def get(cls, file_path: str, buckets_dir: str | None = None) -> "File | None":
@@ -268,4 +286,5 @@ class File:
             size=data.get("size", 0),
             sha256sum=data.get("sha256sum"),
             permissions=data.get("permissions"),
+            version=data.get("version"),
         )

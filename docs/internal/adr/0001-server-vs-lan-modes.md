@@ -8,34 +8,37 @@
 HSYNC must serve two very different deployments with one codebase:
 
 - A **central, always-on server** reachable over the internet (the FastAPI
-  `hsync-server`), where many clients sync against an authoritative endpoint.
+  `hsync-server`), where many clients sync through a single transport endpoint.
 - A **local network with no fixed server**, where peers (desktops, an Android
   phone) should sync directly without standing up infrastructure.
 
 A single transport cannot satisfy both: the server case wants a stable URL,
-TLS and accounts; the LAN case wants zero-config discovery and a master elected
-on the fly. Conflating them would push internet-only concerns (e.g. a mandatory
-server) onto LAN users and LAN concerns (e.g. mDNS) onto server deployments.
+TLS and accounts; the LAN case wants zero-config discovery and a coordinator
+elected on the fly. Conflating them would push internet-only concerns (e.g. a
+mandatory server) onto LAN users and LAN concerns (e.g. mDNS) onto server
+deployments.
 
 ## Decision
 
-We will support **two explicit sync modes** behind a shared data/protocol core:
+We support **two explicit sync modes** behind a shared data/protocol core:
 
 - **Server mode** — clients talk REST + WebSocket to `hsync-server`, the single
-  authoritative endpoint.
+  transport hub.
 - **LAN P2P mode** — peers self-discover over mDNS/TXT and **elect a master**
   among themselves (see [ADR-0002](0002-lan-master-election.md)); the elected
-  master plays the authoritative role for that bucket.
+  master is the transport coordinator (who hosts the HTTPS/WSS hub and relays
+  events) for that bucket.
 
-Both modes reuse the same `hsync-common` models, the same conflict model
-([ADR-0006](0006-master-authoritative-conflict-model.md)) and the same
-versioned protocol contract ([ADR-0005](0005-protocol-versioning.md)). LAN mode
-is opt-in (`--lan-mode`); server mode is the default.
+Both modes reuse the same `hsync-common` models, the same causal conflict model
+([ADR-0022](0022-causal-vector-clock-conflict-model.md)) and the same versioned
+protocol contract ([ADR-0005](0005-protocol-versioning.md)). LAN mode is opt-in
+(`--lan-mode`); server mode is the default.
 
 ## Consequences
 
-- One node is always authoritative (the server, or the elected LAN master), so
-  reconciliation rules are identical regardless of mode.
+- No node is authoritative over conflicts: every node resolves causally with
+  vector clocks, so reconciliation rules are identical regardless of mode and
+  regardless of which node serves as transport hub.
 - LAN mode carries discovery, election and trust concerns that do not exist in
   server mode; these are isolated in `hsync_client.lan` and the
   `hsync_common.protocol.{lan,pairing}` SSOT, not sprinkled through core sync.
