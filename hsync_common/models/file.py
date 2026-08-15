@@ -67,12 +67,14 @@ def invalidate_sha256_cache(file_path: str) -> None:
 
 def _get_cached_sha256(file_path: str, current_mtime: int, current_size: int) -> str | None:
     """Get cached SHA-256 if file metadata still matches (LRU: move to end on hit)."""
-    if file_path in _sha256_cache:
+    try:
         cached_sha256, cached_mtime, cached_size = _sha256_cache[file_path]
-        if cached_mtime == current_mtime and cached_size == current_size:
-            _sha256_cache.move_to_end(file_path)
-            return cached_sha256
-        del _sha256_cache[file_path]
+    except KeyError:
+        return None
+    if cached_mtime == current_mtime and cached_size == current_size:
+        _sha256_cache.move_to_end(file_path)
+        return cached_sha256
+    del _sha256_cache[file_path]
     return None
 
 
@@ -123,7 +125,12 @@ def is_partial_file(file_path: str) -> bool:
     Returns:
         True if the basename ends with a partial-transfer suffix.
     """
-    name = Path(file_path).name
+    # Basename via string ops instead of a Path object (hot: once per scanned
+    # entry). Trailing slashes are stripped first so "foo.part/" yields the
+    # same basename as Path("foo.part/").name ("foo.part").
+    stripped = file_path.rstrip("/")
+    sep = stripped.rfind("/")
+    name = stripped if sep < 0 else stripped[sep + 1 :]
     return name.endswith(PARTIAL_DOWNLOAD_SUFFIX) or name.endswith(f"{PARTIAL_DELTA_SUFFIX}.lit")
 
 
@@ -179,7 +186,15 @@ class File:
         version: "VersionInfo | None" = None,
     ):
         self.filepath = filepath
-        self.name = Path(filepath).name if filepath else None
+        # Basename via string ops (hot: one File construction per scanned entry
+        # per cycle); trailing slashes are stripped first so "foo/" yields
+        # "foo" exactly like Path("foo/").name does.
+        if filepath:
+            stripped = filepath.rstrip("/")
+            sep = stripped.rfind("/")
+            self.name = stripped if sep < 0 else stripped[sep + 1 :]
+        else:
+            self.name = None
         if size < 0:
             raise ValueError(f"File size must be >= 0, got {size}")
         self.size = size
