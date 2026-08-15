@@ -94,6 +94,12 @@ class TestEventNameCoverage:
         assert len(values) == len(set(values))
 
     def test_expected_names_present(self):
+        """The full documented event set matches the enum exactly.
+
+        ``conflict_resolved`` and ``security_rejected`` are part of the public
+        channel; the equality check pins *every* drift (addition, removal or
+        rename), not just the accidental omission of one member.
+        """
         names = {m.value for m in UiEventName}
         expected = {
             "status",
@@ -122,5 +128,7 @@ class TestEventNameCoverage:
             "pairing_needed",
             "transfer_failed",
             "sync_paused",
+            "conflict_resolved",
+            "security_rejected",
         }
-        assert expected <= names
+        assert expected == names

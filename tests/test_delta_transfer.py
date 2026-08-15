@@ -19,6 +19,7 @@ enabling direct comparison between transferred deltas and expected changes.
 from __future__ import annotations
 
 import enum
+import json
 import logging
 import os
 import random
@@ -30,8 +31,6 @@ import pytest
 from hsync_common.constants import (
     DELTA_BLOCK_SIZE_SMALL,
     DELTA_FILE_SIZE_SMALL,
-    DELTA_MIN_FILE_SIZE,
-    DELTA_MIN_FILE_SIZE_LAN,
 )
 from hsync_common.delta import (
     apply_delta,
@@ -319,12 +318,17 @@ def run_delta_transfer(
     sender, receiver = transport.endpoints()
 
     sigs = compute_signatures(base_path, BLOCK_SIZE)
-    sig_bytes = sum(8 + 8 + 4 + 4 + len(s.strong) for s in sigs)
+    # Wire bytes are the actual serialized wire models (BlockSignatureDict /
+    # DeltaOpDict as JSON), not hand-made size formulas: the byte accounting
+    # below then measures the real protocol payloads.
+    sig_bytes = len(json.dumps([s.to_dict() for s in sigs], separators=(",", ":")).encode("utf-8"))
     transport.send("signature", receiver, sender, sig_bytes)
 
     ops, literal_data = find_matches(new_data, sigs, BLOCK_SIZE)
 
-    instr_bytes = sum(4 + 8 + 4 + 8 for _ in ops)
+    instr_bytes = len(
+        json.dumps([op.to_dict() for op in ops], separators=(",", ":")).encode("utf-8")
+    )
     transport.send("delta_instructions", sender, receiver, instr_bytes)
 
     if literal_data:
@@ -366,19 +370,15 @@ def base_file(tmp_path: pytest.TempPathFactory, base_data: bytes) -> str:
 # ---------------------------------------------------------------------------
 # 1. Initial full transfer
 # ---------------------------------------------------------------------------
+# The suite's FILE_SIZE (512 KB) sits above DELTA_MIN_FILE_SIZE (256 KB) and
+# below DELTA_MIN_FILE_SIZE_LAN (1 MB) on purpose: the base file stays small
+# enough to keep the suite fast while still exercising real segmentation.
+# The production thresholds are configuration constants owned by their
+# consumers; this simulated-transfer suite pins behaviour, not constant values.
 
 
 class TestFullTransfer:
     """Validate segmented full transfer for files above the delta threshold."""
-
-    def test_file_above_delta_threshold_remote(self, base_data: bytes) -> None:
-        assert FILE_SIZE > DELTA_MIN_FILE_SIZE
-
-    def test_file_above_delta_threshold_lan(self, base_data: bytes) -> None:
-        # FILE_SIZE (512KB) is below DELTA_MIN_FILE_SIZE_LAN (1MB) to keep
-        # tests fast. In production, LAN mode requires larger files.
-        # This test documents the threshold for reference.
-        assert DELTA_MIN_FILE_SIZE_LAN == 1024 * 1024
 
     def test_full_transfer_integrity(
         self,
@@ -453,20 +453,31 @@ class TestDeltaTransfer:
             assert f.read() == new_data
         return sha, ops, literals
 
-    def test_small_change_near_beginning(
+    @pytest.mark.parametrize(
+        ("label", "offset", "edit_size", "fill"),
+        [
+            ("begin", 2 * BLOCK_SIZE, EDIT_SMALL, b"B"),
+            ("middle", (FILE_SIZE // 2 // BLOCK_SIZE) * BLOCK_SIZE, EDIT_MEDIUM, b"M"),
+            ("end", (NUM_BLOCKS - 4) * BLOCK_SIZE, EDIT_LARGE, b"E"),
+        ],
+    )
+    def test_localized_edit_reuses_unchanged_blocks(
         self,
         transport: TrackedTransport,
         base_data: bytes,
         base_file: str,
         tmp_path: pytest.TempPathFactory,
+        label: str,
+        offset: int,
+        edit_size: int,
+        fill: bytes,
     ) -> None:
         new = bytearray(base_data)
-        edit_offset = 2 * BLOCK_SIZE
-        new[edit_offset : edit_offset + EDIT_SMALL] = b"B" * EDIT_SMALL
+        new[offset : offset + edit_size] = fill * edit_size
 
-        _, ops, literals = self._run_delta(transport, base_file, bytes(new), tmp_path, "begin")
+        _, ops, literals = self._run_delta(transport, base_file, bytes(new), tmp_path, label)
 
-        changed = _blocks_for_range(edit_offset, EDIT_SMALL, BLOCK_SIZE)
+        changed = _blocks_for_range(offset, edit_size, BLOCK_SIZE)
         unchanged = set(range(NUM_BLOCKS)) - changed
 
         copy_blocks = _output_blocks_covered_by_ops(ops, OP_TYPE_COPY, BLOCK_SIZE)
@@ -475,63 +486,6 @@ class TestDeltaTransfer:
         assert copy_blocks & unchanged == unchanged, "All unchanged blocks must be copy ops"
         assert copy_blocks & changed == set(), "Changed blocks must not be copy ops"
         assert data_blocks >= changed, "Changed blocks must be covered by data ops"
-        # Rolling checksum emits entire blocks as literal when they don't match
-        assert len(literals) == len(changed) * BLOCK_SIZE
-        ratio = changed_block_ratio(ops, FILE_SIZE, BLOCK_SIZE)
-        assert ratio < 0.05
-        assert is_delta_worthwhile(ops, FILE_SIZE, len(literals), BLOCK_SIZE)
-
-    def test_change_in_middle(
-        self,
-        transport: TrackedTransport,
-        base_data: bytes,
-        base_file: str,
-        tmp_path: pytest.TempPathFactory,
-    ) -> None:
-        new = bytearray(base_data)
-        mid = FILE_SIZE // 2
-        edit_offset = (mid // BLOCK_SIZE) * BLOCK_SIZE
-        new[edit_offset : edit_offset + EDIT_MEDIUM] = b"M" * EDIT_MEDIUM
-
-        _, ops, literals = self._run_delta(transport, base_file, bytes(new), tmp_path, "middle")
-
-        changed = _blocks_for_range(edit_offset, EDIT_MEDIUM, BLOCK_SIZE)
-        unchanged = set(range(NUM_BLOCKS)) - changed
-
-        copy_blocks = _output_blocks_covered_by_ops(ops, OP_TYPE_COPY, BLOCK_SIZE)
-        data_blocks = _output_blocks_covered_by_ops(ops, OP_TYPE_DATA, BLOCK_SIZE)
-
-        assert copy_blocks & unchanged == unchanged
-        assert copy_blocks & changed == set()
-        assert data_blocks >= changed
-        # Rolling checksum emits entire blocks as literal when they don't match
-        assert len(literals) == len(changed) * BLOCK_SIZE
-        ratio = changed_block_ratio(ops, FILE_SIZE, BLOCK_SIZE)
-        assert ratio < 0.05
-        assert is_delta_worthwhile(ops, FILE_SIZE, len(literals), BLOCK_SIZE)
-
-    def test_change_near_end(
-        self,
-        transport: TrackedTransport,
-        base_data: bytes,
-        base_file: str,
-        tmp_path: pytest.TempPathFactory,
-    ) -> None:
-        new = bytearray(base_data)
-        edit_offset = (NUM_BLOCKS - 4) * BLOCK_SIZE
-        new[edit_offset : edit_offset + EDIT_LARGE] = b"E" * EDIT_LARGE
-
-        _, ops, literals = self._run_delta(transport, base_file, bytes(new), tmp_path, "end")
-
-        changed = _blocks_for_range(edit_offset, EDIT_LARGE, BLOCK_SIZE)
-        unchanged = set(range(NUM_BLOCKS)) - changed
-
-        copy_blocks = _output_blocks_covered_by_ops(ops, OP_TYPE_COPY, BLOCK_SIZE)
-        data_blocks = _output_blocks_covered_by_ops(ops, OP_TYPE_DATA, BLOCK_SIZE)
-
-        assert copy_blocks & unchanged == unchanged
-        assert copy_blocks & changed == set()
-        assert data_blocks >= changed
         # Rolling checksum emits entire blocks as literal when they don't match
         assert len(literals) == len(changed) * BLOCK_SIZE
         ratio = changed_block_ratio(ops, FILE_SIZE, BLOCK_SIZE)
