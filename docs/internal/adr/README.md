@@ -42,7 +42,8 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0017](0017-lan-slave-outbound-event-reliability.md) | LAN slave outbound event reliability (defer-to-close uploads, echo-pair rename caching) | Accepted (*terminology superseded by [ADR-0018](0018-origin-based-log-labels.md); algorithm still valid*) |
 | [0018](0018-origin-based-log-labels.md) | Origin-based log labels (`LOCAL ` / `REMOTE `) with unified verbs | Accepted |
 | [0020](0020-lan-security-model.md) | LAN security model: TOFU pinning, LAN key, and strict pairing | Accepted |
-| [0022](0022-causal-vector-clock-conflict-model.md) | Causal vector-clock conflict model | Accepted |
+| [0022](0022-causal-vector-clock-conflict-model.md) | Causal vector-clock conflict model | Accepted (tie-break amended by ADR-0023) |
+| [0023](0023-corrected-mtime-tie-break.md) | Corrected-mtime chronological tie-break | Accepted |
 
 ## Related documents
 

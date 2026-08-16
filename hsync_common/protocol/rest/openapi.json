@@ -59,6 +59,11 @@
             "title": "Compressed Size",
             "type": "integer"
           },
+          "corrected_mtime": {
+            "default": 0,
+            "title": "Corrected Mtime",
+            "type": "integer"
+          },
           "ctime": {
             "default": "",
             "title": "Ctime",

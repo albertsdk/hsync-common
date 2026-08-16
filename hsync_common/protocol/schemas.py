@@ -112,6 +112,14 @@ def _file_object() -> dict[str, Any]:
                     "version_id": {"type": "string"},
                     "origin_cid": {"type": ["string", "null"]},
                     "ts": {"type": ["integer", "null"]},
+                    "corrected_mtime": {
+                        "type": "integer",
+                        "description": (
+                            "Clock-offset-corrected modification time used as the "
+                            "chronological tie-break on concurrent divergence "
+                            "(ADR-0023). 0 or absent ⇒ unknown, hash fallback."
+                        ),
+                    },
                 },
                 "required": ["vclock", "version_id", "origin_cid", "ts"],
                 "additionalProperties": False,

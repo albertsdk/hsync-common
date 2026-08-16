@@ -12,6 +12,7 @@
     "sha256sum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "size": 42,
     "version": {
+      "corrected_mtime": 1700000500,
       "origin_cid": "TestClientX1234567890",
       "ts": 1700000500,
       "vclock": {

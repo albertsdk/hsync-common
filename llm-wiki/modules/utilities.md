@@ -149,13 +149,36 @@ reconciliation, transfers, previews and server lines.
 > (`hsync_client/constants.py:29`) and server (`hsync_server/constants.py:23`)
 > re-export `ActionLabel` from here.
 
-## clock.py
+## clock.py (clock-offset SSOT, ADR-0023)
 
-- `compute_clock_offset` (`clock.py:47`) / `measure_clock_offset` (`:65`);
-  `CLOCK_SKEW_THRESHOLD = 5.0` (`:30`). NTP-style offset for sync timestamps.
+- `compute_clock_offset` (`clock.py:70`) / `measure_clock_offset` (`:108`);
+  `CLOCK_SKEW_THRESHOLD = 5.0` (`:50`). NTP-style HTTP/RTT offset against the
+  server/master `/api/v1/time` endpoint (client-server mode).
   `measure_clock_offset` returns `None` on non-200 or when `timestamp` is
   missing/null/bool/non-numeric/non-finite — a malformed payload degrades the
   measurement, it never raises into the caller.
+- SNTP (LAN P2P / no-server startup): `parse_ntp_hosts` (`:153`) parses the
+  `HSYNC_NTP_HOSTS` CSV (defaults from `constants.NTP_DEFAULT_HOSTS`),
+  `measure_clock_offset_ntp` (`:194`, median of several UDP round-trips, RFC
+  4330) and `measure_clock_offset_ntp_multi` (`:222`, probes hosts in order
+  until one answers). All failures ⇒ `None` ⇒ caller records offset 0 +
+  degraded-temporal-mode log; sync never blocks.
+- Process-local store: `ClockOffsetStore` (`:244`) + module singleton
+  `offset_store` + `correct_mtime()` (`:314`) — `corrected_mtime =
+  local_mtime + measured_offset` (int), consumed when a version is
+  self-recorded/advertised. Never persisted, never writes the system clock.
+- Anti conflict-engineering: `clamp_wire_corrected_mtime` (`:357`) clamps
+  peer-supplied corrected mtimes beyond
+  `constants.CORRECTED_MTIME_MAX_FUTURE_SKEW = 300 s`; the receiver-side guard
+  used by every consuming hub is `clamp_incoming_corrected_mtime` (`:385`,
+  reference = `now_corrected()` at `:375`, i.e. `correct_mtime(time.time())`).
+  Wired in: `hsync-server` upload/delta-apply, client LAN master upload and
+  remote decode; Android mirror `TimeSync.kt`.
+- Android mirror: `TimeSync.kt` (same SNTP + HTTP/RTT algorithms).
+
+> NTP defaults (`NTP_DEFAULT_HOSTS`, `NTP_PORT`, `NTP_TIMEOUT_SECONDS`,
+> `NTP_PROBES_PER_HOST`, `CORRECTED_MTIME_MAX_FUTURE_SKEW`) live in
+> `constants.py` Clock Synchronisation section.
 
 ## runtime.py (container / TTY / cgroup detection)
 

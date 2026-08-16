@@ -96,18 +96,23 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
 ## Version / causal merge
 
 - `FileVersion` TypedDict (`models/version.py`) carries per-file `base_hash`,
-  `version_id`, `origin_cid`, `ts` (informational) and the causal `vclock`
-  (`dict[str, int]` mapping node cid → logical counter).
+  `version_id`, `origin_cid`, `ts` (informational), `corrected_mtime`
+  (ADR-0023) and the causal `vclock` (`dict[str, int]` mapping node cid →
+  logical counter).
 - `VersionInfo` TypedDict is the wire form (carried in `FileDict["version"]`):
-  `vclock`, `version_id`, `origin_cid`, `ts` — no `base_hash` (the content hash
-  is the enclosing `sha256sum`). `parse_version_info` tolerantly drops malformed
-  payloads (treated as absent ⇒ empty clock).
+  `vclock`, `version_id`, `origin_cid`, `ts`, `corrected_mtime` — no
+  `base_hash` (the content hash is the enclosing `sha256sum`).
+  `parse_version_info` tolerantly drops malformed payloads; an absent/malformed
+  `corrected_mtime` parses as 0 (unknown ⇒ hash fallback).
 - Vector-clock ops: `compare_vclocks` (`VClockOrder`), `tick_vclock`,
   `merge_vclocks`.
 - Core resolver: `resolve_three_way(local_hash, local_vclock, remote_hash,
-  remote_vclock, base_hash)` — content identity first, then causal dominance,
-  then a deterministic SHA-256 tie-break; never wall clock
-  ([ADR-0022](../docs/internal/adr/0022-causal-vector-clock-conflict-model.md)).
+  remote_vclock, base_hash, *, local_corrected_mtime=0,
+  remote_corrected_mtime=0)` — content identity first, then causal dominance,
+  then the **corrected-mtime tie-break** (higher corrected_mtime wins the path;
+  a missing side or a tie falls back to highest SHA-256); never raw wall clock
+  ([ADR-0022](../docs/internal/adr/0022-causal-vector-clock-conflict-model.md),
+  [ADR-0023](../docs/internal/adr/0023-corrected-mtime-tie-break.md)).
 - `SyncDecision`: `in_sync`, `upload`, `download`, `conflict_upload`,
   `conflict_download` (tie-break loser preserved as a conflicted copy).
 - Version-id minting: `new_version_id` (`_VERSION_ID_BYTES = 16`).
@@ -115,7 +120,8 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
   the `.hsyncstate` side-car (`constants.py`). The model is strictly causal:
   `load()` drops entries without a structurally valid `vclock` (no fabricated
   empty clocks) — a corrupted entry degrades entry-by-entry instead of
-  crashing startup.
+  crashing startup. `corrected_mtime` is persisted alongside and defaulted to 0
+  when absent from an older side-car.
 
 ## Delta Transfer Models (`models/delta.py`)
 
