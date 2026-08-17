@@ -41,11 +41,16 @@ from hsync_common.protocol import (
     ANDROID_FIXTURES_DIR,
     FIXTURES_DIR,
     LAN_TXT_SCHEMA_PATH,
+    LAN_WSS_SCHEMA_PATH,
     WS_SCHEMA_PATH,
     dump_contract,
 )
 from hsync_common.protocol.fixtures import build_fixtures
-from hsync_common.protocol.schemas import build_lan_txt_schema, build_ws_schema
+from hsync_common.protocol.schemas import (
+    build_lan_txt_schema,
+    build_lan_wss_schema,
+    build_ws_schema,
+)
 
 # .../hsync-android/app — stable marker that the Android checkout is present.
 _ANDROID_APP_DIR = ANDROID_FIXTURES_DIR.parents[4]
@@ -109,6 +114,7 @@ def check_drift() -> list[str]:
     for path, schema in (
         (WS_SCHEMA_PATH, build_ws_schema()),
         (LAN_TXT_SCHEMA_PATH, build_lan_txt_schema()),
+        (LAN_WSS_SCHEMA_PATH, build_lan_wss_schema()),
     ):
         problems += _diff_file(path, dump_contract(schema))
 

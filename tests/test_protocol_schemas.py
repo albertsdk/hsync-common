@@ -15,6 +15,7 @@ from hsync_common.models.event import Event, EventName
 from hsync_common.models.file import File, FileDict
 from hsync_common.protocol import (
     LAN_TXT_SCHEMA_PATH,
+    LAN_WSS_SCHEMA_PATH,
     WS_SCHEMA_PATH,
     dump_contract,
 )
@@ -22,6 +23,11 @@ from hsync_common.protocol.handshake import (
     PROTOCOL_VERSION_LAN,
     PROTOCOL_VERSION_WS,
     Capability,
+    build_lan_auth,
+    build_lan_auth_failed,
+    build_lan_auth_ok,
+    build_lan_auth_required,
+    build_lan_hello,
     build_ws_auth_error,
     build_ws_auth_ok,
     build_ws_auth_request,
@@ -31,6 +37,7 @@ from hsync_common.protocol.schemas import (
     LAN_TXT_KEYS,
     LAN_TXT_REQUIRED_KEYS,
     build_lan_txt_schema,
+    build_lan_wss_schema,
     build_ws_schema,
 )
 
@@ -46,6 +53,9 @@ class TestSnapshotDrift:
     def test_lan_snapshot_exists(self):
         assert LAN_TXT_SCHEMA_PATH.is_file(), f"Missing {LAN_TXT_SCHEMA_PATH}. {_REGEN_HINT}"
 
+    def test_lan_wss_snapshot_exists(self):
+        assert LAN_WSS_SCHEMA_PATH.is_file(), f"Missing {LAN_WSS_SCHEMA_PATH}. {_REGEN_HINT}"
+
     def test_ws_snapshot_matches_source(self):
         committed = WS_SCHEMA_PATH.read_text(encoding="utf-8")
         assert dump_contract(build_ws_schema()) == committed, f"WS schema drift. {_REGEN_HINT}"
@@ -54,6 +64,12 @@ class TestSnapshotDrift:
         committed = LAN_TXT_SCHEMA_PATH.read_text(encoding="utf-8")
         assert dump_contract(build_lan_txt_schema()) == committed, (
             f"LAN/TXT schema drift. {_REGEN_HINT}"
+        )
+
+    def test_lan_wss_snapshot_matches_source(self):
+        committed = LAN_WSS_SCHEMA_PATH.read_text(encoding="utf-8")
+        assert dump_contract(build_lan_wss_schema()) == committed, (
+            f"LAN/WSS schema drift. {_REGEN_HINT}"
         )
 
 
@@ -95,6 +111,65 @@ class TestLanSchemaSource:
     def test_all_keys_present(self):
         schema = build_lan_txt_schema()
         assert set(schema["properties"]) == set(LAN_TXT_KEYS)
+
+    def test_tombstones_and_vector_clocks_keys(self):
+        schema = build_lan_txt_schema()
+        assert schema["properties"]["tombstones"] == {"type": "string", "enum": ["true"]}
+        assert schema["properties"]["vector_clocks"] == {"type": "string", "enum": ["true"]}
+
+
+class TestLanWssSchemaSource:
+    """The LAN/WSS handshake schema pins the handshake frames (ADR-0024)."""
+
+    def _defs(self):
+        return build_lan_wss_schema()["$defs"]
+
+    def test_protocol_version_is_lan(self):
+        defs = self._defs()
+        for name in ("authRequired", "auth", "authOk", "authFailed", "hello"):
+            assert defs[name]["properties"]["protocol_version"]["const"] == PROTOCOL_VERSION_LAN
+
+    def test_capabilities_enum_matches_registry(self):
+        defs = self._defs()
+        expected = encode_capabilities(Capability)
+        for name in ("authRequired", "auth", "authOk", "hello"):
+            assert defs[name]["properties"]["capabilities"]["items"]["enum"] == expected
+
+    def test_auth_failed_carries_reason(self):
+        assert self._defs()["authFailed"]["properties"]["status"]["const"] == "failed"
+        assert "reason" in self._defs()["authFailed"]["required"]
+
+
+class TestLanWssHandshakeConformance:
+    """The LAN-WSS builders emit frames that match the handshake contract."""
+
+    def _defs(self):
+        return build_lan_wss_schema()["$defs"]
+
+    def test_auth_required_conforms(self):
+        frame = build_lan_auth_required(capabilities={Capability.compression})
+        assert set(frame) == set(self._defs()["authRequired"]["required"])
+
+    def test_auth_conforms(self):
+        frame = build_lan_auth(token="t", cid="TestClientA1234567890", capabilities=set())
+        assert set(frame) == set(self._defs()["auth"]["required"])
+
+    def test_auth_ok_conforms(self):
+        frame = build_lan_auth_ok(capabilities=set())
+        assert set(frame) == set(self._defs()["authOk"]["required"])
+
+    def test_auth_failed_conforms(self):
+        frame = build_lan_auth_failed(reason="invalid_token")
+        assert set(frame) == set(self._defs()["authFailed"]["required"])
+
+    def test_hello_master_conforms(self):
+        frame = build_lan_hello(capabilities=set())
+        assert set(frame) == set(self._defs()["hello"]["required"])
+
+    def test_hello_slave_conforms(self):
+        frame = build_lan_hello(capabilities=set(), cid="TestClientA1234567890")
+        assert "cid" in frame
+        assert set(frame) - {"cid"} == set(self._defs()["hello"]["required"])
 
 
 class TestHandshakeConformance:

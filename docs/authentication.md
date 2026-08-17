@@ -104,9 +104,8 @@ connection (there is no separate auth channel). The message envelope is:
 | `type` | Direction | Meaning |
 |---|---|---|
 | `auth` | Client → Server / Slave → Master | Authentication request carrying the shared secret and CID |
-| `auth_required` | Master → Slave | Server requires authentication (LAN P2P with `LAN_KEY`) |
+| `auth_required` | Master → Slave | Master requires authentication (LAN P2P with `LAN_KEY`) |
 | `hello` | Master → Slave | Lightweight handshake: master has no `LAN_KEY`, asks slave for its CID for logging |
-| `connected` | Master → Slave | Legacy greeting (pre-hello); no auth required |
 
 ### Response `status` values
 
