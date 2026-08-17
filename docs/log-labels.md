@@ -51,7 +51,7 @@ and the node is now applying peer events.
 |----------|-------|---------|
 | transfer | cyan | data moving in (downloads, resumes) |
 | upload | green | data moving out (uploads) |
-| create | green | additive operations (create, symlink) |
+| create | green | additive operations (create, symlink) and positive state transitions (readiness) |
 | modify | blue | content changes |
 | rename | blue | moves / renames |
 | delete | red | destructive operations |
@@ -153,6 +153,18 @@ notification in desktop/Android.
 | Label | Category | Description | C | S | A | D |
 |-------|----------|-------------|---|---|---|---|
 | `[WS]` | infrastructure | WebSocket transport message (e.g. dropping a dead connection) | | ✓ | ✓ | |
+
+## Readiness state
+
+Emitted once per run (or per reconnection/role activation) when the node has
+finished its startup sequence and is **actually ready for synchronization**:
+the filesystem watcher is active and the event channel (server WebSocket or
+LAN master connection) is established. This is the observable "ready" threshold
+in the log — the node will now react to file-system events and peer events.
+
+| Label | Category | Description | C | S | A | D |
+|-------|----------|-------------|---|---|---|---|
+| `[READY]` | create | Node is ready for sync: watcher active + event channel up (remote client, LAN master or LAN slave) | ✓ | | ✓ | ✓ |
 
 ---
 
