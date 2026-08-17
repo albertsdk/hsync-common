@@ -54,11 +54,6 @@
             "title": "Compressed",
             "type": "string"
           },
-          "compressed_size": {
-            "default": 0,
-            "title": "Compressed Size",
-            "type": "integer"
-          },
           "corrected_mtime": {
             "default": 0,
             "title": "Corrected Mtime",
