@@ -140,6 +140,14 @@ def _dir_object() -> dict[str, Any]:
         "properties": {
             "path": {"type": ["string", "null"]},
             "permissions": {"type": ["string", "null"]},
+            "recursive": {
+                "type": "boolean",
+                "description": (
+                    "On a `deleted` event the directory deletion applies "
+                    "recursively (single message replaces the per-descendant "
+                    "delete stream). Optional: absent ⇒ non-recursive."
+                ),
+            },
         },
         "required": ["path", "permissions"],
         "additionalProperties": False,
