@@ -26,7 +26,6 @@ from collections.abc import Iterator, Sequence
 from pathlib import Path
 
 __all__ = [
-    "RETAIN_CHUNK_SIZE",
     "SCHEMA_USER_VERSION",
     "StateDb",
     "get_state_db",
@@ -37,10 +36,6 @@ __all__ = [
 _db_cache: dict[str, StateDb] = {}
 
 SCHEMA_USER_VERSION = 1
-
-# SQLite default parameter limit is 999; stay well under it for ``IN`` clauses
-# used as a fallback. The primary ``retain`` path uses a temp-table anti-join.
-RETAIN_CHUNK_SIZE = 500
 
 _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS folders (
