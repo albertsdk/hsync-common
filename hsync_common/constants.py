@@ -85,19 +85,26 @@ DEFAULT_IGNORE_PATTERNS: tuple[str, ...] = (
     "*-????-??-??-??????",
 )
 
-# Per-bucket deletion-marker (tombstone) side-car file.  Maps a hashed
-# bucket-relative path to the deletion timestamp and the content hash of the
-# removed file, so that a peer that was offline at deletion time does not
-# resurrect the file during a full reconciliation.  Starts with a dot, so it
-# is treated as hidden and never exchanged across peers.
-HSYNCTOMBSTONES_FILENAME = ".hsynctombstones"
+# Folder-identity marker written at the bucket root (UUIDv4 text + newline).
+# The marker travels with the folder so a rename/move re-anchors the external
+# SQLite state; it is engine-owned and must never be accepted from the wire
+# (ADR-0025). Consumers: hsync-client, hsync-server (docs only; server uses the
+# buckets table), hsync-android (SAF/path mirror).
+HSYNCFOLDER_FILENAME = ".hsyncfolder"
 
-# Per-peer sync-state (version) side-car file.  Maps a hashed bucket-relative
-# path to the last-synced common ancestor (base_hash) plus version lineage
-# (version_id, origin_cid), enabling a clock-independent three-way merge: a peer
-# can tell whether only the local side, only the remote side, or both sides
-# changed since the last successful sync.  Local and private to each peer (never
-# exchanged); starts with a dot, so it is treated as hidden.
+# Installation-level causal-state database filename (lives in the state dir,
+# never inside a synced bucket). Consumers: hsync-client, hsync-server,
+# hsync-android (filesDir mirror).
+SYNCSTATE_DB_FILENAME = "syncstate.db"
+
+# Environment override for the installation state directory that holds
+# ``syncstate.db``. Consumers: hsync-client, hsync-server, tests.
+HSYNC_STATE_DIR_ENV = "HSYNC_STATE_DIR"
+
+# Legacy engine-owned basenames. Causal state no longer lives in these files
+# (ADR-0025) but they stay rejected on the wire and by the ignore matcher so
+# an old peer cannot plant them through the sync channel.
+HSYNCTOMBSTONES_FILENAME = ".hsynctombstones"
 HSYNCSTATE_FILENAME = ".hsyncstate"
 
 # =============================================================================

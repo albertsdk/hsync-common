@@ -32,8 +32,9 @@ The following files are **never** synced, regardless of any ignore pattern:
 | File | Purpose |
 |------|---------|
 | `.hsyncignore` | The ignore file itself (not synced across peers) |
-| `.hsyncstate` | Per-peer 3-way merge state side-car |
-| `.hsynctombstones` | Per-bucket deletion-marker side-car |
+| `.hsyncfolder` | Folder-identity marker (UUIDv4); causal state lives outside the bucket |
+| `.hsyncstate` | Legacy name; rejected so an old peer cannot plant it |
+| `.hsynctombstones` | Legacy name; rejected so an old peer cannot plant it |
 | `*.part` | In-progress download artifacts |
 | `*.delta.part` | In-progress delta reconstruction artifacts |
 

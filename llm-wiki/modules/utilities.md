@@ -6,8 +6,10 @@ formatting/hashing/parsing helper (DRY rule in `CLAUDE.md`).
 ## constants.py
 
 - `VERSION = "1.0.0"` (`constants.py:20`) — ecosystem version SSOT.
-- Sentinel side-car filenames: `.hsynckeep` (`:30`), `.hsyncignore` (`:36`),
-  `.hsynctombstones` (`:43`), `.hsyncstate` (`:51`).
+- Sentinel / engine filenames: `.hsynckeep` (`:30`), `.hsyncignore` (`:35`),
+  `.hsyncfolder` (`:93`), `syncstate.db` (`:99`), `HSYNC_STATE_DIR` (`:104`);
+  leftover `.hsynctombstones` / `.hsyncstate` (`:110`/`:111`) stay rejected
+  on the wire (ADR-0025).
 - Adaptive chunk tiers: `CHUNK_SIZE_SMALL/MEDIUM/LARGE` (`:58`–`:60`) gated by
   `FILE_SIZE_SMALL/MEDIUM` (`:63`/`:64`).
 - `PARTIAL_DOWNLOAD_SUFFIX = ".part"` (`:74`).
@@ -59,7 +61,7 @@ formatting/hashing/parsing helper (DRY rule in `CLAUDE.md`).
 - Bucket names: `BUCKET_NAME_PATTERN` (`:319`), `is_valid_bucket_name` (`:324`).
 - `sanitize_filename` (`:261`).
 - Wire-facing remote-path validation (`:380`+): `INTERNAL_FILENAMES`
-  (`.hsyncignore`/`.hsyncstate`/`.hsynctombstones`), `is_internal_name`
+  (`.hsyncignore`/`.hsyncfolder`/legacy `.hsyncstate`/`.hsynctombstones`), `is_internal_name`
   (also matches `*.part`; comparison is case-insensitive so case variants
   like `.HSYNCIGNORE`/`x.PART` are rejected on case-insensitive
   filesystems), `validate_remote_relpath` (rejects `..`, absolute

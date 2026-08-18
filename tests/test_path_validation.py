@@ -264,7 +264,10 @@ class TestIsInternalName:
             assert is_internal_name(f"sub/dir/{name}") is True
 
     def test_expected_contents(self):
-        assert frozenset({".hsyncignore", ".hsyncstate", ".hsynctombstones"}) == INTERNAL_FILENAMES
+        assert (
+            frozenset({".hsyncignore", ".hsyncfolder", ".hsyncstate", ".hsynctombstones"})
+            == INTERNAL_FILENAMES
+        )
 
     def test_partial_suffix_is_internal(self):
         assert is_internal_name("file.txt.part") is True
@@ -288,6 +291,7 @@ class TestIsInternalName:
         assert is_internal_name(".HSYNCIGNORE") is True
         assert is_internal_name(".HsyncState") is True
         assert is_internal_name("sub/dir/.HSYNCTOMBSTONES") is True
+        assert is_internal_name(".HSYNCFOLDER") is True
         assert is_internal_name("file.txt.PART") is True
 
     def test_validate_remote_relpath_rejects_case_variants(self):
@@ -342,6 +346,8 @@ class TestValidateRemoteRelpath:
     def test_internal_names_rejected(self):
         assert validate_remote_relpath(".hsyncignore") is None
         assert validate_remote_relpath("sub/.hsyncstate") is None
+        assert validate_remote_relpath(".hsyncfolder") is None
+        assert validate_remote_relpath("sub/.hsyncfolder") is None
         assert validate_remote_relpath("file.txt.part") is None
 
 

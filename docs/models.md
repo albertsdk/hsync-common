@@ -59,13 +59,14 @@ not resurrect a file during a full reconciliation. Key features:
 - **TTL pruning** — `prune()` garbage-collects markers older than 30 days.
 - **Untrusted-payload validation** — well-formedness checks prevent hostile peers
   from planting permanent or unbounded deletion markers.
-- **JSON persistence** — atomic `save()`/`load()` to the `.hsynctombstones`
-  side-car file.
+- **SQLite persistence** — `save()`/`load()` against the installation
+  `syncstate.db`, keyed by folder UUID (`.hsyncfolder`).
 
 ## SyncStateStore / FileVersion
 
 Backs the causal three-way merge (vector-clock) conflict model. `SyncStateStore`
-persists per-file versions to the `.hsyncstate` side-car; each `FileVersion`
+persists per-file versions in the installation `syncstate.db` (keyed by the
+`.hsyncfolder` UUID); each `FileVersion`
 records the base content hash, the causal `vclock`, and a `corrected_mtime`
 (the local modification time corrected by the clock offset measured against
 the server or the NTP servers — see the [Clock section](utilities.md#clock-synchronisation-hsync_commonclock)).

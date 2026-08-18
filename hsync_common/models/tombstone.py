@@ -24,11 +24,15 @@ The store is reused on both sides:
 - the server (and a LAN master) persists tombstones and serves them to clients;
 - a client/slave merges them causally (dominance, then deterministic tie-break).
 
+Persistence is the installation SQLite database (``syncstate.db``, ADR-0025),
+keyed by folder UUID. The wire shape (``to_payload()``) is unchanged.
+
 Path helpers (``tombstone_key`` / ``relpath_in_bucket``) and the wire-timestamp
 parser are re-exported from ``._util`` for the historic consumers.
 """
 
 import json
+import sqlite3
 import time
 from pathlib import Path
 from typing import TypedDict
@@ -37,6 +41,7 @@ from hsync_common.hashing import is_sha256_hex
 
 from ._util import _parse_wire_timestamp, relpath_in_bucket, tombstone_key
 from .event import is_valid_cid
+from .sqlstore import StateDb, get_state_db
 from .version import (
     VCLOCK_MAX_ENTRIES,
     VClockOrder,
@@ -207,13 +212,52 @@ def tombstone_merge_decision(existing: TombstoneEntry | None, incoming: Tombston
     return "adopt" if _prefer_incoming(existing, incoming) else "keep"
 
 
-class TombstoneStore:
-    """In-memory tombstone map with JSON persistence and causal merge."""
+def _vclock_to_json(vclock: dict[str, int]) -> str:
+    """Serialize a validated vector clock for the ``tombstones.vclock`` column."""
+    return json.dumps(vclock, separators=(",", ":"), sort_keys=True)
 
-    def __init__(self, path: str | None = None, ttl_days: int = TOMBSTONE_TTL_DAYS_DEFAULT):
-        self.path = path
+
+def _tombstone_from_row(row: object, now: int) -> tuple[str, TombstoneEntry] | None:
+    """Sanitize a SQLite tombstone row the same way as an untrusted payload."""
+    mapping = dict(row)  # type: ignore[arg-type]
+    key = mapping.get("key")
+    entry = {
+        "sha256": mapping.get("sha256sum"),
+        "version_id": mapping.get("version_id", ""),
+        "origin_cid": mapping.get("origin_cid"),
+        "ts": mapping.get("ts", 0),
+        "vclock": mapping.get("vclock"),
+    }
+    raw_vclock = entry["vclock"]
+    if isinstance(raw_vclock, str):
+        try:
+            entry["vclock"] = json.loads(raw_vclock)
+        except ValueError:
+            return None
+    clean = _sanitize_entry(key, entry, now)
+    if clean is None or not isinstance(key, str):
+        return None
+    return key, clean
+
+
+class TombstoneStore:
+    """In-memory tombstone map with SQLite persistence and causal merge."""
+
+    def __init__(
+        self,
+        db_path: str | Path | None = None,
+        folder_id: str | None = None,
+        *,
+        ttl_days: int = TOMBSTONE_TTL_DAYS_DEFAULT,
+        canonical_path: str = "",
+    ):
+        self.db_path = str(db_path) if db_path is not None else None
+        self.folder_id = folder_id
+        self.canonical_path = canonical_path
         self.ttl_seconds = max(0, int(ttl_days)) * 86400
         self._data: dict[str, TombstoneEntry] = {}
+        self._db: StateDb | None = None
+        self._dirty = False
 
     # ── mutation ────────────────────────────────────────────────────
     def record(
@@ -262,6 +306,7 @@ class TombstoneStore:
             ts=ts,
             vclock=clock,
         )
+        self._dirty = True
 
     def clear(self, relpath: str) -> bool:
         """Drop the marker for a relative path (the path was re-created).
@@ -270,7 +315,10 @@ class TombstoneStore:
         dominates the tombstone clock; the marker itself is removed so peers
         never apply a stale deletion to the re-created file.
         """
-        return self._data.pop(tombstone_key(relpath), None) is not None
+        dropped = self._data.pop(tombstone_key(relpath), None) is not None
+        if dropped:
+            self._dirty = True
+        return dropped
 
     # ── query ───────────────────────────────────────────────────────
     def get(self, relpath: str) -> TombstoneEntry | None:
@@ -299,6 +347,8 @@ class TombstoneStore:
         expired = [k for k, v in self._data.items() if v["ts"] < cutoff]
         for k in expired:
             del self._data[k]
+        if expired:
+            self._dirty = True
         return len(expired)
 
     # ── transport (causal merge) ────────────────────────────────────
@@ -344,41 +394,66 @@ class TombstoneStore:
             if tombstone_merge_decision(existing, clean) == "adopt":
                 self._data[key] = clean
                 changed += 1
+        if changed:
+            self._dirty = True
         return changed
 
     # ── persistence ─────────────────────────────────────────────────
+    def _backend(self) -> StateDb | None:
+        """Return the shared DB handle when ``db_path`` + ``folder_id`` are set."""
+        if not self.db_path or not self.folder_id:
+            return None
+        if self._db is None:
+            self._db = get_state_db(self.db_path)
+        return self._db
+
     def load(self) -> None:
-        """Load markers from the backing JSON file, if configured/present."""
-        if not self.path:
+        """Load markers from the installation DB, if configured."""
+        db = self._backend()
+        if db is None or self.folder_id is None:
             return
-        p = Path(self.path)
-        if not p.exists():
-            return
-        try:
-            raw = json.loads(p.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            return
-        entries = raw.get("tombstones", {}) if isinstance(raw, dict) else {}
-        if not isinstance(entries, dict):
-            # A malformed side-car (e.g. "tombstones" is a list) must not
-            # crash startup — treat it as empty.
-            return
+        db.ensure_folder(self.folder_id, self.canonical_path)
         now = int(time.time())
         data: dict[str, TombstoneEntry] = {}
-        for key, entry in entries.items():
+        for row in db.iter_tombstones(self.folder_id):
             if len(data) >= TOMBSTONE_MAX_ENTRIES:
                 break
-            clean = _sanitize_entry(key, entry, now)
-            if clean is not None:
-                data[key] = clean
+            parsed = _tombstone_from_row(row, now)
+            if parsed is None:
+                continue
+            key, clean = parsed
+            data[key] = clean
         self._data = data
+        self._dirty = False
 
     def save(self) -> None:
-        """Persist markers atomically to the backing JSON file, if configured."""
-        if not self.path:
+        """Persist markers to the installation DB (one transaction)."""
+        db = self._backend()
+        if db is None or self.folder_id is None or not self._dirty:
             return
-        p = Path(self.path)
-        p.parent.mkdir(parents=True, exist_ok=True)
-        tmp = p.with_suffix(p.suffix + ".tmp")
-        tmp.write_text(json.dumps({"tombstones": self._data}), encoding="utf-8")
-        tmp.replace(p)
+        db.ensure_folder(self.folder_id, self.canonical_path)
+        own_txn = False
+        try:
+            db.begin_immediate()
+            own_txn = True
+        except sqlite3.OperationalError:
+            own_txn = False
+        try:
+            db.retain_tombstones(self.folder_id, list(self._data.keys()))
+            for key, entry in self._data.items():
+                db.upsert_tombstone(
+                    self.folder_id,
+                    key,
+                    sha256sum=entry["sha256"],
+                    version_id=entry["version_id"],
+                    origin_cid=entry["origin_cid"],
+                    ts=float(entry["ts"]),
+                    vclock=_vclock_to_json(entry["vclock"]),
+                )
+            if own_txn:
+                db.commit()
+            self._dirty = False
+        except Exception:
+            if own_txn:
+                db.rollback()
+            raise

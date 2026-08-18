@@ -24,7 +24,7 @@ contract is mechanically tied to the in-code types.
 | Path | Responsibility | Wiki |
 | ---- | -------------- | ---- |
 | `hsync_common/constants.py:20` | `VERSION`, sentinel filenames, chunk-size tiers, `.part` suffix | [utilities](modules/utilities.md) |
-| `hsync_common/models/` | Canonical sync data types | [data-models](data-models.md) |
+| `hsync_common/models/` | Canonical sync data types; `folder.py` (`.hsyncfolder` + state dir), `sqlstore.py` (`syncstate.db`) | [data-models](data-models.md) |
 | `hsync_common/protocol/` | Versioned wire protocol + contract artifacts | [protocol](modules/protocol.md) |
 | `hsync_common/{hashing,compression,permissions,path_validation,ignore,ssl_utils,logger,env,text,clock,format,exceptions}.py` | Cross-cutting helpers | [utilities](modules/utilities.md) |
 
@@ -47,7 +47,8 @@ these constants:
 - `models/version.py` is the SSOT for per-file causal versions: `FileVersion`
   (private, persisted), `VersionInfo` (wire form), `compare/tick/merge_vclocks`,
   `resolve_three_way` (the §3.2 decision matrix) and `SyncStateStore`
-  (``.hsyncstate`` side-car). No node is authoritative: the server and the
+  (installation ``syncstate.db`` keyed by ``.hsyncfolder`` UUID, ADR-0025).
+  No node is authoritative: the server and the
   elected LAN master arbitrate uploads causally against their stored version
   and never decide by role.
 - Wire surface: `FileDict.version` (attach-always), upload form fields
