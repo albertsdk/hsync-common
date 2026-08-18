@@ -201,6 +201,17 @@ Consequences for the wire protocol:
   dominant clock, so a peer that re-gossips an older entry cannot regress the
   store.
 
+Every peer records its own deletion markers at deletion time — both when it is
+serving as master and when it is running as a slave — so correctness never
+depends on which role observed the removal nor on the transport being up at
+that moment: a slave whose master is temporarily unreachable still records the
+marker, and the next reconciliation deletes the stale remote copy on the master
+instead of downloading it back. The client-side `delete_remote` action therefore
+speaks both transports' DELETE contracts: form fields (`filename`, `cid`)
+against the central server and query parameters (`path`, `is_dir`, `cid`)
+against the LAN master (`hsync-client/hsync_client/transfer.py`
+`delete_file_remote`).
+
 The tombstone **TTL (default 90 days) is a storage bound only**: correctness
 never depends on pruning, because deletion decisions are causal. The
 `causal-tombstone-scenarios.json` fixture (generated from the shared algorithm
