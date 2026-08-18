@@ -5,11 +5,18 @@ They are imported from `hsync_common.constants` and are the single source of
 truth for the protocol version, sentinel filenames, chunk sizes, and delta
 transfer thresholds.
 
-## Application & Protocol
+## Application, protocol & wire headers
 
 | Constant | Value | Description |
 |----------|-------|-------------|
-| `VERSION` | `"1.0.0"` | HSYNC protocol version — single source of truth. Both client and server must match. |
+| `HSYNC_VERSION` | `"1.0.0"` | HSYNC application version — single source of truth, shared by client, server, desktop and Android. |
+| `HEADER_CLIENT_NAME` | `"X-Client-Name"` | REST header identifying the client product (`hsync-client`, `hsync-android`). |
+| `HEADER_CLIENT_VERSION` | `"X-Client-Version"` | REST header carrying the client's application version. |
+| `HEADER_SERVER_VERSION` | `"X-Server-Version"` | REST header carrying the server's application version. |
+| `HEADER_PROTOCOL_VERSION` | `"X-Protocol-Version"` | REST header carrying the wire-protocol version on every request and response. |
+| `CLIENT_NAME_PATTERN` / `is_valid_client_name` | `^[a-z][a-z0-9-]*[a-z0-9]$` | Shape a `X-Client-Name` value must satisfy (`hsync-client`, `hsync-android`); the server rejects anything else with 400. |
+| `CONTENT_TYPE_OCTET_STREAM` | `"application/octet-stream"` | Wire media type for file/literal payloads, shared by client, server and Android. |
+| `CONTENT_TYPE_JSON` | `"application/json"` | Wire media type for JSON responses, shared by client, server and Android. |
 | `WS_MAX_MESSAGE_BYTES` | `2 MiB` | Maximum WebSocket text-frame size accepted (auth frames and event messages). |
 
 ## Sentinel & Side-car filenames
