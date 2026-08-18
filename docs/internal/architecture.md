@@ -162,7 +162,10 @@ values: `added`, `modified`, `renamed`, `deleted`, `symlink`.
 ### SyncAction / SyncActionName
 
 Represents a synchronization decision. `SyncActionName` is a `StrEnum` with
-values: `download`, `upload`, `delete`, `delete_remote`, `nothing`.
+values: `download`, `upload`, `delete`, `delete_remote`, `upload_symlink`,
+`download_symlink`, `nothing`. The symlink actions replicate the link
+structurally (path and target), never the target's file content. `to_dict()`
+also serializes `conflict` and `tombstone_confirmed`.
 
 ### TombstoneStore
 
