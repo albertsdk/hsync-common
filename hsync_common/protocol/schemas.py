@@ -66,6 +66,7 @@ LAN_TXT_OPTIONAL_KEYS: tuple[str, ...] = (
     "server_ready",
     "force_master",
     "never_master",
+    "connected",
 )
 LAN_TXT_KEYS: tuple[str, ...] = LAN_TXT_REQUIRED_KEYS + LAN_TXT_OPTIONAL_KEYS
 
@@ -260,6 +261,21 @@ def _heartbeat(kind: str) -> dict[str, Any]:
     }
 
 
+def _presence() -> dict[str, Any]:
+    """Server → client presence frame (``WsPresenceFrame``)."""
+    return {
+        "type": "object",
+        "title": "Presence",
+        "properties": {
+            "type": {"const": "presence"},
+            "connected": {"type": "integer", "minimum": 0},
+            "total": {"type": "integer", "minimum": 0},
+        },
+        "required": ["type", "connected", "total"],
+        "additionalProperties": False,
+    }
+
+
 def build_ws_schema() -> dict[str, Any]:
     """Build the WebSocket channel JSON Schema from the Python source of truth."""
     return {
@@ -286,6 +302,7 @@ def build_ws_schema() -> dict[str, Any]:
             "authError": _auth_error(),
             "ping": _heartbeat("ping"),
             "pong": _heartbeat("pong"),
+            "presence": _presence(),
             "fileEvent": _event_message(),
         },
         "clientToServer": {
@@ -300,6 +317,7 @@ def build_ws_schema() -> dict[str, Any]:
                 {"$ref": "#/$defs/authOk"},
                 {"$ref": "#/$defs/authError"},
                 {"$ref": "#/$defs/ping"},
+                {"$ref": "#/$defs/presence"},
                 {"$ref": "#/$defs/fileEvent"},
             ]
         },
@@ -463,6 +481,15 @@ def build_lan_txt_schema() -> dict[str, Any]:
         "server_ready": _TXT_BOOL_FLAG,
         "force_master": _TXT_BOOL_FLAG,
         "never_master": _TXT_BOOL_FLAG,
+        "connected": {
+            "type": "string",
+            "pattern": r"^[0-9]+$",
+            "description": (
+                "Count of clients currently connected to this bucket's share "
+                "(master included). Present only on a serving master; "
+                "informational, never part of the election."
+            ),
+        },
     }
     return {
         "$schema": JSON_SCHEMA_DIALECT,

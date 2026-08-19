@@ -37,6 +37,7 @@ __all__ = [
     "ALL_CAPABILITIES",
     "WsAuthRequest",
     "WsAuthResponse",
+    "WsPresenceFrame",
     "LanAuthRequiredFrame",
     "LanAuthFrame",
     "LanAuthResultFrame",
@@ -46,6 +47,7 @@ __all__ = [
     "build_ws_auth_request",
     "build_ws_auth_ok",
     "build_ws_auth_error",
+    "build_ws_presence",
     "build_lan_auth_required",
     "build_lan_auth",
     "build_lan_auth_ok",
@@ -159,6 +161,29 @@ def build_ws_auth_error(*, error: str, client_protocol_version: str) -> WsAuthRe
         "protocol_version": PROTOCOL_VERSION_WS,
         "error": error,
         "client_protocol_version": client_protocol_version,
+    }
+
+
+class WsPresenceFrame(TypedDict):
+    """Server → client presence frame, broadcast to a bucket's connected clients.
+
+    Carries the display-ready presence counters for the bucket: ``connected``
+    is the number of accounts currently connected (self included), ``total``
+    is the number of clients that have access to the bucket. Both are always
+    present and ``connected <= total``.
+    """
+
+    type: str  # always "presence"
+    connected: int  # accounts currently connected (self included)
+    total: int  # accounts with access to the bucket (self included)
+
+
+def build_ws_presence(*, connected: int, total: int) -> WsPresenceFrame:
+    """Build the server's presence frame for a bucket."""
+    return {
+        "type": "presence",
+        "connected": connected,
+        "total": total,
     }
 
 

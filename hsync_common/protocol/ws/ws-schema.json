@@ -313,6 +313,29 @@
       "title": "Pong",
       "type": "object"
     },
+    "presence": {
+      "additionalProperties": false,
+      "properties": {
+        "connected": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "total": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "type": {
+          "const": "presence"
+        }
+      },
+      "required": [
+        "type",
+        "connected",
+        "total"
+      ],
+      "title": "Presence",
+      "type": "object"
+    },
     "symlink": {
       "additionalProperties": false,
       "properties": {
@@ -386,6 +409,9 @@
       },
       {
         "$ref": "#/$defs/ping"
+      },
+      {
+        "$ref": "#/$defs/presence"
       },
       {
         "$ref": "#/$defs/fileEvent"

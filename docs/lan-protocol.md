@@ -34,7 +34,7 @@ lives in `LAN_TXT_KEYS`; do not introduce keys outside it.
 
 **Optional keys** (present only when meaningful/true): `group`, `https`,
 `cert_fp`, `compression`, `delta`, `vector_clocks`, `tombstones`,
-`server_ready`, `force_master`, `never_master`.
+`server_ready`, `force_master`, `never_master`, `connected`.
 
 `vector_clocks` (causal version metadata, ADR-0022) and `tombstones`
 (deletion-marker gossip, ADR-0003) are core to the sync/conflict model: every
@@ -49,6 +49,24 @@ once it is **serving as master**. A master, however, **must** advertise both
 transport is HTTPS-only, so a peer that does not is **not a valid master** and a
 slave refuses to connect to it (it logs `[INSECURE MASTER]` and stays in
 discovery).
+
+## Presence counters
+
+`connected` (a stringified non-negative integer, advertised only by a serving
+master) carries the number of slaves currently connected to the master's
+WebSocket. It is **diagnostic only**: it never participates in the election
+and is never trusted for gating decisions. Slaves use it to display the
+display-ready group presence pair
+
+- `connected = 1 + peers' connected` (the master itself always counts as
+  connected; clamped to `total` against stale records)
+- `total = 1 + alive mDNS peers`
+
+which mirrors the server-mode `presence` WebSocket frame shape
+(`hsync_common.protocol.handshake.build_ws_presence`,
+`{"type": "presence", "connected", "total"}`). The same pair is the payload of
+the `peers` structured UI event (schema v2), so desktop and mobile surfaces
+render one shared "connected/total" value across both transports.
 
 ## Master ⇄ slave WebSocket handshake
 
