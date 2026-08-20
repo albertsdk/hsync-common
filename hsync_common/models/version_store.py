@@ -28,44 +28,16 @@ import sqlite3
 import time
 from pathlib import Path
 
-from . import version
-from ._util import _parse_wire_timestamp, tombstone_key
-from .event import is_valid_cid
+from ._util import _parse_wire_timestamp, _vclock_to_json, tombstone_key
 from .sqlstore import StateDb, get_state_db
-from .version import FileVersion, new_version_id
+from .version import FileVersion, new_version_id, parse_vclock
 
 __all__ = ["SyncStateStore"]
 
 
-def _parse_stored_vclock(raw: object) -> dict[str, int] | None:
-    """Parse a ``vclock`` read from local storage (validated as untrusted).
-
-    A structurally invalid clock (non-dict, oversized, ``bool``/negative
-    counters, non-cid keys, unknown-types) makes the whole entry unusable:
-    the caller drops it rather than fabricating an empty clock, which could
-    mask a corrupted common ancestor and flip a sync decision.
-    """
-    if not isinstance(raw, dict) or len(raw) > version.VCLOCK_MAX_ENTRIES:
-        return None
-    vclock: dict[str, int] = {}
-    for key, value in raw.items():
-        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-            return None
-        key_str = str(key) if isinstance(key, str) else None
-        if key_str is None or not is_valid_cid(key_str):
-            return None
-        vclock[key_str] = value
-    return vclock
-
-
-def _vclock_to_json(vclock: dict[str, int]) -> str:
-    """Serialize a validated vector clock for the ``versions.vclock`` column."""
-    return json.dumps(vclock, separators=(",", ":"), sort_keys=True)
-
-
-def _file_version_from_row(row: object) -> FileVersion | None:
+def _file_version_from_row(row: sqlite3.Row) -> FileVersion | None:
     """Build a :class:`FileVersion` from a SQLite row, or ``None`` if unusable."""
-    mapping = dict(row)  # type: ignore[arg-type]
+    mapping = dict(row)
     base_hash = mapping.get("base_hash")
     if not isinstance(base_hash, str) or not base_hash:
         return None
@@ -81,7 +53,7 @@ def _file_version_from_row(row: object) -> FileVersion | None:
             return None
     else:
         parsed_clock = raw_vclock
-    vclock = _parse_stored_vclock(parsed_clock)
+    vclock = parse_vclock(parsed_clock)
     if vclock is None:
         return None
     raw_corrected = mapping.get("corrected_mtime")
@@ -229,15 +201,7 @@ class SyncStateStore:
         if db is None or self.folder_id is None or not self._dirty:
             return
         db.ensure_folder(self.folder_id, self.canonical_path)
-        own_txn = False
-        try:
-            db.begin_immediate()
-            own_txn = True
-        except sqlite3.OperationalError:
-            # Nested flush inside an already-open transaction (LAN realtime
-            # delete after a cycle BEGIN): write without starting another.
-            own_txn = False
-        try:
+        with db.transaction():
             db.retain_versions(self.folder_id, list(self._data.keys()))
             for key, entry in self._data.items():
                 db.upsert_version(
@@ -250,10 +214,4 @@ class SyncStateStore:
                     vclock=_vclock_to_json(entry["vclock"]),
                     corrected_mtime=float(entry["corrected_mtime"]),
                 )
-            if own_txn:
-                db.commit()
-            self._dirty = False
-        except Exception:
-            if own_txn:
-                db.rollback()
-            raise
+        self._dirty = False

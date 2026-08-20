@@ -11,27 +11,14 @@ from typing import Optional
 
 from hsync_common.permissions import mode_to_octal
 
+from ._util import _resolve_prefixed_path
+
 
 def is_hidden_dir(directory: str) -> bool:
-    """
-    Check if a directory must be excluded from synchronisation.
+    """Return True when *directory* must be excluded from synchronisation.
 
-    When a process-wide :class:`hsync_common.ignore.IgnoreMatcher` is active
-    (installed by the client at startup) it is consulted so that
-    ``.hsyncignore`` rules and extra patterns are honoured. When no matcher
-    is installed (e.g. on the server) the built-in default ignore patterns
-    (:data:`hsync_common.constants.DEFAULT_IGNORE_PATTERNS`) are used.
-
-    Following the industry standard (Syncthing, rsync, Nextcloud, OneDrive),
-    dotfile directories in general (``.git/``, ``.config/`` …) are **not**
-    excluded: only OS cache directories and editor/office temporary files are
-    filtered by default.
-
-    Args:
-        directory: Path to the directory.
-
-    Returns:
-        True if the directory is ignored, False otherwise.
+    See :func:`hsync_common.ignore.should_skip` for the filtering rules
+    (active IgnoreMatcher, then built-in default patterns).
     """
     from hsync_common.ignore import should_skip
 
@@ -104,8 +91,6 @@ class Dir:
         Returns:
             New Dir instance.
         """
-        from hsync_common.models import _resolve_prefixed_path
-
         path = _resolve_prefixed_path(data.get("path", ""), localpath, strip=strip_localpath)
         return cls(
             path=path,

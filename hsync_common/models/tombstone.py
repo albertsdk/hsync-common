@@ -39,7 +39,7 @@ from hsync_common.hashing import is_sha256_hex
 
 from ._util import _parse_wire_timestamp, relpath_in_bucket, tombstone_key
 from .event import is_valid_cid
-from .version import VCLOCK_MAX_ENTRIES, VClockOrder, compare_vclocks
+from .version import VClockOrder, compare_vclocks, parse_vclock
 
 __all__ = [
     "TOMBSTONE_MAX_CLOCK_SKEW_SECONDS",
@@ -98,28 +98,6 @@ def _is_valid_sha256(value: object) -> bool:
     return value is None or _is_valid_key(value)
 
 
-def _parse_vclock(raw: object) -> dict[str, int] | None:
-    """Strictly parse a ``vclock`` from an untrusted payload.
-
-    Returns ``None`` on any structural violation (missing/non-dict clock,
-    more than ``VCLOCK_MAX_ENTRIES`` entries, ``bool`` or negative counters,
-    non-cid keys). An explicitly empty ``{}`` is a valid clock: it carries no
-    causal information and is dominated by any non-empty one.
-    """
-    if not isinstance(raw, dict) or len(raw) > VCLOCK_MAX_ENTRIES:
-        return None
-    clock: dict[str, int] = {}
-    for key, value in raw.items():
-        # bool is a subclass of int — reject it explicitly (a `True` counter
-        # would silently parse as 1, masking a corrupt payload).
-        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-            return None
-        if not is_valid_cid(key):
-            return None
-        clock[key] = value
-    return clock
-
-
 def _sanitize_entry(
     key: object,
     entry: object,
@@ -148,7 +126,7 @@ def _sanitize_entry(
     sha = entry.get("sha256")  # type: ignore[union-attr]
     if not _is_valid_sha256(sha):
         return None
-    vclock = _parse_vclock(entry.get("vclock"))  # type: ignore[union-attr]
+    vclock = parse_vclock(entry.get("vclock"))  # type: ignore[union-attr]
     if vclock is None:
         return None
     version_id = entry.get("version_id")  # type: ignore[union-attr]

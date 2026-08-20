@@ -52,6 +52,7 @@ __all__ = [
     "compare_vclocks",
     "merge_vclocks",
     "new_version_id",
+    "parse_vclock",
     "parse_version_info",
     "relpath_in_bucket",
     "resolve_three_way",
@@ -202,6 +203,31 @@ def merge_vclocks(a: dict[str, int] | None, b: dict[str, int] | None) -> dict[st
     return {k: max(a.get(k, 0), b.get(k, 0)) for k in a.keys() | b.keys()}
 
 
+def parse_vclock(raw: object) -> dict[str, int] | None:
+    """Strictly parse a vector clock from an untrusted payload or storage row.
+
+    Returns ``None`` on any structural violation: a non-dict clock, more than
+    ``VCLOCK_MAX_ENTRIES`` entries, ``bool`` or negative counters, or non-CID
+    keys. An explicitly empty ``{}`` is a valid clock (it carries no causal
+    information and is dominated by any non-empty one).
+
+    Consumers: ``parse_version_info`` (wire), ``TombstoneStore`` /
+    ``SyncStateStore`` (storage load), ``hsync-android`` mirror.
+    """
+    if not isinstance(raw, dict) or len(raw) > VCLOCK_MAX_ENTRIES:
+        return None
+    clock: dict[str, int] = {}
+    for key, value in raw.items():
+        # bool is a subclass of int — reject it explicitly (a `True` counter
+        # would silently parse as 1, masking a corrupt payload).
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            return None
+        if not is_valid_cid(key):
+            return None
+        clock[key] = value
+    return clock
+
+
 def parse_version_info(data: object) -> VersionInfo | None:
     """Tolerantly parse a wire ``version`` object into :class:`VersionInfo`.
 
@@ -214,17 +240,9 @@ def parse_version_info(data: object) -> VersionInfo | None:
     if not isinstance(data, dict):
         return None
     raw_vclock = data.get("vclock")
-    if not isinstance(raw_vclock, dict) or len(raw_vclock) > VCLOCK_MAX_ENTRIES:
+    vclock = parse_vclock(raw_vclock)
+    if vclock is None:
         return None
-    vclock: dict[str, int] = {}
-    for key, value in raw_vclock.items():
-        # bool is a subclass of int — reject it explicitly (a `True` counter
-        # would silently parse as 1, masking a corrupt payload).
-        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-            return None
-        if not is_valid_cid(key):
-            return None
-        vclock[key] = value
     version_id = data.get("version_id")
     if not isinstance(version_id, str):
         version_id = ""

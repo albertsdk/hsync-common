@@ -91,8 +91,6 @@ def format_duration(
         return f"{seconds:.1f}s"
 
     total = int(seconds)
-    if total < 0:
-        total = 0
 
     hours, remainder = divmod(total, 3600)
     minutes, secs = divmod(remainder, 60)

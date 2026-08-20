@@ -191,6 +191,23 @@ def _event_message() -> dict[str, Any]:
     }
 
 
+def _entity_defs() -> dict[str, Any]:
+    """Shared ``$defs`` for the file/dir/symlink entities and the file event."""
+    return {
+        "file": _file_object(),
+        "dir": _dir_object(),
+        "symlink": _symlink_object(),
+        "entity": {
+            "oneOf": [
+                {"$ref": "#/$defs/file"},
+                {"$ref": "#/$defs/dir"},
+                {"$ref": "#/$defs/symlink"},
+            ]
+        },
+        "fileEvent": _event_message(),
+    }
+
+
 def _auth_request() -> dict[str, Any]:
     """Client → server authentication frame (``WsAuthRequest``)."""
     return {
@@ -287,23 +304,13 @@ def build_ws_schema() -> dict[str, Any]:
             "hsync_common.protocol.schemas; do not hand-edit."
         ),
         "$defs": {
-            "file": _file_object(),
-            "dir": _dir_object(),
-            "symlink": _symlink_object(),
-            "entity": {
-                "oneOf": [
-                    {"$ref": "#/$defs/file"},
-                    {"$ref": "#/$defs/dir"},
-                    {"$ref": "#/$defs/symlink"},
-                ]
-            },
+            **_entity_defs(),
             "authRequest": _auth_request(),
             "authOk": _auth_ok(),
             "authError": _auth_error(),
             "ping": _heartbeat("ping"),
             "pong": _heartbeat("pong"),
             "presence": _presence(),
-            "fileEvent": _event_message(),
         },
         "clientToServer": {
             "oneOf": [
@@ -422,22 +429,12 @@ def build_lan_wss_schema() -> dict[str, Any]:
             "do not hand-edit."
         ),
         "$defs": {
-            "file": _file_object(),
-            "dir": _dir_object(),
-            "symlink": _symlink_object(),
-            "entity": {
-                "oneOf": [
-                    {"$ref": "#/$defs/file"},
-                    {"$ref": "#/$defs/dir"},
-                    {"$ref": "#/$defs/symlink"},
-                ]
-            },
+            **_entity_defs(),
             "authRequired": _lan_auth_required(),
             "auth": _lan_auth(),
             "authOk": _lan_auth_result("ok"),
             "authFailed": _lan_auth_result("failed"),
             "hello": _lan_hello(),
-            "fileEvent": _event_message(),
         },
         "masterToSlave": {
             "oneOf": [

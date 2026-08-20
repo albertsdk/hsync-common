@@ -14,9 +14,11 @@ from hsync_common.constants import (
     PARTIAL_DELTA_SUFFIX,
     PARTIAL_DOWNLOAD_SUFFIX,
 )
-from hsync_common.hashing import adaptive_chunk_size, compute_sha256
+from hsync_common.hashing import compute_sha256
 from hsync_common.permissions import mode_to_octal
 from hsync_common.time_utils import to_epoch
+
+from ._util import _resolve_prefixed_path
 
 if TYPE_CHECKING:
     # Imported only for type checking to avoid a circular import: version.py
@@ -140,24 +142,10 @@ def is_partial_file(file_path: str) -> bool:
 
 
 def is_hidden_file(file_path: str) -> bool:
-    """
-    Check if a file must be excluded from synchronisation.
+    """Return True when *file_path* must be excluded from synchronisation.
 
-    When a process-wide :class:`hsync_common.ignore.IgnoreMatcher` is active
-    (installed by the client at startup) it is consulted so that
-    ``.hsyncignore`` rules and extra patterns are honoured. When no matcher
-    is installed (e.g. on the server) the built-in default ignore patterns
-    (:data:`hsync_common.constants.DEFAULT_IGNORE_PATTERNS`) are used.
-
-    Following the industry standard (Syncthing, rsync, Nextcloud, OneDrive),
-    dotfiles in general (``.env``, ``.config`` …) are **not** excluded: only
-    OS cache files and editor/office temporary files are filtered by default.
-
-    Args:
-        file_path: Path to the file to check.
-
-    Returns:
-        True if the file is ignored, False otherwise.
+    See :func:`hsync_common.ignore.should_skip` for the filtering rules
+    (active IgnoreMatcher, then built-in default patterns).
     """
     from hsync_common.ignore import should_skip
 
@@ -243,11 +231,6 @@ class File:
             # bool is not a valid timestamp (rejected by to_epoch).
             return None
 
-    @staticmethod
-    def _compute_sha256(filepath: str, file_size: int | None = None) -> str:
-        """Compute the SHA-256 checksum of a file with adaptive chunk size."""
-        return compute_sha256(filepath, adaptive_chunk_size(file_size))
-
     def to_dict(self) -> FileDict:
         """Convert the File instance to a FileDict."""
         result = FileDict(
@@ -284,7 +267,7 @@ class File:
         sha256sum = _get_cached_sha256(file_path, file_mtime, file_size)
         if sha256sum is None:
             try:
-                sha256sum = cls._compute_sha256(file_path, file_size)
+                sha256sum = compute_sha256(file_path)
             except OSError:
                 return None
             _set_cached_sha256(file_path, sha256sum, file_mtime, file_size)
@@ -310,10 +293,8 @@ class File:
         strip_dir_prefix: bool = True,
     ) -> "File":
         """Create a File instance from a dictionary."""
-        from hsync_common.models import _resolve_prefixed_path
-
         filepath = _resolve_prefixed_path(
-            data.get("filepath", ""), dir_prefix, strip=strip_dir_prefix
+            str(data.get("filepath") or ""), dir_prefix, strip=strip_dir_prefix
         )
 
         return cls(
