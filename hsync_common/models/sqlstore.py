@@ -243,21 +243,6 @@ class StateDb:
             (folder_id, key, base_hash, version_id, origin_cid, ts, vclock, corrected_mtime),
         )
 
-    def delete_version(self, folder_id: str, key: str) -> bool:
-        """Delete one version row; return True if a row was removed."""
-        cur = self._conn.execute(
-            "DELETE FROM versions WHERE folder_id = ? AND key = ?",
-            (folder_id, key),
-        )
-        return cur.rowcount > 0
-
-    def get_version(self, folder_id: str, key: str) -> sqlite3.Row | None:
-        """Return one version row, or None."""
-        return self._conn.execute(
-            "SELECT * FROM versions WHERE folder_id = ? AND key = ?",
-            (folder_id, key),
-        ).fetchone()
-
     def iter_versions(self, folder_id: str) -> Iterator[sqlite3.Row]:
         """Yield every version row for *folder_id*."""
         return self._conn.execute(
@@ -299,43 +284,12 @@ class StateDb:
             (folder_id, key, sha256sum, version_id, origin_cid, ts, vclock),
         )
 
-    def delete_tombstone(self, folder_id: str, key: str) -> bool:
-        """Delete one tombstone row; return True if a row was removed."""
-        cur = self._conn.execute(
-            "DELETE FROM tombstones WHERE folder_id = ? AND key = ?",
-            (folder_id, key),
-        )
-        return cur.rowcount > 0
-
-    def get_tombstone(self, folder_id: str, key: str) -> sqlite3.Row | None:
-        """Return one tombstone row, or None."""
-        return self._conn.execute(
-            "SELECT * FROM tombstones WHERE folder_id = ? AND key = ?",
-            (folder_id, key),
-        ).fetchone()
-
     def iter_tombstones(self, folder_id: str) -> Iterator[sqlite3.Row]:
         """Yield every tombstone row for *folder_id*."""
         return self._conn.execute(
             "SELECT * FROM tombstones WHERE folder_id = ?",
             (folder_id,),
         )
-
-    def count_tombstones(self, folder_id: str) -> int:
-        """Return the number of tombstone rows for *folder_id*."""
-        row = self._conn.execute(
-            "SELECT COUNT(*) AS n FROM tombstones WHERE folder_id = ?",
-            (folder_id,),
-        ).fetchone()
-        return 0 if row is None else int(row["n"])
-
-    def prune_tombstones(self, folder_id: str, cutoff_ts: float) -> int:
-        """Delete tombstones older than *cutoff_ts*; return drop count."""
-        cur = self._conn.execute(
-            "DELETE FROM tombstones WHERE folder_id = ? AND ts < ?",
-            (folder_id, cutoff_ts),
-        )
-        return cur.rowcount
 
     def retain_tombstones(self, folder_id: str, keep: Sequence[str]) -> int:
         """Drop tombstone rows whose key is not in *keep*; return drop count."""
