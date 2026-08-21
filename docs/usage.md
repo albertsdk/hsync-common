@@ -32,8 +32,8 @@ canonical location.
 The library version is the single source of truth for the wire protocol:
 
 ```python
-from hsync_common.constants import VERSION
-# VERSION == "1.0.0"
+from hsync_common.constants import HSYNC_VERSION
+# HSYNC_VERSION == "1.0.0"
 ```
 
 A protocol version change in `hsync-common` is applied atomically across all

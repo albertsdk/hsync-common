@@ -11,13 +11,57 @@ This module defines constants that are common to both hsync-client
 and hsync-server, ensuring consistency across the entire system.
 """
 
+import re
+from typing import Final, Literal
+
 # =============================================================================
 # Application Version
 # =============================================================================
 
-# Single source of truth for the HSYNC protocol version.
-# Both client and server must use the same version for compatibility.
-VERSION = "1.0.0"
+# Single source of truth for the HSYNC application version, shared by client,
+# server, desktop and Android. The wire-protocol versions live separately in
+# hsync_common.protocol.handshake (PROTOCOL_VERSION_*).
+HSYNC_VERSION = "1.0.0"
+
+# =============================================================================
+# HTTP Headers (wire protocol)
+# =============================================================================
+
+# Custom headers exchanged over REST. Single source of truth shared by
+# hsync-client, hsync-server (re-exported in their local constants modules) and
+# mirrored by hsync-android (Protocol.kt).
+HEADER_CLIENT_NAME: Final[Literal["X-Client-Name"]] = "X-Client-Name"
+HEADER_CLIENT_VERSION: Final[Literal["X-Client-Version"]] = "X-Client-Version"
+HEADER_SERVER_VERSION: Final[Literal["X-Server-Version"]] = "X-Server-Version"
+HEADER_PROTOCOL_VERSION: Final[Literal["X-Protocol-Version"]] = "X-Protocol-Version"
+
+# Shape of a well-formed X-Client-Name value: a lowercase product slug
+# ("hsync-client", "hsync-android"). It identifies the originating product,
+# never an internal module or file, so values like "main_logic.py" or
+# "HSYNC Client" are outside the contract from the start. The server applies
+# the same pattern when it validates the header (see hsync-server middleware).
+CLIENT_NAME_PATTERN = r"^[a-z][a-z0-9-]*[a-z0-9]$"
+
+_CLIENT_NAME_RE = re.compile(CLIENT_NAME_PATTERN)
+
+
+def is_valid_client_name(value: str) -> bool:
+    """Return True when *value* is a well-formed client-name slug.
+
+    Shared SSOT validator: the server middleware accepts/rejects the
+    X-Client-Name header with this exact rule, so the client cannot drift.
+    """
+    return bool(_CLIENT_NAME_RE.fullmatch(value))
+
+
+# =============================================================================
+# HTTP Content Types (wire protocol)
+# =============================================================================
+
+# Media types shared across the ecosystem. Centralized here so the Python
+# client/server and the Kotlin mirrors never diverge on the wire strings.
+CONTENT_TYPE_OCTET_STREAM: Final[Literal["application/octet-stream"]] = "application/octet-stream"
+CONTENT_TYPE_JSON: Final[Literal["application/json"]] = "application/json"
 
 # =============================================================================
 # Sentinel File for Empty Directories
