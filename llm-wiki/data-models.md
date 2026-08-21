@@ -51,10 +51,10 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
   symlink actions replicate the LINK STRUCTURALLY (pair path+target) during
   the full-sync reconcile — never file content; they are transport-agnostic
   (server `/symlinks` and LAN master share the same surface).
-- `SyncAction.to_dict` (`models/sync_action.py:72`) serializes
-  `file, name, timedelta, conflict` — the `conflict` flag is part of the
-  serialized shape so the "preserve the local copy first" signal survives
-  serialization.
+- `SyncAction.to_dict` (`models/sync_action.py:88`) serializes
+  `file, name, timedelta, conflict, tombstone_confirmed` — `conflict` is the
+  "preserve the local copy first" signal; `tombstone_confirmed` marks a delete
+  backed by a matching deletion marker (mass-deletion guard exemption).
 
 ## TombstoneStore (causal deletion markers)
 
@@ -158,4 +158,5 @@ Schemas by the builders in `protocol/schemas.py` (`_file_object` `:82`,
 model field change must regenerate the contract artifacts (see
 [modules/protocol.md](modules/protocol.md)).
 
-> Human-readable attribute tables and narrative: `../docs/architecture.md` (Models).
+> Human-readable attribute tables and narrative: `../docs/models.md` and
+> `../docs/internal/architecture.md` (Models).
