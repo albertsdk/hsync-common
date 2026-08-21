@@ -181,7 +181,10 @@ reconciliation, transfers, previews and server lines.
 - Process-local store: `ClockOffsetStore` (`:348`) + module singleton
   `offset_store` + `correct_mtime()` (`:400`) — `corrected_mtime =
   local_mtime + measured_offset` (int), consumed when a version is
-  self-recorded/advertised. Never persisted, never writes the system clock.
+  self-recorded/advertised. `begin_epoch` / `end_epoch` freeze that basis for
+  one sync cycle so a late NTP `record()` cannot mix clocks mid-cycle
+  (consumer: `hsync-client` `sync()`). Never persisted, never writes the
+  system clock.
 - Anti conflict-engineering: `clamp_wire_corrected_mtime` (`:429`) clamps
   peer-supplied corrected mtimes beyond
   `constants.CORRECTED_MTIME_MAX_FUTURE_SKEW = 300 s`; the receiver-side guard

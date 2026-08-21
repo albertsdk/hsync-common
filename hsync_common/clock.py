@@ -343,9 +343,11 @@ def measure_clock_offset_ntp_multi(
 class ClockOffsetStore:
     """Process-local holder of the measured clock offset (remote − local).
 
-    Measured once at startup (or handshake) and consumed through
+    Measured at startup (or handshake) and consumed through
     :meth:`correct_mtime` every time a local version is self-recorded or
-    advertised. The offset is never persisted: a stale value is harmless
+    advertised. :meth:`begin_epoch` / :meth:`end_epoch` freeze the basis for
+    one sync cycle so a late background measurement cannot mix clocks
+    mid-cycle. The offset is never persisted: a stale value is harmless
     because it is re-measured on every process start.
 
     Consumers: ``hsync-client`` (all three transport modes), ``hsync-server``
@@ -355,11 +357,29 @@ class ClockOffsetStore:
     def __init__(self) -> None:
         self._offset: float | None = None
         self._source: str | None = None
+        self._epoch_active = False
+        self._epoch_offset: float | None = None
 
     def record(self, offset: float, source: str) -> None:
         """Store the measured offset and its provenance (e.g. host/URL)."""
         self._offset = float(offset)
         self._source = source
+
+    def begin_epoch(self) -> None:
+        """Freeze the offset used by ``correct_mtime`` until :meth:`end_epoch`.
+
+        A later :meth:`record` still updates the live measurement (so the next
+        epoch sees it), but this epoch keeps a single basis. Consumer:
+        ``hsync-client`` ``sync()`` — a background LAN NTP probe must not
+        change ``corrected_mtime`` mid-cycle.
+        """
+        self._epoch_offset = self._offset
+        self._epoch_active = True
+
+    def end_epoch(self) -> None:
+        """Release the frozen epoch so ``correct_mtime`` follows the live offset."""
+        self._epoch_active = False
+        self._epoch_offset = None
 
     def get(self) -> float | None:
         """Return the stored offset (``None`` before any measurement)."""
@@ -378,12 +398,14 @@ class ClockOffsetStore:
         """Forget the stored offset (used by tests and mode switches)."""
         self._offset = None
         self._source = None
+        self.end_epoch()
 
     def correct_mtime(self, mtime: int | float) -> int:
         """Return ``mtime + offset`` as int (raw ``mtime`` when unresolved)."""
         value = int(mtime)  # bool would collapse to 0/1; callers pass mtimes
-        if self._offset is not None:
-            return value + int(self._offset)
+        offset = self._epoch_offset if self._epoch_active else self._offset
+        if offset is not None:
+            return value + int(offset)
         return value
 
 

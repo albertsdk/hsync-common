@@ -379,6 +379,33 @@ class TestClockOffsetStore:
         assert store.resolved() is True
         assert store.correct_mtime(500) == 500
 
+    def test_epoch_freezes_correct_mtime_across_later_record(self):
+        """A mid-cycle record must not change corrected_mtime until end_epoch."""
+        store = ClockOffsetStore()
+        store.record(10.0, "ntp:a")
+        store.begin_epoch()
+        store.record(50.0, "ntp:b")
+        assert store.get() == 50.0
+        assert store.correct_mtime(100) == 110
+        store.end_epoch()
+        assert store.correct_mtime(100) == 150
+
+    def test_epoch_unresolved_stays_identity_when_record_arrives_late(self):
+        store = ClockOffsetStore()
+        store.begin_epoch()
+        store.record(12.0, "ntp:late")
+        assert store.correct_mtime(100) == 100
+        store.end_epoch()
+        assert store.correct_mtime(100) == 112
+
+    def test_clear_ends_epoch(self):
+        store = ClockOffsetStore()
+        store.record(8.0, "ntp")
+        store.begin_epoch()
+        store.clear()
+        store.record(3.0, "ntp")
+        assert store.correct_mtime(100) == 103
+
 
 class TestClampWireCorrectedMtime:
     def test_within_skew_kept(self):
