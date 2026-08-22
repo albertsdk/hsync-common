@@ -45,7 +45,42 @@ index `README.md` honest about what actually exists.
 * **For `docs/` (Clear & Explanatory)**: Write for a human developer/user. Provide context, practical examples, and clear step-by-step guides. Do NOT expose internal routing or private function names here; focus on the public interface.
 * **Keep the Indexes Honest**: When you add, rename, or delete a doc file in either directory, update the respective `README.md` in the same change.
 
-### 5. Removal Discipline
+### 5. User-Docs Authoring Framework (`docs/` only)
+
+When creating or modifying end-user documentation, apply these standard
+documentation-engineering rules:
+
+* **Diátaxis roles — one dominant role per file**: every `docs/` file has a
+  single dominant role:
+  * *Tutorial / Chooser* — a short landing page that picks the path and links
+    to what to do next; it never embeds full procedures.
+  * *How-To* — a task procedure with concrete, copy-paste commands for **one
+    environment only** (no mixed Docker/native or server/LAN blocks in the same
+    code fence).
+  * *Reference* — command/option/API/table listings; the single source of truth
+    for syntax and defaults.
+  * *Explanation* — concepts, flows, and why-things-work; it may link to a
+    How-To but must NOT embed or restate its procedures.
+  Do not write "hybrid" pages (e.g. a reference that contains a full tutorial,
+  or a concept guide that duplicates a quick start).
+* **Single-source-of-truth (SSOT)**: every command, option, or procedure is
+  documented exactly once. Quick-start procedures live only in the dedicated
+  getting-started pages; concept/usage pages link to them instead of repeating
+  them. Index/splitter pages (`foo.md` linking to `foo-server.md` /
+  `foo-lan.md`, `faq.md`, `examples.md`, `sync-flow.md`, `sync-modes.md`) are
+  links only — no content that can drift from the page they point to.
+* **Task-based / outcomes-first**: organise content by user goal ("Install",
+  "First sync", "Backup", "Schedule", "Migrate"), and structure the docs
+  `README.md` as a linear journey (Install → choose mode → configure → operate →
+  understand → reference). Never organise by internal module names.
+* **One environment per page**: when a procedure differs by installation or
+  run mode, split it into separate self-contained pages; a single code fence
+  must contain commands for only one environment.
+* **Link integrity, atomically**: when adding, renaming, moving, or removing
+  sections, update every affected intra-doc anchor, every inter-repo link
+  (client↔server), and the docs index in the same change.
+
+### 6. Removal Discipline
 * **Delete With the Code**: When a feature or logic is **removed**, delete or update its documentation in BOTH `llm-wiki/` and `docs/` in the same change. Consistent with the project's *Zero Backward Compatibility* stance, do **NOT** keep documentation describing removed functionality.
 
 ---
