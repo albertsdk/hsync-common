@@ -7,7 +7,6 @@ path and permissions, used for directory synchronization events.
 
 from os import stat as os_stat
 from pathlib import Path
-from typing import Optional
 
 from hsync_common.permissions import mode_to_octal
 
@@ -99,7 +98,7 @@ class Dir:
         )
 
     @classmethod
-    def get(cls, path: str, buckets_dir: str | None = None) -> Optional["Dir"]:
+    def get(cls, path: str, buckets_dir: str | None = None) -> "Dir | None":
         """
         Get a Dir instance for an existing directory.
 

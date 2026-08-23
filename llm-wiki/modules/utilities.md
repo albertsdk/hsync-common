@@ -61,8 +61,11 @@ formatting/hashing/parsing helper (DRY rule in `CLAUDE.md`).
 
 ## path_validation.py
 
-- Char/name guards: `has_forbidden_chars` (`:118`), `has_control_chars` (`:123`),
-  `is_reserved_name` (`:128`), `has_problematic_trailing` (`:139`).
+- `basename` (`path_validation.py:117`): last path component without a
+  `Path` allocation (hot scan path; used by `File`, `is_partial_file`,
+  `IgnoreMatcher.matches`).
+- Char/name guards: `has_forbidden_chars`, `has_control_chars`,
+  `is_reserved_name`, `has_problematic_trailing`.
 - `is_valid_filename` (`:144`), traversal guards `has_dotdot_component` (`:181`),
   `is_safe_path_component` (`:200`), `is_valid_path` (`:232`),
   `safe_resolve_path` (`:344`).

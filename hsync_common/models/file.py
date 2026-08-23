@@ -15,6 +15,7 @@ from hsync_common.constants import (
     PARTIAL_DOWNLOAD_SUFFIX,
 )
 from hsync_common.hashing import compute_sha256
+from hsync_common.path_validation import basename
 from hsync_common.permissions import mode_to_octal
 from hsync_common.time_utils import to_epoch
 
@@ -132,12 +133,7 @@ def is_partial_file(file_path: str) -> bool:
     Returns:
         True if the basename ends with a partial-transfer suffix.
     """
-    # Basename via string ops instead of a Path object (hot: once per scanned
-    # entry). Trailing slashes are stripped first so "foo.part/" yields the
-    # same basename as Path("foo.part/").name ("foo.part").
-    stripped = file_path.rstrip("/")
-    sep = stripped.rfind("/")
-    name = stripped if sep < 0 else stripped[sep + 1 :]
+    name = basename(file_path)
     return name.endswith(PARTIAL_DOWNLOAD_SUFFIX) or name.endswith(_PARTIAL_DELTA_LIT_SUFFIX)
 
 
@@ -179,15 +175,7 @@ class File:
         version: "VersionInfo | None" = None,
     ):
         self.filepath = filepath
-        # Basename via string ops (hot: one File construction per scanned entry
-        # per cycle); trailing slashes are stripped first so "foo/" yields
-        # "foo" exactly like Path("foo/").name does.
-        if filepath:
-            stripped = filepath.rstrip("/")
-            sep = stripped.rfind("/")
-            self.name = stripped if sep < 0 else stripped[sep + 1 :]
-        else:
-            self.name = None
+        self.name = basename(filepath) if filepath else None
         if size < 0:
             raise ValueError(f"File size must be >= 0, got {size}")
         self.size = size
