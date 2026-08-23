@@ -2005,8 +2005,20 @@
     },
     "/health": {
       "get": {
-        "description": "Health check endpoint.\n\nReturns an empty response with 200 OK status to indicate\nthe server is healthy and accepting requests.\n\nReturns:\n    Empty string (200 OK response).",
+        "description": "Health check endpoint.\n\nReturns an empty response with 200 OK status to indicate\nthe server is healthy and accepting requests.\n\nWhen ``size`` is supplied, returns that many bytes (bounded to\n``HEALTH_MAX_PROBE_BYTES``) so a client can measure throughput for\nauto-tuning. The payload is a deterministic NUL-byte string — never\nreflected request input.\n\nReturns:\n    Empty string (200 OK response), or ``size`` NUL bytes.",
         "operationId": "Monitoring___Health_check_endpoint_health_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Size",
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -2017,6 +2029,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Monitoring - Health Check Endpoint",
