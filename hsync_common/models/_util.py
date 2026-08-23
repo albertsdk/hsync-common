@@ -14,6 +14,7 @@ without circular imports.
 """
 
 import json
+from hashlib import sha256
 from pathlib import Path
 
 __all__ = [
@@ -23,6 +24,11 @@ __all__ = [
     "relpath_in_bucket",
     "tombstone_key",
 ]
+
+# Module-level constant to avoid recreating the type tuple on every call to
+# _parse_wire_timestamp (hot path: called for every version/tombstone row loaded
+# from SQLite and every wire entry validated).
+_NUMERIC_TYPES = (int, float, str)
 
 
 def _vclock_to_json(vclock: dict[str, int]) -> str:
@@ -80,7 +86,7 @@ def _parse_wire_timestamp(raw: object) -> int | None:
     Returns:
         The timestamp as a positive integer, or ``None`` when invalid.
     """
-    if isinstance(raw, bool) or not isinstance(raw, (int, float, str)):
+    if isinstance(raw, bool) or not isinstance(raw, _NUMERIC_TYPES):
         return None
     try:
         return int(raw)
@@ -90,8 +96,6 @@ def _parse_wire_timestamp(raw: object) -> int | None:
 
 def tombstone_key(relpath: str) -> str:
     """Return the stable, privacy-preserving key for a bucket-relative path."""
-    from hashlib import sha256
-
     return sha256(relpath.encode("utf-8")).hexdigest()
 
 
