@@ -922,6 +922,52 @@
         ]
       }
     },
+    "/api/v1/buckets/{bucket}/dirs": {
+      "get": {
+        "description": "List directory metadata (path + permissions) in a bucket.\n\nDirectories carry no content hash and never appear in the ``/files``\nlisting, so this dedicated endpoint exposes their permissions for the\ndownload-only permission converge (\"remote wins\"): a peer applies a\ndivergent directory mode locally without any per-file event having\narrived.\n\nArgs:\n    bucket: Name of the bucket to list.\n\nReturns:\n    JSON response with a list of ``{\"path\": <bucket-relative>,\n    \"permissions\": <octal>}`` entries, sorted by path for determinism.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    BucketNotFoundError: If bucket does not exist.",
+        "operationId": "get_dirs_api_v1_buckets__bucket__dirs_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bucket",
+            "required": true,
+            "schema": {
+              "title": "Bucket",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Dirs",
+        "tags": [
+          "Authenticated Router"
+        ]
+      }
+    },
     "/api/v1/buckets/{bucket}/files": {
       "delete": {
         "description": "Delete a file from a bucket.\n\nRemoves the file and broadcasts a \"deleted\" event to all\nconnected WebSocket clients.\n\nArgs:\n    bucket: Name of the bucket containing the file.\n    cid: Client ID for event broadcasting.\n    filename: Path to the file within the bucket.\n\nReturns:\n    JSON response confirming deletion.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    BucketNotFoundError: If bucket does not exist.\n    InvalidPathError: If path is invalid.\n    HSyncFileNotFoundError: If file does not exist.\n    DeleteError: If deletion fails.",
@@ -1362,6 +1408,80 @@
           }
         ],
         "summary": "Download File",
+        "tags": [
+          "Authenticated Router"
+        ]
+      }
+    },
+    "/api/v1/buckets/{bucket}/files/permissions": {
+      "patch": {
+        "description": "Apply a permission-only change to an existing file (no payload upload).\n\nOptimized branch of the upload same-SHA path: the client declares the\nfilename (bucket-relative), the expected permissions and its CID; the\nserver sanitizes/applies the new mode and re-broadcasts a ``modified``\nevent to the other connected clients. No file bytes cross the wire.\n\nArgs:\n    bucket: Target bucket name.\n    filename: Bucket-relative path of the existing file.\n    permissions: Octal permission string (e.g., '644'). Special bits\n        (setuid/setgid/sticky) are stripped (remote-supplied).\n    cid: Client ID for event attribution (validated, optional).\n\nReturns:\n    JSON response: 200 on permissions updated, 404 when the file does\n    not exist.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    InvalidPathError: If path escapes the bucket.\n    InvalidPermissionFormatError: If permission format is invalid.\n    InvalidFilenameError: If the basename is forbidden or reserved.\n    ValidationError: If the declared CID is malformed.",
+        "operationId": "patch_file_permissions_api_v1_buckets__bucket__files_permissions_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bucket",
+            "required": true,
+            "schema": {
+              "title": "Bucket",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filename",
+            "required": true,
+            "schema": {
+              "title": "Filename",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "permissions",
+            "required": true,
+            "schema": {
+              "title": "Permissions",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cid",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Cid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch File Permissions",
         "tags": [
           "Authenticated Router"
         ]
