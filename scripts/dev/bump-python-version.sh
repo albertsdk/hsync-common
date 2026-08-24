@@ -4,6 +4,11 @@
 # Updates the package metadata for every Python project and the shared runtime
 # protocol version in hsync-common. Defaults to a real update; use --dry-run to
 # preview changes without touching files.
+#
+# Accepts a strict semver X.Y.Z or a prerelease X.Y.Z-<prerelease> (e.g.
+# 1.2.0-alpha.1, 1.2.0-rc.2). Build metadata (X.Y.Z+<build>) is rejected on
+# purpose: '+' is not a valid Docker image tag character and cannot appear in
+# the Git refs the release workflows use.
 
 set -euo pipefail
 
@@ -22,6 +27,10 @@ NEW_VERSION=""
 BUMP_ANDROID=true
 ANDROID_BUILD_GRADLE="${ROOT_DIR}/hsync-android/app/build.gradle.kts"
 
+# Strict semver or semver + prerelease. The prerelease part may contain
+# alphanumerics, dots and hyphens (e.g. alpha.1, beta-2, rc.3).
+VERSION_RE='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
+
 show_help() {
     cat <<'EOF'
 HSYNC Python Version Bump
@@ -32,6 +41,7 @@ Usage:
 Examples:
     hsync-common/scripts/dev/bump-python-version.sh --dry-run 1.1.0
     hsync-common/scripts/dev/bump-python-version.sh 1.1.0
+    hsync-common/scripts/dev/bump-python-version.sh --dry-run 1.2.0-alpha.1
     hsync-common/scripts/dev/bump-python-version.sh --no-android 1.1.0
 
 Options:
@@ -43,15 +53,18 @@ Updates:
     - hsync-client/pyproject.toml
     - hsync-server/pyproject.toml
     - hsync-desktop/pyproject.toml
-    - hsync-common/hsync_common/constants.py (VERSION)
+    - hsync-common/hsync_common/constants.py (HSYNC_VERSION)
     - hsync-android/app/build.gradle.kts (versionName + versionCode), unless
       --no-android is passed.
 
 Notes:
-    hsync-common.constants.VERSION is the runtime/protocol version consumed by
-    client, server and desktop. Per-project constants modules re-export it, so
+    hsync-common.constants.HSYNC_VERSION is the runtime/protocol version consumed
+    by client, server and desktop. Per-project constants modules re-export it, so
     they must not be edited independently. Android shares the same semantic
-    versionName and gets a monotonically incremented versionCode.
+    versionName and gets a monotonically incremented versionCode. A prerelease
+    suffix (X.Y.Z-<prerelease>) is propagated verbatim to pyproject.toml,
+    HSYNC_VERSION and Android versionName; the .deb build translates it to the
+    Debian form (X.Y.Z~<prerelease>) via hsync-client/compile.sh.
 EOF
 }
 
@@ -90,8 +103,8 @@ if [[ -z "${NEW_VERSION}" ]]; then
     exit 1
 fi
 
-if ! [[ "${NEW_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    err "version must be semver X.Y.Z (got: ${NEW_VERSION})"
+if ! [[ "${NEW_VERSION}" =~ ${VERSION_RE} ]]; then
+    err "version must be X.Y.Z or X.Y.Z-<prerelease> (got: ${NEW_VERSION})"
     exit 1
 fi
 
@@ -108,17 +121,17 @@ sed_in_place() {
 
 extract_pyproject_version() {
     local file="$1"
-    sed -nE 's/^version[[:space:]]*=[[:space:]]*"([0-9]+\.[0-9]+\.[0-9]+)"$/\1/p' "${file}" | head -n 1
+    sed -nE 's/^version[[:space:]]*=[[:space:]]*"([0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?)"$/\1/p' "${file}" | head -n 1
 }
 
 extract_runtime_version() {
     local file="$1"
-    sed -nE 's/^VERSION[[:space:]]*=[[:space:]]*"([0-9]+\.[0-9]+\.[0-9]+)"$/\1/p' "${file}" | head -n 1
+    sed -nE 's/^HSYNC_VERSION[[:space:]]*=[[:space:]]*"([0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?)"$/\1/p' "${file}" | head -n 1
 }
 
 extract_common_dependency_version() {
     local file="$1"
-    sed -nE 's/^[[:space:]]*"hsync-common==([0-9]+\.[0-9]+\.[0-9]+)",$/\1/p' "${file}" | head -n 1
+    sed -nE 's/^[[:space:]]*"hsync-common==([0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?)",$/\1/p' "${file}" | head -n 1
 }
 
 update_pyproject() {
@@ -133,7 +146,7 @@ update_pyproject() {
     log "${project}/pyproject.toml: ${current} -> ${NEW_VERSION}"
     if [[ "${DRY_RUN}" == false ]]; then
         sed_in_place "${file}" \
-            '^version[[:space:]]*=[[:space:]]*"[0-9]+\.[0-9]+\.[0-9]+"$' \
+            '^version[[:space:]]*=[[:space:]]*"[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?"$' \
             "version = \"${NEW_VERSION}\""
     fi
 
@@ -145,7 +158,7 @@ update_pyproject() {
         log "${project}/pyproject.toml hsync-common: ${common_dependency} -> ${NEW_VERSION}"
         if [[ "${DRY_RUN}" == false ]]; then
             sed_in_place "${file}" \
-                '"hsync-common==[0-9]+\.[0-9]+\.[0-9]+",' \
+                '"hsync-common==[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?",' \
                 "\"hsync-common==${NEW_VERSION}\","
         fi
     fi
@@ -157,13 +170,13 @@ update_runtime_version() {
 
     local current
     current="$(extract_runtime_version "${file}")"
-    [[ -n "${current}" ]] || { err "cannot read VERSION from ${file}"; exit 1; }
+    [[ -n "${current}" ]] || { err "cannot read HSYNC_VERSION from ${file}"; exit 1; }
 
     log "hsync-common/hsync_common/constants.py: ${current} -> ${NEW_VERSION}"
     if [[ "${DRY_RUN}" == false ]]; then
         sed_in_place "${file}" \
-            '^VERSION[[:space:]]*=[[:space:]]*"[0-9]+\.[0-9]+\.[0-9]+"$' \
-            "VERSION = \"${NEW_VERSION}\""
+            '^HSYNC_VERSION[[:space:]]*=[[:space:]]*"[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?"$' \
+            "HSYNC_VERSION = \"${NEW_VERSION}\""
     fi
 }
 
@@ -172,7 +185,7 @@ update_android_version() {
     [[ -f "${file}" ]] || { err "missing file: ${file}"; exit 1; }
 
     local current_name current_code next_code
-    current_name="$(sed -nE 's/.*versionName[[:space:]]*=[[:space:]]*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/p' "${file}" | head -n 1)"
+    current_name="$(sed -nE 's/.*versionName[[:space:]]*=[[:space:]]*"([0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?)".*/\1/p' "${file}" | head -n 1)"
     current_code="$(sed -nE 's/.*versionCode[[:space:]]*=[[:space:]]*([0-9]+).*/\1/p' "${file}" | head -n 1)"
     [[ -n "${current_name}" ]] || { err "cannot read versionName from ${file}"; exit 1; }
     [[ -n "${current_code}" ]] || { err "cannot read versionCode from ${file}"; exit 1; }
@@ -182,7 +195,7 @@ update_android_version() {
     log "hsync-android/app/build.gradle.kts versionCode: ${current_code} -> ${next_code}"
     if [[ "${DRY_RUN}" == false ]]; then
         sed_in_place "${file}" \
-            'versionName[[:space:]]*=[[:space:]]*"[0-9]+\.[0-9]+\.[0-9]+"' \
+            'versionName[[:space:]]*=[[:space:]]*"[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?"' \
             "versionName = \"${NEW_VERSION}\""
         sed_in_place "${file}" \
             'versionCode[[:space:]]*=[[:space:]]*[0-9]+' \
