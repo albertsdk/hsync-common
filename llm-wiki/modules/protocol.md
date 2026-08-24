@@ -62,11 +62,12 @@ within a version — intersection semantics, never cross-version negotiation
 ## schemas.py — JSON-Schema builders (draft 2020-12)
 
 - Dialect const `schemas.py:45`; LAN TXT key sets `:49`/`:57`/`:66` (includes `delta`, `vector_clocks` and `tombstones` optional keys for their capabilities).
-- `build_ws_schema` (`schemas.py:223`), `build_lan_wss_schema` (`:326`; pins
+- `build_ws_schema` (`schemas.py:297`), `build_lan_wss_schema` (`:407`; pins
   the auth/hello handshake frames, ADR-0024) and
-  `build_lan_txt_schema` (`:441`) derive enums/objects from `handshake`,
-  `events` and the `models/` types (object builders `_file_object` `:82` …
-  `_event_message` `:135`).
+  `build_lan_txt_schema` (`:450`) derive enums/objects from `handshake`,
+  `events` and the `models/` types (object builders `_file_object` `:96` …
+  `_event_message` `:185`). Shared capabilities-array schema is
+  `_capabilities_array` (`schemas.py:82`).
 
 ## fixtures.py — cross-language golden fixtures
 

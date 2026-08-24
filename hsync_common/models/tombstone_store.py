@@ -23,8 +23,8 @@ import time
 from pathlib import Path
 
 from . import tombstone
+from ._store_base import CausalStoreBase
 from ._util import _vclock_to_json, tombstone_key
-from .sqlstore import StateDb, get_state_db
 from .tombstone import (
     TOMBSTONE_TTL_DAYS_DEFAULT,
     TombstoneEntry,
@@ -59,7 +59,7 @@ def _tombstone_from_row(row: sqlite3.Row, now: int) -> tuple[str, TombstoneEntry
     return key, clean
 
 
-class TombstoneStore:
+class TombstoneStore(CausalStoreBase[TombstoneEntry]):
     """In-memory tombstone map with SQLite persistence and causal merge."""
 
     def __init__(
@@ -70,13 +70,8 @@ class TombstoneStore:
         ttl_days: int = TOMBSTONE_TTL_DAYS_DEFAULT,
         canonical_path: str = "",
     ):
-        self.db_path = str(db_path) if db_path is not None else None
-        self.folder_id = folder_id
-        self.canonical_path = canonical_path
+        super().__init__(db_path, folder_id, canonical_path=canonical_path)
         self.ttl_seconds = max(0, int(ttl_days)) * 86400
-        self._data: dict[str, TombstoneEntry] = {}
-        self._db: StateDb | None = None
-        self._dirty = False
 
     # ── mutation ────────────────────────────────────────────────────
     def record(
@@ -126,26 +121,6 @@ class TombstoneStore:
             vclock=clock,
         )
         self._dirty = True
-
-    def clear(self, relpath: str) -> bool:
-        """Drop the marker for a relative path (the path was re-created).
-
-        The deletion is superseded by the new content version, whose clock
-        dominates the tombstone clock; the marker itself is removed so peers
-        never apply a stale deletion to the re-created file.
-        """
-        dropped = self._data.pop(tombstone_key(relpath), None) is not None
-        if dropped:
-            self._dirty = True
-        return dropped
-
-    # ── query ───────────────────────────────────────────────────────
-    def get(self, relpath: str) -> TombstoneEntry | None:
-        """Return the marker for a relative path, if any."""
-        return self._data.get(tombstone_key(relpath))
-
-    def __len__(self) -> int:
-        return len(self._data)
 
     # ── maintenance ─────────────────────────────────────────────────
     def prune(self, now: int | float | None = None) -> int:
@@ -214,14 +189,6 @@ class TombstoneStore:
         return changed
 
     # ── persistence ─────────────────────────────────────────────────
-    def _backend(self) -> StateDb | None:
-        """Return the shared DB handle when ``db_path`` + ``folder_id`` are set."""
-        if not self.db_path or not self.folder_id:
-            return None
-        if self._db is None:
-            self._db = get_state_db(self.db_path)
-        return self._db
-
     def load(self) -> None:
         """Load markers from the installation DB, if configured."""
         db = self._backend()
