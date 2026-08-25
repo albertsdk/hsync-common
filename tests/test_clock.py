@@ -345,46 +345,44 @@ class TestClockOffsetStore:
 
     def test_positive_offset_shifts_forward(self):
         store = ClockOffsetStore()
-        store.record(10.0, "ntp://host")
+        store.record(10.0)
         assert store.get() == 10.0
-        assert store.source == "ntp://host"
-        assert store.resolved() is True
         assert store.correct_mtime(100) == 110
 
     def test_negative_offset_shifts_backward(self):
         store = ClockOffsetStore()
-        store.record(-6.0, "server")
+        store.record(-6.0)
         assert store.correct_mtime(100) == 94
 
     def test_clear_forgets_measurement(self):
         store = ClockOffsetStore()
-        store.record(4.0, "server")
+        store.record(4.0)
         store.clear()
-        assert store.resolved() is False
+        assert store.get() is None
         assert store.correct_mtime(100) == 100
 
     def test_module_singleton_correct_mtime(self):
         offset_store.clear()
-        offset_store.record(7, "test")
+        offset_store.record(7)
         try:
             assert correct_mtime(100) == 107
         finally:
             offset_store.clear()
 
-    def test_zero_offset_is_degraded_mode_but_resolved(self):
-        # Offline: offset 0 is still a recorded (resolved) measurement so
+    def test_zero_offset_is_degraded_mode_but_recorded(self):
+        # Offline: offset 0 is still a recorded measurement so
         # mtimes flow through unmodified and sync proceeds.
         store = ClockOffsetStore()
-        store.record(0.0, "offline")
-        assert store.resolved() is True
+        store.record(0.0)
+        assert store.get() is not None
         assert store.correct_mtime(500) == 500
 
     def test_epoch_freezes_correct_mtime_across_later_record(self):
         """A mid-cycle record must not change corrected_mtime until end_epoch."""
         store = ClockOffsetStore()
-        store.record(10.0, "ntp:a")
+        store.record(10.0)
         store.begin_epoch()
-        store.record(50.0, "ntp:b")
+        store.record(50.0)
         assert store.get() == 50.0
         assert store.correct_mtime(100) == 110
         store.end_epoch()
@@ -393,17 +391,17 @@ class TestClockOffsetStore:
     def test_epoch_unresolved_stays_identity_when_record_arrives_late(self):
         store = ClockOffsetStore()
         store.begin_epoch()
-        store.record(12.0, "ntp:late")
+        store.record(12.0)
         assert store.correct_mtime(100) == 100
         store.end_epoch()
         assert store.correct_mtime(100) == 112
 
     def test_clear_ends_epoch(self):
         store = ClockOffsetStore()
-        store.record(8.0, "ntp")
+        store.record(8.0)
         store.begin_epoch()
         store.clear()
-        store.record(3.0, "ntp")
+        store.record(3.0)
         assert store.correct_mtime(100) == 103
 
 
@@ -433,7 +431,7 @@ class TestClampIncomingCorrectedMtime:
 
     def test_within_skew_kept(self):
         offset_store.clear()
-        offset_store.record(0.0, "test")
+        offset_store.record(0.0)
         try:
             now = int(now_corrected())
             assert clamp_incoming_corrected_mtime(float(now)) == now
@@ -442,7 +440,7 @@ class TestClampIncomingCorrectedMtime:
 
     def test_far_future_clamped_against_corrected_reference(self):
         offset_store.clear()
-        offset_store.record(120.0, "test")
+        offset_store.record(120.0)
         try:
             now = now_corrected()
             clamped = clamp_incoming_corrected_mtime(now + 10_000)
@@ -454,7 +452,7 @@ class TestClampIncomingCorrectedMtime:
         # The guard measures the peer value against the *corrected* clock: an
         # offset of +500 s still clamps a +10 000 s value to now_corrected+300.
         offset_store.clear()
-        offset_store.record(500.0, "test")
+        offset_store.record(500.0)
         try:
             now = now_corrected()
             clamped = clamp_incoming_corrected_mtime(now + 10_000)
@@ -473,7 +471,7 @@ class TestNowCorrected:
 
     def test_offset_applied(self):
         offset_store.clear()
-        offset_store.record(42.0, "test")
+        offset_store.record(42.0)
         try:
             assert abs(now_corrected() - (int(time.time()) + 42)) <= 1
         finally:

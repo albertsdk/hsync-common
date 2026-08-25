@@ -37,11 +37,6 @@ def utc_now_epoch() -> int:
     return int(time.time())
 
 
-def utc_now_epoch_ms() -> int:
-    """Current UTC time as integer Unix epoch milliseconds."""
-    return int(time.time() * 1000)
-
-
 def utc_now_iso() -> str:
     """Current UTC time as an ISO-8601 string with ``Z`` suffix and millisecond precision.
 
