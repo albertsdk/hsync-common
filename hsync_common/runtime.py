@@ -224,6 +224,9 @@ def get_memory_limit_bytes(cgroup_root: Path = CGROUP_ROOT) -> int | None:
 
     Reads cgroup v2 first, then falls back to v1. Returns None when no
     limit is set or the limit cannot be determined.
+
+    Consumers: hsync-client (``_get_optimal_workers`` bounds the parallel
+    local-file scan/hash pool by this limit, alongside the CPU quota).
     """
     limit = _read_memory_limit_v2(cgroup_root)
     if limit is not None:
