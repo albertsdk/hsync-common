@@ -80,7 +80,7 @@ The prefix encodes the **origin** of the event (see the two-level rule above).
 | Label | Category | Description | C | S | A | D |
 |-------|----------|-------------|---|---|---|---|
 | `[LOCAL CREATE]` | create | Local watcher: file/directory created (also slave-side dir create, with a `(dir)` suffix, and deferred-create debug lines) | ✓ | | ✓ | ✓ |
-| `[LOCAL MODIFY]` | modify | Local watcher: file/directory content modified. The trigger `(closed)`/`(modified)` shows whether it fired from `IN_CLOSE_WRITE` (reliable) or the `on_modified` debounce fallback; `(dir)` marks a directory metadata event (inotify `IN_ATTRIB` on the parent when a child is created/written/renamed/removed) — directory `MODIFY` lines are stat-deduplicated so only genuine mtime changes propagate | ✓ | | ✓ | ✓ |
+| `[LOCAL MODIFY]` | modify | Local watcher: file/directory content modified. The trigger `(closed)`/`(modified)` shows whether it fired from `IN_CLOSE_WRITE` (reliable) or the `on_modified` debounce fallback; `(dir)` marks a directory metadata event (inotify `IN_ATTRIB` on the parent when a child is created/written/renamed/removed) — directory `MODIFY` lines are stat-deduplicated so only genuine mtime changes propagate. A directory `chmod` (mode change, mtime/size unchanged) is NOT logged as `MODIFY`; it is logged `[PERMISSION] mode change: "..." (dir)` (see below) | ✓ | | ✓ | ✓ |
 | `[LOCAL RENAME]` | rename | Local watcher: file/directory renamed (also slave-side rename pushed to the master) | ✓ | | ✓ | ✓ |
 | `[LOCAL DELETE]` | delete | Local watcher: file/directory deleted (also slave-side delete pushed to the master) | ✓ | | ✓ | ✓ |
 | `[LOCAL SYMLINK]` | create | Local watcher: symbolic link created | ✓ | | ✓ | ✓ |
@@ -111,7 +111,7 @@ Emitted during the full-scan/reconcile phase, by the transfer engine, and by
 | `[CREATE]` | create | Reconcile-phase directory creation; server event relay | ✓ | ✓ | ✓ | ✓ |
 | `[MODIFY]` | modify | Reconcile-phase modification; server event relay | ✓ | ✓ | ✓ | ✓ |
 | `[RENAME]` | rename | Reconcile-phase rename; server event relay | ✓ | ✓ | ✓ | ✓ |
-| `[PERMISSION]` | permission | Setting file / directory permissions | ✓ | | ✓ | ✓ |
+| `[PERMISSION]` | permission | Setting file / directory permissions. Includes watcher `mode change` lines: a `chmod` fires only `IN_ATTRIB` (no close), so a file or directory mode-only change is logged `[PERMISSION] mode change: "..."` (with a `(dir)` suffix for directories) instead of `MODIFY` — emitted by the local watcher (file `_process_permission_only`, directory `on_modified` branch) on Remote/LAN-master, and by the LAN slave (`_propagate_dir_permission_change`) | ✓ | | ✓ | ✓ |
 | `[SYMLINK]` | create | Reconcile-phase symbolic link creation; server event relay | ✓ | ✓ | ✓ | ✓ |
 | `[IN SYNC]` | in_sync | File already in sync (no action required) | ✓ | | ✓ | ✓ |
 | `[SKIP]` | in_sync | File skipped | ✓ | | ✓ | ✓ |
