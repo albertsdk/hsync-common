@@ -6,8 +6,8 @@ file system events (add, modify, rename, delete) that are synchronized
 between client and server via WebSocket.
 """
 
+import re
 from enum import StrEnum
-from re import compile as _re_compile
 from typing import TYPE_CHECKING, TypedDict
 
 from ._util import _resolve_prefixed_path
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 # values received from remote peers (form fields, WS paths, event payloads)
 # before trusting them for echo suppression or logging.
 CID_PATTERN = r"^[A-Za-z0-9]{21}$"
-_CID_RE = _re_compile(CID_PATTERN)
+_CID_RE = re.compile(CID_PATTERN)
 
 
 def is_valid_cid(value: object) -> bool:
