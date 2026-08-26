@@ -50,8 +50,19 @@ Safety checks to prevent path manipulation attacks:
 
 ## Permissions (`hsync_common.permissions`)
 
-Octal permission SSOT and remote permission sanitisation. Setuid/setgid/sticky
-bits are stripped from peer-supplied permission strings.
+Octal permission SSOT and remote permission sanitisation. Permissions travel on
+the wire as an octal POSIX mode string (e.g. `"644"`, `"755"`), the same model
+used by rsync and Syncthing.
+
+**Special bits policy (setuid/setgid/sticky):** these bits are read and
+transmitted (a local `setuid` file is reported as `"4755"`), but they are
+**never applied** from a remote peer: `"4755"` received on the wire is applied as
+`"755"`. This guarantees a synced file can never become a setuid/setgid
+executable on a receiving host. For directories, the receiving engine always
+keeps owner read/write/execute access (`0o700` floor), so a peer-supplied mode
+like `000` cannot lock a device out of its own bucket. See
+[ADR-0026](internal/adr/0026-permission-special-bits-policy.md) for the full
+rationale and consequences.
 
 ## SSL utilities (`hsync_common.ssl_utils`)
 
