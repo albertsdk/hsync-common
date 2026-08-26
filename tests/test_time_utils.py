@@ -17,7 +17,6 @@ from hsync_common.time_utils import (
     to_epoch,
     to_iso,
     utc_now_epoch,
-    utc_now_epoch_ms,
     utc_now_iso,
 )
 
@@ -32,12 +31,6 @@ class TestUtcNow:
         # Within 10 seconds of now
         now = int(datetime.now(UTC).timestamp())
         assert abs(now - t) < 10
-
-    def test_utc_now_epoch_ms_is_recent(self):
-        t = utc_now_epoch_ms()
-        assert isinstance(t, int)
-        now_ms = int(datetime.now(UTC).timestamp() * 1000)
-        assert abs(now_ms - t) < 10_000
 
     def test_utc_now_iso_ends_with_z(self):
         s = utc_now_iso()
