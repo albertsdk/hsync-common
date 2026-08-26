@@ -212,10 +212,14 @@ reconciliation, transfers, previews and server lines.
   are TTYs; False in containers without `-t`, systemd units, cron, pipes.
 - `color_output_enabled` (`runtime.py:161`) — color gate SSOT used by the
   client/server loggers: `--no-color` flag, `NO_COLOR` env (no-color.org), TTY.
-- `get_memory_limit_bytes` (`runtime.py:215`) / `get_cpu_quota_cores`
-  (`runtime.py:254`) — cgroup v2 (`memory.max`, `cpu.max`) with v1 fallback;
+- `get_memory_limit_bytes` (`runtime.py:222`) / `get_cpu_quota_cores`
+  (`runtime.py:261`) — cgroup v2 (`memory.max`, `cpu.max`) with v1 fallback;
   `None` = unlimited/unknown. Unlike `os.cpu_count()`, the CPU quota reflects
-  container limits, not host hardware.
+  container limits, not host hardware. Both are consumed by `hsync-client`:
+  the CPU quota sizes the parallel scan/hash pool (`_get_optimal_workers`), and
+  the memory limit additionally caps that pool inside containers (8 MiB/worker
+  budget); on bare metal the memory probe is `None` and only the CPU quota
+  applies.
 - `runtime_summary` (`runtime.py:272`) — one-line startup log line composed
   from the probes above; logged by both client (`run_sync`) and server
   (`__main__`) at startup.
