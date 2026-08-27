@@ -23,36 +23,32 @@ Consumers: ``hsync-client`` (``sync_state`` store wrapper), ``hsync-server``
 import path.
 """
 
-import json
 import sqlite3
 import time
 
 from ._store_base import CausalStoreBase
-from ._util import _parse_wire_timestamp, _vclock_to_json, tombstone_key
+from ._util import _parse_stored_vclock, _parse_wire_timestamp, _vclock_to_json, tombstone_key
+from .sqlstore import StateDb
 from .version import FileVersion, new_version_id, parse_vclock
 
 __all__ = ["SyncStateStore"]
 
 
-def _file_version_from_row(row: sqlite3.Row) -> FileVersion | None:
-    """Build a :class:`FileVersion` from a SQLite row, or ``None`` if unusable."""
+def _parse_version_row(row: sqlite3.Row, _now: int) -> tuple[str, FileVersion] | None:
+    """Build a ``(key, FileVersion)`` pair from a SQLite row, or ``None`` if unusable.
+
+    ``_now`` is unused (versions carry no future-timestamp check) but is part of
+    the shared row-parser contract so both stores expose the same hook shape.
+    """
     mapping = dict(row)
+    key = mapping.get("key")
     base_hash = mapping.get("base_hash")
-    if not isinstance(base_hash, str) or not base_hash:
+    if not isinstance(key, str) or not isinstance(base_hash, str) or not base_hash:
         return None
     ts = _parse_wire_timestamp(mapping.get("ts", 0))
     if ts is None:
         return None
-    raw_vclock = mapping.get("vclock")
-    parsed_clock: object
-    if isinstance(raw_vclock, str):
-        try:
-            parsed_clock = json.loads(raw_vclock)
-        except ValueError:
-            return None
-    else:
-        parsed_clock = raw_vclock
-    vclock = parse_vclock(parsed_clock)
+    vclock = parse_vclock(_parse_stored_vclock(mapping.get("vclock")))
     if vclock is None:
         return None
     raw_corrected = mapping.get("corrected_mtime")
@@ -64,7 +60,7 @@ def _file_version_from_row(row: sqlite3.Row) -> FileVersion | None:
             return None
     origin = mapping.get("origin_cid")
     version_id = mapping.get("version_id", "")
-    return FileVersion(
+    return key, FileVersion(
         base_hash=base_hash,
         version_id=str(version_id) if version_id is not None else "",
         origin_cid=origin if isinstance(origin, str) else None,
@@ -130,51 +126,24 @@ class SyncStateStore(CausalStoreBase[FileVersion]):
         """
         return list(self._data.items())
 
-    # ── persistence ─────────────────────────────────────────────────
-    def load(self) -> None:
-        """Load recorded versions from the installation DB, if configured.
+    # ── persistence hooks (see CausalStoreBase.load/save) ──────────
+    def _iter_rows(self, db: StateDb, folder_id: str) -> list[sqlite3.Row]:
+        return db.iter_versions(folder_id)
 
-        Rows with a structurally invalid clock or missing mandatory fields
-        are dropped entry-by-entry: a corrupted store degrades safely
-        without crashing startup. Every accepted entry carries a valid clock,
-        because sync decisions are causal (ADR-0022/ADR-0003).
-        """
-        db = self._backend()
-        if db is None or self.folder_id is None:
-            return
-        db.ensure_folder(self.folder_id, self.canonical_path)
-        data: dict[str, FileVersion] = {}
-        for row in db.iter_versions(self.folder_id):
-            parsed = _file_version_from_row(row)
-            if parsed is None:
-                continue
-            data[str(row["key"])] = parsed
-        self._data = data
-        self._dirty = False
+    def _parse_row(self, row: sqlite3.Row, now: int) -> tuple[str, FileVersion] | None:
+        return _parse_version_row(row, now)
 
-    def save(self) -> None:
-        """Persist recorded versions to the installation DB (one transaction).
+    def _retain_rows(self, db: StateDb, folder_id: str, keep: list[str]) -> int:
+        return db.retain_versions(folder_id, keep)
 
-        No-op when the store is not dirty or has no backend. Callers that
-        already hold a ``BEGIN IMMEDIATE`` (client ``flush``) still get a
-        consistent snapshot: this method opens its own transaction only
-        when none is active.
-        """
-        db = self._backend()
-        if db is None or self.folder_id is None or not self._dirty:
-            return
-        db.ensure_folder(self.folder_id, self.canonical_path)
-        with db.transaction():
-            db.retain_versions(self.folder_id, list(self._data.keys()))
-            for key, entry in self._data.items():
-                db.upsert_version(
-                    self.folder_id,
-                    key,
-                    base_hash=entry["base_hash"],
-                    version_id=entry["version_id"],
-                    origin_cid=entry["origin_cid"],
-                    ts=float(entry["ts"]),
-                    vclock=_vclock_to_json(entry["vclock"]),
-                    corrected_mtime=float(entry["corrected_mtime"]),
-                )
-        self._dirty = False
+    def _upsert_row(self, db: StateDb, folder_id: str, key: str, entry: FileVersion) -> None:
+        db.upsert_version(
+            folder_id,
+            key,
+            base_hash=entry["base_hash"],
+            version_id=entry["version_id"],
+            origin_cid=entry["origin_cid"],
+            ts=float(entry["ts"]),
+            vclock=_vclock_to_json(entry["vclock"]),
+            corrected_mtime=float(entry["corrected_mtime"]),
+        )

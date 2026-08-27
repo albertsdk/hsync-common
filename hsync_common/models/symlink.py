@@ -74,7 +74,7 @@ class Symlink:
         relative to it (matching ``File.get``). The returned ``filepath`` is
         always absolute.
         """
-        filepath = str(Path(dir_prefix) / filepath.lstrip("/")) if dir_prefix else filepath
+        filepath = _resolve_prefixed_path(filepath, dir_prefix, strip=False)
 
         if not Path(filepath).is_symlink():
             return None
