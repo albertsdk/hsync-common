@@ -14,7 +14,7 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
 | `SyncAction` | `models/sync_action.py:31` | — | decision; `SyncActionName` enum `models/sync_action.py:14` |
 | `TombstoneStore` | `models/tombstone_store.py:62` | `TombstoneEntry` (`models/tombstone.py:71`) | causal deletion markers (vclock merge); SQLite-backed; re-exported from `models/tombstone.py`; inherits `CausalStoreBase` (`models/_store_base.py:29`) |
 | `SyncStateStore` / `FileVersion` | `models/version_store.py:77` / `models/version.py:71` | `FileVersion` TypedDict | 3-way merge state; SQLite-backed; `SyncStateStore` re-exported from `models/version.py`; inherits `CausalStoreBase` |
-| `StateDb` | `models/sqlstore.py` | — | installation `syncstate.db` (ADR-0025) |
+| `StateDb` | `models/sqlstore.py` | — | installation `syncstate.db` (ADR-0025); `auto_vacuum=INCREMENTAL`; `vacuum()` / `incremental_vacuum(pages)` + `vacuum_state_db` / `incremental_vacuum_state_db` maintenance helpers |
 | folder marker | `models/folder.py` | — | `.hsyncfolder` UUIDv4 + `default_state_dir` |
 
 ## File
