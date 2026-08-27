@@ -17,14 +17,14 @@ gossip endpoints), ``hsync-android`` (``Tombstones.kt`` mirror). Re-exported
 from :mod:`.tombstone` for the historic import path.
 """
 
-import json
 import sqlite3
 import time
 from pathlib import Path
 
 from . import tombstone
 from ._store_base import CausalStoreBase
-from ._util import _vclock_to_json, tombstone_key
+from ._util import _parse_stored_vclock, _vclock_to_json, tombstone_key
+from .sqlstore import StateDb
 from .tombstone import (
     TOMBSTONE_TTL_DAYS_DEFAULT,
     TombstoneEntry,
@@ -36,7 +36,7 @@ from .version import merge_vclocks, new_version_id, tick_vclock
 __all__ = ["TombstoneStore"]
 
 
-def _tombstone_from_row(row: sqlite3.Row, now: int) -> tuple[str, TombstoneEntry] | None:
+def _parse_tombstone_row(row: sqlite3.Row, now: int) -> tuple[str, TombstoneEntry] | None:
     """Sanitize a SQLite tombstone row the same way as an untrusted payload."""
     mapping = dict(row)
     key = mapping.get("key")
@@ -45,14 +45,8 @@ def _tombstone_from_row(row: sqlite3.Row, now: int) -> tuple[str, TombstoneEntry
         "version_id": mapping.get("version_id", ""),
         "origin_cid": mapping.get("origin_cid"),
         "ts": mapping.get("ts", 0),
-        "vclock": mapping.get("vclock"),
+        "vclock": _parse_stored_vclock(mapping.get("vclock")),
     }
-    raw_vclock = entry["vclock"]
-    if isinstance(raw_vclock, str):
-        try:
-            entry["vclock"] = json.loads(raw_vclock)
-        except ValueError:
-            return None
     clean = _sanitize_entry(key, entry, now)
     if clean is None or not isinstance(key, str):
         return None
@@ -188,42 +182,26 @@ class TombstoneStore(CausalStoreBase[TombstoneEntry]):
             self._dirty = True
         return changed
 
-    # ── persistence ─────────────────────────────────────────────────
-    def load(self) -> None:
-        """Load markers from the installation DB, if configured."""
-        db = self._backend()
-        if db is None or self.folder_id is None:
-            return
-        db.ensure_folder(self.folder_id, self.canonical_path)
-        now = int(time.time())
-        data: dict[str, TombstoneEntry] = {}
-        for row in db.iter_tombstones(self.folder_id):
-            if len(data) >= tombstone.TOMBSTONE_MAX_ENTRIES:
-                break
-            parsed = _tombstone_from_row(row, now)
-            if parsed is None:
-                continue
-            key, clean = parsed
-            data[key] = clean
-        self._data = data
-        self._dirty = False
+    # ── persistence hooks (see CausalStoreBase.load/save) ──────────
+    def _max_entries(self) -> int | None:
+        return tombstone.TOMBSTONE_MAX_ENTRIES
 
-    def save(self) -> None:
-        """Persist markers to the installation DB (one transaction)."""
-        db = self._backend()
-        if db is None or self.folder_id is None or not self._dirty:
-            return
-        db.ensure_folder(self.folder_id, self.canonical_path)
-        with db.transaction():
-            db.retain_tombstones(self.folder_id, list(self._data.keys()))
-            for key, entry in self._data.items():
-                db.upsert_tombstone(
-                    self.folder_id,
-                    key,
-                    sha256sum=entry["sha256"],
-                    version_id=entry["version_id"],
-                    origin_cid=entry["origin_cid"],
-                    ts=float(entry["ts"]),
-                    vclock=_vclock_to_json(entry["vclock"]),
-                )
-        self._dirty = False
+    def _iter_rows(self, db: StateDb, folder_id: str) -> list[sqlite3.Row]:
+        return db.iter_tombstones(folder_id)
+
+    def _parse_row(self, row: sqlite3.Row, now: int) -> tuple[str, TombstoneEntry] | None:
+        return _parse_tombstone_row(row, now)
+
+    def _retain_rows(self, db: StateDb, folder_id: str, keep: list[str]) -> int:
+        return db.retain_tombstones(folder_id, keep)
+
+    def _upsert_row(self, db: StateDb, folder_id: str, key: str, entry: TombstoneEntry) -> None:
+        db.upsert_tombstone(
+            folder_id,
+            key,
+            sha256sum=entry["sha256"],
+            version_id=entry["version_id"],
+            origin_cid=entry["origin_cid"],
+            ts=float(entry["ts"]),
+            vclock=_vclock_to_json(entry["vclock"]),
+        )

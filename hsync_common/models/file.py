@@ -243,7 +243,7 @@ class File:
         by ``stat``/hash/permission reads degrades to ``None`` instead of
         aborting the whole sync cycle.
         """
-        file_path = str(Path(buckets_dir) / file_path.lstrip("/")) if buckets_dir else file_path
+        file_path = _resolve_prefixed_path(file_path, buckets_dir, strip=False)
         file = Path(file_path)
         try:
             file_stat = file.stat()

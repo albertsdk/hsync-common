@@ -18,6 +18,7 @@ from hashlib import sha256
 from pathlib import Path
 
 __all__ = [
+    "_parse_stored_vclock",
     "_parse_wire_timestamp",
     "_resolve_prefixed_path",
     "_vclock_to_json",
@@ -34,6 +35,22 @@ _NUMERIC_TYPES = (int, float, str)
 def _vclock_to_json(vclock: dict[str, int]) -> str:
     """Serialize a validated vector clock for a ``vclock`` SQLite column."""
     return json.dumps(vclock, separators=(",", ":"), sort_keys=True)
+
+
+def _parse_stored_vclock(raw: object) -> object:
+    """Decode a persisted ``vclock`` column into a JSON-parseable object.
+
+    The column is stored as a compact JSON string; a non-string value (a
+    ``dict`` already parsed by the driver, or ``NULL``) is returned verbatim.
+    Malformed JSON returns ``None`` so the caller's ``parse_vclock`` rejects
+    the row instead of crashing on load.
+    """
+    if not isinstance(raw, str):
+        return raw
+    try:
+        return json.loads(raw)
+    except ValueError:
+        return None
 
 
 def _resolve_prefixed_path(data_filepath: str, prefix: str | None, *, strip: bool) -> str:
