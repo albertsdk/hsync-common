@@ -40,7 +40,10 @@ formatting/hashing/parsing helper (DRY rule in `CLAUDE.md`).
 ## compression.py (Zstandard, level 3)
 
 - `should_compress` (`compression.py:170`) — size/extension gate.
-- `compress_data`/`decompress_data` (`:217`/`:222`), `compress_file` (`:307`).
+- `compress_data`/`decompress_data` (`:219`/`:224`), `compress_file` (`:297`),
+  `compress_file_to_file` (`:312`) — streaming src→dst compression with
+  memory bounded by the read chunk (production upload paths; `compress_file`
+  itself is memory-capped test-only).
 - `decompress_data(data, max_output_size=...)` enforces a hard cap on the
   decompressed size via a capped streaming read — mandatory for wire-supplied
   payloads (anti decompression-bomb). `decompress_stream` (`:258`) is the
