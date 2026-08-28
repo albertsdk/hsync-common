@@ -104,8 +104,6 @@ def _lan_txt_record() -> dict[str, Any]:
         "sync_direction": "bidirectional",
         "compression": "true",
         "delta": "true",
-        "vector_clocks": "true",
-        "tombstones": "true",
         "server_ready": "true",
         "connected": "3",
     }

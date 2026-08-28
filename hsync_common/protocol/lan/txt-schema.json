@@ -69,18 +69,6 @@
     "sync_direction": {
       "type": "string"
     },
-    "tombstones": {
-      "enum": [
-        "true"
-      ],
-      "type": "string"
-    },
-    "vector_clocks": {
-      "enum": [
-        "true"
-      ],
-      "type": "string"
-    },
     "version": {
       "description": "Semantic app version (informational).",
       "type": "string"
