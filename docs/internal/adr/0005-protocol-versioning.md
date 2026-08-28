@@ -24,9 +24,9 @@ capabilities explicit, with a single source of truth in
 - A mismatched `protocol_version` is a **hard failure** (REST → 426, WS →
   handshake closed, LAN → peer ignored), never a negotiation.
 - A `Capability` registry (`compression`, `tombstones`, `never_master`,
-  `https`, `delta`, `vector_clocks`) carried on every channel as **feature
-  flags within the same protocol version** — unknown tokens are dropped, never
-  treated as a version conflict.
+  `https`, `delta`, `vector_clocks`) carried on the handshake channels as
+  **feature flags within the same protocol version** — unknown tokens are
+  dropped, never treated as a version conflict.
 - All sides build/parse handshakes via the shared `build_*`/`parse_*` helpers;
   Android mirrors them in `Protocol.kt` and validates against golden fixtures.
 

@@ -112,11 +112,6 @@ class TestLanSchemaSource:
         schema = build_lan_txt_schema()
         assert set(schema["properties"]) == set(LAN_TXT_KEYS)
 
-    def test_tombstones_and_vector_clocks_keys(self):
-        schema = build_lan_txt_schema()
-        assert schema["properties"]["tombstones"] == {"type": "string", "enum": ["true"]}
-        assert schema["properties"]["vector_clocks"] == {"type": "string", "enum": ["true"]}
-
 
 class TestLanWssSchemaSource:
     """The LAN/WSS handshake schema pins the handshake frames (ADR-0024)."""
