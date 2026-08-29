@@ -16,7 +16,7 @@ compression functionality, and may extend it with project-specific logic.
 
 from collections.abc import Iterator
 from io import BytesIO
-from os.path import splitext
+from os.path import getsize, splitext
 from typing import BinaryIO
 
 import zstandard as zstd
@@ -302,7 +302,42 @@ def compress_file(filepath: str) -> bytes:
     ``hsync_server.compression.async_compress_stream`` (the real streaming,
     memory-bounded implementation) is validated — see
     ``hsync-server/tests/test_compression.py``. Production code must use
-    ``compress_data`` or the server's ``async_compress_stream`` instead.
+    ``compress_data``, :func:`compress_file_to_file` or the server's
+    ``async_compress_stream`` instead.
     """
     with open(filepath, "rb") as f:
         return compress_data(f.read())
+
+
+def compress_file_to_file(src: str, dst: str, read_size: int = 1024 * 1024) -> int:
+    """Stream-compress *src* into *dst*, returning the compressed size.
+
+    Streaming counterpart of :func:`compress_file` for production upload
+    paths: neither the source file nor the compressed frame is ever fully
+    resident in memory (memory stays bounded by the *read_size* working
+    chunks), so arbitrarily large files can be compressed for transfer
+    without a RAM spike, and the first compressed bytes are available before
+    the whole input has been read.
+
+    Args:
+        src: Path of the file to compress.
+        dst: Path of the compressed output. Overwritten if it exists; the
+            caller owns the file and must delete it when done.
+        read_size: Source read chunk size.
+
+    Returns:
+        The compressed size in bytes (size of *dst* after the frame is
+        finalized).
+
+    Raises:
+        OSError: Propagated from the underlying file operations.
+        zstd.ZstdError: On compressor failure.
+    """
+    with open(src, "rb") as fin, open(dst, "wb") as fout:
+        # closefd=False: exiting the context finalizes (flushes) the zstd
+        # frame into *fout* without closing it, so the enclosing with-block
+        # stays the single owner of the output handle.
+        with _compressor.stream_writer(fout, closefd=False) as writer:
+            while chunk := fin.read(read_size):
+                writer.write(chunk)
+    return getsize(dst)
