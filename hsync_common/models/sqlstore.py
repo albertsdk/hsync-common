@@ -28,16 +28,29 @@ from contextlib import contextmanager
 from pathlib import Path
 
 __all__ = [
+    "INCREMENTAL_VACUUM_INTERVAL_S",
+    "INCREMENTAL_VACUUM_PAGES",
     "SCHEMA_USER_VERSION",
     "StateDb",
     "get_state_db",
+    "incremental_vacuum_state_db",
     "open_state_db",
     "reset_state_db_cache",
+    "state_db_freelist_count",
+    "vacuum_state_db",
 ]
 
 _db_cache: dict[str, StateDb] = {}
 
 SCHEMA_USER_VERSION = 1
+
+# Periodic maintenance cadence for the installation DB (ADR-0025). The
+# ``retain``/tombstone-TTL pruning deletes rows but, without auto-vacuum, the
+# freed pages stay in the file; consumers reclaim them incrementally at this
+# cadence and with a full VACUUM at process boundaries. Consumers:
+# ``hsync-client`` (end of sync cycle) and ``hsync-server`` (background task).
+INCREMENTAL_VACUUM_INTERVAL_S = 3600.0
+INCREMENTAL_VACUUM_PAGES = 1000
 
 _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS folders (
@@ -83,6 +96,13 @@ def _apply_pragmas(conn: sqlite3.Connection) -> None:
     conn.execute("PRAGMA busy_timeout=5000")
     conn.execute("PRAGMA foreign_keys=ON")
     conn.execute("PRAGMA synchronous=FULL")
+    # INCREMENTAL auto-vacuum keeps the file compact as rows are pruned (the
+    # retain/tombstone-TTL deletes free pages that would otherwise linger in
+    # the file forever). The mode is stored in the database header, so it must
+    # be set BEFORE any table is created: ``open_state_db`` runs this function
+    # before executing the schema. On a database that already has tables the
+    # assignment is a harmless no-op (SQLite keeps the existing mode).
+    conn.execute("PRAGMA auto_vacuum = INCREMENTAL")
     try:
         conn.execute("PRAGMA journal_mode=WAL")
         mode = conn.execute("PRAGMA journal_mode").fetchone()
@@ -135,6 +155,41 @@ def reset_state_db_cache() -> None:
         except sqlite3.Error:
             pass
     _db_cache.clear()
+
+
+def incremental_vacuum_state_db(db_path: str | Path, pages: int = INCREMENTAL_VACUUM_PAGES) -> int:
+    """Reclaim up to *pages* free pages from the installation DB (best-effort).
+
+    No-op when the file does not exist yet (never creates one). Consumers:
+    ``hsync-client`` (throttled, end of sync cycle) and ``hsync-server``
+    (periodic background task).
+    """
+    if not Path(db_path).exists():
+        return 0
+    return get_state_db(db_path).incremental_vacuum(pages)
+
+
+def vacuum_state_db(db_path: str | Path) -> int:
+    """Fully rebuild the installation DB to reclaim all free space.
+
+    Returns the number of free pages reclaimed, or 0 when the file does not
+    exist yet (never creates one). Consumers: ``hsync-client`` (graceful
+    shutdown) and ``hsync-server`` (startup/shutdown).
+    """
+    if not Path(db_path).exists():
+        return 0
+    return get_state_db(db_path).vacuum()
+
+
+def state_db_freelist_count(db_path: str | Path) -> int:
+    """Return the number of free pages in the installation DB (0 if absent).
+
+    Consumers: ``hsync-server`` (gate the startup VACUUM so a clean restart
+    never pays a redundant full rebuild).
+    """
+    if not Path(db_path).exists():
+        return 0
+    return get_state_db(db_path).freelist_count()
 
 
 class StateDb:
@@ -263,6 +318,46 @@ class StateDb:
                 (bucket_name, folder_id),
             )
             return folder_id
+
+    # ── maintenance ─────────────────────────────────────────────────
+    def freelist_count(self) -> int:
+        """Return the number of free pages in the database file.
+
+        A proxy for how much space a VACUUM (or ``incremental_vacuum``) would
+        reclaim; consumers use it to skip a full rebuild when there is nothing
+        meaningful to reclaim.
+        """
+        with self._lock:
+            row = self._conn.execute("PRAGMA freelist_count").fetchone()
+            return int(row[0]) if row is not None else 0
+
+    def incremental_vacuum(self, pages: int) -> int:
+        """Reclaim up to *pages* free pages in place; return the freed count.
+
+        A no-op (returns 0) when ``pages <= 0``, on a database not created with
+        ``auto_vacuum=INCREMENTAL``, or with no free pages. The per-call bound
+        keeps a periodic invocation lightweight (ADR-0025).
+        """
+        pages = int(pages)
+        if pages <= 0:
+            return 0
+        with self._lock:
+            before = self.freelist_count()
+            self._conn.execute(f"PRAGMA incremental_vacuum({pages})")
+            return max(0, before - self.freelist_count())
+
+    def vacuum(self) -> int:
+        """Rebuild the database file, reclaiming all free space.
+
+        Returns the number of free pages reclaimed. Runs in autocommit (the
+        connection never wraps a surrounding transaction) and requires that no
+        other connection holds an active transaction, so callers invoke it at
+        a process boundary (startup/shutdown) where no statement is in flight.
+        """
+        with self._lock:
+            before = self.freelist_count()
+            self._conn.execute("VACUUM")
+            return max(0, before - self.freelist_count())
 
     # ── versions ────────────────────────────────────────────────────
     def upsert_version(
