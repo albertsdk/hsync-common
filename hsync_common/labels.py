@@ -42,6 +42,7 @@ distinct colors that convey the *kind* of operation at a glance:
   deletions.
 - **Security** (red): rejected unsafe paths.
 - **Infrastructure** (magenta): transport-level messages (WebSocket, echo).
+- **Phase** (bold white): lifecycle phase markers (initial sync started).
 """
 
 from __future__ import annotations
@@ -115,6 +116,9 @@ class ActionLabel(StrEnum):
     # ── Infrastructure (transport-level) ───────────────────────────────
     WS = "[WS]"
 
+    # ── Lifecycle phase markers ────────────────────────────────────────
+    INITIAL_SYNC = "[INITIAL SYNC]"
+
     # ── Readiness state (observable "ready for sync" threshold) ────────
     READY = "[READY]"
 
@@ -136,6 +140,7 @@ LABEL_CATEGORIES: dict[str, tuple[str, str]] = {
     "warning": ("<yellow>", "</yellow>"),
     "security": ("<red>", "</red>"),
     "infrastructure": ("<magenta>", "</magenta>"),
+    "phase": ("<bold><white>", "</white></bold>"),
 }
 
 #: Label -> category name. Every :class:`ActionLabel` must be listed here.
@@ -186,6 +191,7 @@ _LABEL_CATEGORY_MAP: dict[str, str] = {
     ActionLabel.REMOTE_SECURITY: "security",
     ActionLabel.WS: "infrastructure",
     ActionLabel.REMOTE_ECHO: "infrastructure",
+    ActionLabel.INITIAL_SYNC: "phase",
     ActionLabel.READY: "create",
 }
 

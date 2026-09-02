@@ -23,8 +23,9 @@ Labels follow a strict two-level rule:
   transfers, states and previews (`[DOWNLOAD]`, `[UPLOAD]`, `[IN SYNC]`,
   `[SKIP]`, `[TO ...]`, …) and to `hsync-server`'s own log lines.
 
-The distinction "initial sync vs watching" stays readable at a glance: a
-`[DOWNLOAD]` followed by `[REMOTE MODIFY]` lines means the full scan finished
+The distinction "initial sync vs watching" stays readable at a glance: the
+initial reconcile begins with `[INITIAL SYNC]`, then `[DOWNLOAD]`/`[UPLOAD]`
+lines follow; `[REMOTE MODIFY]` lines after that mean the full scan finished
 and the node is now applying peer events.
 
 > **Known limitation (LAN master).** Origin attribution on the master relies on
@@ -60,6 +61,7 @@ and the node is now applying peer events.
 | warning | yellow | guards, conflicts, ignored deletions, LAN trust warnings |
 | security | red | rejected unsafe paths / hard security refusals |
 | infrastructure | magenta | transport-level (WebSocket, echo suppression) |
+| phase | white (bold) | lifecycle phase markers (initial sync started) |
 
 ## Projects that emit labels
 
@@ -153,6 +155,18 @@ notification in desktop/Android.
 | Label | Category | Description | C | S | A | D |
 |-------|----------|-------------|---|---|---|---|
 | `[WS]` | infrastructure | WebSocket transport message (e.g. dropping a dead connection) | | ✓ | ✓ | |
+
+## Lifecycle phases
+
+Emitted once per run (or per reconnection) to bracket the startup
+synchronization: `[INITIAL SYNC]` marks the beginning of the first full
+reconcile, before the per-file transfer lines; the unlabeled
+"Initial sync complete" message marks its end, right before the event channel
+is established.
+
+| Label | Category | Description | C | S | A | D |
+|-------|----------|-------------|---|---|---|---|
+| `[INITIAL SYNC]` | phase | Initial synchronization started — first full reconcile of a run | ✓ | | | |
 
 ## Readiness state
 

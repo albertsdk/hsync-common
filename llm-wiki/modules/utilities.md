@@ -150,12 +150,14 @@ reconciliation, transfers, previews and server lines.
   (`LOCAL_*`), remote-origin / inbound (`REMOTE_*`), security/warnings
   (`SECURITY`/`NO_MASTER`/`MASTER_CONFLICT`/`MASTER_TAKEOVER`/`INSECURE_MASTER`/
   `PAIRING_NEEDED`/`FINGERPRINT_CHANGED`/`AUTH_REQUIRED`), infrastructure
-  (`WS`), readiness state (`READY` — emitted by the client when watcher +
-  event channel are up, category `create`).
+  (`WS`), lifecycle phase (`INITIAL_SYNC` — emitted by the client at the start
+  of a run's first full reconcile, category `phase`), readiness state (`READY`
+  — emitted by the client when watcher + event channel are up, category `create`).
 - `LABEL_CATEGORIES` (`:127`) — semantic category → loguru color tag pair
   (transfer→cyan, upload/create→green, modify/rename→blue, delete→red,
-  permission/infrastructure→magenta, in_sync→dim, warning→yellow, security→red).
-  Labels are grouped by *kind* of operation, not one color per label.
+  permission/infrastructure→magenta, in_sync→dim, warning→yellow, security→red,
+  phase→bold white). Labels are grouped by *kind* of operation, not one color
+  per label.
 - `_LABEL_CATEGORY_MAP` (`:142`) — label → category (the binding table);
   `LABEL_STYLES` (`:193`) is the derived label → color-tag view consumed by
   `colorize_labels`.
