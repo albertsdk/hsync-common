@@ -49,7 +49,7 @@ snippet.
 | [internal/architecture.md](internal/architecture.md) | Internal architecture — models, utilities, and the protocol package in detail. |
 | [internal/adr/](internal/adr/README.md) | Architecture Decision Records — the *why* behind the ecosystem's stable, cross-project decisions. |
 
-## Related projects
+## Associated Ecosystem Components
 
 - [HSYNC Client](https://github.com/albertobasso/hsync-client/blob/main/README.md) - Sync client (Server Mode and LAN/P2P Mode)
 - [HSYNC Server](https://github.com/albertobasso/hsync-server/blob/main/README.md) - Central synchronization server (Server Mode)

@@ -9,12 +9,13 @@ upon — data formats, compression, file exclusion rules, and security utilities
 You don't install or run it directly; it's a library used by the client, server and
 desktop application.
 
-> 👉 **Remember:** keep verified backups of your data before trying new
-> synchronization tools. 😉
+> 👉 **Operational Advisory:** As with any data-management software, integrators are strongly advised to validate the library's behavior against their own data and to maintain validated, independent backups in the applications built on top of it.
 
 ---
 
 [![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)](LICENSE)
+[![CI](https://github.com/albertobasso/hsync-common/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/albertobasso/hsync-common/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/albertobasso/hsync-common)](https://github.com/albertobasso/hsync-common/releases/latest)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/)
 
 **Quick navigation:**
@@ -62,7 +63,7 @@ desktop application.
 | [Contributing](CONTRIBUTING.md) | Development setup and contribution guidelines |
 | [Security Policy](SECURITY.md) | Supported versions and how to report vulnerabilities |
 
-### Related projects
+### Associated Ecosystem Components
 
 `hsync-common` is the shared foundation consumed by the other HSYNC projects:
 
@@ -74,7 +75,7 @@ desktop application.
 > **Note:** The desktop GUI (`HSYNC Desktop`) and the Android app (`HSYNC Android`)
 > are still under active development and are not yet ready for production use.
 
-## Security
+## Security & Vulnerability Reporting
 
 To report a vulnerability, please use GitHub's **Private Vulnerability Reporting**:
 
@@ -93,3 +94,7 @@ recommendations.
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. Although the author has implemented reasonable safety measures, IN NO EVENT SHALL THE AUTHOR OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY — including, without limitation, any direct, indirect, incidental, special, exemplary, or consequential damages, loss of data, or business interruption — WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 This disclaimer supplements, and does not replace, Sections 6 ("Disclaimer of Warranty") and 7 ("Limitation of Liability") of the [Mozilla Public License 2.0](LICENSE), which govern this software.
+
+## License
+
+Distributed under the [Mozilla Public License 2.0](LICENSE).
