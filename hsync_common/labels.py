@@ -113,6 +113,9 @@ class ActionLabel(StrEnum):
     FINGERPRINT_CHANGED = "[FINGERPRINT CHANGED]"
     AUTH_REQUIRED = "[AUTH REQUIRED]"
     WATCHER_ERROR = "[WATCHER ERROR]"
+    WATCHER_FALLBACK = "[WATCHER FALLBACK]"
+    WATCHER_RESTORE = "[WATCHER RESTORE]"
+    FD_EXHAUSTED = "[FD EXHAUSTED]"
 
     # ── Infrastructure (transport-level) ───────────────────────────────
     WS = "[WS]"
@@ -188,6 +191,9 @@ _LABEL_CATEGORY_MAP: dict[str, str] = {
     ActionLabel.FINGERPRINT_CHANGED: "warning",
     ActionLabel.AUTH_REQUIRED: "warning",
     ActionLabel.WATCHER_ERROR: "warning",
+    ActionLabel.WATCHER_FALLBACK: "warning",
+    ActionLabel.WATCHER_RESTORE: "create",
+    ActionLabel.FD_EXHAUSTED: "warning",
     ActionLabel.SECURITY: "security",
     ActionLabel.LOCAL_SECURITY: "security",
     ActionLabel.REMOTE_SECURITY: "security",
