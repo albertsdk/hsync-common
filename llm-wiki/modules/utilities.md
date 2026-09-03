@@ -149,7 +149,9 @@ reconciliation, transfers, previews and server lines.
   `GUARD`/`TOMBSTONE`), dry-run preview (`SYNCED`/`TO_*`), local-origin watcher
   (`LOCAL_*`), remote-origin / inbound (`REMOTE_*`), security/warnings
   (`SECURITY`/`NO_MASTER`/`MASTER_CONFLICT`/`MASTER_TAKEOVER`/`INSECURE_MASTER`/
-  `PAIRING_NEEDED`/`FINGERPRINT_CHANGED`/`AUTH_REQUIRED`), infrastructure
+  `PAIRING_NEEDED`/`FINGERPRINT_CHANGED`/`AUTH_REQUIRED`/`WATCHER_ERROR` — the
+  client emits the latter when its local file watcher cannot start because the
+  kernel inotify limits are exhausted, category `warning`), infrastructure
   (`WS`), lifecycle phase (`INITIAL_SYNC` — emitted by the client at the start
   of a run's first full reconcile, category `phase`), readiness state (`READY`
   — emitted by the client when watcher + event channel are up, category `create`).
