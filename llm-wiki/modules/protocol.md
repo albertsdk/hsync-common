@@ -49,15 +49,17 @@ within a version — intersection semantics, never cross-version negotiation
 
 ## capabilities.py — capabilities document (desktop UI gating)
 
-- `CAPABILITIES_SCHEMA_VERSION = 1` (`capabilities.py:52`); `CapabilitiesDoc`
-  TypedDict (`:63`).
-- `build_capabilities` (`capabilities.py:74`) aggregates protocol versions,
-  events schema version and CLI options; `parse_capabilities` (`:107`) rejects
-  unknown schema versions, missing keys **and** wrong field types (the document
-  crosses a process boundary, so a malformed `cli_options`/`capabilities` must
-  be refused, not mis-parsed); `supports_cli_option` (`:132`). Emitted by the
-  client `--capabilities-json` flag, consumed by desktop to enable/disable
-  controls.
+- `CAPABILITIES_SCHEMA_VERSION = 2` (`capabilities.py:54`); `CapabilitiesDoc`
+  TypedDict (`:65`).
+- `build_capabilities` (`capabilities.py:77`) aggregates the supported
+  subcommands, the per-subcommand CLI option flags, protocol versions and
+  events schema version; `parse_capabilities` (`:120`) rejects unknown schema
+  versions, missing keys **and** wrong field types (the document crosses a
+  process boundary, so a malformed `subcommands`/`cli_options`/`capabilities`
+  must be refused, not mis-parsed); `supports_cli_option` (`:185`, scoped to
+  one subcommand or on the union of all) and `supports_subcommand` (`:205`).
+  Emitted by the client `--capabilities-json` global flag, consumed by desktop
+  to enable/disable controls.
 
 ## schemas.py — JSON-Schema builders (draft 2020-12)
 

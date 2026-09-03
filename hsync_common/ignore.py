@@ -59,7 +59,7 @@ class IgnoreMatcher:
     Attributes:
         bucket_root: Absolute path of the directory being synchronised.
         extra_patterns: Additional gitignore patterns supplied at
-            construction time (e.g. from ``--ignore-patterns``).
+            construction time (e.g. from ``--ignore-pattern``).
     """
 
     def __init__(
