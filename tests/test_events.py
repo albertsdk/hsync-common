@@ -127,6 +127,7 @@ class TestEventNameCoverage:
             "fingerprint_changed",
             "auth_required",
             "pairing_needed",
+            "duplicate_identity",
             "transfer_failed",
             "sync_paused",
             "conflict_resolved",
