@@ -6,7 +6,6 @@ path and permissions, used for directory synchronization events.
 """
 
 from os import stat as os_stat
-from pathlib import Path
 
 from hsync_common.permissions import mode_to_octal
 
@@ -113,7 +112,7 @@ class Dir:
         Returns:
             Dir instance if directory exists, None otherwise.
         """
-        path = str(Path(buckets_dir) / path.lstrip("/")) if buckets_dir else path
+        path = _resolve_prefixed_path(path, buckets_dir, strip=False)
         try:
             # Single stat: the mode is read from the same stat object used for
             # the existence check — one syscall instead of exists() + get_permissions
