@@ -8,6 +8,7 @@ This module defines the File class representing a file with its metadata
 from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
+from threading import Lock
 from typing import TYPE_CHECKING, NotRequired, TypedDict
 
 from hsync_common.constants import (
@@ -45,6 +46,13 @@ SHA256_CACHE_MAX_SIZE: int = 10_000
 # cache is full (move-to-end on hit, pop-first on overflow).
 _sha256_cache: OrderedDict[str, tuple[str, int, int]] = OrderedDict()
 
+# Guards every access to ``_sha256_cache``. Readers are multi-threaded by
+# design: hsync-client reads metadata from scan/transfer pool threads and
+# hsync-server offloads listing metadata (hash-on-miss) to asyncio worker
+# threads, so the LRU's check-then-act sequences (hit check + move-to-end,
+# stale drop, overflow eviction) must never interleave.
+_sha256_cache_lock = Lock()
+
 
 def clear_sha256_cache() -> None:
     """Clear the entire SHA-256 cache.
@@ -52,7 +60,8 @@ def clear_sha256_cache() -> None:
     Should be called at the start of each sync cycle to ensure
     fresh checksums are computed for all files.
     """
-    _sha256_cache.clear()
+    with _sha256_cache_lock:
+        _sha256_cache.clear()
 
 
 def invalidate_sha256_cache(file_path: str) -> None:
@@ -65,28 +74,31 @@ def invalidate_sha256_cache(file_path: str) -> None:
     Args:
         file_path: Path of the file to invalidate.
     """
-    _sha256_cache.pop(file_path, None)
+    with _sha256_cache_lock:
+        _sha256_cache.pop(file_path, None)
 
 
 def _get_cached_sha256(file_path: str, current_mtime: int, current_size: int) -> str | None:
     """Get cached SHA-256 if file metadata still matches (LRU: move to end on hit)."""
-    try:
-        cached_sha256, cached_mtime, cached_size = _sha256_cache[file_path]
-    except KeyError:
+    with _sha256_cache_lock:
+        try:
+            cached_sha256, cached_mtime, cached_size = _sha256_cache[file_path]
+        except KeyError:
+            return None
+        if cached_mtime == current_mtime and cached_size == current_size:
+            _sha256_cache.move_to_end(file_path)
+            return cached_sha256
+        _sha256_cache.pop(file_path, None)
         return None
-    if cached_mtime == current_mtime and cached_size == current_size:
-        _sha256_cache.move_to_end(file_path)
-        return cached_sha256
-    del _sha256_cache[file_path]
-    return None
 
 
 def _set_cached_sha256(file_path: str, sha256sum: str, mtime: int, size: int) -> None:
     """Store SHA-256 in cache with its mtime/size; evict LRU entry at capacity."""
-    _sha256_cache[file_path] = (sha256sum, mtime, size)
-    _sha256_cache.move_to_end(file_path)
-    if len(_sha256_cache) > SHA256_CACHE_MAX_SIZE:
-        _sha256_cache.popitem(last=False)  # evict oldest (least recently used)
+    with _sha256_cache_lock:
+        _sha256_cache[file_path] = (sha256sum, mtime, size)
+        _sha256_cache.move_to_end(file_path)
+        if len(_sha256_cache) > SHA256_CACHE_MAX_SIZE:
+            _sha256_cache.popitem(last=False)  # evict oldest (least recently used)
 
 
 # =============================================================================

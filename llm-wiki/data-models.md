@@ -27,7 +27,11 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
   `invalidate_sha256_cache`, full clear `clear_sha256_cache`. The **size is
   part of the validity key**: on filesystems with coarse 1 s mtime
   granularity a same-second same-size rewrite is indistinguishable, but a
-  size change always drops the stale digest.
+  size change always drops the stale digest. **Thread-safe**: every access
+  is serialized by `_sha256_cache_lock` (`models/file.py`), so multi-thread
+  callers are legal by design — hsync-client scan/transfer pool threads and
+  hsync-server worker threads (`asyncio.to_thread` offloads) both read the
+  cache concurrently.
 - `File.get` / `Dir.get` are **race-safe**: any `OSError` from
   stat/hash/permission reads (file vanished mid-scan) degrades to `None`
   instead of aborting the sync cycle.
