@@ -5,9 +5,8 @@
 
 ## Context
 
-HSYNC uses a **master-authoritative sync model**: the server (or the elected LAN
-master) is the single source of truth for file listings. Every connected peer
-reconciles its local state against the master's listing on each sync cycle.
+In HSYNC,the server (or the elected LAN master) serves the file listing that
+every connected peer reconciles its local state against on each sync cycle.
 Files present locally but absent from the master listing are deleted to converge
 toward the shared state.
 
@@ -85,8 +84,8 @@ effectively an automatic circuit breaker.
 
 ### Benefits
 
-- **Automatic protection** against the most dangerous failure mode in
-  master-authoritative sync — no operator awareness or special configuration
+- **Automatic protection** against the most dangerous failure mode in HSYNC —
+  a wrong master listing — no operator awareness or special configuration
   required to benefit.
 - **Graceful degradation** — when the guard trips, other sync operations
   continue. The peer is not cut off from the master.

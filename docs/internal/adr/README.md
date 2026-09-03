@@ -28,7 +28,6 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0003](0003-tombstone-gossip.md) | Causal tombstone gossip for deletions | Accepted |
 | [0004](0004-desktop-subprocess-contract.md) | Desktop ↔ client subprocess contract | Accepted |
 | [0005](0005-protocol-versioning.md) | Protocol versioning & capability negotiation | Accepted |
-| [0006](0006-master-authoritative-conflict-model.md) | Master-authoritative conflict model | Superseded by [ADR-0022](0022-causal-vector-clock-conflict-model.md) |
 | [0007](0007-content-addressed-storage.md) | SHA-256 integrity verification and idempotent upload | Accepted |
 | [0008](0008-client-accounts.md) | Client accounts, roles and bucket membership | Accepted |
 | [0009](0009-rest-websocket-transport.md) | REST for data, WebSocket for events | Accepted |
@@ -39,10 +38,10 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0014](0014-multi-repo-strategy.md) | Multi-repository architecture | Accepted |
 | [0015](0015-mass-deletion-guard.md) | Mass-deletion safety guard | Accepted |
 | [0016](0016-delta-transfer.md) | Delta transfer (rsync-style block sync) | Accepted |
-| [0017](0017-lan-slave-outbound-event-reliability.md) | LAN slave outbound event reliability (defer-to-close uploads, echo-pair rename caching) | Accepted (*terminology superseded by [ADR-0018](0018-origin-based-log-labels.md); algorithm still valid*) |
+| [0017](0017-lan-slave-outbound-event-reliability.md) | LAN slave outbound event reliability (defer-to-close uploads, echo-pair rename caching) | Accepted (uses the origin-based log labels of [ADR-0018](0018-origin-based-log-labels.md)) |
 | [0018](0018-origin-based-log-labels.md) | Origin-based log labels (`LOCAL ` / `REMOTE `) with unified verbs | Accepted |
 | [0020](0020-lan-security-model.md) | LAN security model: TOFU pinning, LAN key, and strict pairing | Accepted |
-| [0022](0022-causal-vector-clock-conflict-model.md) | Causal vector-clock conflict model | Accepted (tie-break amended by ADR-0023) |
+| [0022](0022-causal-vector-clock-conflict-model.md) | Causal vector-clock conflict model | Accepted (tie-break defined by [ADR-0023](0023-corrected-mtime-tie-break.md)) |
 | [0023](0023-corrected-mtime-tie-break.md) | Corrected-mtime chronological tie-break | Accepted |
 | [0024](0024-capability-negotiation.md) | Capability negotiation (registry, channels, intersection) | Accepted |
 | [0025](0025-sqlite-external-state-store.md) | SQLite external state store (folder UUID + ``syncstate.db``) | Accepted |
