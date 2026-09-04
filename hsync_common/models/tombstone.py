@@ -33,7 +33,7 @@ persistence layer (:class:`TombstoneStore`) lives in :mod:`.tombstone_store`
 and is re-exported here for the historic import path.
 """
 
-from typing import TypedDict
+from typing import TypedDict, TypeGuard, cast
 
 from hsync_common.hashing import is_sha256_hex
 
@@ -83,7 +83,7 @@ class TombstoneEntry(TypedDict):
     vclock: dict[str, int]  # causal history at deletion time: node cid -> counter
 
 
-def _is_valid_key(key: object) -> bool:
+def _is_valid_key(key: object) -> TypeGuard[str]:
     """Return True when *key* looks like a sha256 hex digest (tombstone key).
 
     Tombstone keys are always `hashlib.sha256(...).hexdigest()` output, i.e.
@@ -93,7 +93,7 @@ def _is_valid_key(key: object) -> bool:
     return is_sha256_hex(key) and key == key.lower()
 
 
-def _is_valid_sha256(value: object) -> bool:
+def _is_valid_sha256(value: object) -> TypeGuard[str | None]:
     """Return True when *value* is None or a sha256 hex digest."""
     return value is None or _is_valid_key(value)
 
@@ -120,22 +120,23 @@ def _sanitize_entry(
     """
     if not _is_valid_key(key) or not isinstance(entry, dict) or "ts" not in entry:
         return None
-    ts = _parse_wire_timestamp(entry["ts"])  # type: ignore[index]
+    payload = cast(dict[str, object], entry)
+    ts = _parse_wire_timestamp(payload["ts"])
     if ts is None or ts <= 0 or ts > now + TOMBSTONE_MAX_CLOCK_SKEW_SECONDS:
         return None
-    sha = entry.get("sha256")  # type: ignore[union-attr]
+    sha = payload.get("sha256")
     if not _is_valid_sha256(sha):
         return None
-    vclock = parse_vclock(entry.get("vclock"))  # type: ignore[union-attr]
+    vclock = parse_vclock(payload.get("vclock"))
     if vclock is None:
         return None
-    version_id = entry.get("version_id")  # type: ignore[union-attr]
+    version_id = payload.get("version_id")
     if not isinstance(version_id, str):
         version_id = ""
-    origin_cid = entry.get("origin_cid")  # type: ignore[union-attr]
+    origin_cid = payload.get("origin_cid")
     if origin_cid is not None and not (isinstance(origin_cid, str) and is_valid_cid(origin_cid)):
         return None
-    return TombstoneEntry(  # type: ignore[typeddict-item]
+    return TombstoneEntry(
         sha256=sha,
         version_id=version_id,
         origin_cid=origin_cid,

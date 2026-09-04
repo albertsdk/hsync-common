@@ -122,10 +122,12 @@ class Symlink:
             data.get("filepath", ""), dir_prefix, strip=strip_dir_prefix
         )
 
+        raw_ctime = data.get("ctime")
+        raw_mtime = data.get("mtime")
         return cls(
             filepath=filepath,
             name=data.get("name"),
             target=data.get("target"),
-            ctime=int(data["ctime"]) if data.get("ctime") is not None else None,
-            mtime=int(data["mtime"]) if data.get("mtime") is not None else None,
+            ctime=int(raw_ctime) if raw_ctime is not None else None,
+            mtime=int(raw_mtime) if raw_mtime is not None else None,
         )

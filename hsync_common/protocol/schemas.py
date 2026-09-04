@@ -73,6 +73,12 @@ LAN_TXT_KEYS: tuple[str, ...] = LAN_TXT_REQUIRED_KEYS + LAN_TXT_OPTIONAL_KEYS
 # A TXT boolean flag is a string present only when the value is true.
 _TXT_BOOL_FLAG: dict[str, Any] = {"type": "string", "enum": ["true"]}
 
+# Reusable "nullable primitive" schema fragments shared by the file/dir/symlink
+# object builders, so the three entity schemas cannot drift on the same shape.
+_NULLABLE_STR: dict[str, Any] = {"type": ["string", "null"]}
+_NULLABLE_INT: dict[str, Any] = {"type": ["integer", "null"]}
+_NULLABLE_NUM: dict[str, Any] = {"type": ["number", "null"]}
+
 
 def _capability_tokens() -> list[str]:
     """Wire capability tokens, derived from the :class:`Capability` registry."""
@@ -95,19 +101,17 @@ def _event_names() -> list[str]:
 
 def _file_object() -> dict[str, Any]:
     """JSON Schema for a serialized :class:`File` (keys from ``FileDict``)."""
-    nullable_str = {"type": ["string", "null"]}
-    nullable_int = {"type": ["integer", "null"]}
     return {
         "type": "object",
         "title": "File",
         "properties": {
-            "filepath": nullable_str,
-            "name": nullable_str,
-            "ctime": nullable_int,
-            "mtime": nullable_int,
+            "filepath": _NULLABLE_STR,
+            "name": _NULLABLE_STR,
+            "ctime": _NULLABLE_INT,
+            "mtime": _NULLABLE_INT,
             "size": {"type": "integer"},
-            "sha256sum": nullable_str,
-            "permissions": nullable_str,
+            "sha256sum": _NULLABLE_STR,
+            "permissions": _NULLABLE_STR,
             "version": {
                 "type": "object",
                 "title": "VersionInfo",
@@ -122,8 +126,8 @@ def _file_object() -> dict[str, Any]:
                         "description": "Node cid → logical counter.",
                     },
                     "version_id": {"type": "string"},
-                    "origin_cid": {"type": ["string", "null"]},
-                    "ts": {"type": ["integer", "null"]},
+                    "origin_cid": _NULLABLE_STR,
+                    "ts": _NULLABLE_INT,
                     "corrected_mtime": {
                         "type": "integer",
                         "description": (
@@ -148,8 +152,8 @@ def _dir_object() -> dict[str, Any]:
         "type": "object",
         "title": "Dir",
         "properties": {
-            "path": {"type": ["string", "null"]},
-            "permissions": {"type": ["string", "null"]},
+            "path": _NULLABLE_STR,
+            "permissions": _NULLABLE_STR,
             "recursive": {
                 "type": "boolean",
                 "description": (
@@ -171,11 +175,11 @@ def _symlink_object() -> dict[str, Any]:
         "title": "Symlink",
         "properties": {
             "type": {"const": "symlink"},
-            "filepath": {"type": ["string", "null"]},
-            "name": {"type": ["string", "null"]},
-            "target": {"type": ["string", "null"]},
-            "ctime": {"type": ["number", "null"]},
-            "mtime": {"type": ["number", "null"]},
+            "filepath": _NULLABLE_STR,
+            "name": _NULLABLE_STR,
+            "target": _NULLABLE_STR,
+            "ctime": _NULLABLE_NUM,
+            "mtime": _NULLABLE_NUM,
         },
         "required": ["type", "filepath", "name", "target"],
         "additionalProperties": False,
