@@ -174,6 +174,24 @@ master drops re-runs the sweep immediately, but only demotes a master whose
 record is already stale: a transient local-link blip leaves the incumbent in
 place, so the surviving peers do not split-brain.
 
+### Leadership lease and yield (ADR-0027)
+
+Serving is a **lease**: a node holds the right to serve only while it is the
+elected master *and* actually serving. When a master **loses** the election (a
+`force_master` peer becomes `server_ready`, or the incumbent restarts and
+re-joins) it **yields immediately**: it stops its HTTP/WSS servers, revokes its
+incumbency by clearing the local `server_ready` flag and re-registering its
+mDNS record without `server_ready`/`connected`, and logs `[MASTER YIELD]`. A
+yielded node is therefore no longer an incumbent in any peer's election,
+closing the *zombie incumbent* window (a node that had stopped serving but
+still advertised `server_ready=true`).
+
+This is a bounded-incumbency lease, **not** a quorum: a full network partition
+can still briefly yield two masters, and the divergence is reconciled causally
+on heal ([ADR-0022](internal/adr/0022-causal-vector-clock-conflict-model.md)).
+Guaranteeing at-most-one master under partition would require a majority quorum
+with fixed membership, which conflicts with the dynamic home-LAN topology.
+
 ## Cross-language parity
 
 `lan-election-scenarios.json` is generated from the Python source
