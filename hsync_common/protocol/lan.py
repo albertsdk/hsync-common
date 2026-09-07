@@ -41,6 +41,7 @@ __all__ = [
     "ElectionCandidate",
     "elect_master",
     "election_sort_key",
+    "rank_election_candidates",
 ]
 
 # Canonical default/preferred sync direction; a bidirectional peer can serve
@@ -79,6 +80,20 @@ def election_sort_key(candidate: ElectionCandidate) -> tuple[bool, bool, bool, f
     )
 
 
+def rank_election_candidates(
+    candidates: Iterable[ElectionCandidate],
+) -> list[ElectionCandidate]:
+    """Return the eligible candidates ranked by :func:`election_sort_key`.
+
+    ``never_master`` nodes are filtered out first. Callers that need more than
+    the winner (e.g. the client's pre-computed successor, or the ranked
+    ``force_master`` subset for conflict reporting) must use this function so
+    the ranking itself lives only here; :func:`elect_master` is its
+    winner-only projection.
+    """
+    return sorted((c for c in candidates if not c.never_master), key=election_sort_key)
+
+
 def elect_master(candidates: Iterable[ElectionCandidate]) -> str | None:
     """Elect the master CID from ``candidates``.
 
@@ -86,10 +101,5 @@ def elect_master(candidates: Iterable[ElectionCandidate]) -> str | None:
     ranked by :func:`election_sort_key`. Returns the winning ``cid`` or ``None``
     when no node is eligible.
     """
-    eligible = (c for c in candidates if not c.never_master)
-    try:
-        return min(eligible, key=election_sort_key).cid
-    except ValueError:
-        # Empty generator: min() raises ValueError, same as the old
-        # empty-list -> None branch. One pass, no intermediate list.
-        return None
+    ranked = rank_election_candidates(candidates)
+    return ranked[0].cid if ranked else None
