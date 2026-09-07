@@ -34,7 +34,7 @@ lives in `LAN_TXT_KEYS`; do not introduce keys outside it.
 
 **Optional keys** (present only when meaningful/true): `group`, `https`,
 `cert_fp`, `compression`, `delta`, `server_ready`, `force_master`,
-`never_master`, `connected`.
+`never_master`, `connected`, `heartbeat`.
 
 `compression` and `delta` are advertised only when the feature is enabled on
 that node. Per the canonical rule, a boolean flag is advertised only when
@@ -129,6 +129,28 @@ otherwise keep a dead master's record indefinitely (the two-node failure mode).
 The candidate set is the local node plus every alive, group-compatible peer.
 `never_master` nodes are carried into the set but **excluded** by the algorithm.
 
+Liveness has two layers. The **WebSocket link is authoritative** for the
+master<->slave channels: a peer with a live WSS connection is alive regardless
+of mDNS staleness. For the **slave<->slave** channel (no WSS link) liveness is
+carried by a **heartbeat**: every peer re-announces its TXT record at
+`HSYNC_HEARTBEAT_INTERVAL` with an incremented opaque `heartbeat` counter, and
+zeroconf only re-delivers a TXT record when its *value* changes — so the
+counter is what makes a quiescent-but-alive peer's `last_seen` stay fresh.
+mDNS staleness is therefore the **fallback** that detects a hard crash: a dead
+peer stops heartbeating and its record goes stale within the peer timeout,
+without the false "idle peer = dead" demotions (split-brain) that a value-less
+re-announce would cause.
+
+Receivers must also apply a **goodbye grace**: a peer cannot always update its
+TXT in place (Android NSD has no `update_service`, so its heartbeat is an
+unregister+register cycle) and the unregister broadcasts a goodbye. Honouring
+that goodbye immediately would drop live **slave<->slave** peers (no WSS
+link) on every Android heartbeat and re-elect. Receivers therefore delay
+acting on `remove_service` / `onServiceLost` long enough for the following
+announce to cancel the removal. A live WSS link is still an immediate ignore.
+A peer that truly left is removed after the grace window (or by the staleness
+sweep if it crashed hard).
+
 The winner is the candidate with the smallest sort key
 (`election_sort_key`), i.e. highest priority first:
 
@@ -170,9 +192,10 @@ diagnostics — it never gates the decision. The peer timeout is a client
 operational knob (`HSYNC_PEER_TIMEOUT`) constrained to at least twice the
 heartbeat (`HSYNC_HEARTBEAT_INTERVAL`) so a single missed announce can never
 flap a live peer into a needless re-election. A slave whose WebSocket to the
-master drops re-runs the sweep immediately, but only demotes a master whose
-record is already stale: a transient local-link blip leaves the incumbent in
-place, so the surviving peers do not split-brain.
+master drops clears the master's WSS liveness mark and re-runs the sweep
+immediately, but only demotes a master whose record is already stale: a
+transient local-link blip leaves the incumbent in place, so the surviving peers
+do not split-brain.
 
 ### Leadership lease and yield (ADR-0027)
 
@@ -182,11 +205,20 @@ election — which, because exactly one node serves per healthy partition, only
 happens on **network-partition heal** (the two sides elected different masters,
 and a `force_master` peer wins at parity when they converge) — it **yields
 immediately**: it stops its HTTP/WSS servers, revokes its incumbency by
-clearing the local `server_ready` flag and re-registering its mDNS record
+clearing the local `server_ready` flag and updating its mDNS record in place
 without `server_ready`/`connected`, and logs `[MASTER YIELD]`. A yielded node is
 therefore no longer an incumbent in any peer's election, closing the *zombie
 incumbent* window (a node that had stopped serving but still advertised
 `server_ready=true`).
+
+A master's `server_ready`/`connected` TXT changes are always published
+**in place** (`zeroconf.update_service`), never as an unregister+register cycle:
+an unregister broadcasts a goodbye that every slave would observe as a spurious
+`remove_service` for the master (a "Peer disconnected" + re-election churn) for
+a value that only changed for diagnostics. (Android cannot honour this rule —
+NSD lacks an in-place TXT update — so its periodic re-announces rely on the
+receivers' goodbye grace described above; the grace applies to the heartbeat
+re-announce, never to a real mastership flip.)
 
 This is a bounded-incumbency lease, **not** a quorum: a full network partition
 can still briefly yield two masters, and the divergence is reconciled causally

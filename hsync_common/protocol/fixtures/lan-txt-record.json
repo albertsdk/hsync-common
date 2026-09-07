@@ -4,6 +4,7 @@
   "compression": "true",
   "connected": "3",
   "delta": "true",
+  "heartbeat": "7",
   "protocol": "lan/1",
   "server_ready": "true",
   "startup_time": "1700000000.5",
