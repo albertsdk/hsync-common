@@ -33,15 +33,15 @@ lives in `LAN_TXT_KEYS`; do not introduce keys outside it.
 | `sync_direction` | string | `bidirectional` (preferred), `upload-only`, `download-only`. |
 
 **Optional keys** (present only when meaningful/true): `group`, `https`,
-`cert_fp`, `compression`, `delta`, `vector_clocks`, `tombstones`,
-`server_ready`, `force_master`, `never_master`, `connected`.
+`cert_fp`, `compression`, `delta`, `server_ready`, `force_master`,
+`never_master`, `connected`.
 
-`vector_clocks` (causal version metadata, ADR-0022) and `tombstones`
-(deletion-marker gossip, ADR-0003) are core to the sync/conflict model: every
-build implements them **unconditionally** and advertises both. The
-`compression` and `delta` keys are advertised only when the feature is enabled
-on that node. Per the canonical rule, a boolean flag is advertised only when
-true, so an absent key means "false".
+`compression` and `delta` are advertised only when the feature is enabled on
+that node. Per the canonical rule, a boolean flag is advertised only when
+true, so an absent key means "false". Causal version metadata (ADR-0022) and
+deletion gossip (ADR-0003) are hard dependencies of the sync/conflict model and
+are negotiated over the authenticated WSS handshake (ADR-0024), never the TXT
+record.
 
 These keys are optional at the record level because a node only advertises them
 once it is **serving as master**. A master, however, **must** advertise both

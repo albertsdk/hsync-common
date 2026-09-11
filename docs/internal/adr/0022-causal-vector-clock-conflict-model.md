@@ -67,11 +67,11 @@ read-only.
 
 ### 7. Capability, not version bump
 
-A `Capability.vector_clocks` is advertised on all channels (WS auth, LAN TXT
-key) within the same protocol version (`api/1`, `ws/1`, `lan/1`). Version
-metadata is attached to file payloads (`FileDict.version`) unconditionally by
-new builds; old peers ignore unknown fields. Absent metadata ⇒ empty clock,
-handled natively by the same matrix.
+A `Capability.vector_clocks` is advertised on the authenticated handshakes
+(WS auth, LAN WSS) within the same protocol version (`api/1`, `ws/1`, `lan/1`).
+Version metadata is attached to file payloads (`FileDict.version`)
+unconditionally by new builds; old peers ignore unknown fields. Absent metadata
+⇒ empty clock, handled natively by the same matrix.
 
 ## Consequences
 

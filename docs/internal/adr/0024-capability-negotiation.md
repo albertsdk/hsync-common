@@ -35,11 +35,14 @@ We will define one coherent capability-negotiation policy across every channel:
    both sides advertise it; an absent capability degrades the feature (delta →
    full transfer, compression → raw, no clocks → empty clock), never an error.
    Unknown tokens stay silently ignored.
-5. **Honest advertising per channel**: TXT and the handshakes announce what is
-   actually implemented and enabled. The Python client/servers and Android
-   advertise `vector_clocks` and `tombstones` unconditionally (they are core to
-   the conflict/deletion model, ADR-0022/0003), `compression` and `delta` when
-   enabled. The central-server auth reply and the LAN handshake use the same
+5. **Honest advertising per channel**: the TXT record and the handshakes
+   announce what is actually implemented and enabled. `compression` and `delta`
+   are advertised on the TXT record only when enabled. Causal version metadata
+   (`vector_clocks`) and deletion gossip (`tombstones`) are hard dependencies of
+   the conflict/deletion model (ADR-0022/0003), so every build supports them;
+   they are negotiated on the authenticated handshake only and carry no
+   information on the unauthenticated TXT record, which does not advertise them.
+   The central-server auth reply and the LAN handshake use the same
    runtime-derived set (`hsync_client.capabilities.local_capabilities`).
 6. **The desktop `CapabilitiesDoc` is NOT a wire mechanism**: it crosses a
    process boundary (binary → GUI) and carries `cli_options`; it is not extended
