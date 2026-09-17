@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/hsync-logo-horizontal.svg" alt="HSYNC logo" width="480">
+  <img src="docs/assets/hsync-logo-horizontal.svg" alt="HSYNC logo" width="300">
 </p>
 
 # HSYNC Common Library
