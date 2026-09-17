@@ -86,7 +86,8 @@ class SyncStateStore(CausalStoreBase[FileVersion]):
     ) -> None:
         """Record (overwrite) the agreed base version for a relative path."""
         ts = int(timestamp) if timestamp is not None else int(time.time())
-        self._data[tombstone_key(relpath)] = FileVersion(
+        key = tombstone_key(relpath)
+        self._data[key] = FileVersion(
             base_hash=base_hash,
             version_id=version_id or new_version_id(),
             origin_cid=origin_cid,
@@ -94,10 +95,10 @@ class SyncStateStore(CausalStoreBase[FileVersion]):
             vclock=dict(vclock) if vclock else {},
             corrected_mtime=corrected_mtime,
         )
-        self._dirty = True
+        self._mark_dirty(key)
 
     def retain(self, relpaths: list[str]) -> int:
-        """Drop entries for paths not in ``relpaths``; return the drop count.
+        """Drop entries for paths not in *relpaths*; return the drop count.
 
         Keeps the store bounded: a version is only useful while its file still
         participates in the sync, so stale entries are garbage-collected.
@@ -106,8 +107,7 @@ class SyncStateStore(CausalStoreBase[FileVersion]):
         stale = [k for k in self._data if k not in keep]
         for k in stale:
             del self._data[k]
-        if stale:
-            self._dirty = True
+            self._mark_deleted(k)
         return len(stale)
 
     # ── query ───────────────────────────────────────────────────────
@@ -133,8 +133,8 @@ class SyncStateStore(CausalStoreBase[FileVersion]):
     def _parse_row(self, row: sqlite3.Row, now: int) -> tuple[str, FileVersion] | None:
         return _parse_version_row(row, now)
 
-    def _retain_rows(self, db: StateDb, folder_id: str, keep: list[str]) -> int:
-        return db.retain_versions(folder_id, keep)
+    def _delete_rows(self, db: StateDb, folder_id: str, keys: list[str]) -> int:
+        return db.delete_versions(folder_id, keys)
 
     def _upsert_row(self, db: StateDb, folder_id: str, key: str, entry: FileVersion) -> None:
         db.upsert_version(

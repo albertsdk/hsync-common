@@ -9,11 +9,18 @@
 :class:`CausalStoreBase` owns the fields and methods that
 :class:`~.version_store.SyncStateStore` and
 :class:`~.tombstone_store.TombstoneStore` share: the path-keyed map, dirty
-flag, cached :class:`~.sqlstore.StateDb` handle, ``clear``/``get``, backend
+tracking, cached :class:`~.sqlstore.StateDb` handle, ``clear``/``get``, backend
 resolution, and the generic ``load``/``save`` persistence skeleton. The
 subclasses supply only the per-table hooks (``_iter_rows``, ``_parse_row``,
-``_retain_rows``, ``_upsert_row``, ``_max_entries``) plus their domain
+``_delete_rows``, ``_upsert_row``, ``_max_entries``) plus their domain
 merge/record logic.
+
+Persistence is **incremental**: every mutation marks only the affected key
+(upsert or delete) and :meth:`save` writes just those rows. Rewriting the whole
+map on every save made the server's per-upload save O(N) — a full sync of N
+files then cost O(N²) writes and its temp-table retain raised
+``database table is locked`` under concurrent uploads. Durability is unchanged:
+the same transaction and ``PRAGMA synchronous=FULL`` still apply.
 
 Consumers: ``hsync-common`` store classes only (not a public API).
 """
@@ -44,12 +51,15 @@ class CausalStoreBase[T]:
         self._data: dict[str, T] = {}
         self._db: StateDb | None = None
         self._dirty = False
+        self._dirty_keys: set[str] = set()
+        self._deleted_keys: set[str] = set()
 
     def clear(self, relpath: str) -> bool:
         """Drop the stored entry for a relative path; return True if it existed."""
-        dropped = self._data.pop(tombstone_key(relpath), None) is not None
+        key = tombstone_key(relpath)
+        dropped = self._data.pop(key, None) is not None
         if dropped:
-            self._dirty = True
+            self._mark_deleted(key)
         return dropped
 
     def get(self, relpath: str) -> T | None:
@@ -67,11 +77,24 @@ class CausalStoreBase[T]:
             self._db = get_state_db(self.db_path)
         return self._db
 
+    # ── dirty tracking ──────────────────────────────────────────────
+    def _mark_dirty(self, key: str) -> None:
+        """Record that *key*'s current value must be upserted on next save."""
+        self._dirty_keys.add(key)
+        self._deleted_keys.discard(key)
+        self._dirty = True
+
+    def _mark_deleted(self, key: str) -> None:
+        """Record that *key*'s row must be deleted on next save."""
+        self._deleted_keys.add(key)
+        self._dirty_keys.discard(key)
+        self._dirty = True
+
     # ── persistence hooks (overridden by each store) ────────────────
     # ``load``/``save`` are implemented once here; the subclasses only supply
     # the per-table primitives below, so the two stores cannot drift apart in
     # their persistence skeleton (backend guard, ensure_folder, transaction,
-    # retain-then-upsert, dirty reset).
+    # incremental delete-then-upsert, dirty reset).
 
     def _max_entries(self) -> int | None:
         """Optional cap on entries loaded from the DB (None = unlimited)."""
@@ -85,8 +108,8 @@ class CausalStoreBase[T]:
         """Parse one DB row into a ``(key, entry)`` pair, or ``None`` if unusable."""
         raise NotImplementedError
 
-    def _retain_rows(self, db: StateDb, folder_id: str, keep: list[str]) -> int:
-        """Delete rows whose key is not in *keep*; return the drop count."""
+    def _delete_rows(self, db: StateDb, folder_id: str, keys: list[str]) -> int:
+        """Delete the rows for *keys*; return the deleted count."""
         raise NotImplementedError
 
     def _upsert_row(self, db: StateDb, folder_id: str, key: str, entry: T) -> None:
@@ -108,31 +131,53 @@ class CausalStoreBase[T]:
         cap = self._max_entries()
         now = int(time.time())
         data: dict[str, T] = {}
+        excluded: set[str] = set()
         for row in self._iter_rows(db, self.folder_id):
+            raw_key = str(row["key"])
             if cap is not None and len(data) >= cap:
-                break
+                # Keep enumerating so excess rows can be pruned below.
+                excluded.add(raw_key)
+                continue
             parsed = self._parse_row(row, now)
             if parsed is None:
+                excluded.add(raw_key)
                 continue
             key, entry = parsed
             data[key] = entry
         self._data = data
         self._dirty = False
+        self._dirty_keys.clear()
+        self._deleted_keys.clear()
+        # Rows deliberately excluded (structurally invalid, or beyond the cap)
+        # must not survive: the old full-rewrite save pruned them, so the
+        # incremental save has to mark them explicitly or the table would grow
+        # unbounded and reload arbitrary subsets.
+        for key in excluded - set(data):
+            self._mark_deleted(key)
 
     def save(self) -> None:
-        """Persist entries to the installation DB (one transaction).
+        """Persist pending changes to the installation DB (one transaction).
 
-        No-op when the store is not dirty or has no backend. Callers that
-        already hold a ``BEGIN IMMEDIATE`` (client ``flush``) still get a
-        consistent snapshot: the transaction context opens its own only when
-        none is active.
+        Writes only the keys marked dirty/deleted since the last save (see
+        :meth:`_mark_dirty` / :meth:`_mark_deleted`), so a store with N entries
+        no longer rewrites all N rows per mutation. No-op when nothing changed
+        or there is no backend. Callers that already hold a ``BEGIN IMMEDIATE``
+        (client ``flush``) still get a consistent snapshot: the transaction
+        context opens its own only when none is active.
         """
         db = self._backend()
         if db is None or self.folder_id is None or not self._dirty:
             return
         db.ensure_folder(self.folder_id, self.canonical_path)
+        deleted = sorted(self._deleted_keys)
+        upserts = sorted(self._dirty_keys)
         with db.transaction():
-            self._retain_rows(db, self.folder_id, list(self._data.keys()))
-            for key, entry in self._data.items():
-                self._upsert_row(db, self.folder_id, key, entry)
+            if deleted:
+                self._delete_rows(db, self.folder_id, deleted)
+            for key in upserts:
+                entry = self._data.get(key)
+                if entry is not None:
+                    self._upsert_row(db, self.folder_id, key, entry)
         self._dirty = False
+        self._dirty_keys.clear()
+        self._deleted_keys.clear()

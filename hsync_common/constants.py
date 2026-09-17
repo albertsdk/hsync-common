@@ -264,3 +264,10 @@ NTP_PROBES_PER_HOST = 3
 # or wildly mis-set peer cannot win every mtime tie-break (conflict
 # engineering). Mirrored by the Android client.
 CORRECTED_MTIME_MAX_FUTURE_SKEW = 300
+
+# Content-identical files whose corrected mtimes differ by more than this are
+# metadata-divergent: the engine still propagates the newer mtime (a plain
+# ``touch``) without transferring content. Small enough to converge normal
+# sub-second writes, large enough to absorb filesystem timestamp granularity.
+# Mirrored by the Android client.
+MTIME_PROPAGATION_TOLERANCE_SECONDS = 1

@@ -73,7 +73,7 @@ class TestStateDb:
         assert first == second
         assert db.folder_canonical_path(first) == "bucket:photos"
 
-    def test_retain_versions_temp_table(self, tmp_path):
+    def test_delete_versions_chunked(self, tmp_path):
         db = StateDb(tmp_path / "syncstate.db")
         folder_id = "11111111-1111-4111-8111-111111111111"
         db.ensure_folder(folder_id, "/b")
@@ -88,10 +88,10 @@ class TestStateDb:
                 vclock="{}",
                 corrected_mtime=0.0,
             )
-        keep = [f"k{i}" for i in range(1100)]
-        dropped = db.retain_versions(folder_id, keep)
-        assert dropped == 100
-        assert db.count_versions(folder_id) == 1100
+        # 1100 keys spans more than one internal chunk (limit 500).
+        deleted = db.delete_versions(folder_id, [f"k{i}" for i in range(100, 1200)])
+        assert deleted == 1100
+        assert db.count_versions(folder_id) == 100
 
     def test_get_state_db_caches_file_not_memory(self, tmp_path):
         path = tmp_path / "syncstate.db"
@@ -118,8 +118,8 @@ class TestStateDbMaintenance:
                 vclock="{}",
                 corrected_mtime=0.0,
             )
-        # Keep 100 rows, prune the rest -> leaves free pages in the file.
-        db.retain_versions(folder_id, [f"k{i}" for i in range(100)])
+        # Delete all but 100 rows -> leaves free pages in the file.
+        db.delete_versions(folder_id, [f"k{i}" for i in range(100, n)])
 
     def test_fresh_db_is_incremental_auto_vacuum(self, tmp_path):
         conn = open_state_db(tmp_path / "syncstate.db")

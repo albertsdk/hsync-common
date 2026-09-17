@@ -396,6 +396,19 @@ class ClockOffsetStore:
             return value + int(offset)
         return value
 
+    def uncorrect_mtime(self, corrected_mtime: int | float) -> int:
+        """Return ``corrected_mtime - offset`` as int (inverse of correct_mtime).
+
+        A wire-supplied value is an ADR-0023 *corrected* time; writing it into
+        the local filesystem requires the local raw clock, otherwise the next
+        :func:`correct_mtime` re-adds the offset and the file stays divergent.
+        """
+        value = int(corrected_mtime)
+        offset = self._epoch_offset if self._epoch_active else self._offset
+        if offset is not None:
+            return value - int(offset)
+        return value
+
 
 # Module-level singleton: one measurement per process, shared by every module
 # that corrects timestamps (mirrored as a singleton in Android's TimeSync.kt).
@@ -409,6 +422,16 @@ def correct_mtime(mtime: int | float) -> int:
     version metadata), ``hsync-android`` mirror.
     """
     return offset_store.correct_mtime(mtime)
+
+
+def uncorrect_mtime(corrected_mtime: int | float) -> int:
+    """Convert a wire-supplied corrected mtime back to the local raw clock.
+
+    Inverse of :func:`correct_mtime`. Consumers: ``hsync-client`` (adopting a
+    peer's corrected mtime onto the local filesystem), ``hsync-client`` LAN
+    master PATCH handler, ``hsync-android`` mirror.
+    """
+    return offset_store.uncorrect_mtime(corrected_mtime)
 
 
 def now_corrected() -> float:

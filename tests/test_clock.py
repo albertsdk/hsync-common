@@ -24,6 +24,7 @@ from hsync_common.clock import (
     offset_store,
     parse_ntp_hosts,
     parse_ntp_targets,
+    uncorrect_mtime,
 )
 from hsync_common.constants import NTP_DEFAULT_HOSTS
 
@@ -476,3 +477,21 @@ class TestNowCorrected:
             assert abs(now_corrected() - (int(time.time()) + 42)) <= 1
         finally:
             offset_store.clear()
+
+
+class TestUncorrectMtime:
+    """``uncorrect_mtime`` is the inverse of ``correct_mtime``."""
+
+    def test_round_trip_with_offset(self):
+        offset_store.clear()
+        offset_store.record(3600.0)
+        try:
+            raw = 1_700_000_000
+            assert correct_mtime(raw) == raw + 3600
+            assert uncorrect_mtime(correct_mtime(raw)) == raw
+        finally:
+            offset_store.clear()
+
+    def test_identity_without_offset(self):
+        offset_store.clear()
+        assert uncorrect_mtime(1_700_000_000) == 1_700_000_000

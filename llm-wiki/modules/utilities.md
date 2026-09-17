@@ -216,6 +216,15 @@ reconciliation, transfers, previews and server lines.
   reference = `now_corrected()` at `:409`, i.e. `correct_mtime(time.time())`).
   Wired in: `hsync-server` upload/delta-apply, client LAN master upload and
   remote decode; Android mirror `TimeSync.kt`.
+- Metadata convergence: `constants.MTIME_PROPAGATION_TOLERANCE_SECONDS = 1 s`
+  is the divergence threshold above which a content-identical `touch` is
+  propagated. Consumers: `hsync-client` `sync.get_sync_actions` /
+  `sync_state.mtime_diverges`, `hsync-server`
+  `apply_metadata_to_existing_file`, client LAN PATCH handler.
+- `uncorrect_mtime` (`clock.py`, inverse of `correct_mtime`) converts a
+  wire-supplied corrected time back to the local raw clock before writing it to
+  the filesystem. Consumers: `hsync-client` (`sync._apply_local_mtime`, LAN
+  master PATCH handler), `hsync-android` mirror.
 - Android mirror: `TimeSync.kt` (same SNTP + HTTP/RTT algorithms).
 
 > NTP defaults (`NTP_DEFAULT_HOSTS`, `NTP_PORT`, `NTP_TIMEOUT_SECONDS`,

@@ -587,7 +587,7 @@ class TestSyncStateStorePersistence:
         _, ok = store.iter_entries()[0]
         assert ok["vclock"] == {CID_A: 1}
 
-    def test_retain_chunks_more_than_1000_keys(self, tmp_path):
+    def test_retain_persists_deletions(self, tmp_path):
         store = _version_store(tmp_path)
         keep = [f"keep-{i}.txt" for i in range(1200)]
         drop = [f"drop-{i}.txt" for i in range(50)]
@@ -602,6 +602,50 @@ class TestSyncStateStorePersistence:
         assert len(reloaded) == 1200
         assert reloaded.base_hash("keep-0.txt") == "h"
         assert reloaded.get("drop-0.txt") is None
+
+    def test_incremental_save_leaves_untouched_rows(self, tmp_path):
+        """A later save only re-persists the touched keys.
+
+        Regression for the server upload 500s: the previous full-map persist
+        deleted through a temporary table whose ``DROP`` ran while the delete
+        cursor was still open, raising ``sqlite3.OperationalError: database
+        table is locked``. The incremental save deletes/upserts only the
+        marked keys, so untouched rows survive without a temp table.
+        """
+        store = _version_store(tmp_path)
+        store.record("keep.txt", base_hash="hk")
+        store.record("other.txt", base_hash="ho")
+        store.save()
+
+        store.record("new.txt", base_hash="hn")
+        store.clear("other.txt")
+        store.save()
+
+        reloaded = _version_store(tmp_path)
+        reloaded.load()
+        assert reloaded.base_hash("keep.txt") == "hk"
+        assert reloaded.base_hash("new.txt") == "hn"
+        assert reloaded.base_hash("other.txt") is None
+
+    def test_incremental_save_inside_caller_transaction(self, tmp_path):
+        """Saving while a transaction is already open stays consistent."""
+        from hsync_common.models.sqlstore import get_state_db
+
+        store = _version_store(tmp_path)
+        store.record("a.txt", base_hash="h")
+        store.save()
+
+        db = get_state_db(str(tmp_path / "syncstate.db"))
+        with db.transaction():
+            store.record("b.txt", base_hash="h")
+            store.save()
+            store.clear("a.txt")
+            store.save()
+
+        reloaded = _version_store(tmp_path)
+        reloaded.load()
+        assert reloaded.base_hash("a.txt") is None
+        assert reloaded.base_hash("b.txt") == "h"
 
 
 class TestFileVersionTypedDict:

@@ -114,7 +114,7 @@ class TombstoneStore(CausalStoreBase[TombstoneEntry]):
             ts=ts,
             vclock=clock,
         )
-        self._dirty = True
+        self._mark_dirty(key)
 
     # ── maintenance ─────────────────────────────────────────────────
     def prune(self, now: int | float | None = None) -> int:
@@ -131,8 +131,7 @@ class TombstoneStore(CausalStoreBase[TombstoneEntry]):
         expired = [k for k, v in self._data.items() if v["ts"] < cutoff]
         for k in expired:
             del self._data[k]
-        if expired:
-            self._dirty = True
+            self._mark_deleted(k)
         return len(expired)
 
     # ── transport (causal merge) ────────────────────────────────────
@@ -173,13 +172,13 @@ class TombstoneStore(CausalStoreBase[TombstoneEntry]):
                 if len(self._data) >= tombstone.TOMBSTONE_MAX_ENTRIES:
                     break
                 self._data[key] = clean
+                self._mark_dirty(key)
                 changed += 1
                 continue
             if tombstone_merge_decision(existing, clean) == "adopt":
                 self._data[key] = clean
+                self._mark_dirty(key)
                 changed += 1
-        if changed:
-            self._dirty = True
         return changed
 
     # ── persistence hooks (see CausalStoreBase.load/save) ──────────
@@ -192,8 +191,8 @@ class TombstoneStore(CausalStoreBase[TombstoneEntry]):
     def _parse_row(self, row: sqlite3.Row, now: int) -> tuple[str, TombstoneEntry] | None:
         return _parse_tombstone_row(row, now)
 
-    def _retain_rows(self, db: StateDb, folder_id: str, keep: list[str]) -> int:
-        return db.retain_tombstones(folder_id, keep)
+    def _delete_rows(self, db: StateDb, folder_id: str, keys: list[str]) -> int:
+        return db.delete_tombstones(folder_id, keys)
 
     def _upsert_row(self, db: StateDb, folder_id: str, key: str, entry: TombstoneEntry) -> None:
         db.upsert_tombstone(

@@ -52,6 +52,10 @@ SCHEMA_USER_VERSION = 1
 INCREMENTAL_VACUUM_INTERVAL_S = 3600.0
 INCREMENTAL_VACUUM_PAGES = 1000
 
+# Keys per DELETE statement. Bounded so a large prune cannot exceed SQLite's
+# statement-variable limit.
+_DELETE_KEYS_CHUNK = 500
+
 _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS folders (
   folder_id      TEXT PRIMARY KEY,
@@ -406,10 +410,10 @@ class StateDb:
             ).fetchone()
             return 0 if row is None else int(row["n"])
 
-    def retain_versions(self, folder_id: str, keep: Sequence[str]) -> int:
-        """Drop version rows whose key is not in *keep*; return drop count."""
+    def delete_versions(self, folder_id: str, keys: Sequence[str]) -> int:
+        """Delete the given version rows; return the number actually removed."""
         with self._lock:
-            return self._retain("versions", folder_id, keep)
+            return self._delete_keys("versions", folder_id, keys)
 
     # ── tombstones ──────────────────────────────────────────────────
     def upsert_tombstone(
@@ -448,40 +452,27 @@ class StateDb:
                 )
             )
 
-    def retain_tombstones(self, folder_id: str, keep: Sequence[str]) -> int:
-        """Drop tombstone rows whose key is not in *keep*; return drop count."""
+    def delete_tombstones(self, folder_id: str, keys: Sequence[str]) -> int:
+        """Delete the given tombstone rows; return the number actually removed."""
         with self._lock:
-            return self._retain("tombstones", folder_id, keep)
+            return self._delete_keys("tombstones", folder_id, keys)
 
-    def _retain(self, table: str, folder_id: str, keep: Sequence[str]) -> int:
-        """Temp-table anti-join retain; empty *keep* deletes every row."""
+    def _delete_keys(self, table: str, folder_id: str, keys: Sequence[str]) -> int:
+        """Delete rows for *keys* in bounded chunks; return the deleted count.
+
+        Chunked so a large prune cannot exceed SQLite's statement-variable cap.
+        Callers hold :attr:`_lock`.
+        """
         if table not in {"versions", "tombstones"}:
-            raise ValueError(f"unknown retain table: {table}")
-        with self._lock:
-            if not keep:
-                cur = self._conn.execute(
-                    f"DELETE FROM {table} WHERE folder_id = ?",
-                    (folder_id,),
-                )
-                return cur.rowcount
-            temp_table = f"_retain_keep_{table}"
-            self._conn.execute(
-                f"CREATE TEMP TABLE IF NOT EXISTS {temp_table} (key TEXT PRIMARY KEY)"
+            raise ValueError(f"unknown table: {table}")
+        deleted = 0
+        key_list = list(keys)
+        for start in range(0, len(key_list), _DELETE_KEYS_CHUNK):
+            chunk = key_list[start : start + _DELETE_KEYS_CHUNK]
+            placeholders = ",".join("?" * len(chunk))
+            cur = self._conn.execute(
+                f"DELETE FROM {table} WHERE folder_id = ? AND key IN ({placeholders})",
+                (folder_id, *chunk),
             )
-            try:
-                self._conn.execute(f"DELETE FROM {temp_table}")
-                self._conn.executemany(
-                    f"INSERT OR IGNORE INTO {temp_table} (key) VALUES (?)",
-                    ((k,) for k in keep),
-                )
-                cur = self._conn.execute(
-                    f"""
-                    DELETE FROM {table}
-                    WHERE folder_id = ?
-                      AND key NOT IN (SELECT key FROM {temp_table})
-                    """,
-                    (folder_id,),
-                )
-                return cur.rowcount
-            finally:
-                self._conn.execute(f"DROP TABLE IF EXISTS {temp_table}")
+            deleted += cur.rowcount
+        return deleted
