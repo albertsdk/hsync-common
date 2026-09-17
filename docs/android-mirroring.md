@@ -110,8 +110,10 @@ produce identical results.
 - **SHA-256 caching**: Python uses an in-memory LRU cache keyed by
   `(filepath, mtime)`; Kotlin's `FileHashUtils` computes hashes on demand with
   a fixed 8 KB buffer and no caching.
-- **Adaptive chunk sizes**: Python uses 8 KB / 64 KB / 256 KB depending on file
-  size; Kotlin's `FileHashUtils` uses a single fixed 8 KB buffer.
+- **Adaptive chunk sizes**: Python uses 256 KB / 512 KB / 1 MB depending on file
+  size; Kotlin's `FileHashUtils` uses a single fixed 8 KB buffer. This is a
+  local read-buffer choice on each side, never a wire field, so the two
+  implementations are free to differ.
 - **`FileDict`**: Python's `TypedDict` has no Kotlin equivalent; Kotlin uses
   a `data class` (`FileItem`) serialized with Gson.
 - **Serialization**: Python uses Pydantic/dataclass `to_dict()`; Kotlin uses

@@ -55,6 +55,20 @@ class TestAdaptiveChunkSize:
     def test_large(self):
         assert adaptive_chunk_size(FILE_SIZE_MEDIUM) == CHUNK_SIZE_LARGE
 
+    def test_sub_megabyte_files_avoid_many_python_iterations(self):
+        """The sub-1MB tier must amortise the per-iteration Python overhead.
+
+        Each download iteration pays a frame read, the throttle wrapper, one
+        ``hash.update`` call and a write. Measured on the HTTPS apply path with
+        an incompressible 200 KiB payload, an 8 KiB chunk made the file pay 26
+        iterations and 5.5 ms CPU/file, while a 256 KiB chunk needs one
+        iteration and 4.3 ms/file. Guard the intent so a future "tidy" shrink of
+        the tier fails loudly here instead of silently regressing the read loop.
+        """
+        chunk = adaptive_chunk_size(FILE_SIZE_SMALL - 1)
+        assert chunk >= 256 * 1024
+        assert (FILE_SIZE_SMALL - 1) // chunk <= 4
+
 
 class TestComputeSha256:
     def test_matches_hashlib(self, tmp_path):

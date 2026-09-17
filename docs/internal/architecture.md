@@ -141,8 +141,8 @@ The `File` class represents a file with its synchronization metadata:
 Key features:
 - **SHA-256 caching** — in-memory cache keyed by `(filepath, mtime)` to avoid
   redundant hash computation within a sync cycle.
-- **Adaptive chunk sizes** — SHA-256 computation uses 8 KB / 64 KB / 256 KB chunks
-  depending on file size for optimal throughput.
+- **Adaptive chunk sizes** — SHA-256 computation and transfer reads use
+  256 KB / 512 KB / 1 MB chunks depending on file size for optimal throughput.
 - **`FileDict`** — a `TypedDict` for type-safe dictionary serialization.
 
 ### Dir
@@ -341,9 +341,9 @@ Engine-owned artifacts (`.hsyncignore`, `.hsyncfolder`, leftover
 | `HSYNCSTATE_FILENAME`        | `".hsyncstate"`      | Legacy name; rejected on the wire        |
 | `PARTIAL_DOWNLOAD_SUFFIX`    | `".part"`            | Suffix for in-progress downloads         |
 | `TOMBSTONE_TTL_DAYS_DEFAULT` | `90`                 | Retention window before tombstone GC (storage bound only) |
-| `CHUNK_SIZE_SMALL`           | 8 KB                 | SHA-256 chunk size for files < 1 MB      |
-| `CHUNK_SIZE_MEDIUM`          | 64 KB                | SHA-256 chunk size for files < 100 MB    |
-| `CHUNK_SIZE_LARGE`           | 256 KB               | SHA-256 chunk size for files ≥ 100 MB    |
+| `CHUNK_SIZE_SMALL`           | 256 KB               | Read/hash chunk size for files < 1 MB    |
+| `CHUNK_SIZE_MEDIUM`          | 512 KB               | Read/hash chunk size for files < 100 MB  |
+| `CHUNK_SIZE_LARGE`           | 1 MB                 | Read/hash chunk size for files ≥ 100 MB  |
 | `FILE_SIZE_SMALL`            | 1 MB                 | Threshold for medium chunk size          |
 | `FILE_SIZE_MEDIUM`           | 100 MB               | Threshold for large chunk size           |
 | `DELTA_MIN_FILE_SIZE`        | 256 KB               | Minimum file size to attempt delta sync  |

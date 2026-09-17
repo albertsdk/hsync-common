@@ -69,7 +69,7 @@ def adaptive_chunk_size(file_size: int | None) -> int:
         file_size: Size of the file in bytes, or ``None`` if unknown.
 
     Returns:
-        Chunk size in bytes (8KB to 256KB).
+        Chunk size in bytes (``CHUNK_SIZE_SMALL`` to ``CHUNK_SIZE_LARGE``).
     """
     if file_size is None:
         return CHUNK_SIZE_MEDIUM
@@ -106,9 +106,9 @@ async def compute_sha256_async(filepath: str) -> str:
     never block the event loop.
 
     Replaces the previous ``aiofiles`` implementation, which read the file in
-    ``CHUNK_SIZE_SMALL`` (8 KB) chunks and paid one executor round-trip per
-    chunk: ~81 ms for a 16 MB file against ~11 ms here (7.2x, measured by the
-    L1 hashing benchmark), with the same bounded-memory profile.
+    8 KB chunks and paid one executor round-trip per chunk: ~81 ms for a 16 MB
+    file against ~11 ms here (7.2x, measured by the L1 hashing benchmark), with
+    the same bounded-memory profile.
 
     Args:
         filepath: Path to the file.

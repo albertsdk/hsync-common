@@ -158,10 +158,26 @@ HSYNCSTATE_FILENAME = ".hsyncstate"
 # File Transfer Settings
 # =============================================================================
 
-# Chunk sizes based on file size for optimal checksum computation
-CHUNK_SIZE_SMALL = 8 * 1024  # 8KB for files < 1MB
-CHUNK_SIZE_MEDIUM = 64 * 1024  # 64KB for files < 100MB
-CHUNK_SIZE_LARGE = 256 * 1024  # 256KB for files >= 100MB
+# Read chunk sizes by file size. The tiers bound the per-transfer buffer, so
+# they only need to grow when the per-iteration Python overhead (frame read,
+# throttle wrapper, hash update, write) becomes material relative to the bytes
+# in flight. Measured on the HTTPS apply path: at 8 KiB a 200 KiB file paid 26
+# Python-level iterations and cost 5.5 ms CPU/file (incompressible payload);
+# at 256 KiB the same file is read in a single iteration and costs 4.3 ms/file
+# (~-20%). Above ~1 MiB the transfer itself (TLS + hashing + writes) dominates
+# and the chunk size measured neutral, so the upper tiers exist only to keep
+# the worst-case buffering bounded (see below).
+#
+# Note: the end-to-end LAN burst probe could NOT resolve this saving, because
+# that path spends ~15 ms CPU/file for reasons not yet attributed (see
+# hsync-client/docs/internal/testing.md). The isolated per-file reduction is
+# real; the end-to-end gain is not measurable until that overhead is understood.
+#
+# Worst-case buffering = CHUNK_SIZE_LARGE * MAX_CONCURRENT_TRANSFERS (default
+# concurrency 5 -> 5 MiB), which keeps the NAS target comfortable.
+CHUNK_SIZE_SMALL = 256 * 1024  # 256KB for files < 1MB (one read per file)
+CHUNK_SIZE_MEDIUM = 512 * 1024  # 512KB for files < 100MB
+CHUNK_SIZE_LARGE = 1024 * 1024  # 1MB for files >= 100MB
 
 # File size thresholds for chunk size selection
 FILE_SIZE_SMALL = 1_000_000  # 1MB

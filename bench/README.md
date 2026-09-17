@@ -19,7 +19,7 @@ operation really took the intended branch.
 
 | Script | Measures |
 |---|---|
-| `bench_hashing.py` | `compute_sha256` at 64 KB/1 MB/16 MB; `compute_sha256_async` variants (production 8 KB chunk, explicit 1 MB chunk, candidate `asyncio.to_thread`); `is_sha256_hex`, `adaptive_chunk_size` |
+| `bench_hashing.py` | `compute_sha256` and `compute_sha256_async` at 64 KB/1 MB/16 MB; `is_sha256_hex`, `adaptive_chunk_size` |
 | `bench_compression.py` | `should_compress`, `compress_data` / `decompress_data` (text / binary / incompressible at 100 KB–10 MB), `compress_file_to_file`, `decompress_stream`, plus a compression-level A/B (current level vs candidate level 1) with the resulting output sizes |
 | `bench_delta.py` | `compute_signatures`, `signatures_for_data`, `build_signature_index`, `find_matches_file` (0/10/50 % changed blocks **and** front-insertion cases that force the window to re-synchronise), `apply_delta`, decision helpers |
 | `bench_ignore.py` | `IgnoreMatcher` construction (default + extra patterns), per-path `matches` / `should_skip`, full-scan sweeps (bucket rules vs. default-only fallback) |

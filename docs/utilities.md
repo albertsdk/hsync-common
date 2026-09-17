@@ -22,8 +22,8 @@ Compression support is negotiated between peers during connection setup (see
 
 ## Hashing (`hsync_common.hashing`)
 
-SHA-256 computation with adaptive chunk sizing (8 KB / 64 KB / 256 KB depending
-on file size) and hex digest validation.
+SHA-256 computation with adaptive read chunk sizing (256 KB / 512 KB / 1 MB
+depending on file size) and hex digest validation.
 
 ## Ignore matcher (`hsync_common.ignore`)
 

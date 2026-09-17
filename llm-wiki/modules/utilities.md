@@ -18,9 +18,14 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
   `.hsyncfolder` (`:106`), `syncstate.db` (`:111`), `HSYNC_STATE_DIR` (`:115`);
   leftover `.hsynctombstones` / `.hsyncstate` (`:120`/`:121`) stay rejected
   on the wire (ADR-0025).
-- Adaptive chunk tiers: `CHUNK_SIZE_SMALL/MEDIUM/LARGE` (`:128`–`:130`) gated by
-  `FILE_SIZE_SMALL/MEDIUM` (`:133`/`:134`).
-- `PARTIAL_DOWNLOAD_SUFFIX = ".part"` (`:144`).
+- Adaptive chunk tiers: `CHUNK_SIZE_SMALL/MEDIUM/LARGE` (`:178`–`:180`) gated by
+  `FILE_SIZE_SMALL/MEDIUM` (`:183`/`:184`). The sub-1MB tier is 256 KiB so a
+  typical burst file is read in a single iteration; measured on the HTTPS apply
+  path with incompressible payloads, 8 KiB vs 256 KiB changed 5.5 → 4.3 ms
+  CPU/file for a 200 KiB file, while above ~1 MiB the tier is neutral (the
+  transfer itself dominates). `hsync-common/tests/test_hashing.py` guards the
+  intent.
+- `PARTIAL_DOWNLOAD_SUFFIX = ".part"` (`:194`).
 
 ## hashing.py
 
