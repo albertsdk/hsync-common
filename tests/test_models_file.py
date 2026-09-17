@@ -177,11 +177,11 @@ class TestFileSha256Cache:
         clear_sha256_cache()
         # Fill the cache to the limit using fake paths
         for i in range(SHA256_CACHE_MAX_SIZE):
-            _set_cached_sha256(f"/fake/path/{i}.txt", "a" * 32, i, 0)
+            _set_cached_sha256(f"/fake/path/{i}.txt", "a" * 32, i, 0, 0)
         assert len(_sha256_cache) == SHA256_CACHE_MAX_SIZE
 
         # Adding one more entry should evict the oldest (/fake/path/0.txt)
-        _set_cached_sha256("/fake/path/overflow.txt", "b" * 32, 9999, 0)
+        _set_cached_sha256("/fake/path/overflow.txt", "b" * 32, 9999, 0, 0)
         assert len(_sha256_cache) == SHA256_CACHE_MAX_SIZE
         assert "/fake/path/0.txt" not in _sha256_cache
         assert "/fake/path/overflow.txt" in _sha256_cache
@@ -189,36 +189,102 @@ class TestFileSha256Cache:
         clear_sha256_cache()  # clean up for subsequent tests
 
     def test_cache_hit_returns_value_and_moves_to_end(self):
-        """A hit with matching mtime+size returns the cached sum and refreshes LRU order."""
+        """A hit with matching identity returns the cached sum and refreshes LRU order."""
         clear_sha256_cache()
-        _set_cached_sha256("/a.txt", "a" * 64, mtime=10, size=5)
-        _set_cached_sha256("/b.txt", "b" * 64, mtime=20, size=5)
+        _set_cached_sha256("/a.txt", "a" * 64, mtime_ns=10, ctime_ns=100, size=5)
+        _set_cached_sha256("/b.txt", "b" * 64, mtime_ns=20, ctime_ns=200, size=5)
         # Hitting the oldest entry should move it to the end (most-recent).
-        assert _get_cached_sha256("/a.txt", 10, 5) == "a" * 64
+        assert _get_cached_sha256("/a.txt", 10, 100, 5) == "a" * 64
         assert next(reversed(_sha256_cache)) == "/a.txt"
         clear_sha256_cache()
 
     def test_cache_miss_on_mtime_change_evicts_entry(self):
         """A stale mtime drops the entry and returns None."""
         clear_sha256_cache()
-        _set_cached_sha256("/c.txt", "c" * 64, mtime=10, size=5)
-        assert _get_cached_sha256("/c.txt", 11, 5) is None
+        _set_cached_sha256("/c.txt", "c" * 64, mtime_ns=10, ctime_ns=100, size=5)
+        assert _get_cached_sha256("/c.txt", 11, 100, 5) is None
         assert "/c.txt" not in _sha256_cache
         clear_sha256_cache()
 
     def test_cache_miss_on_size_change_evicts_entry(self):
-        """Regression: same-second rewrites keep the same mtime (coarse 1s
-        granularity). The size is part of the validity key, so a changed size
-        must drop the stale digest instead of serving it."""
+        """A changed size must drop the stale digest instead of serving it."""
         clear_sha256_cache()
-        _set_cached_sha256("/d.txt", "d" * 64, mtime=10, size=5)
-        assert _get_cached_sha256("/d.txt", 10, 6) is None
+        _set_cached_sha256("/d.txt", "d" * 64, mtime_ns=10, ctime_ns=100, size=5)
+        assert _get_cached_sha256("/d.txt", 10, 100, 6) is None
         assert "/d.txt" not in _sha256_cache
+        clear_sha256_cache()
+
+    def test_cache_miss_on_ctime_change_evicts_entry(self):
+        """A same-mtime same-size rewrite must still miss via ctime.
+
+        Regression for the cross-cycle reuse: the old identity (seconds-granularity
+        mtime + size) could serve a stale digest after a same-second rewrite with
+        identical size. ctime changes on every write with kernel resolution, so it
+        is part of the identity and a stale hit is impossible.
+        """
+        clear_sha256_cache()
+        _set_cached_sha256("/e.txt", "e" * 64, mtime_ns=10, ctime_ns=100, size=5)
+        assert _get_cached_sha256("/e.txt", 10, 101, 5) is None
+        assert "/e.txt" not in _sha256_cache
         clear_sha256_cache()
 
     def test_cache_miss_on_unknown_path(self):
         clear_sha256_cache()
-        assert _get_cached_sha256("/never-seen.txt", 1, 0) is None
+        assert _get_cached_sha256("/never-seen.txt", 1, 1, 0) is None
+
+
+class TestFileGetSha256Cache:
+    """``File.get`` reuses the digest when the stat identity is unchanged.
+
+    These tests pin the cross-cycle cache contract: an untouched file must be
+    hashed once and served from cache on every later ``File.get``, while any
+    rewrite — including one that restores mtime and size — must re-hash.
+    """
+
+    def test_unchanged_file_serves_cached_digest(self, tmp_path):
+        from hsync_common.models.file import _sha256_cache as cache
+
+        clear_sha256_cache()
+        target = tmp_path / "stable.txt"
+        target.write_bytes(b"stable content")
+
+        first = File.get(str(target))
+        assert first is not None
+        cached_sum = first.sha256sum
+        # Second get: served from cache (identity unchanged).
+        second = File.get(str(target))
+        assert second is not None and second.sha256sum == cached_sum
+        assert str(target) in cache
+
+        # Rewrite with the same size but different content: mtime/ctime change.
+        target.write_bytes(b"STABLE CONTENT")
+        third = File.get(str(target))
+        assert third is not None
+        assert third.sha256sum != cached_sum
+        assert third.sha256sum is not None
+        clear_sha256_cache()
+
+    def test_same_size_rewrite_rehashes(self, tmp_path):
+        """Same-size rewrite (even mtime-restored) must never serve the old digest."""
+        clear_sha256_cache()
+        target = tmp_path / "rewrite.txt"
+        target.write_bytes(b"AAAAAAAA")
+        first = File.get(str(target))
+        assert first is not None
+        old_sum = first.sha256sum
+
+        # Restore mtime (touch -r style) so only ctime moves: the identity
+        # still changes and the digest must be recomputed.
+        import os
+
+        mtime_ns = os.stat(target).st_mtime_ns
+        target.write_bytes(b"BBBBBBBB")
+        os.utime(target, ns=(os.stat(target).st_atime_ns, mtime_ns))
+
+        second = File.get(str(target))
+        assert second is not None
+        assert second.sha256sum != old_sum
+        clear_sha256_cache()
 
 
 class TestFileRepr:

@@ -37,14 +37,17 @@ if TYPE_CHECKING:
 SHA256_CACHE_MAX_SIZE: int = 10_000
 
 # In-memory LRU cache for SHA-256 checksums to avoid redundant computation
-# during a single sync operation. Key: filepath, Value: tuple[sha256sum, mtime,
-# size]. The size is part of the validity key: on filesystems with coarse mtime
-# granularity (1s) a file rewritten in the same second keeps the same mtime, so
-# mtime alone would serve a stale digest — the size catches a large class of
-# those same-second rewrites.
+# across sync cycles. Key: filepath, Value: tuple[sha256sum, mtime_ns,
+# ctime_ns, size]. The identity is validated at nanosecond granularity on
+# every hit: ctime changes on ANY write (content or metadata) with the
+# kernel's finest resolution, so a rewrite that preserves mtime and size —
+# e.g. a same-second same-size rewrite on a coarse-mtime filesystem, or a
+# ``touch -r``-style mtime restoration — still evicts the stale digest.
+# Callers additionally invalidate single entries on observed mutations
+# (watcher events, post-download/post-upload writes).
 # OrderedDict is used so we can evict the least-recently-used entry when the
 # cache is full (move-to-end on hit, pop-first on overflow).
-_sha256_cache: OrderedDict[str, tuple[str, int, int]] = OrderedDict()
+_sha256_cache: OrderedDict[str, tuple[str, int, int, int]] = OrderedDict()
 
 # Guards every access to ``_sha256_cache``. Readers are multi-threaded by
 # design: hsync-client reads metadata from scan/transfer pool threads and
@@ -57,8 +60,10 @@ _sha256_cache_lock = Lock()
 def clear_sha256_cache() -> None:
     """Clear the entire SHA-256 cache.
 
-    Should be called at the start of each sync cycle to ensure
-    fresh checksums are computed for all files.
+    Called at the start of each sync cycle in one-shot mode (no live
+    watcher invalidating entries) to guarantee fresh checksums. Continuous
+    mode relies on per-entry invalidation plus the nanosecond identity
+    check instead, so unchanged files are never re-hashed.
     """
     with _sha256_cache_lock:
         _sha256_cache.clear()
@@ -78,24 +83,32 @@ def invalidate_sha256_cache(file_path: str) -> None:
         _sha256_cache.pop(file_path, None)
 
 
-def _get_cached_sha256(file_path: str, current_mtime: int, current_size: int) -> str | None:
+def _get_cached_sha256(
+    file_path: str, current_mtime_ns: int, current_ctime_ns: int, current_size: int
+) -> str | None:
     """Get cached SHA-256 if file metadata still matches (LRU: move to end on hit)."""
     with _sha256_cache_lock:
         try:
-            cached_sha256, cached_mtime, cached_size = _sha256_cache[file_path]
+            cached_sha256, cached_mtime_ns, cached_ctime_ns, cached_size = _sha256_cache[file_path]
         except KeyError:
             return None
-        if cached_mtime == current_mtime and cached_size == current_size:
+        if (
+            cached_mtime_ns == current_mtime_ns
+            and cached_ctime_ns == current_ctime_ns
+            and cached_size == current_size
+        ):
             _sha256_cache.move_to_end(file_path)
             return cached_sha256
         _sha256_cache.pop(file_path, None)
         return None
 
 
-def _set_cached_sha256(file_path: str, sha256sum: str, mtime: int, size: int) -> None:
-    """Store SHA-256 in cache with its mtime/size; evict LRU entry at capacity."""
+def _set_cached_sha256(
+    file_path: str, sha256sum: str, mtime_ns: int, ctime_ns: int, size: int
+) -> None:
+    """Store SHA-256 in cache with its stat identity; evict LRU entry at capacity."""
     with _sha256_cache_lock:
-        _sha256_cache[file_path] = (sha256sum, mtime, size)
+        _sha256_cache[file_path] = (sha256sum, mtime_ns, ctime_ns, size)
         _sha256_cache.move_to_end(file_path)
         if len(_sha256_cache) > SHA256_CACHE_MAX_SIZE:
             _sha256_cache.popitem(last=False)  # evict oldest (least recently used)
@@ -262,14 +275,16 @@ class File:
             return None
         file_size = file_stat.st_size
         file_mtime = int(file_stat.st_mtime)
+        file_mtime_ns = int(file_stat.st_mtime_ns)
+        file_ctime_ns = int(file_stat.st_ctime_ns)
 
-        sha256sum = _get_cached_sha256(file_path, file_mtime, file_size)
+        sha256sum = _get_cached_sha256(file_path, file_mtime_ns, file_ctime_ns, file_size)
         if sha256sum is None:
             try:
                 sha256sum = compute_sha256(file_path)
             except OSError:
                 return None
-            _set_cached_sha256(file_path, sha256sum, file_mtime, file_size)
+            _set_cached_sha256(file_path, sha256sum, file_mtime_ns, file_ctime_ns, file_size)
 
         # Reuse the st_mode already read by file.stat() above instead of a
         # second stat syscall (get_permissions would stat the path again).

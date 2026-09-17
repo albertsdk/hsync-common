@@ -22,12 +22,17 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
 - Attributes: `filepath, name, ctime, mtime, size, sha256sum, permissions`
   (constructor `models/file.py`). `permissions` is an **octal string**
   (e.g. `"644"`), produced via `permissions.get_permissions` (see utilities).
-- SHA-256 cache keyed by `(file_path, mtime, size)`: `_get_cached_sha256`
-  (`models/file.py`), `_set_cached_sha256`, invalidation
-  `invalidate_sha256_cache`, full clear `clear_sha256_cache`. The **size is
-  part of the validity key**: on filesystems with coarse 1 s mtime
-  granularity a same-second same-size rewrite is indistinguishable, but a
-  size change always drops the stale digest. **Thread-safe**: every access
+- SHA-256 cache keyed by `(file_path, mtime_ns, ctime_ns, size)`:
+  `_get_cached_sha256` (`models/file.py`), `_set_cached_sha256`, invalidation
+  `invalidate_sha256_cache`, full clear `clear_sha256_cache`. The identity is
+  validated at **nanosecond granularity** on every hit: `ctime_ns` changes on
+  ANY write with kernel resolution, so a rewrite that preserves mtime and size
+  (same-second rewrite on a coarse-mtime filesystem, `touch -r`-style mtime
+  restoration) still evicts the stale digest. This makes the cache safe to
+  reuse **across sync cycles** (hsync-client no longer clears it per cycle in
+  continuous mode — resyncs re-hash nothing for unchanged files; one-shot
+  runs are one cycle per process, so the old clear was a no-op there).
+  **Thread-safe**: every access
   is serialized by `_sha256_cache_lock` (`models/file.py`), so multi-thread
   callers are legal by design — hsync-client scan/transfer pool threads and
   hsync-server worker threads (`asyncio.to_thread` offloads) both read the
