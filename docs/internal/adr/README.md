@@ -50,6 +50,7 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0028](0028-lan-peer-assisted-download.md) | LAN peer-assisted download | Accepted (eligibility/admission superseded in part by [ADR-0030](0030-lan-seeder-capacity-advertisement.md)) |
 | [0029](0029-explicit-opt-in-unauthenticated-lan-writes.md) | Explicit opt-in for unauthenticated LAN writes | Accepted |
 | [0030](0030-lan-seeder-capacity-advertisement.md) | LAN seeder capacity advertisement and requester admission | Accepted |
+| [0031](0031-lan-peer-offload-lane-cost-reduction.md) | LAN peer-offload lane cost reduction (Phase 0 attribution) | Proposed |
 
 ## Related documents
 
