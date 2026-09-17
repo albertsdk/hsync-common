@@ -1,6 +1,9 @@
 """Tests for hsync_common.compression."""
 
 import io
+import os
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 import zstandard as zstd
@@ -339,3 +342,91 @@ class TestCompressFileToFile:
 
         assert decompress_data(out_a.read_bytes()) == original
         assert decompress_data(out_b.read_bytes()) == original
+
+
+class TestThreadSafety:
+    """Concurrent use must be byte-exact and must never crash the process.
+
+    Regression for the 6000-file LAN stress failure: a single shared
+    ``ZstdCompressor``/``ZstdDecompressor`` used concurrently from multiple
+    threads corrupted decompressed streams ("Unknown frame descriptor",
+    "Data corrupted") and could segfault the whole process — one-shot
+    ``compress()`` included. ``hsync_common.compression`` now keeps
+    per-thread instances; these tests pin that contract.
+    """
+
+    THREADS = 8
+    ITERS = 30
+    PAYLOAD_SIZE = 512 * 1024
+
+    @staticmethod
+    def _payload(tag: int) -> bytes:
+        # Semi-compressible content, unique per payload so a mixed-up or
+        # partially-consumed frame cannot pass by accident.
+        return bytes([tag]) * 1024 + os.urandom(TestThreadSafety.PAYLOAD_SIZE - 1024) + bytes([tag])
+
+    def _run_concurrently(self, fn) -> list[object]:
+        """Run *fn(worker_index, iteration_index)* on all threads, synchronized.
+
+        A barrier maximizes the overlap window between threads; exceptions
+        are captured (never raised inside the workers) so a *clean* failure
+        is reported instead of relying on a crash to fail the test.
+        """
+        barrier = threading.Barrier(self.THREADS)
+        problems: list[object] = []
+
+        def worker(index: int) -> None:
+            barrier.wait()
+            for i in range(self.ITERS):
+                try:
+                    fn(index, i)
+                except Exception as exc:  # noqa: BLE001 - reported, not swallowed
+                    problems.append(exc)
+
+        with ThreadPoolExecutor(max_workers=self.THREADS) as pool:
+            list(pool.map(worker, range(self.THREADS)))
+        return problems
+
+    def test_concurrent_one_shot_roundtrip(self):
+        payloads = [self._payload(k) for k in range(self.THREADS * self.ITERS)]
+        compressed = [compress_data(p) for p in payloads]
+
+        def fn(worker: int, i: int) -> None:
+            idx = worker * self.ITERS + i
+            assert decompress_data(compressed[idx]) == payloads[idx]
+
+        problems = self._run_concurrently(fn)
+        assert not problems, f"concurrent one-shot decompression failed: {problems[:3]}"
+
+    def test_concurrent_decompress_stream(self):
+        payloads = [self._payload(k) for k in range(self.THREADS * self.ITERS)]
+        frames = [compress_data(p) for p in payloads]
+
+        def fn(worker: int, i: int) -> None:
+            idx = worker * self.ITERS + i
+            chunks = decompress_stream(
+                io.BytesIO(frames[idx]), len(payloads[idx]), read_size=64 * 1024
+            )
+            assert b"".join(chunks) == payloads[idx]
+
+        problems = self._run_concurrently(fn)
+        assert not problems, f"concurrent stream decompression failed: {problems[:3]}"
+
+    def test_concurrent_compress_one_shot_roundtrip(self):
+        def fn(worker: int, i: int) -> None:
+            payload = self._payload(worker * self.ITERS + i)
+            assert decompress_data(compress_data(payload)) == payload
+
+        problems = self._run_concurrently(fn)
+        assert not problems, f"concurrent one-shot compression failed: {problems[:3]}"
+
+    def test_concurrent_compress_round_trip_stream(self):
+        def fn(worker: int, i: int) -> None:
+            payload = self._payload(worker * self.ITERS + i)
+            chunks = decompress_stream(
+                io.BytesIO(compress_data(payload)), len(payload), read_size=64 * 1024
+            )
+            assert b"".join(chunks) == payload
+
+        problems = self._run_concurrently(fn)
+        assert not problems, f"concurrent compress+stream-decompress failed: {problems[:3]}"

@@ -54,6 +54,17 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
 - Thresholds: `MIN_SIZE_FOR_COMPRESSION` 10 KB (`:35`), download (`:38`), upload
   32 KB (`:43`), LAN 100 KB (`:48`); `PRECOMPRESSED_EXTENSIONS` frozenset (`:57`);
   encoding token `CONTENT_ENCODING_ZSTD` (`:26`).
+- **Thread safety**: `ZstdDecompressor` objects are per-thread
+  (`threading.local()`, `_get_thread_decompressor` `:186`). A decompressor is
+  NOT safe for concurrent `decompressobj()` calls — a single module-level
+  shared instance corrupted streams (and, with zstandard ≥ 0.25, crashed the
+  interpreter) when parallel transfers decompressed simultaneously
+  (`hsync-client` parallel downloads/`decompress_stream`). Compression uses a
+  one-shot context per call instead (`ZstdCompressor` is constructed fresh,
+  or taken from the lock-protected `_compressors` cache), so no shared
+  mutable decompressor state is ever exposed. Consumers: `hsync-client`
+  (parallel transfer threads), `hsync-server` (upload/delta ingestion),
+  mirrored fixtures/tests.
 
 ## permissions.py (octal SSOT)
 

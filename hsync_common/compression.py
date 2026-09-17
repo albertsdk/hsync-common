@@ -17,6 +17,7 @@ compression functionality, and may extend it with project-specific logic.
 from collections.abc import Iterator
 from io import BytesIO
 from os.path import getsize, splitext
+from threading import local
 from typing import BinaryIO
 
 import zstandard as zstd
@@ -170,22 +171,40 @@ PRECOMPRESSED_EXTENSIONS = frozenset(
     }
 )
 
-# Reusable compressors/decompressor for efficiency. ZstdCompressor one-shot and
-# streaming operations are stateless with respect to the instance (each creates
-# its own frame state), so one instance per level is shared safely across
-# threads; construction is the expensive part (tables + context), hence the
-# per-level cache.
-_compressors: dict[int, zstd.ZstdCompressor] = {}
-_decompressor = zstd.ZstdDecompressor()
+
+# Compressor/decompressor instances are NOT safe to share across threads on
+# python-zstandard 0.25.x: concurrent use of a single instance — one-shot
+# compress() included — corrupts streams and can segfault the process
+# (reproduced empirically with the pinned version; see the concurrency
+# regression test). Construction is the expensive part (tables + context),
+# so instances are cached per *thread* instead of per call: the common
+# pattern (a worker pool where each thread performs many compress or
+# decompress operations) amortizes construction fully while never sharing
+# an instance between two threads.
+class _ThreadLocalZstd(local):
+    """Per-thread zstd compressor/decompressor instances."""
+
+    def __init__(self) -> None:
+        self.compressors: dict[int, zstd.ZstdCompressor] = {}
+        self.decompressor = zstd.ZstdDecompressor()
+
+
+_zstd_tls = _ThreadLocalZstd()
 
 
 def _compressor_for(level: int) -> zstd.ZstdCompressor:
-    """Return the process-wide compressor for *level*, built on first use."""
-    compressor = _compressors.get(level)
+    """Return the calling thread's compressor for *level*, built on first use."""
+    compressors = _zstd_tls.compressors
+    compressor = compressors.get(level)
     if compressor is None:
         compressor = zstd.ZstdCompressor(level=level)
-        _compressors[level] = compressor
+        compressors[level] = compressor
     return compressor
+
+
+def _decompressor_for() -> zstd.ZstdDecompressor:
+    """Return the calling thread's decompressor."""
+    return _zstd_tls.decompressor
 
 
 def should_compress(
@@ -290,7 +309,7 @@ def decompress_data(data: bytes, max_output_size: int = 100 * 1024 * 1024) -> by
     if max_output_size < 0:
         raise ValueError("max_output_size must be >= 0")
 
-    with _decompressor.stream_reader(BytesIO(data)) as reader:
+    with _decompressor_for().stream_reader(BytesIO(data)) as reader:
         out = reader.read(max_output_size + 1)
     if len(out) > max_output_size:
         raise zstd.ZstdError(f"Decompressed data exceeds max_output_size ({max_output_size} bytes)")
@@ -328,7 +347,7 @@ def decompress_stream(
         raise ValueError("max_output_size must be >= 0")
 
     produced = 0
-    with _decompressor.stream_reader(stream) as reader:
+    with _decompressor_for().stream_reader(stream) as reader:
         while True:
             chunk = reader.read(read_size)
             if not chunk:
