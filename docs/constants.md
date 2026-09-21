@@ -14,11 +14,11 @@ transfer thresholds.
 | `HEADER_CLIENT_VERSION` | `"X-Client-Version"` | REST header carrying the client's application version. |
 | `HEADER_SERVER_VERSION` | `"X-Server-Version"` | REST header carrying the server's application version. |
 | `HEADER_PROTOCOL_VERSION` | `"X-Protocol-Version"` | REST header carrying the wire-protocol version on every request and response. |
-| `HEADER_CHECKSUM_SHA256` | `"X-Checksum-SHA256"` | Canonical response checksum header for full-file downloads from a server, LAN master, or seeder. |
+| `HEADER_CHECKSUM_SHA256` | `"X-Checksum-SHA256"` | Canonical response checksum header for full-file downloads from a server, p2p master, or seeder. |
 | `CLIENT_NAME_PATTERN` / `is_valid_client_name` | `^[a-z][a-z0-9-]*[a-z0-9]$` | Shape a `X-Client-Name` value must satisfy (`hsync-client`, `hsync-android`); the server rejects anything else with 400. |
 | `CONTENT_TYPE_OCTET_STREAM` | `"application/octet-stream"` | Wire media type for file/literal payloads, shared by client, server and Android. |
 | `CONTENT_TYPE_JSON` | `"application/json"` | Wire media type for JSON responses, shared by client, server and Android. |
-| `WS_MAX_MESSAGE_BYTES` | `2 MiB` | Maximum WebSocket text-frame size accepted (auth, event, and LAN inventory frames); also the LAN source-body ceiling. |
+| `WS_MAX_MESSAGE_BYTES` | `2 MiB` | Maximum WebSocket text-frame size accepted (auth, event, and p2p inventory frames); also the LAN source-body ceiling. |
 
 ## Sentinel & Side-car filenames
 
@@ -75,7 +75,7 @@ Adaptive block sizes selected by base-file size:
 | Constant | Value | Description |
 |----------|-------|-------------|
 | `DELTA_MIN_FILE_SIZE` | 256 KB | Minimum file size to attempt delta sync (remote/server mode). |
-| `DELTA_MIN_FILE_SIZE_LAN` | 1 MB | Minimum file size for LAN delta sync (higher threshold for NAS ARM devices). |
+| `DELTA_MIN_FILE_SIZE_P2P` | 1 MB | Minimum file size for LAN delta sync (higher threshold for NAS ARM devices). |
 | `DELTA_MAX_CHANGE_RATIO` | 0.50 (50%) | Maximum fraction of changed base blocks for delta to stay worthwhile. Above this the sender falls back to a full transfer. |
 | `DELTA_MAX_LITERAL_SIZE` | 1 GB | Hard cap on the literal payload produced by a single delta. |
 

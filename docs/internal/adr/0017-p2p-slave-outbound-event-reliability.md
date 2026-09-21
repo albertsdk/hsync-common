@@ -1,11 +1,11 @@
-# ADR 0017 — LAN slave outbound event reliability
+# ADR 0017 — p2p slave outbound event reliability
 
 - **Status:** Accepted
 - **Date:** 2026-08-04
 
 ## Context
 
-A LAN slave pushes local filesystem changes (create/modify/rename/delete) to the
+A p2p slave pushes local filesystem changes (create/modify/rename/delete) to the
 elected master over HTTPS REST, including its own CID so the master can suppress
 the echo broadcast. Two defects were observed on the slave → master path, both
 rooted in the slave echoing its **own** locally-applied changes back to the
@@ -91,8 +91,8 @@ has a *different* pair and is never misclassified as an echo.
   `on_closed` expected).
 - **Spurious `404` `WARNING` on rename echo eliminated**; real divergences
   still surface as `WARNING`.
-- **Uniform principle across clients**: Python (`lan_websocket.py`) and Android
-  (`LanSync.kt` + `InboundRenameEchoTracker.kt`) share the exact-pair cache and
+- **Uniform principle across clients**: Python (`p2p_websocket.py`) and Android
+  (`P2PSync.kt` + `InboundRenameEchoTracker.kt`) share the exact-pair cache and
   the defer-to-close behaviour.
 
 ### Costs and limits
@@ -112,8 +112,8 @@ has a *different* pair and is never misclassified as an echo.
 
 ### Follow-up obligations
 
-- Both clients must mirror the behaviour (Python `hsync_client/lan_websocket.py`
-  `LANSlaveFileEventHandler`; Android `LanSync.kt` + `InboundRenameEchoTracker.kt`).
+- Both clients must mirror the behaviour (Python `hsync_client/p2p_websocket.py`
+  `LANSlaveFileEventHandler`; Android `P2PSync.kt` + `InboundRenameEchoTracker.kt`).
 - Tests must cover: echo match / wrong-pair / expiry; `404` echo vs divergence;
   create defer / cancel-on-close / fire-on-no-close; cancel on delete/moved.
 - The slave's deferred-create debug log label (then `[CLIENT NEW]`, now
@@ -141,7 +141,7 @@ net for any missed events.
 ## References
 
 - [ADR 0022 — Causal vector-clock conflict model](0022-causal-vector-clock-conflict-model.md) (deterministic tie-break at the transport hub)
-- [ADR 0001 — Two sync modes: central server vs LAN P2P](0001-server-vs-lan-modes.md)
-- Implementation: `hsync-client/hsync_client/lan_websocket.py` (`LANSlaveFileEventHandler`),
-  `hsync-android/app/src/main/java/com/hsync/android/p2p/LanSync.kt` and
+- [ADR 0001 — Two sync modes: central server vs p2p](0001-server-vs-p2p-modes.md)
+- Implementation: `hsync-client/hsync_client/p2p_websocket.py` (`LANSlaveFileEventHandler`),
+  `hsync-android/app/src/main/java/com/hsync/android/p2p/P2PSync.kt` and
   `InboundRenameEchoTracker.kt`

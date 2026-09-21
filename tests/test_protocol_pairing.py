@@ -20,8 +20,8 @@ from hsync_common.protocol.pairing import (
     PinDecision,
     evaluate_pin,
     is_write_direction,
-    lan_write_requires_key,
     normalize_fingerprint,
+    p2p_write_requires_key,
     requires_pairing_confirmation,
 )
 
@@ -84,19 +84,19 @@ class TestWritePolicy:
         assert is_write_direction(SYNC_DIRECTION_DOWNLOAD_ONLY) is False
 
     def test_key_required_by_default_when_writing(self):
-        assert lan_write_requires_key("bidirectional") is True
-        assert lan_write_requires_key(SYNC_DIRECTION_UPLOAD_ONLY) is True
+        assert p2p_write_requires_key("bidirectional") is True
+        assert p2p_write_requires_key(SYNC_DIRECTION_UPLOAD_ONLY) is True
 
     def test_explicit_opt_in_allows_no_key_write(self):
         assert (
-            lan_write_requires_key(
+            p2p_write_requires_key(
                 "bidirectional",
                 allow_unauthenticated_writes=True,
             )
             is False
         )
         assert (
-            lan_write_requires_key(
+            p2p_write_requires_key(
                 SYNC_DIRECTION_UPLOAD_ONLY,
                 allow_unauthenticated_writes=True,
             )
@@ -104,4 +104,4 @@ class TestWritePolicy:
         )
 
     def test_download_only_never_requires_key(self):
-        assert lan_write_requires_key(SYNC_DIRECTION_DOWNLOAD_ONLY) is False
+        assert p2p_write_requires_key(SYNC_DIRECTION_DOWNLOAD_ONLY) is False

@@ -1,6 +1,6 @@
-# ADR 0028 — LAN peer-assisted download
+# ADR 0028 — p2p peer-assisted download
 
-- **Status:** Accepted; peer-download eligibility and admission superseded in part by [ADR-0030](0030-lan-seeder-capacity-advertisement.md)
+- **Status:** Accepted; peer-download eligibility and admission superseded in part by [ADR-0030](0030-p2p-seeder-capacity-advertisement.md)
 - **Date:** 2026-09-09
 
 ## Context
@@ -12,31 +12,31 @@ unnecessarily concentrates network and disk load. A peer-assisted path must not
 give seeders write authority, weaken checksum verification, change election or
 presence, or turn file transfer into multi-source chunking.
 
-The capability must degrade safely for mixed `lan/1` peers and for stale or
+The capability must degrade safely for mixed `p2p/1` peers and for stale or
 spoofed mDNS hints. Inventory publication also needs a bounded, sequenced
 contract: exposing a partial snapshot, accepting an ambiguous retry, or trusting
 an old connection after a CID reconnect would make source answers incorrect.
 
 ## Decision
 
-We will add peer-assisted **full regular-file downloads** to LAN mode with these
+We will add peer-assisted **full regular-file downloads** to p2p mode with these
 boundaries:
 
 1. The master remains tracker, causal arbiter, event relay, and guaranteed
    download fallback. Uploads, deletes, renames, permission changes, tombstone
    mutation, and delta transfer remain master-coordinated. Delta-to-master is
    attempted before peer-assisted full transfer.
-2. Peer download is enabled by default (`HSYNC_LAN_PEER_DOWNLOAD`) and may be
+2. Peer download is enabled by default (`HSYNC_P2P_PEER_DOWNLOAD`) and may be
    disabled explicitly (`--no-peer-download`). A requester tries at most
-   `HSYNC_LAN_PEER_SOURCES_MAX` unique peer CIDs per file (default 3, valid range
+   `HSYNC_P2P_PEER_SOURCES_MAX` unique peer CIDs per file (default 3, valid range
    1–8). Missing support and every peer failure remain a transparent master
    fallback. *(The size threshold this clause originally defined was removed by
-   [ADR-0030](0030-lan-seeder-capacity-advertisement.md): eligibility is now
+   [ADR-0030](0030-p2p-seeder-capacity-advertisement.md): eligibility is now
    decided by live seeder capacity, not by file size.)*
 3. Continuous, non-dry-run slaves may bind a read-only HTTPS seeder and publish
    an inventory to the master. One-shot clients may request peer sources but do
    not seed or publish. Inventory and serving contain regular files only. Seeder
-   response-body concurrency (`HSYNC_LAN_PEER_READ_CAP`) defaults to two and is
+   response-body concurrency (`HSYNC_P2P_PEER_READ_CAP`) defaults to two and is
    configurable only in the bounded range 1–32; saturation answers `503` with a
    `Retry-After` delay before the file is opened, which the requester honours as
    a deferral of that source rather than a health failure (ADR-0030).
@@ -47,7 +47,7 @@ boundaries:
    slave can serve *now* is deliberately not a discovery fact: it is decided by
    its authenticated WSS session and the `serve_slots` capacity it advertises
    there (ADR-0030), so a stale TXT record can never exclude a live seeder.
-5. We will keep `lan/1`. The WSS capability is authoritative after an
+5. We will keep `p2p/1`. The WSS capability is authoritative after an
    authenticated handshake; TXT and no-key hello values are availability hints.
    Missing support or any peer-source failure degrades to master-only download.
 6. Requesters batch at most 500 unique normalized paths in
@@ -94,15 +94,15 @@ boundaries:
    `transfer` event may include `source_cid` only when a peer supplied the fully
    verified full-file body; master and delta transfers omit it.
 
-The independent authorization policy for mutation without a LAN key is defined
-by [ADR-0029](0029-explicit-opt-in-unauthenticated-lan-writes.md), not by this
+The independent authorization policy for mutation without a p2p key is defined
+by [ADR-0029](0029-explicit-opt-in-unauthenticated-p2p-writes.md), not by this
 download decision.
 
 ## Consequences
 
 - Large LAN downloads can use another exact-hash holder while preserving the
   master's authority and fallback availability.
-- Mixed `lan/1` fleets remain interoperable through additive capability gates.
+- Mixed `p2p/1` fleets remain interoperable through additive capability gates.
 - The master gains a role-local SQLite holder index and sequencing/quota
   machinery; publishers gain snapshot/delta lifecycle and reconnect handling.
 - Every slave seeder adds a read-only network surface, certificate pin, bounded

@@ -557,7 +557,7 @@ class TestRelpathInBucket:
         assert relpath_in_bucket("/bucket2/a.txt", "/bucket") is None
 
     def test_empty_bucket_means_nothing_inside(self):
-        # ``lan_server`` reads LOCAL_BUCKET with a "" default: an empty bucket
+        # ``p2p_server`` reads LOCAL_BUCKET with a "" default: an empty bucket
         # must never turn an absolute path into a valid relative identity.
         assert relpath_in_bucket("/bucket/a.txt", "") is None
         assert relpath_in_bucket("", "") is None

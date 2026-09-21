@@ -28,7 +28,7 @@ initial reconcile begins with `[INITIAL SYNC]`, then `[DOWNLOAD]`/`[UPLOAD]`
 lines follow; `[REMOTE MODIFY]` lines after that mean the full scan finished
 and the node is now applying peer events.
 
-> **Known limitation (LAN master).** Origin attribution on the master relies on
+> **Known limitation (p2p master).** Origin attribution on the master relies on
 > the inbound-origin marker, which has a TTL (`INBOUND_ORIGIN_TTL`, 10 s). If
 > the watchdog event fires after the marker expired, the line prints `LOCAL`
 > even though the change was peer-caused. The `(CID: ...)` suffix degrades
@@ -113,7 +113,7 @@ Emitted during the full-scan/reconcile phase, by the transfer engine, and by
 | `[CREATE]` | create | Reconcile-phase directory creation; server event relay | ✓ | ✓ | ✓ | ✓ |
 | `[MODIFY]` | modify | Reconcile-phase modification; server event relay | ✓ | ✓ | ✓ | ✓ |
 | `[RENAME]` | rename | Reconcile-phase rename; server event relay | ✓ | ✓ | ✓ | ✓ |
-| `[PERMISSION]` | permission | Setting file / directory permissions. Includes watcher `mode change` lines: a `chmod` fires only `IN_ATTRIB` (no close), so a file or directory mode-only change is logged `[PERMISSION] mode change: "..."` (with a `(dir)` suffix for directories) instead of `MODIFY` — emitted by the local watcher (file `_process_permission_only`, directory `on_modified` branch) on Remote/LAN-master, and by the LAN slave (`_propagate_dir_permission_change`) | ✓ | | ✓ | ✓ |
+| `[PERMISSION]` | permission | Setting file / directory permissions. Includes watcher `mode change` lines: a `chmod` fires only `IN_ATTRIB` (no close), so a file or directory mode-only change is logged `[PERMISSION] mode change: "..."` (with a `(dir)` suffix for directories) instead of `MODIFY` — emitted by the local watcher (file `_process_permission_only`, directory `on_modified` branch) on Remote/LAN-master, and by the p2p slave (`_propagate_dir_permission_change`) | ✓ | | ✓ | ✓ |
 | `[SYMLINK]` | create | Reconcile-phase symbolic link creation; server event relay | ✓ | ✓ | ✓ | ✓ |
 | `[IN SYNC]` | in_sync | File already in sync (no action required) | ✓ | | ✓ | ✓ |
 | `[SKIP]` | in_sync | File skipped | ✓ | | ✓ | ✓ |
@@ -148,7 +148,7 @@ notification in desktop/Android.
 | `[INSECURE MASTER]` | warning | Master does not advertise HTTPS + a cert fingerprint; connection refused | ✓ | | ✓ | ✓ |
 | `[PAIRING NEEDED]` | warning | Strict pairing: master cert is unpinned; out-of-band confirmation required | ✓ | | ✓ | ✓ |
 | `[FINGERPRINT CHANGED]` | warning | Master cert no longer matches the pinned fingerprint (possible MITM); refused | ✓ | | ✓ | ✓ |
-| `[AUTH REQUIRED]` | warning | LAN write lacks `HSYNC_LAN_KEY` and the explicit dangerous keyless-write opt-in | ✓ | | ✓ | ✓ |
+| `[AUTH REQUIRED]` | warning | p2p write lacks `HSYNC_P2P_KEY` and the explicit dangerous keyless-write opt-in | ✓ | | ✓ | ✓ |
 | `[WATCHER ERROR]` | warning | Local file watcher could not start even with the polling fallback: the kernel inotify limits are exhausted (Errno 24 instances / Errno 28 watches) or descriptors are exhausted | ✓ | | | |
 | `[WATCHER FALLBACK]` | warning | File watcher degraded from inotify to polling because an inotify limit was exhausted (higher CPU, ~1 s event latency) | ✓ | | | |
 | `[WATCHER RESTORE]` | create | File watcher restored to inotify after the limits freed up | ✓ | | | |
@@ -177,12 +177,12 @@ is established.
 Emitted once per run (or per reconnection/role activation) when the node has
 finished its startup sequence and is **actually ready for synchronization**:
 the filesystem watcher is active and the event channel (server WebSocket or
-LAN master connection) is established. This is the observable "ready" threshold
+p2p master connection) is established. This is the observable "ready" threshold
 in the log — the node will now react to file-system events and peer events.
 
 | Label | Category | Description | C | S | A | D |
 |-------|----------|-------------|---|---|---|---|
-| `[READY]` | create | Node is ready for sync: watcher active + event channel up (remote client, LAN master or LAN slave) | ✓ | | ✓ | ✓ |
+| `[READY]` | create | Node is ready for sync: watcher active + event channel up (remote client, p2p master or p2p slave) | ✓ | | ✓ | ✓ |
 
 ---
 

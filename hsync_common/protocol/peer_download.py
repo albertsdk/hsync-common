@@ -31,59 +31,59 @@ from hsync_common.path_validation import is_valid_bucket_name, validate_remote_r
 from hsync_common.text import compact_json_bytes
 
 __all__ = [
-    "LAN_INVENTORY_ACK_REASON_MAX_LENGTH",
-    "LAN_INVENTORY_MAX_ENTRIES",
-    "LAN_INVENTORY_MAX_FRAME_BYTES",
-    "LAN_SERVE_SLOTS_MAX",
-    "LAN_SERVE_SLOTS_MIN",
-    "LAN_SOURCES_MAX_BODY_BYTES",
-    "LAN_SOURCES_MAX_CANDIDATES",
-    "LAN_SOURCES_MAX_FILES",
-    "LAN_WIRE_INT_MAX",
-    "LanInventoryAckFrame",
-    "LanInventoryAckStatus",
-    "LanInventoryDeleteEntry",
-    "LanInventoryEntry",
-    "LanInventoryFrame",
-    "LanInventoryMode",
-    "LanInventoryUpsertEntry",
-    "LanSourceCandidate",
-    "LanSourceFile",
-    "LanSourcesRequest",
-    "LanSourcesResponse",
-    "LanSourcesResponseFile",
-    "build_lan_inventory_ack",
-    "build_lan_inventory_frame",
-    "build_lan_sources_request",
-    "build_lan_sources_response",
+    "P2P_INVENTORY_ACK_REASON_MAX_LENGTH",
+    "P2P_INVENTORY_MAX_ENTRIES",
+    "P2P_INVENTORY_MAX_FRAME_BYTES",
+    "P2P_SERVE_SLOTS_MAX",
+    "P2P_SERVE_SLOTS_MIN",
+    "P2P_SOURCES_MAX_BODY_BYTES",
+    "P2P_SOURCES_MAX_CANDIDATES",
+    "P2P_SOURCES_MAX_FILES",
+    "P2P_WIRE_INT_MAX",
+    "P2PInventoryAckFrame",
+    "P2PInventoryAckStatus",
+    "P2PInventoryDeleteEntry",
+    "P2PInventoryEntry",
+    "P2PInventoryFrame",
+    "P2PInventoryMode",
+    "P2PInventoryUpsertEntry",
+    "P2PSourceCandidate",
+    "P2PSourceFile",
+    "P2PSourcesRequest",
+    "P2PSourcesResponse",
+    "P2PSourcesResponseFile",
+    "build_p2p_inventory_ack",
+    "build_p2p_inventory_frame",
+    "build_p2p_sources_request",
+    "build_p2p_sources_response",
     "is_valid_serve_slots",
-    "validate_lan_inventory_ack",
-    "validate_lan_inventory_frame",
-    "validate_lan_sources_request",
-    "validate_lan_sources_response",
+    "validate_p2p_inventory_ack",
+    "validate_p2p_inventory_frame",
+    "validate_p2p_sources_request",
+    "validate_p2p_sources_response",
 ]
 
 # REST and WSS payloads share the existing 2 MiB metadata ceiling. Consumers
 # must enforce these limits on raw encoded bytes before JSON decoding; the
 # validators also ensure that the canonical compact representation fits.
-LAN_SOURCES_MAX_BODY_BYTES = WS_MAX_MESSAGE_BYTES
-LAN_INVENTORY_MAX_FRAME_BYTES = WS_MAX_MESSAGE_BYTES
+P2P_SOURCES_MAX_BODY_BYTES = WS_MAX_MESSAGE_BYTES
+P2P_INVENTORY_MAX_FRAME_BYTES = WS_MAX_MESSAGE_BYTES
 
-LAN_SOURCES_MAX_FILES = 500
-LAN_SOURCES_MAX_CANDIDATES = 8
-LAN_INVENTORY_MAX_ENTRIES = 500
+P2P_SOURCES_MAX_FILES = 500
+P2P_SOURCES_MAX_CANDIDATES = 8
+P2P_INVENTORY_MAX_ENTRIES = 500
 
 # Concurrent response bodies a seeder accepts for one requester. The value is
 # advertised by the seeder on the authenticated LAN WebSocket session, echoed by
 # the master in a source candidate, and used by the requester as its per-seeder
 # admission limit: the bound is part of the contract, not a local guess.
-LAN_SERVE_SLOTS_MIN = 1
-LAN_SERVE_SLOTS_MAX = 32
-LAN_WIRE_INT_MAX = (1 << 63) - 1
-LAN_INVENTORY_ACK_REASON_MAX_LENGTH = 64
+P2P_SERVE_SLOTS_MIN = 1
+P2P_SERVE_SLOTS_MAX = 32
+P2P_WIRE_INT_MAX = (1 << 63) - 1
+P2P_INVENTORY_ACK_REASON_MAX_LENGTH = 64
 
-type LanInventoryMode = Literal["snapshot", "delta"]
-type LanInventoryAckStatus = Literal["ok", "resync", "rejected"]
+type P2PInventoryMode = Literal["snapshot", "delta"]
+type P2PInventoryAckStatus = Literal["ok", "resync", "rejected"]
 
 _SOURCE_FILE_KEYS = frozenset({"path", "sha256"})
 _SOURCES_REQUEST_KEYS = frozenset({"cid", "files"})
@@ -98,21 +98,21 @@ _INVENTORY_REJECTED_ACK_KEYS = _INVENTORY_ACK_KEYS | {"reason"}
 _ACK_REASON_RE = re.compile(r"[a-z][a-z0-9_]{0,63}\Z")
 
 
-class LanSourceFile(TypedDict):
+class P2PSourceFile(TypedDict):
     """One content identity requested from the LAN master."""
 
     path: str
     sha256: str
 
 
-class LanSourcesRequest(TypedDict):
+class P2PSourcesRequest(TypedDict):
     """Requester -> master body for ``POST .../files/sources``."""
 
     cid: str
-    files: list[LanSourceFile]
+    files: list[P2PSourceFile]
 
 
-class LanSourceCandidate(TypedDict):
+class P2PSourceCandidate(TypedDict):
     """One exact-hash seeder endpoint returned by the master.
 
     ``serve_slots`` is the seeder's advertised concurrent-read capacity. The
@@ -127,21 +127,21 @@ class LanSourceCandidate(TypedDict):
     serve_slots: int
 
 
-class LanSourcesResponseFile(TypedDict):
+class P2PSourcesResponseFile(TypedDict):
     """Candidates for one requested ``(path, sha256)`` identity."""
 
     path: str
     sha256: str
-    sources: list[LanSourceCandidate]
+    sources: list[P2PSourceCandidate]
 
 
-class LanSourcesResponse(TypedDict):
+class P2PSourcesResponse(TypedDict):
     """Master -> requester batch source lookup response."""
 
-    files: list[LanSourcesResponseFile]
+    files: list[P2PSourcesResponseFile]
 
 
-class LanInventoryUpsertEntry(TypedDict):
+class P2PInventoryUpsertEntry(TypedDict):
     """Regular file currently available from a seeder."""
 
     path: str
@@ -149,34 +149,34 @@ class LanInventoryUpsertEntry(TypedDict):
     size: int
 
 
-class LanInventoryDeleteEntry(TypedDict):
+class P2PInventoryDeleteEntry(TypedDict):
     """Delta operation removing one path from a seeder inventory."""
 
     path: str
     deleted: Literal[True]
 
 
-type LanInventoryEntry = LanInventoryUpsertEntry | LanInventoryDeleteEntry
+type P2PInventoryEntry = P2PInventoryUpsertEntry | P2PInventoryDeleteEntry
 
 
-class LanInventoryFrame(TypedDict):
+class P2PInventoryFrame(TypedDict):
     """Seeder -> master inventory snapshot chunk or atomic delta."""
 
     type: Literal["inventory"]
     gen: int
     seq: int
-    mode: LanInventoryMode
+    mode: P2PInventoryMode
     more: bool
-    entries: list[LanInventoryEntry]
+    entries: list[P2PInventoryEntry]
 
 
-class LanInventoryAckFrame(TypedDict):
+class P2PInventoryAckFrame(TypedDict):
     """Master -> seeder cumulative inventory acknowledgement."""
 
     type: Literal["inventory_ack"]
     gen: int
     seq: int
-    status: LanInventoryAckStatus
+    status: P2PInventoryAckStatus
     reason: NotRequired[str]
 
 
@@ -187,7 +187,7 @@ def _is_exact_object(value: object, keys: frozenset[str]) -> TypeGuard[dict[str,
 
 def _is_wire_int(value: object) -> TypeGuard[int]:
     """Accept non-boolean, non-negative signed 64-bit wire integers."""
-    return isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= LAN_WIRE_INT_MAX
+    return isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= P2P_WIRE_INT_MAX
 
 
 def _is_lower_sha256(value: object) -> TypeGuard[str]:
@@ -198,7 +198,7 @@ def _is_lower_sha256(value: object) -> TypeGuard[str]:
 def is_valid_serve_slots(value: object) -> TypeGuard[int]:
     """True when *value* is a wire-valid seeder slot count.
 
-    Bounded by :data:`LAN_SERVE_SLOTS_MIN`/``_MAX``; ``bool`` is rejected even
+    Bounded by :data:`P2P_SERVE_SLOTS_MIN`/``_MAX``; ``bool`` is rejected even
     though it is an ``int`` subclass, because ``true``/``false`` are not slot
     counts. Consumers: ``hsync-client`` (seeder advertisement, master candidate
     build, requester admission), the Android protocol mirror, and the shared
@@ -207,7 +207,7 @@ def is_valid_serve_slots(value: object) -> TypeGuard[int]:
     return (
         isinstance(value, int)
         and not isinstance(value, bool)
-        and LAN_SERVE_SLOTS_MIN <= value <= LAN_SERVE_SLOTS_MAX
+        and P2P_SERVE_SLOTS_MIN <= value <= P2P_SERVE_SLOTS_MAX
     )
 
 
@@ -277,17 +277,17 @@ def _is_download_url(value: object) -> TypeGuard[str]:
     )
 
 
-def _validate_source_file(value: object) -> LanSourceFile | None:
+def _validate_source_file(value: object) -> P2PSourceFile | None:
     if not _is_exact_object(value, _SOURCE_FILE_KEYS):
         return None
     path = _validated_path(value["path"])
     digest = value["sha256"]
     if path is None or not _is_lower_sha256(digest):
         return None
-    return LanSourceFile(path=path, sha256=digest)
+    return P2PSourceFile(path=path, sha256=digest)
 
 
-def _validate_source_candidate(value: object) -> LanSourceCandidate | None:
+def _validate_source_candidate(value: object) -> P2PSourceCandidate | None:
     if not _is_exact_object(value, _SOURCE_CANDIDATE_KEYS):
         return None
     cid = value["cid"]
@@ -303,7 +303,7 @@ def _validate_source_candidate(value: object) -> LanSourceCandidate | None:
         or not is_valid_serve_slots(serve_slots)
     ):
         return None
-    return LanSourceCandidate(
+    return P2PSourceCandidate(
         cid=cid,
         download_url=download_url,
         cert_fp=cert_fp,
@@ -312,7 +312,7 @@ def _validate_source_candidate(value: object) -> LanSourceCandidate | None:
     )
 
 
-def validate_lan_sources_request(value: object) -> LanSourcesRequest | None:
+def validate_p2p_sources_request(value: object) -> P2PSourcesRequest | None:
     """Strictly validate and canonicalize a batch LAN sources request."""
     if not _is_exact_object(value, _SOURCES_REQUEST_KEYS):
         return None
@@ -320,10 +320,10 @@ def validate_lan_sources_request(value: object) -> LanSourcesRequest | None:
     files = value["files"]
     if not is_valid_cid(cid) or not isinstance(files, list):
         return None
-    if not 1 <= len(files) <= LAN_SOURCES_MAX_FILES:
+    if not 1 <= len(files) <= P2P_SOURCES_MAX_FILES:
         return None
 
-    clean_files: list[LanSourceFile] = []
+    clean_files: list[P2PSourceFile] = []
     seen_paths: set[str] = set()
     for item in files:
         clean = _validate_source_file(item)
@@ -331,19 +331,19 @@ def validate_lan_sources_request(value: object) -> LanSourcesRequest | None:
             return None
         seen_paths.add(clean["path"])
         clean_files.append(clean)
-    clean = LanSourcesRequest(cid=cid, files=clean_files)
-    return clean if _fits_encoded_limit(clean, LAN_SOURCES_MAX_BODY_BYTES) else None
+    clean = P2PSourcesRequest(cid=cid, files=clean_files)
+    return clean if _fits_encoded_limit(clean, P2P_SOURCES_MAX_BODY_BYTES) else None
 
 
-def validate_lan_sources_response(value: object) -> LanSourcesResponse | None:
+def validate_p2p_sources_response(value: object) -> P2PSourcesResponse | None:
     """Strictly validate and canonicalize a batch LAN sources response."""
     if not _is_exact_object(value, _SOURCES_RESPONSE_KEYS):
         return None
     files = value["files"]
-    if not isinstance(files, list) or not 1 <= len(files) <= LAN_SOURCES_MAX_FILES:
+    if not isinstance(files, list) or not 1 <= len(files) <= P2P_SOURCES_MAX_FILES:
         return None
 
-    clean_files: list[LanSourcesResponseFile] = []
+    clean_files: list[P2PSourcesResponseFile] = []
     seen_paths: set[str] = set()
     for item in files:
         if not _is_exact_object(item, _SOURCES_RESPONSE_FILE_KEYS):
@@ -356,11 +356,11 @@ def validate_lan_sources_response(value: object) -> LanSourcesResponse | None:
             or path in seen_paths
             or not _is_lower_sha256(digest)
             or not isinstance(sources, list)
-            or len(sources) > LAN_SOURCES_MAX_CANDIDATES
+            or len(sources) > P2P_SOURCES_MAX_CANDIDATES
         ):
             return None
 
-        clean_sources: list[LanSourceCandidate] = []
+        clean_sources: list[P2PSourceCandidate] = []
         seen_cids: set[str] = set()
         for source in sources:
             clean_source = _validate_source_candidate(source)
@@ -370,12 +370,12 @@ def validate_lan_sources_response(value: object) -> LanSourcesResponse | None:
             clean_sources.append(clean_source)
 
         seen_paths.add(path)
-        clean_files.append(LanSourcesResponseFile(path=path, sha256=digest, sources=clean_sources))
-    clean = LanSourcesResponse(files=clean_files)
-    return clean if _fits_encoded_limit(clean, LAN_SOURCES_MAX_BODY_BYTES) else None
+        clean_files.append(P2PSourcesResponseFile(path=path, sha256=digest, sources=clean_sources))
+    clean = P2PSourcesResponse(files=clean_files)
+    return clean if _fits_encoded_limit(clean, P2P_SOURCES_MAX_BODY_BYTES) else None
 
 
-def _validate_inventory_upsert(value: object) -> LanInventoryUpsertEntry | None:
+def _validate_inventory_upsert(value: object) -> P2PInventoryUpsertEntry | None:
     if not _is_exact_object(value, _INVENTORY_UPSERT_KEYS):
         return None
     path = _validated_path(value["path"])
@@ -383,19 +383,19 @@ def _validate_inventory_upsert(value: object) -> LanInventoryUpsertEntry | None:
     size = value["size"]
     if path is None or not _is_lower_sha256(digest) or not _is_wire_int(size):
         return None
-    return LanInventoryUpsertEntry(path=path, sha256=digest, size=size)
+    return P2PInventoryUpsertEntry(path=path, sha256=digest, size=size)
 
 
-def _validate_inventory_delete(value: object) -> LanInventoryDeleteEntry | None:
+def _validate_inventory_delete(value: object) -> P2PInventoryDeleteEntry | None:
     if not _is_exact_object(value, _INVENTORY_DELETE_KEYS):
         return None
     path = _validated_path(value["path"])
     if path is None or value["deleted"] is not True:
         return None
-    return LanInventoryDeleteEntry(path=path, deleted=True)
+    return P2PInventoryDeleteEntry(path=path, deleted=True)
 
 
-def validate_lan_inventory_frame(value: object) -> LanInventoryFrame | None:
+def validate_p2p_inventory_frame(value: object) -> P2PInventoryFrame | None:
     """Strictly validate one inventory snapshot chunk or independent delta."""
     if not _is_exact_object(value, _INVENTORY_FRAME_KEYS):
         return None
@@ -412,7 +412,7 @@ def validate_lan_inventory_frame(value: object) -> LanInventoryFrame | None:
         or mode not in ("snapshot", "delta")
         or not isinstance(more, bool)
         or not isinstance(entries, list)
-        or len(entries) > LAN_INVENTORY_MAX_ENTRIES
+        or len(entries) > P2P_INVENTORY_MAX_ENTRIES
     ):
         return None
     if mode == "delta" and (more or not entries):
@@ -420,10 +420,10 @@ def validate_lan_inventory_frame(value: object) -> LanInventoryFrame | None:
     if mode == "snapshot" and not entries and (more or seq != 0):
         return None
 
-    clean_entries: list[LanInventoryEntry] = []
+    clean_entries: list[P2PInventoryEntry] = []
     seen_paths: set[str] = set()
     for entry in entries:
-        clean: LanInventoryEntry | None
+        clean: P2PInventoryEntry | None
         if mode == "snapshot":
             clean = _validate_inventory_upsert(entry)
         else:
@@ -433,7 +433,7 @@ def validate_lan_inventory_frame(value: object) -> LanInventoryFrame | None:
         seen_paths.add(clean["path"])
         clean_entries.append(clean)
 
-    clean = LanInventoryFrame(
+    clean = P2PInventoryFrame(
         type="inventory",
         gen=gen,
         seq=seq,
@@ -441,10 +441,10 @@ def validate_lan_inventory_frame(value: object) -> LanInventoryFrame | None:
         more=more,
         entries=clean_entries,
     )
-    return clean if _fits_encoded_limit(clean, LAN_INVENTORY_MAX_FRAME_BYTES) else None
+    return clean if _fits_encoded_limit(clean, P2P_INVENTORY_MAX_FRAME_BYTES) else None
 
 
-def validate_lan_inventory_ack(value: object) -> LanInventoryAckFrame | None:
+def validate_p2p_inventory_ack(value: object) -> P2PInventoryAckFrame | None:
     """Strictly validate an ``inventory_ack`` frame and its status payload."""
     if not isinstance(value, dict):
         return None
@@ -459,7 +459,7 @@ def validate_lan_inventory_ack(value: object) -> LanInventoryAckFrame | None:
     if status not in ("ok", "resync", "rejected"):
         return None
 
-    frame = LanInventoryAckFrame(type="inventory_ack", gen=gen, seq=seq, status=status)
+    frame = P2PInventoryAckFrame(type="inventory_ack", gen=gen, seq=seq, status=status)
     if status == "rejected":
         reason = value.get("reason")
         if not isinstance(reason, str) or not _ACK_REASON_RE.fullmatch(reason):
@@ -474,26 +474,26 @@ def _require_valid[T](value: T | None, kind: str) -> T:
     return value
 
 
-def build_lan_sources_request(*, cid: str, files: Iterable[LanSourceFile]) -> LanSourcesRequest:
+def build_p2p_sources_request(*, cid: str, files: Iterable[P2PSourceFile]) -> P2PSourcesRequest:
     """Build a canonical batch LAN sources request or raise ``ValueError``."""
     payload = {"cid": cid, "files": list(files)}
-    return _require_valid(validate_lan_sources_request(payload), "LAN sources request")
+    return _require_valid(validate_p2p_sources_request(payload), "LAN sources request")
 
 
-def build_lan_sources_response(*, files: Iterable[LanSourcesResponseFile]) -> LanSourcesResponse:
+def build_p2p_sources_response(*, files: Iterable[P2PSourcesResponseFile]) -> P2PSourcesResponse:
     """Build a canonical batch LAN sources response or raise ``ValueError``."""
     payload = {"files": list(files)}
-    return _require_valid(validate_lan_sources_response(payload), "LAN sources response")
+    return _require_valid(validate_p2p_sources_response(payload), "LAN sources response")
 
 
-def build_lan_inventory_frame(
+def build_p2p_inventory_frame(
     *,
     gen: int,
     seq: int,
-    mode: LanInventoryMode,
+    mode: P2PInventoryMode,
     more: bool,
-    entries: Iterable[LanInventoryEntry],
-) -> LanInventoryFrame:
+    entries: Iterable[P2PInventoryEntry],
+) -> P2PInventoryFrame:
     """Build a canonical inventory frame or raise ``ValueError``."""
     payload = {
         "type": "inventory",
@@ -503,16 +503,16 @@ def build_lan_inventory_frame(
         "more": more,
         "entries": list(entries),
     }
-    return _require_valid(validate_lan_inventory_frame(payload), "LAN inventory frame")
+    return _require_valid(validate_p2p_inventory_frame(payload), "LAN inventory frame")
 
 
-def build_lan_inventory_ack(
+def build_p2p_inventory_ack(
     *,
     gen: int,
     seq: int,
-    status: LanInventoryAckStatus,
+    status: P2PInventoryAckStatus,
     reason: str | None = None,
-) -> LanInventoryAckFrame:
+) -> P2PInventoryAckFrame:
     """Build a canonical inventory acknowledgement or raise ``ValueError``."""
     payload: dict[str, object] = {
         "type": "inventory_ack",
@@ -522,4 +522,4 @@ def build_lan_inventory_ack(
     }
     if reason is not None:
         payload["reason"] = reason
-    return _require_valid(validate_lan_inventory_ack(payload), "LAN inventory acknowledgement")
+    return _require_valid(validate_p2p_inventory_ack(payload), "LAN inventory acknowledgement")

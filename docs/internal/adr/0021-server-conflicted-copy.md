@@ -14,7 +14,7 @@ no user-written data is silently lost.
 
 ## Decision
 
-The receiver (server or LAN master) preserves the losing content as a
+The receiver (server or p2p master) preserves the losing content as a
 **server-side conflicted copy** whenever an upload loses a tie-break:
 
 - The losing bytes are renamed to:

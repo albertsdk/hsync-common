@@ -1,11 +1,11 @@
-# ADR 0002 — Deterministic LAN master election
+# ADR 0002 — Deterministic p2p master election
 
 - **Status:** Accepted
 - **Date:** 2026-06-21
 
 ## Context
 
-In LAN P2P mode ([ADR-0001](0001-server-vs-lan-modes.md)) there is no fixed
+In p2p mode ([ADR-0001](0001-server-vs-p2p-modes.md)) there is no fixed
 server, yet the bucket needs exactly **one node to host the transport hub** (the
 HTTPS/WSS server peers connect to and that relays events). Two clients
 implement the LAN: the Python client and the Android client. If they elected
@@ -16,7 +16,7 @@ unauthenticated, so election input is a hint, never proof.
 ## Decision
 
 We make master election a **deterministic, total-order function** defined once
-in `hsync_common.protocol.lan` (`elect_master`, `election_sort_key`) and mirrored
+in `hsync_common.protocol.p2p` (`elect_master`, `election_sort_key`) and mirrored
 byte-for-byte by Android (`com.hsync.android.p2p.Election`). The winner is the
 eligible candidate with the smallest sort key, prioritised:
 
@@ -28,8 +28,8 @@ eligible candidate with the smallest sort key, prioritised:
 
 `never_master` nodes are excluded; if no candidate is eligible, **no master is
 elected** (`NO_MASTER`) rather than a wrong one. Parity is enforced by golden
-fixtures (`protocol/fixtures/lan-election-scenarios.json`) replayed in both
-`tests/test_protocol_lan.py` and Android `LanElectionParityTest`.
+fixtures (`protocol/fixtures/p2p-election-scenarios.json`) replayed in both
+`tests/test_protocol_p2p.py` and Android `P2PElectionParityTest`.
 
 ## Consequences
 
@@ -44,6 +44,6 @@ fixtures (`protocol/fixtures/lan-election-scenarios.json`) replayed in both
   authority over conflicts, which are resolved causally on every node
   ([ADR-0022](0022-causal-vector-clock-conflict-model.md)). *Who to trust* is a
   separate concern (TOFU pinning / pairing) documented in
-  [lan-protocol.md](../../lan-protocol.md).
+  [p2p-protocol.md](../../p2p-protocol.md).
 - Any change to ranking or TXT keys must regenerate the golden fixtures and the
   Android copy, keeping the human doc and the machine sources aligned.

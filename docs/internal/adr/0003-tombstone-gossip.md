@@ -31,12 +31,12 @@ than *missing*. Key properties:
   path merged and ticked by the deleter (`tick_vclock`, anti-aliasing invariant
   of ADR-0022).
 - **Role-independent local recording**: every peer records its own deletion
-  markers at deletion time — serving as LAN master or running as slave alike —
+  markers at deletion time — serving as p2p master or running as slave alike —
   so correctness never depends on which role observed the removal nor on the
   transport being up at that moment. A slave whose master is temporarily
   unreachable still records the marker; the next reconciliation then issues the
   `delete_remote` action, which speaks both transports' DELETE contracts (form
-  fields against the central server, query parameters against the LAN master).
+  fields against the central server, query parameters against the p2p master).
 - **Causal merge for tombstones** (`merge()`): dominance decides — the marker
   with the dominant clock wins. Concurrent delete-delete merges to the
   componentwise clock maximum (`merge_vclocks`); true divergence is resolved by

@@ -24,7 +24,7 @@
         "cid",
         "files"
       ],
-      "title": "LanSourcesRequest",
+      "title": "P2PSourcesRequest",
       "type": "object"
     },
     "requestFile": {
@@ -48,7 +48,7 @@
         "path",
         "sha256"
       ],
-      "title": "LanSourceFile",
+      "title": "P2PSourceFile",
       "type": "object"
     },
     "response": {
@@ -68,7 +68,7 @@
       "required": [
         "files"
       ],
-      "title": "LanSourcesResponse",
+      "title": "P2PSourcesResponse",
       "type": "object"
     },
     "responseFile": {
@@ -102,7 +102,7 @@
         "sha256",
         "sources"
       ],
-      "title": "LanSourcesResponseFile",
+      "title": "P2PSourcesResponseFile",
       "type": "object"
     },
     "sourceCandidate": {
@@ -145,11 +145,11 @@
         "compression",
         "serve_slots"
       ],
-      "title": "LanSourceCandidate",
+      "title": "P2PSourceCandidate",
       "type": "object"
     }
   },
-  "$id": "https://hsync.dev/protocol/lan/1/files/sources",
+  "$id": "https://hsync.dev/protocol/p2p/1/files/sources",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Request/response contract for POST /api/v1/buckets/{bucket}/files/sources (ADR-0028). Generated from hsync_common.protocol.schemas; do not hand-edit.",
   "request": {
@@ -158,7 +158,7 @@
   "response": {
     "$ref": "#/$defs/response"
   },
-  "title": "HSYNC LAN peer sources (lan/1)",
+  "title": "HSYNC p2p peer sources (p2p/1)",
   "x-contentType": "application/json",
   "x-maxBodyBytes": 2097152
 }

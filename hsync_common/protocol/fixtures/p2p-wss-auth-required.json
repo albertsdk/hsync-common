@@ -3,7 +3,6 @@
     "compression",
     "peer_download"
   ],
-  "protocol_version": "lan/1",
-  "status": "ok",
-  "type": "auth"
+  "protocol_version": "p2p/1",
+  "type": "auth_required"
 }

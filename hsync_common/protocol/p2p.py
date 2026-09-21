@@ -9,9 +9,9 @@ Canonical LAN master-election algorithm (single source of truth).
 
 The election ordering used to pick the LAN coordinator lives here once and is
 consumed by every component (the Python client's ``PeerManager`` and, via the
-shared golden fixtures, the Android ``LanManager``). Keeping the algorithm in
+shared golden fixtures, the Android ``P2PManager``). Keeping the algorithm in
 :mod:`hsync_common` is what stops the two implementations from drifting: both
-are validated against the same scenario fixtures (``lan-election-scenarios``).
+are validated against the same scenario fixtures (``p2p-election-scenarios``).
 
 Ordering (highest priority first):
 
@@ -27,7 +27,7 @@ Nodes flagged ``never_master`` are excluded from candidacy entirely; if every
 candidate is excluded no master is elected (``elect_master`` returns ``None``).
 
 The canonical TXT keys carried on the wire are defined once in
-:mod:`hsync_common.protocol.schemas` (``LAN_TXT_KEYS``); this module owns only
+:mod:`hsync_common.protocol.schemas` (``P2P_TXT_KEYS``); this module owns only
 the election semantics that read them.
 """
 

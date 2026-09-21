@@ -122,8 +122,8 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
   escaping targets return `None`),
   `is_safe_symlink_target` (SSOT, shared with the server). Every component
   that can dereference a local path (client scan `sync.get_files_local`,
-  client upload `transfer.upload_file`, LAN master listing/download
-  `lan_server`, server listing/download `api/files/*`, WS event handlers)
+  client upload `transfer.upload_file`, p2p master listing/download
+  `p2p_server`, server listing/download `api/files/*`, WS event handlers)
   uses it to refuse symlinks whose target escapes the bucket.
 - Event-payload path keys: `WIRE_PATH_KEYS` + `wire_relpaths` (`:435`) —
   SSOT for the set of path-carrying keys (`filepath`, `path`) used by both
@@ -208,7 +208,7 @@ reconciliation, transfers, previews and server lines.
   `measure_clock_offset` returns `None` on non-200 or when `timestamp` is
   missing/null/bool/non-numeric/non-finite — a malformed payload degrades the
   measurement, it never raises into the caller.
-- SNTP (LAN P2P / no-server startup): `parse_ntp_hosts` (`:180`) parses the
+- SNTP (p2p / no-server startup): `parse_ntp_hosts` (`:180`) parses the
   `HSYNC_NTP_HOSTS` CSV (defaults from `constants.NTP_DEFAULT_HOSTS`),
   `measure_clock_offset_ntp` (`:289`, median of several UDP round-trips, RFC
   4330) and `measure_clock_offset_ntp_multi` (`:318`, probes hosts in order
@@ -230,7 +230,7 @@ reconciliation, transfers, previews and server lines.
   `constants.CORRECTED_MTIME_MAX_FUTURE_SKEW = 300 s`; the receiver-side guard
   used by every consuming hub is `clamp_incoming_corrected_mtime` (`:443`,
   reference = `now_corrected()` at `:409`, i.e. `correct_mtime(time.time())`).
-  Wired in: `hsync-server` upload/delta-apply, client LAN master upload and
+  Wired in: `hsync-server` upload/delta-apply, client p2p master upload and
   remote decode; Android mirror `TimeSync.kt`.
 - Metadata convergence: `constants.MTIME_PROPAGATION_TOLERANCE_SECONDS = 1 s`
   is the divergence threshold above which a content-identical `touch` is

@@ -1,5 +1,5 @@
 {
-  "protocol_version": "lan/1",
+  "protocol_version": "p2p/1",
   "reason": "invalid_token",
   "status": "failed",
   "type": "auth"

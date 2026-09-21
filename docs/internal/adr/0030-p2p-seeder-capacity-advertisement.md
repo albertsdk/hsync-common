@@ -1,12 +1,12 @@
-# ADR 0030 — LAN seeder capacity advertisement and requester admission
+# ADR 0030 — p2p seeder capacity advertisement and requester admission
 
 - **Status:** Accepted
 - **Date:** 2026-09-16
 
 ## Context
 
-ADR-0028 gave LAN slaves a read-only seeder and a master-mediated source lookup
-with a bounded per-seeder response-body concurrency (`HSYNC_LAN_PEER_READ_CAP`,
+ADR-0028 gave p2p slaves a read-only seeder and a master-mediated source lookup
+with a bounded per-seeder response-body concurrency (`HSYNC_P2P_PEER_READ_CAP`,
 default 2, range 1–32) — but no way for a requester to *learn* that bound. A
 saturated seeder answers `503` before opening the file, so the requester could only
 discover the limit by provoking refusals, and every refusal was classified
@@ -15,7 +15,7 @@ of up to 60 s that also removed the source from ranking. A burst of small files
 therefore turned into a storm of refused attempts, after which the rest of the
 cycle fell back to the master.
 
-The L2 loopback benchmark (`hsync-client/bench/bench_lan_peer_transfer.py`, cycle
+The L2 loopback benchmark (`hsync-client/bench/bench_p2p_peer_transfer.py`, cycle
 scenario) quantifies it: with cap 2 and 8 warm workers, 24-file cycles produced up
 to 4 `503` per cycle and up to 23 of 168 downloads served by the master instead of
 a peer. The same benchmark shows the warm peer path is latency-equivalent to the
@@ -28,18 +28,18 @@ We will make the seeder's capacity part of the contract instead of something the
 requester discovers by being refused:
 
 1. A serving node advertises `serve_slots` (integer, 1–32) on the authenticated
-   LAN WebSocket handshake (`LanAuthFrame`/`LanHelloFrame`). The field is present
+   LAN WebSocket handshake (`P2PAuthFrame`/`P2PHelloFrame`). The field is present
    exactly when the node serves peer downloads: omitting it means "not a source
    candidate". No TXT key is added.
 2. The master records the advertisement with the publisher session
-   (`LanInventoryStore.begin_session(..., serve_slots=...)`) and returns it in
-   every `POST /files/sources` candidate (`LanSourceCandidate.serve_slots`, now
+   (`P2PInventoryStore.begin_session(..., serve_slots=...)`) and returns it in
+   every `POST /files/sources` candidate (`P2PSourceCandidate.serve_slots`, now
    required). A candidate cannot exist without a live advertisement, so the
    requester always knows the limit it must respect. An inconsistent frame
    (non-integer or out-of-range value, or slots without the `peer_download`
    capability) is refused as a protocol violation on both masters.
 3. The requester admits at most `serve_slots` concurrent reads per CID, waiting up
-   to a bounded interval (`LAN_PEER_SLOT_WAIT_S`, 2 s) for a slot before taking the
+   to a bounded interval (`P2P_PEER_SLOT_WAIT_S`, 2 s) for a slot before taking the
    master. Expiring that wait is a *scheduling* outcome, never a refused attempt.
    Candidates are ordered by the **predicted transfer cost**
    (`setup + size/bandwidth`, both already measured per source) instead of a raw
@@ -54,11 +54,11 @@ requester discovers by being refused:
    `Retry-After` deferral); the golden fixtures are shared verbatim.
 6. The size threshold is deleted rather than retuned. `serve_slots` plus the
    cost-ordered ranking is what decides whether a peer is worth using, so
-   `HSYNC_LAN_PEER_DOWNLOAD_MIN_SIZE` is removed end to end together with every
+   `HSYNC_P2P_PEER_DOWNLOAD_MIN_SIZE` is removed end to end together with every
    artifact that carried it (settings model, environment contract, man page,
    WD OS5 installer/UI, Android `SyncConfig`, benchmark scenarios). No shim
    reads the old variable.
-7. Admission waits for a slot (bounded by `LAN_PEER_SLOT_WAIT_S`) instead of
+7. Admission waits for a slot (bounded by `P2P_PEER_SLOT_WAIT_S`) instead of
    declining immediately. Returning at once sends every worker above a seeder's
    capacity straight to the master, which is the outcome peer download exists to
    avoid: measured on the cycle scenario, non-blocking admission served 6.7 of 24
@@ -81,14 +81,14 @@ requester discovers by being refused:
 - The candidate field is **required** (no compatibility shim): a node that does not
   advertise is not a candidate.
 - The retired size heuristic leaves no user-facing knob behind: peer assistance
-  stays enabled by default (`HSYNC_LAN_PEER_DOWNLOAD`, `--no-peer-download`) and
+  stays enabled by default (`HSYNC_P2P_PEER_DOWNLOAD`, `--no-peer-download`) and
   every listed file becomes eligible for a lookup. A small file now uses the peer
   path whenever a seeder has a free slot and its predicted cost is competitive,
   which is exactly the small-file burst the threshold used to divert to the
-  master. `HSYNC_LAN_PEER_READ_CAP` continues to bound how much a seeder gives
+  master. `HSYNC_P2P_PEER_READ_CAP` continues to bound how much a seeder gives
   away, and it is announced on the handshake rather than guessed.
 - Deleting the knob is a breaking configuration change: an environment still
-  setting `HSYNC_LAN_PEER_DOWNLOAD_MIN_SIZE` is ignored, in line with the
+  setting `HSYNC_P2P_PEER_DOWNLOAD_MIN_SIZE` is ignored, in line with the
   project's no-backward-compatibility stance.
 - One fewer discovery key: `seed` leaves the TXT contract, the client's service
   listener/snapshot model and the Android mirror, and candidacy no longer consults
@@ -98,7 +98,7 @@ requester discovers by being refused:
   then for an app-wide bound of four concurrent peer reads (per-seeder capacity is
   claimed first, so one hot seeder cannot hold global capacity while queued),
   falling back to the Primary only when the wait expires — the behaviour point 7
-  mandates, measured in `hsync-client/bench_lan_peer_transfer.py --latency`. Its
+  mandates, measured in `hsync-client/bench_p2p_peer_transfer.py --latency`. Its
   sync cycle downloads four files at a time instead of sequentially: the same
   benchmark prices that at 3.1× less wall time on loopback and 3.6× behind a 40 ms
   RTT for the master path, which is where the sequential loop's per-file round trip
@@ -110,7 +110,7 @@ requester discovers by being refused:
   follow-up idea — group a cycle's downloads per candidate seeder so each seeder
   is served by as many workers as its slots instead of by the whole pool — does
   not pay: driven through one long-lived pool behind a latency relay
-  (`bench_lan_peer_transfer.py --latency`, 24 × 4 KiB per cycle, cap 2), a cycle
+  (`bench_p2p_peer_transfer.py --latency`, 24 × 4 KiB per cycle, cap 2), a cycle
   pays handshakes only at first contact (`[2,0,…]` with 2 workers, `[8,0,…]` with
   8) and **zero** afterwards, because the HTTP session cache is per-thread and
   every worker keeps a warm keep-alive connection. Forcing the worker count down

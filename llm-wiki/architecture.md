@@ -39,8 +39,8 @@ these constants:
 | `Capability` enum + `encode/decode_capabilities` | `protocol/handshake.py:65` | WS handshake on all peers; includes additive `peer_download` |
 | `build_ws_auth_request/ok/error` | `protocol/handshake.py:136` | client/android WS auth, server `events.py` |
 | `UiEventName` + `build_event` | `protocol/events.py:44` | client emits, desktop/android parse; transfer payload may carry peer `source_cid` |
-| `elect_master` / `election_sort_key` | `protocol/lan.py:67` | client `lan.py`, android `Election.kt` |
-| `evaluate_pin` / `lan_write_requires_key` | `protocol/pairing.py:86` | client `pinning.py`, android `Pairing.kt` |
+| `elect_master` / `election_sort_key` | `protocol/p2p.py:67` | client `p2p.py`, android `Election.kt` |
+| `evaluate_pin` / `p2p_write_requires_key` | `protocol/pairing.py:86` | client `pinning.py`, android `Pairing.kt` |
 | LAN source/inventory builders + validators | `protocol/peer_download.py:91` | client master/seeder/source resolver, Android mirror, generated contracts |
 
 ## Causal conflict model (ADR-0022)
@@ -52,11 +52,11 @@ these constants:
   `models/version.py`; installation ``syncstate.db`` keyed by ``.hsyncfolder``
   UUID, ADR-0025).
   No node is authoritative: the server and the
-  elected LAN master arbitrate uploads causally against their stored version
+  elected p2p master arbitrate uploads causally against their stored version
   and never decide by role.
 - Wire surface: `FileDict.version` (attach-always), upload form fields
   `vclock`/`version_id`, delta-apply metadata, WS auth/TXT capability token
-  `vector_clocks` (same protocol versions: `api/1`, `ws/1`, `lan/1`).
+  `vector_clocks` (same protocol versions: `api/1`, `ws/1`, `p2p/1`).
 - Consumers: client `sync.py`/`sync_state.py`/`arbitration.py`, server
   `versions.py`/`arbitration.py`, Android `Version.kt`/`Arbitration.kt`
   mirrors. `protocol/fixtures.py` generates `causal-resolution-scenarios.json`
@@ -70,9 +70,9 @@ these constants:
 | -------- | ------- | ------------- |
 | OpenAPI (REST) | server app → `dump_openapi` | `protocol/__init__.py:30` (`REST_OPENAPI_PATH`) |
 | WS JSON Schema | `build_ws_schema` (`protocol/schemas.py:464`) | `protocol/__init__.py:34` (`WS_SCHEMA_PATH`) |
-| LAN TXT JSON Schema | `build_lan_txt_schema` (`protocol/schemas.py:742`) | `protocol/__init__.py:35` (`LAN_TXT_SCHEMA_PATH`) |
-| LAN WSS JSON Schema | `build_lan_wss_schema` (`protocol/schemas.py:669`) | `protocol/__init__.py:36` (`LAN_WSS_SCHEMA_PATH`) |
-| LAN source JSON Schema | `build_lan_sources_schema` (`protocol/schemas.py:180`) | `protocol/__init__.py:38` (`LAN_SOURCES_SCHEMA_PATH`) |
+| p2p TXT JSON Schema | `build_p2p_txt_schema` (`protocol/schemas.py:742`) | `protocol/__init__.py:35` (`P2P_TXT_SCHEMA_PATH`) |
+| p2p WSS JSON Schema | `build_p2p_wss_schema` (`protocol/schemas.py:669`) | `protocol/__init__.py:36` (`P2P_WSS_SCHEMA_PATH`) |
+| LAN source JSON Schema | `build_p2p_sources_schema` (`protocol/schemas.py:180`) | `protocol/__init__.py:38` (`P2P_SOURCES_SCHEMA_PATH`) |
 | Cross-language fixtures | `build_fixtures` (`protocol/fixtures.py:647`) | `protocol/__init__.py:42` (`FIXTURES_DIR`) |
 
 Regeneration: `scripts/export_protocol_schemas.py` and `scripts/export_openapi.py`.

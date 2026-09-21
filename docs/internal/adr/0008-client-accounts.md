@@ -87,7 +87,7 @@ Alternatives rejected:
 
 ## See also
 
-- [ADR-0001](0001-server-vs-lan-modes.md) — LAN mode uses TOFU pinning, not
+- [ADR-0001](0001-server-vs-p2p-modes.md) — p2p mode uses TOFU pinning, not
   account tokens.
 - [ADR-0012](0012-rate-limiting.md) — rate limiting is per-IP; admin endpoints
   have a stricter limit.

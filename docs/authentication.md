@@ -3,7 +3,7 @@
 This document specifies the canonical contracts shared by every HSYNC component
 that authenticates a remote peer. It covers the wire format of authentication
 messages, the client-ID (CID) format, and the protocol-version negotiation.
-Transport-specific flows (Server Mode, LAN P2P with/without `LAN_KEY`) are
+Transport-specific flows (Server Mode, p2p with/without `P2P_KEY`) are
 documented in the consuming projects:
 
 - **Server-side**: [`hsync-server/docs/authentication.md`](https://github.com/albertsdk/hsync-server/blob/main/docs/authentication.md)
@@ -21,14 +21,14 @@ The CID serves three purposes across the protocol:
 
 1. **Echo suppression** — every filesystem event broadcast carries the
    originator's CID. A peer that receives its own CID back from the relay
-   (server or LAN master) silently discards the event, preventing an
+   (server or p2p master) silently discards the event, preventing an
    infinite echo loop.
 
 2. **Event attribution** — log lines and debug output tag each operation
    with the originating CID, making it possible to trace which peer
    triggered which sync action.
 
-3. **Master election tiebreaker** — in LAN mode, when two peers start at
+3. **Master election tiebreaker** — in p2p mode, when two peers start at
    exactly the same `startup_time` (same-second), the peer with the
    lexicographically **lowest CID** wins the election. This is a
    deterministic, always-available fallback.
@@ -41,7 +41,7 @@ Key properties:
 | **Origin** | Generated locally (Python: `get_cid()`, Kotlin: `ClientId.newClientId()`) |
 | **Secrecy** | Not a secret — the CID is broadcast openly on mDNS and embedded in every event |
 | **Uniqueness** | Statistically unique per session (~125 bits of entropy) |
-| **Authenticity** | May be authenticated (bound to a shared `API_KEY` or `LAN_KEY`) or unauthenticated (hello mode) |
+| **Authenticity** | May be authenticated (bound to a shared `API_KEY` or `P2P_KEY`) or unauthenticated (hello mode) |
 
 ### Authenticated vs unauthenticated CID
 
@@ -52,8 +52,8 @@ transport context:
   The account token (`hs_<account_id>_<secret>`) identifies a server-side account
   with a role (`admin` or `client`) and bucket memberships. The CID remains
   ephemeral and is not the account id.
-- **LAN P2P with `LAN_KEY`**: the CID is bound to the shared secret → **authenticated**.
-- **LAN P2P without `LAN_KEY` (hello mode)**: the CID is self-declared and
+- **p2p with `P2P_KEY`**: the CID is bound to the shared secret → **authenticated**.
+- **p2p without `P2P_KEY` (hello mode)**: the CID is self-declared and
   unverified → **unauthenticated** — the master ignores it for echo suppression
   and qualifies it in logs.
 
@@ -77,7 +77,7 @@ string. The canonical pattern is enforced by `hsync_common.models.event.is_valid
 | Match mode | **fullmatch** (not `match` — trailing `\n` is rejected) |
 | Entropy | ~125 bits (log₂(62²¹)) |
 | Python validator | `hsync_common.models.event.is_valid_cid(value)` (`^[A-Za-z0-9]{21}$`) |
-| Kotlin validator | `CID_PATTERN.matcher(value).matches()` in `LanWebSocketServer` / `LanServer` (`^[A-Za-z0-9]{21}$`) |
+| Kotlin validator | `CID_PATTERN.matcher(value).matches()` in `P2PWebSocketServer` / `P2PServer` (`^[A-Za-z0-9]{21}$`) |
 
 A CID that fails validation **must be rejected at the transport level** (WebSocket
 close with `reason: "invalid_cid"`, or HTTP 4xx) — never silently replaced with a
@@ -106,9 +106,9 @@ connection (there is no separate auth channel). The message envelope is:
 
 | `type` | Direction | Meaning |
 |---|---|---|
-| `auth` | Client → Server / Slave → Master | Authentication request carrying the account token (Server Mode) or shared LAN key, and CID |
-| `auth_required` | Master → Slave | Master requires authentication (LAN P2P with `LAN_KEY`) |
-| `hello` | Master → Slave | Lightweight handshake: master has no `LAN_KEY`, asks slave for its CID for logging |
+| `auth` | Client → Server / Slave → Master | Authentication request carrying the account token (Server Mode) or shared p2p key, and CID |
+| `auth_required` | Master → Slave | Master requires authentication (p2p with `P2P_KEY`) |
+| `hello` | Master → Slave | Lightweight handshake: master has no `P2P_KEY`, asks slave for its CID for logging |
 
 ### Response `status` values
 
@@ -145,8 +145,8 @@ Once a peer's CID has been validated and (where applicable) authenticated, it is
 | Scenario | CID validated? | CID authenticated? | Can be used for echo suppression? | Logged as |
 |---|---|---|---|---|
 | Server Mode (account token) | ✅ `is_valid_cid()` | ✅ (by account token) | ✅ | `(CID: xxx)` |
-| LAN P2P with `LAN_KEY` | ✅ `is_valid_cid()` | ✅ (`hmac.compare_digest`) | ✅ | `(CID: xxx)` |
-| LAN P2P without `LAN_KEY` (hello) | ✅ `is_valid_cid()` | ❌ (no shared secret) | ❌ (master's own CID used instead) | `(CID: xxx, unauthenticated)` |
+| p2p with `P2P_KEY` | ✅ `is_valid_cid()` | ✅ (`hmac.compare_digest`) | ✅ | `(CID: xxx)` |
+| p2p without `P2P_KEY` (hello) | ✅ `is_valid_cid()` | ❌ (no shared secret) | ❌ (master's own CID used instead) | `(CID: xxx, unauthenticated)` |
 
 ## Cross-language enforcement
 
@@ -155,8 +155,8 @@ the same CID pattern and validation logic. The pattern and its rationale are
 documented in:
 
 - Python: `hsync_common/models/event.py` — `CID_PATTERN`, `is_valid_cid()`
-- Kotlin: `LanWebSocketServer.kt` — `CID_PATTERN`, `isValidCid()` (companion object)
-- Kotlin: `LanServer.kt` — `CID_PATTERN`, `isValidCidFormat()` (companion object)
+- Kotlin: `P2PWebSocketServer.kt` — `CID_PATTERN`, `isValidCid()` (companion object)
+- Kotlin: `P2PServer.kt` — `CID_PATTERN`, `isValidCidFormat()` (companion object)
 
 ## Server Mode account model
 

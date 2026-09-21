@@ -5,10 +5,10 @@
 
 ## Context
 
-The deterministic election ([ADR-0002](0002-lan-master-election.md)) converges
+The deterministic election ([ADR-0002](0002-p2p-master-election.md)) converges
 every peer on the same master from the same candidate view, and the periodic
 staleness sweep bounds how long a hard-crashed master is kept (see
-`lan-protocol.md`). One gap remained: when a serving master **loses** the
+`p2p-protocol.md`). One gap remained: when a serving master **loses** the
 election, the client stopped its HTTP/WSS servers but **left its incumbency
 advertised**: the local `server_ready` flag stayed set and the mDNS TXT record
 still carried `server_ready=true`. The node therefore remained an "incumbent"

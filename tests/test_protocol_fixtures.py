@@ -23,8 +23,8 @@ from hsync_common.protocol import (
 )
 from hsync_common.protocol.fixtures import build_fixtures
 from hsync_common.protocol.schemas import (
-    LAN_TXT_REQUIRED_KEYS,
-    build_lan_txt_schema,
+    P2P_TXT_REQUIRED_KEYS,
+    build_p2p_txt_schema,
     build_ws_schema,
 )
 
@@ -32,6 +32,12 @@ _REGEN_HINT = "Regenerate with: poetry run python scripts/export_protocol_schema
 
 _FIXTURES = build_fixtures()
 _FIXTURE_NAMES = sorted(_FIXTURES)
+# The Android mirror additionally carries the ``bootnode-*`` contract fixtures
+# (mirrors of the canonical hsync-bootnode ones, not built from this source);
+# the Android parity tests must cover them too.
+_ANDROID_FIXTURE_NAMES = sorted(
+    set(_FIXTURES) | {p.stem for p in FIXTURES_DIR.glob("bootnode-*.json")}
+)
 
 
 class TestFixtureDrift:
@@ -48,7 +54,11 @@ class TestFixtureDrift:
         assert dump_contract(_FIXTURES[name]) == committed, f"Fixture '{name}' drift. {_REGEN_HINT}"
 
     def test_no_orphan_snapshots(self):
-        committed = {p.stem for p in FIXTURES_DIR.glob("*.json")}
+        # ``bootnode-*`` are a mirror of the canonical hsync-bootnode fixtures
+        # (guarded by tests/test_protocol_bootnode.py), not built from source.
+        committed = {
+            p.stem for p in FIXTURES_DIR.glob("*.json") if not p.stem.startswith("bootnode-")
+        }
         assert committed == set(_FIXTURE_NAMES), f"Orphan/missing fixtures. {_REGEN_HINT}"
 
 
@@ -87,34 +97,34 @@ class TestWsFixtureConformance:
         assert set(event["src"]) == set(defs["file"]["properties"])
 
 
-class TestLanFixtureConformance:
+class TestP2PFixtureConformance:
     """The LAN/TXT fixture conforms to the LAN schema."""
 
     def test_required_keys_present(self):
-        record = _FIXTURES["lan-txt-record"]
-        assert set(LAN_TXT_REQUIRED_KEYS) <= set(record)
+        record = _FIXTURES["p2p-txt-record"]
+        assert set(P2P_TXT_REQUIRED_KEYS) <= set(record)
 
     def test_keys_are_known(self):
-        schema = build_lan_txt_schema()
-        assert set(_FIXTURES["lan-txt-record"]) <= set(schema["properties"])
+        schema = build_p2p_txt_schema()
+        assert set(_FIXTURES["p2p-txt-record"]) <= set(schema["properties"])
 
     def test_protocol_const(self):
-        schema = build_lan_txt_schema()
-        record = _FIXTURES["lan-txt-record"]
+        schema = build_p2p_txt_schema()
+        record = _FIXTURES["p2p-txt-record"]
         assert record["protocol"] == schema["properties"]["protocol"]["const"]
 
     def test_values_are_strings(self):
-        assert all(isinstance(v, str) for v in _FIXTURES["lan-txt-record"].values())
+        assert all(isinstance(v, str) for v in _FIXTURES["p2p-txt-record"].values())
 
     def test_seeder_record_is_bound_but_not_master(self):
-        record = _FIXTURES["lan-txt-seeder-record"]
+        record = _FIXTURES["p2p-txt-seeder-record"]
         assert record["peer_download"] == "true"
         assert record["https"] == "true"
         assert "cert_fp" in record
         assert "server_ready" not in record
 
 
-class TestLanPeerDownloadFixtureConformance:
+class TestP2PPeerDownloadFixtureConformance:
     """Peer-download fixtures agree on handshake composition.
 
     Per-builder fixture validation is already covered exhaustively by
@@ -122,13 +132,13 @@ class TestLanPeerDownloadFixtureConformance:
     ``TestFixtureDrift``, so only the cross-builder composition assertions remain.
     """
 
-    def test_lan_handshake_advertises_peer_download(self):
+    def test_p2p_handshake_advertises_peer_download(self):
         for name in (
-            "lan-wss-auth-required",
-            "lan-wss-auth",
-            "lan-wss-auth-ok",
-            "lan-wss-hello-master",
-            "lan-wss-hello-slave",
+            "p2p-wss-auth-required",
+            "p2p-wss-auth",
+            "p2p-wss-auth-ok",
+            "p2p-wss-hello-master",
+            "p2p-wss-hello-slave",
         ):
             assert "peer_download" in _FIXTURES[name]["capabilities"]
 
@@ -207,7 +217,7 @@ class TestDeltaFixtureCoherence:
 class TestAndroidFixtureParity:
     """The Android fixture resources are verbatim copies of the Python ones."""
 
-    @pytest.mark.parametrize("name", _FIXTURE_NAMES)
+    @pytest.mark.parametrize("name", _ANDROID_FIXTURE_NAMES)
     def test_android_copy_matches(self, name):
         android = ANDROID_FIXTURES_DIR / f"{name}.json"
         assert android.is_file(), f"Missing Android fixture {android}. Copy it from {FIXTURES_DIR}."
@@ -217,4 +227,6 @@ class TestAndroidFixtureParity:
 
     def test_no_extra_android_fixtures(self):
         android = {p.stem for p in ANDROID_FIXTURES_DIR.glob("*.json")}
-        assert android == set(_FIXTURE_NAMES), f"Android fixture set diverged. {_REGEN_HINT}"
+        assert android == set(_ANDROID_FIXTURE_NAMES), (
+            f"Android fixture set diverged. {_REGEN_HINT}"
+        )

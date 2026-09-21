@@ -8,13 +8,16 @@
 """
 Regenerate the protocol contract and mirror the golden fixtures into Android.
 
-One command that (1) rebuilds the WS/LAN schemas and golden fixtures from the
-Python source of truth (delegating to ``export_protocol_schemas``) and (2) copies
-the fixtures verbatim into the Android test resources
+One command that (1) rebuilds the WS/p2p JSON Schemas and golden fixtures from
+the Python source of truth (delegating to ``export_protocol_schemas``), (2)
+mirrors the canonical ``boot/1`` fixtures from the sibling ``hsync-bootnode``
+repository into the committed ``FIXTURES_DIR`` copy, and (3) copies the whole
+fixture set verbatim into the Android test resources
 (``hsync_common.protocol.ANDROID_FIXTURES_DIR``), pruning any stale file so the
-two trees stay byte-identical. The cross-language parity test
-(`tests/test_protocol_fixtures.py::TestAndroidFixtureParity`) asserts exactly
-this, so run this after any handshake/model change instead of copying by hand.
+trees stay byte-identical. The cross-language parity test
+(`tests/test_protocol_fixtures.py::TestAndroidFixtureParity`) and the ``boot/1``
+drift test (`tests/test_protocol_bootnode.py`) assert exactly this, so run this
+after any handshake/model change instead of copying by hand.
 
 With ``--check`` it writes nothing and instead verifies that the committed
 schemas, fixtures and Android mirror match the source of truth, exiting non-zero
@@ -39,16 +42,17 @@ from export_protocol_schemas import export_fixtures, export_schemas
 
 from hsync_common.protocol import (
     ANDROID_FIXTURES_DIR,
+    BOOTNODE_FIXTURES_DIR,
     FIXTURES_DIR,
-    LAN_TXT_SCHEMA_PATH,
-    LAN_WSS_SCHEMA_PATH,
+    P2P_TXT_SCHEMA_PATH,
+    P2P_WSS_SCHEMA_PATH,
     WS_SCHEMA_PATH,
     dump_contract,
 )
 from hsync_common.protocol.fixtures import build_fixtures
 from hsync_common.protocol.schemas import (
-    build_lan_txt_schema,
-    build_lan_wss_schema,
+    build_p2p_txt_schema,
+    build_p2p_wss_schema,
     build_ws_schema,
 )
 
@@ -56,6 +60,40 @@ from hsync_common.protocol.schemas import (
 _ANDROID_APP_DIR = ANDROID_FIXTURES_DIR.parents[4]
 
 _REGEN_HINT = "Regenerate with: poetry run python scripts/sync_android_fixtures.py"
+
+
+def bootnode_fixture_names() -> list[str]:
+    """Stems of the ``boot/1`` fixtures to expect in the mirror.
+
+    The canonical files live in the sibling ``hsync-bootnode`` repository (the
+    bootnode never imports hsync-common). When that checkout is absent the
+    already-mirrored ``bootnode-*.json`` names are used so a standalone
+    hsync-common checkout is not reported as orphaned.
+    """
+    if BOOTNODE_FIXTURES_DIR.is_dir():
+        names = sorted(p.stem for p in BOOTNODE_FIXTURES_DIR.glob("*.json"))
+        if names:
+            return names
+    return sorted(p.stem for p in FIXTURES_DIR.glob("bootnode-*.json"))
+
+
+def sync_bootnode_fixtures() -> list[Path]:
+    """Copy the canonical ``boot/1`` fixtures into ``FIXTURES_DIR``.
+
+    No-op (returns an empty list) when the sibling bootnode checkout is absent.
+    """
+    if not BOOTNODE_FIXTURES_DIR.is_dir():
+        return []
+    FIXTURES_DIR.mkdir(parents=True, exist_ok=True)
+    written: list[Path] = []
+    for name in bootnode_fixture_names():
+        source = BOOTNODE_FIXTURES_DIR / f"{name}.json"
+        if not source.is_file():
+            continue
+        dest = FIXTURES_DIR / f"{name}.json"
+        shutil.copyfile(source, dest)
+        written.append(dest)
+    return written
 
 
 def sync_android_fixtures() -> tuple[list[Path], list[Path]]:
@@ -106,27 +144,41 @@ def _diff_set(directory: Path, expected: set[str], label: str) -> list[str]:
 def check_drift() -> list[str]:
     """Return human-readable drift problems; empty when everything is in sync.
 
-    Verifies, without writing anything, that the committed WS/LAN schemas, the
+    Verifies, without writing anything, that the committed WS/p2p schemas, the
     golden fixtures and the Android mirror match what would be regenerated from
     the Python source of truth.
     """
     problems: list[str] = []
     for path, schema in (
         (WS_SCHEMA_PATH, build_ws_schema()),
-        (LAN_TXT_SCHEMA_PATH, build_lan_txt_schema()),
-        (LAN_WSS_SCHEMA_PATH, build_lan_wss_schema()),
+        (P2P_TXT_SCHEMA_PATH, build_p2p_txt_schema()),
+        (P2P_WSS_SCHEMA_PATH, build_p2p_wss_schema()),
     ):
         problems += _diff_file(path, dump_contract(schema))
 
     fixtures = build_fixtures()
+    bootnode = bootnode_fixture_names()
+    expected = set(fixtures) | set(bootnode)
     for name, fixture in fixtures.items():
         problems += _diff_file(FIXTURES_DIR / f"{name}.json", dump_contract(fixture))
-    problems += _diff_set(FIXTURES_DIR, set(fixtures), "fixtures")
+    for name in bootnode:
+        canonical = BOOTNODE_FIXTURES_DIR / f"{name}.json"
+        if canonical.is_file():
+            problems += _diff_file(
+                FIXTURES_DIR / f"{name}.json", canonical.read_text(encoding="utf-8")
+            )
+    problems += _diff_set(FIXTURES_DIR, expected, "fixtures")
 
     if _ANDROID_APP_DIR.is_dir():
         for name, fixture in fixtures.items():
             problems += _diff_file(ANDROID_FIXTURES_DIR / f"{name}.json", dump_contract(fixture))
-        problems += _diff_set(ANDROID_FIXTURES_DIR, set(fixtures), "Android fixtures")
+        for name in bootnode:
+            canonical = BOOTNODE_FIXTURES_DIR / f"{name}.json"
+            if canonical.is_file():
+                problems += _diff_file(
+                    ANDROID_FIXTURES_DIR / f"{name}.json", canonical.read_text(encoding="utf-8")
+                )
+        problems += _diff_set(ANDROID_FIXTURES_DIR, expected, "Android fixtures")
 
     return problems
 
@@ -146,7 +198,7 @@ def _run_check() -> int:
 
 def _run_sync() -> int:
     """Regenerate the contract and sync fixtures into Android."""
-    for path in (*export_schemas(), *export_fixtures()):
+    for path in (*export_schemas(), *export_fixtures(), *sync_bootnode_fixtures()):
         print(f"Wrote {path}")
 
     if not _ANDROID_APP_DIR.is_dir():

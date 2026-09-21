@@ -6,7 +6,7 @@
 ## Context
 
 HSYNC traditionally transfers files **in their entirety**: when a file changes
-on one peer, the new version is uploaded to the server (or LAN master) and
+on one peer, the new version is uploaded to the server (or p2p master) and
 downloaded by every other peer. For small files this is acceptable, but for
 large files with minor changes (e.g. a 100 MB video with a 1 MB edit, or a
 multi-GB database dump with a few modified records) the bandwidth cost is
@@ -106,11 +106,11 @@ discovery. Peers only attempt delta transfer when **both** sides support it.
 Delta transfer is only attempted for files above a minimum size:
 
 - **Server mode**: ≥ 256 KB (`DELTA_MIN_FILE_SIZE`)
-- **LAN mode**: ≥ 1 MB (`DELTA_MIN_FILE_SIZE_LAN`)
+- **p2p mode**: ≥ 1 MB (`DELTA_MIN_FILE_SIZE_P2P`)
 
 Below these thresholds, the overhead of computing signatures and matching blocks
 outweighs the bandwidth savings. The thresholds are configurable via environment
-variables (`HSYNC_DELTA_MIN_FILE_SIZE`, `HSYNC_DELTA_MIN_FILE_SIZE_LAN`).
+variables (`HSYNC_DELTA_MIN_FILE_SIZE`, `HSYNC_DELTA_MIN_FILE_SIZE_P2P`).
 
 ### Fallback behavior
 
@@ -189,7 +189,7 @@ multiple clients would write to the same `.delta.part` file simultaneously.
   `hsync-server/docs/operations.md`).
 - **Documentation**: user-facing documentation should explain delta transfer,
   its benefits, and the configuration options (see `hsync-client/docs/sync-flow.md`,
-  `hsync-client/docs/configuration.md`, `hsync-client/docs/lan-internals.md`).
+  `hsync-client/docs/configuration.md`, `hsync-client/docs/p2p-internals.md`).
 - **Monitoring**: the `[DELTA]` log label should be documented in the log-legend
   so users can identify delta transfers in the logs.
 - **Testing**: cross-language parity tests should verify that the Python and

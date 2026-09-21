@@ -9,7 +9,7 @@ Canonical LAN security policy (single source of truth).
 
 The LAN channel is **HTTPS/WSS-only**: every master serves over a self-signed
 certificate whose fingerprint (``cert_fp``) travels in the mDNS TXT record, and
-write authorization uses either a shared ``HSYNC_LAN_KEY`` or the explicit
+write authorization uses either a shared ``HSYNC_P2P_KEY`` or the explicit
 dangerous keyless-write opt-in from ADR-0029. A self-signed certificate does not,
 on its own, prove *identity*: it is trusted only because it is the first one seen
 for a given peer (Trust On First Use). Because the transport is mandatory, a peer
@@ -19,19 +19,19 @@ from that model so the Python client and the Android client cannot drift:
 
 * :func:`evaluate_pin` — compare an observed certificate fingerprint against the
   one previously pinned for a ``(cid, bucket)`` and classify the outcome.
-* :func:`lan_write_requires_key` — decide whether a shared key is mandatory
+* :func:`p2p_write_requires_key` — decide whether a shared key is mandatory
   before performing write operations against a master.
 
 Both are side-effect free; persistence (the pin store) and I/O (events, prompts)
 live in the consuming client, never here. The threat model these decisions
-implement is documented in ``hsync-common/docs/lan-protocol.md``.
+implement is documented in ``hsync-common/docs/p2p-protocol.md``.
 """
 
 from __future__ import annotations
 
 from enum import StrEnum
 
-from .lan import SYNC_DIRECTION_BIDIRECTIONAL
+from .p2p import SYNC_DIRECTION_BIDIRECTIONAL
 
 __all__ = [
     "SYNC_DIRECTION_DOWNLOAD_ONLY",
@@ -39,7 +39,7 @@ __all__ = [
     "PinDecision",
     "evaluate_pin",
     "is_write_direction",
-    "lan_write_requires_key",
+    "p2p_write_requires_key",
     "normalize_fingerprint",
     "requires_pairing_confirmation",
 ]
@@ -137,7 +137,7 @@ def is_write_direction(sync_direction: str) -> bool:
     return sync_direction in _WRITE_DIRECTIONS
 
 
-def lan_write_requires_key(
+def p2p_write_requires_key(
     sync_direction: str,
     *,
     allow_unauthenticated_writes: bool = False,

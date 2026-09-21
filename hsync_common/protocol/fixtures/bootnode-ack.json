@@ -1,0 +1,7 @@
+{
+  "protocol_version": "boot/1",
+  "type": "ack",
+  "observed_endpoint": {"proto": "udp", "ip": "198.51.100.7", "port": 54321},
+  "ttl": 60,
+  "server_time": "2026-10-09T10:00:00Z"
+}

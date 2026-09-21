@@ -12,7 +12,7 @@ from hsync_common.compression import (
     COMPRESSION_LEVEL,
     COMPRESSION_LEVEL_FAST,
     MIN_SIZE_FOR_COMPRESSION,
-    MIN_SIZE_FOR_LAN,
+    MIN_SIZE_FOR_P2P,
     MIN_SIZE_FOR_UPLOAD,
     PRECOMPRESSED_EXTENSIONS,
     compress_data,
@@ -203,8 +203,8 @@ class TestShouldCompressContextual:
     def test_upload_threshold_greater_than_base(self):
         assert MIN_SIZE_FOR_UPLOAD > MIN_SIZE_FOR_COMPRESSION
 
-    def test_lan_threshold_greater_than_upload(self):
-        assert MIN_SIZE_FOR_LAN > MIN_SIZE_FOR_UPLOAD
+    def test_p2p_threshold_greater_than_upload(self):
+        assert MIN_SIZE_FOR_P2P > MIN_SIZE_FOR_UPLOAD
 
     def test_upload_below_threshold_skipped(self):
         assert should_compress("file.txt", MIN_SIZE_FOR_UPLOAD - 1, transfer_type="upload") is False
@@ -215,28 +215,28 @@ class TestShouldCompressContextual:
     def test_upload_at_threshold_compressed(self):
         assert should_compress("file.txt", MIN_SIZE_FOR_UPLOAD, transfer_type="upload") is True
 
-    def test_lan_below_threshold_skipped(self):
-        assert should_compress("file.txt", MIN_SIZE_FOR_LAN - 1, is_lan=True) is False
+    def test_p2p_below_threshold_skipped(self):
+        assert should_compress("file.txt", MIN_SIZE_FOR_P2P - 1, is_p2p=True) is False
 
-    def test_lan_above_threshold_compressed(self):
-        assert should_compress("file.txt", MIN_SIZE_FOR_LAN + 1, is_lan=True) is True
+    def test_p2p_above_threshold_compressed(self):
+        assert should_compress("file.txt", MIN_SIZE_FOR_P2P + 1, is_p2p=True) is True
 
-    def test_lan_at_threshold_compressed(self):
-        assert should_compress("file.txt", MIN_SIZE_FOR_LAN, is_lan=True) is True
+    def test_p2p_at_threshold_compressed(self):
+        assert should_compress("file.txt", MIN_SIZE_FOR_P2P, is_p2p=True) is True
 
-    def test_lan_overrides_transfer_type(self):
+    def test_p2p_overrides_transfer_type(self):
         # File above upload threshold but below LAN threshold: LAN wins, skip.
         size = MIN_SIZE_FOR_UPLOAD + 1
-        assert size < MIN_SIZE_FOR_LAN
-        assert should_compress("file.txt", size, transfer_type="upload", is_lan=True) is False
+        assert size < MIN_SIZE_FOR_P2P
+        assert should_compress("file.txt", size, transfer_type="upload", is_p2p=True) is False
 
     def test_precompressed_extension_skipped_in_upload(self):
         assert (
             should_compress("photo.jpg", MIN_SIZE_FOR_UPLOAD * 10, transfer_type="upload") is False
         )
 
-    def test_precompressed_extension_skipped_in_lan(self):
-        assert should_compress("photo.jpg", MIN_SIZE_FOR_LAN * 10, is_lan=True) is False
+    def test_precompressed_extension_skipped_in_p2p(self):
+        assert should_compress("photo.jpg", MIN_SIZE_FOR_P2P * 10, is_p2p=True) is False
 
 
 class TestCompressionLevel:
@@ -247,12 +247,12 @@ class TestCompressionLevel:
     def test_upload_uses_fast_level(self):
         assert compression_level("upload") == COMPRESSION_LEVEL_FAST
 
-    def test_lan_uses_fast_level(self):
-        assert compression_level(is_lan=True) == COMPRESSION_LEVEL_FAST
+    def test_p2p_uses_fast_level(self):
+        assert compression_level(is_p2p=True) == COMPRESSION_LEVEL_FAST
 
-    def test_lan_overrides_transfer_type(self):
+    def test_p2p_overrides_transfer_type(self):
         # Same precedence as should_compress: LAN wins over transfer_type.
-        assert compression_level("download", is_lan=True) == COMPRESSION_LEVEL_FAST
+        assert compression_level("download", is_p2p=True) == COMPRESSION_LEVEL_FAST
 
     def test_constants_relationship(self):
         assert COMPRESSION_LEVEL == 3

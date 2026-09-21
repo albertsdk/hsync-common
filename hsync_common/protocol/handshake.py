@@ -30,13 +30,13 @@ from enum import StrEnum
 from typing import Any, NotRequired, TypedDict
 
 from hsync_common.protocol.peer_download import (
-    LAN_SERVE_SLOTS_MAX,
-    LAN_SERVE_SLOTS_MIN,
+    P2P_SERVE_SLOTS_MAX,
+    P2P_SERVE_SLOTS_MIN,
     is_valid_serve_slots,
 )
 
 __all__ = [
-    "PROTOCOL_VERSION_LAN",
+    "PROTOCOL_VERSION_P2P",
     "PROTOCOL_VERSION_REST",
     "PROTOCOL_VERSION_WS",
     "Capability",
@@ -44,28 +44,28 @@ __all__ = [
     "WsAuthRequest",
     "WsAuthResponse",
     "WsPresenceFrame",
-    "LanAuthRequiredFrame",
-    "LanAuthFrame",
-    "LanAuthResultFrame",
-    "LanHelloFrame",
+    "P2PAuthRequiredFrame",
+    "P2PAuthFrame",
+    "P2PAuthResultFrame",
+    "P2PHelloFrame",
     "encode_capabilities",
     "decode_capabilities",
     "build_ws_auth_request",
     "build_ws_auth_ok",
     "build_ws_auth_error",
     "build_ws_presence",
-    "build_lan_auth_required",
-    "build_lan_auth",
-    "build_lan_auth_ok",
-    "build_lan_auth_failed",
-    "build_lan_hello",
+    "build_p2p_auth_required",
+    "build_p2p_auth",
+    "build_p2p_auth_ok",
+    "build_p2p_auth_failed",
+    "build_p2p_hello",
 ]
 
 # Per-channel protocol versions. Bump the channel suffix on any breaking change
 # to that channel's wire shape; the matching peer then hard-fails the handshake.
 PROTOCOL_VERSION_REST = "api/1"
 PROTOCOL_VERSION_WS = "ws/1"
-PROTOCOL_VERSION_LAN = "lan/1"
+PROTOCOL_VERSION_P2P = "p2p/1"
 
 
 class Capability(StrEnum):
@@ -199,7 +199,7 @@ def build_ws_presence(*, connected: int, total: int) -> WsPresenceFrame:
     }
 
 
-class LanAuthRequiredFrame(TypedDict):
+class P2PAuthRequiredFrame(TypedDict):
     """LAN master → slave first frame (``auth_required`` greeting).
 
     Carries the LAN protocol version and the master's capabilities so the auth
@@ -212,11 +212,11 @@ class LanAuthRequiredFrame(TypedDict):
     capabilities: list[str]
 
 
-class LanAuthFrame(TypedDict):
+class P2PAuthFrame(TypedDict):
     """LAN slave → master authentication frame.
 
     ``serve_slots`` is present exactly when this node serves peer downloads, and
-    states its concurrent-read capacity (``LAN_SERVE_SLOTS_MIN``/``_MAX``). The
+    states its concurrent-read capacity (``P2P_SERVE_SLOTS_MIN``/``_MAX``). The
     master records it on the authenticated session and only returns CIDs with a
     live advertisement as source candidates (ADR-0028).
     """
@@ -229,7 +229,7 @@ class LanAuthFrame(TypedDict):
     serve_slots: NotRequired[int]
 
 
-class LanAuthResultFrame(TypedDict):
+class P2PAuthResultFrame(TypedDict):
     """LAN master → slave auth reply (``ok`` or ``failed``)."""
 
     type: str  # always "auth"
@@ -239,13 +239,13 @@ class LanAuthResultFrame(TypedDict):
     reason: NotRequired[str]
 
 
-class LanHelloFrame(TypedDict):
+class P2PHelloFrame(TypedDict):
     """LAN hello frame (both directions on the unauthenticated path).
 
     The master greets with ``{"type": "hello", protocol_version, capabilities}``
     and the slave replies with the same shape plus its ``cid``. The CID is a
-    logging hint only when no ``LAN_KEY`` is configured. ``serve_slots`` follows
-    the same rule as :class:`LanAuthFrame`: present exactly when the sender
+    logging hint only when no ``P2P_KEY`` is configured. ``serve_slots`` follows
+    the same rule as :class:`P2PAuthFrame`: present exactly when the sender
     serves peer downloads.
     """
 
@@ -256,11 +256,11 @@ class LanHelloFrame(TypedDict):
     serve_slots: NotRequired[int]
 
 
-def build_lan_auth_required(*, capabilities: Iterable[Capability | str]) -> LanAuthRequiredFrame:
+def build_p2p_auth_required(*, capabilities: Iterable[Capability | str]) -> P2PAuthRequiredFrame:
     """Build the LAN master's ``auth_required`` greeting frame."""
     return {
         "type": "auth_required",
-        "protocol_version": PROTOCOL_VERSION_LAN,
+        "protocol_version": PROTOCOL_VERSION_P2P,
         "capabilities": encode_capabilities(capabilities),
     }
 
@@ -277,60 +277,60 @@ def _serve_slots_field(serve_slots: int | None) -> dict[str, int]:
         return {}
     if not is_valid_serve_slots(serve_slots):
         raise ValueError(
-            f"serve_slots must be between {LAN_SERVE_SLOTS_MIN} and {LAN_SERVE_SLOTS_MAX}"
+            f"serve_slots must be between {P2P_SERVE_SLOTS_MIN} and {P2P_SERVE_SLOTS_MAX}"
         )
     return {"serve_slots": serve_slots}
 
 
-def build_lan_auth(
+def build_p2p_auth(
     *,
     token: str,
     cid: str,
     capabilities: Iterable[Capability | str],
     serve_slots: int | None = None,
-) -> LanAuthFrame:
+) -> P2PAuthFrame:
     """Build the LAN slave's authentication frame."""
-    frame: LanAuthFrame = {
+    frame: P2PAuthFrame = {
         "type": "auth",
         "token": token,
         "cid": cid,
-        "protocol_version": PROTOCOL_VERSION_LAN,
+        "protocol_version": PROTOCOL_VERSION_P2P,
         "capabilities": encode_capabilities(capabilities),
     }
     frame.update(_serve_slots_field(serve_slots))  # type: ignore[typeddict-item]
     return frame
 
 
-def build_lan_auth_ok(*, capabilities: Iterable[Capability | str]) -> LanAuthResultFrame:
+def build_p2p_auth_ok(*, capabilities: Iterable[Capability | str]) -> P2PAuthResultFrame:
     """Build the LAN master's successful auth reply."""
     return {
         "type": "auth",
         "status": "ok",
-        "protocol_version": PROTOCOL_VERSION_LAN,
+        "protocol_version": PROTOCOL_VERSION_P2P,
         "capabilities": encode_capabilities(capabilities),
     }
 
 
-def build_lan_auth_failed(*, reason: str) -> LanAuthResultFrame:
+def build_p2p_auth_failed(*, reason: str) -> P2PAuthResultFrame:
     """Build the LAN master's auth rejection frame."""
     return {
         "type": "auth",
         "status": "failed",
-        "protocol_version": PROTOCOL_VERSION_LAN,
+        "protocol_version": PROTOCOL_VERSION_P2P,
         "reason": reason,
     }
 
 
-def build_lan_hello(
+def build_p2p_hello(
     *,
     capabilities: Iterable[Capability | str],
     cid: str | None = None,
     serve_slots: int | None = None,
-) -> LanHelloFrame:
+) -> P2PHelloFrame:
     """Build a LAN hello frame (master greeting or slave reply with ``cid``)."""
-    frame: LanHelloFrame = {
+    frame: P2PHelloFrame = {
         "type": "hello",
-        "protocol_version": PROTOCOL_VERSION_LAN,
+        "protocol_version": PROTOCOL_VERSION_P2P,
         "capabilities": encode_capabilities(capabilities),
     }
     if cid is not None:

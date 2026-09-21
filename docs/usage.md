@@ -51,5 +51,5 @@ consumers. See the [Protocol guide](protocol.md) for version negotiation.
 
 - [Models guide](models.md) — File, Dir, Event, SyncAction, TombstoneStore, etc.
 - [Utilities guide](utilities.md) — compression, hashing, ignore, path validation, SSL, logging.
-- [Protocol guide](protocol.md) — handshake, capabilities, LAN election, pairing.
+- [Protocol guide](protocol.md) — handshake, capabilities, p2p election, pairing.
 - [Internal architecture](internal/architecture.md) — detailed package structure.

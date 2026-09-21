@@ -10,7 +10,7 @@ JSON Schema contracts for the WebSocket and LAN/mDNS channels.
 Companion to the REST OpenAPI snapshot: this module builds the WS, LAN TXT/WSS,
 and LAN peer-source payload schemas *from the Python source of truth* — the
 handshake constants/capabilities, peer-download bounds, and shared event/file
-models — so the committed snapshots under ``ws/`` and ``lan/`` cannot silently
+models — so the committed snapshots under ``ws/`` and ``p2p/`` cannot silently
 drift from the code.
 Regenerate them with ``scripts/export_protocol_schemas.py`` and guard them
 with the matching drift-check test.
@@ -30,39 +30,39 @@ from hsync_common.models.file import FileDict
 from hsync_common.path_validation import MAX_REMOTE_RELPATH_BYTES
 
 from .handshake import (
-    PROTOCOL_VERSION_LAN,
+    PROTOCOL_VERSION_P2P,
     PROTOCOL_VERSION_WS,
     Capability,
     encode_capabilities,
 )
 from .peer_download import (
-    LAN_INVENTORY_ACK_REASON_MAX_LENGTH,
-    LAN_INVENTORY_MAX_ENTRIES,
-    LAN_INVENTORY_MAX_FRAME_BYTES,
-    LAN_SERVE_SLOTS_MAX,
-    LAN_SERVE_SLOTS_MIN,
-    LAN_SOURCES_MAX_BODY_BYTES,
-    LAN_SOURCES_MAX_CANDIDATES,
-    LAN_SOURCES_MAX_FILES,
-    LAN_WIRE_INT_MAX,
+    P2P_INVENTORY_ACK_REASON_MAX_LENGTH,
+    P2P_INVENTORY_MAX_ENTRIES,
+    P2P_INVENTORY_MAX_FRAME_BYTES,
+    P2P_SERVE_SLOTS_MAX,
+    P2P_SERVE_SLOTS_MIN,
+    P2P_SOURCES_MAX_BODY_BYTES,
+    P2P_SOURCES_MAX_CANDIDATES,
+    P2P_SOURCES_MAX_FILES,
+    P2P_WIRE_INT_MAX,
 )
 
 __all__ = [
     "JSON_SCHEMA_DIALECT",
-    "LAN_TXT_KEYS",
-    "LAN_TXT_OPTIONAL_KEYS",
-    "LAN_TXT_REQUIRED_KEYS",
-    "build_lan_sources_schema",
-    "build_lan_txt_schema",
-    "build_lan_wss_schema",
+    "P2P_TXT_KEYS",
+    "P2P_TXT_OPTIONAL_KEYS",
+    "P2P_TXT_REQUIRED_KEYS",
+    "build_p2p_sources_schema",
+    "build_p2p_txt_schema",
+    "build_p2p_wss_schema",
     "build_ws_schema",
 ]
 
 JSON_SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
 
 # Canonical mDNS/TXT keys advertised on the LAN channel — single source of truth
-# for ``lan/txt-schema.json``. Boolean flags are advertised only when true.
-LAN_TXT_REQUIRED_KEYS: tuple[str, ...] = (
+# for ``p2p/txt-schema.json``. Boolean flags are advertised only when true.
+P2P_TXT_REQUIRED_KEYS: tuple[str, ...] = (
     "cid",
     "bucket",
     "version",
@@ -70,7 +70,7 @@ LAN_TXT_REQUIRED_KEYS: tuple[str, ...] = (
     "startup_time",
     "sync_direction",
 )
-LAN_TXT_OPTIONAL_KEYS: tuple[str, ...] = (
+P2P_TXT_OPTIONAL_KEYS: tuple[str, ...] = (
     "group",
     "https",
     "cert_fp",
@@ -83,7 +83,7 @@ LAN_TXT_OPTIONAL_KEYS: tuple[str, ...] = (
     "heartbeat",
     "peer_download",
 )
-LAN_TXT_KEYS: tuple[str, ...] = LAN_TXT_REQUIRED_KEYS + LAN_TXT_OPTIONAL_KEYS
+P2P_TXT_KEYS: tuple[str, ...] = P2P_TXT_REQUIRED_KEYS + P2P_TXT_OPTIONAL_KEYS
 
 # A TXT boolean flag is a string present only when the value is true.
 _TXT_BOOL_FLAG: dict[str, Any] = {"type": "string", "enum": ["true"]}
@@ -109,7 +109,7 @@ def _capabilities_array() -> dict[str, Any]:
     }
 
 
-def _lan_cid() -> dict[str, Any]:
+def _p2p_cid() -> dict[str, Any]:
     """Strict schema for the canonical 21-character LAN client ID."""
     return {
         "type": "string",
@@ -119,7 +119,7 @@ def _lan_cid() -> dict[str, Any]:
     }
 
 
-def _lan_relpath() -> dict[str, Any]:
+def _p2p_relpath() -> dict[str, Any]:
     """Schema-level bounds for a path also checked by validate_remote_relpath."""
     return {
         "type": "string",
@@ -133,32 +133,32 @@ def _lan_relpath() -> dict[str, Any]:
     }
 
 
-def _lan_sha256() -> dict[str, Any]:
+def _p2p_sha256() -> dict[str, Any]:
     """Canonical lowercase SHA-256 digest schema."""
     return {"type": "string", "pattern": r"^[0-9a-f]{64}$", "minLength": 64, "maxLength": 64}
 
 
-def _lan_wire_int() -> dict[str, Any]:
+def _p2p_wire_int() -> dict[str, Any]:
     """Non-negative signed 64-bit integer used by inventory frames."""
-    return {"type": "integer", "minimum": 0, "maximum": LAN_WIRE_INT_MAX}
+    return {"type": "integer", "minimum": 0, "maximum": P2P_WIRE_INT_MAX}
 
 
-def _lan_sources_request_file() -> dict[str, Any]:
+def _p2p_sources_request_file() -> dict[str, Any]:
     return {
         "type": "object",
-        "title": "LanSourceFile",
-        "properties": {"path": _lan_relpath(), "sha256": _lan_sha256()},
+        "title": "P2PSourceFile",
+        "properties": {"path": _p2p_relpath(), "sha256": _p2p_sha256()},
         "required": ["path", "sha256"],
         "additionalProperties": False,
     }
 
 
-def _lan_serve_slots() -> dict[str, Any]:
+def _p2p_serve_slots() -> dict[str, Any]:
     """Seeder concurrent-read capacity advertised on a LAN frame or candidate."""
     return {
         "type": "integer",
-        "minimum": LAN_SERVE_SLOTS_MIN,
-        "maximum": LAN_SERVE_SLOTS_MAX,
+        "minimum": P2P_SERVE_SLOTS_MIN,
+        "maximum": P2P_SERVE_SLOTS_MAX,
         "description": (
             "Concurrent peer-download response bodies this seeder accepts; the "
             "requester uses it as its per-seeder admission limit (ADR-0028)."
@@ -166,12 +166,12 @@ def _lan_serve_slots() -> dict[str, Any]:
     }
 
 
-def _lan_source_candidate() -> dict[str, Any]:
+def _p2p_source_candidate() -> dict[str, Any]:
     return {
         "type": "object",
-        "title": "LanSourceCandidate",
+        "title": "P2PSourceCandidate",
         "properties": {
-            "cid": _lan_cid(),
+            "cid": _p2p_cid(),
             "download_url": {
                 "type": "string",
                 "format": "uri",
@@ -183,32 +183,32 @@ def _lan_source_candidate() -> dict[str, Any]:
                     "with an explicit port and bracketed IPv6 literal."
                 ),
             },
-            "cert_fp": _lan_sha256(),
+            "cert_fp": _p2p_sha256(),
             "compression": {"type": "boolean"},
-            "serve_slots": _lan_serve_slots(),
+            "serve_slots": _p2p_serve_slots(),
         },
         "required": ["cid", "download_url", "cert_fp", "compression", "serve_slots"],
         "additionalProperties": False,
     }
 
 
-def build_lan_sources_schema() -> dict[str, Any]:
+def build_p2p_sources_schema() -> dict[str, Any]:
     """Build the batch LAN peer-source REST payload schema (ADR-0028).
 
     Consumers: hsync-client source lookup, the Android protocol mirror, the
     schema exporter, and protocol drift tests.
     """
-    request_file = _lan_sources_request_file()
+    request_file = _p2p_sources_request_file()
     response_file = {
         "type": "object",
-        "title": "LanSourcesResponseFile",
+        "title": "P2PSourcesResponseFile",
         "properties": {
-            "path": _lan_relpath(),
-            "sha256": _lan_sha256(),
+            "path": _p2p_relpath(),
+            "sha256": _p2p_sha256(),
             "sources": {
                 "type": "array",
                 "items": {"$ref": "#/$defs/sourceCandidate"},
-                "maxItems": LAN_SOURCES_MAX_CANDIDATES,
+                "maxItems": P2P_SOURCES_MAX_CANDIDATES,
                 "uniqueItems": True,
                 "description": "At most one candidate per normalized CID.",
             },
@@ -218,14 +218,14 @@ def build_lan_sources_schema() -> dict[str, Any]:
     }
     request = {
         "type": "object",
-        "title": "LanSourcesRequest",
+        "title": "P2PSourcesRequest",
         "properties": {
-            "cid": _lan_cid(),
+            "cid": _p2p_cid(),
             "files": {
                 "type": "array",
                 "items": {"$ref": "#/$defs/requestFile"},
                 "minItems": 1,
-                "maxItems": LAN_SOURCES_MAX_FILES,
+                "maxItems": P2P_SOURCES_MAX_FILES,
                 "uniqueItems": True,
                 "description": "Each normalized path occurs exactly once.",
             },
@@ -235,13 +235,13 @@ def build_lan_sources_schema() -> dict[str, Any]:
     }
     response = {
         "type": "object",
-        "title": "LanSourcesResponse",
+        "title": "P2PSourcesResponse",
         "properties": {
             "files": {
                 "type": "array",
                 "items": {"$ref": "#/$defs/responseFile"},
                 "minItems": 1,
-                "maxItems": LAN_SOURCES_MAX_FILES,
+                "maxItems": P2P_SOURCES_MAX_FILES,
                 "uniqueItems": True,
                 "description": "Each normalized path occurs exactly once.",
             }
@@ -251,18 +251,18 @@ def build_lan_sources_schema() -> dict[str, Any]:
     }
     return {
         "$schema": JSON_SCHEMA_DIALECT,
-        "$id": f"https://hsync.dev/protocol/{PROTOCOL_VERSION_LAN}/files/sources",
-        "title": f"HSYNC LAN peer sources ({PROTOCOL_VERSION_LAN})",
+        "$id": f"https://hsync.dev/protocol/{PROTOCOL_VERSION_P2P}/files/sources",
+        "title": f"HSYNC p2p peer sources ({PROTOCOL_VERSION_P2P})",
         "description": (
             "Request/response contract for POST "
             "/api/v1/buckets/{bucket}/files/sources (ADR-0028). Generated from "
             "hsync_common.protocol.schemas; do not hand-edit."
         ),
         "x-contentType": CONTENT_TYPE_JSON,
-        "x-maxBodyBytes": LAN_SOURCES_MAX_BODY_BYTES,
+        "x-maxBodyBytes": P2P_SOURCES_MAX_BODY_BYTES,
         "$defs": {
             "requestFile": request_file,
-            "sourceCandidate": _lan_source_candidate(),
+            "sourceCandidate": _p2p_source_candidate(),
             "responseFile": response_file,
             "request": request,
             "response": response,
@@ -514,14 +514,14 @@ def build_ws_schema() -> dict[str, Any]:
     }
 
 
-def _lan_auth_required() -> dict[str, Any]:
-    """LAN master → slave greeting frame (``LanAuthRequiredFrame``)."""
+def _p2p_auth_required() -> dict[str, Any]:
+    """LAN master → slave greeting frame (``P2PAuthRequiredFrame``)."""
     return {
         "type": "object",
-        "title": "LanAuthRequired",
+        "title": "P2PAuthRequired",
         "properties": {
             "type": {"const": "auth_required"},
-            "protocol_version": {"const": PROTOCOL_VERSION_LAN},
+            "protocol_version": {"const": PROTOCOL_VERSION_P2P},
             "capabilities": _capabilities_array(),
         },
         "required": ["type", "protocol_version", "capabilities"],
@@ -529,31 +529,31 @@ def _lan_auth_required() -> dict[str, Any]:
     }
 
 
-def _lan_auth() -> dict[str, Any]:
-    """LAN slave → master auth frame (``LanAuthFrame``)."""
+def _p2p_auth() -> dict[str, Any]:
+    """LAN slave → master auth frame (``P2PAuthFrame``)."""
     return {
         "type": "object",
-        "title": "LanAuth",
+        "title": "P2PAuth",
         "properties": {
             "type": {"const": "auth"},
             "token": {"type": "string"},
             "cid": {"type": "string"},
-            "protocol_version": {"const": PROTOCOL_VERSION_LAN},
+            "protocol_version": {"const": PROTOCOL_VERSION_P2P},
             "capabilities": _capabilities_array(),
-            "serve_slots": _lan_serve_slots(),
+            "serve_slots": _p2p_serve_slots(),
         },
         "required": ["type", "token", "cid", "protocol_version", "capabilities"],
         "additionalProperties": False,
     }
 
 
-def _lan_auth_result(kind: str) -> dict[str, Any]:
-    """LAN master → slave auth reply (``LanAuthResultFrame`` ok/failed)."""
+def _p2p_auth_result(kind: str) -> dict[str, Any]:
+    """LAN master → slave auth reply (``P2PAuthResultFrame`` ok/failed)."""
     success = kind == "ok"
     properties: dict[str, Any] = {
         "type": {"const": "auth"},
         "status": {"const": kind},
-        "protocol_version": {"const": PROTOCOL_VERSION_LAN},
+        "protocol_version": {"const": PROTOCOL_VERSION_P2P},
     }
     required = ["type", "status", "protocol_version"]
     if success:
@@ -564,63 +564,63 @@ def _lan_auth_result(kind: str) -> dict[str, Any]:
         required.append("reason")
     return {
         "type": "object",
-        "title": f"LanAuth{'Ok' if success else 'Failed'}",
+        "title": f"P2PAuth{'Ok' if success else 'Failed'}",
         "properties": properties,
         "required": required,
         "additionalProperties": False,
     }
 
 
-def _lan_hello() -> dict[str, Any]:
-    """LAN hello frame, both directions (``LanHelloFrame``)."""
+def _p2p_hello() -> dict[str, Any]:
+    """LAN hello frame, both directions (``P2PHelloFrame``)."""
     return {
         "type": "object",
-        "title": "LanHello",
+        "title": "P2PHello",
         "properties": {
             "type": {"const": "hello"},
-            "protocol_version": {"const": PROTOCOL_VERSION_LAN},
+            "protocol_version": {"const": PROTOCOL_VERSION_P2P},
             "capabilities": _capabilities_array(),
             "cid": {"type": "string"},
-            "serve_slots": _lan_serve_slots(),
+            "serve_slots": _p2p_serve_slots(),
         },
         "required": ["type", "protocol_version", "capabilities"],
         "additionalProperties": False,
     }
 
 
-def _lan_inventory_upsert() -> dict[str, Any]:
+def _p2p_inventory_upsert() -> dict[str, Any]:
     """LAN seeder inventory upsert entry."""
     return {
         "type": "object",
-        "title": "LanInventoryUpsertEntry",
+        "title": "P2PInventoryUpsertEntry",
         "properties": {
-            "path": _lan_relpath(),
-            "sha256": _lan_sha256(),
-            "size": _lan_wire_int(),
+            "path": _p2p_relpath(),
+            "sha256": _p2p_sha256(),
+            "size": _p2p_wire_int(),
         },
         "required": ["path", "sha256", "size"],
         "additionalProperties": False,
     }
 
 
-def _lan_inventory_delete() -> dict[str, Any]:
+def _p2p_inventory_delete() -> dict[str, Any]:
     """LAN seeder inventory delta deletion entry."""
     return {
         "type": "object",
-        "title": "LanInventoryDeleteEntry",
-        "properties": {"path": _lan_relpath(), "deleted": {"const": True}},
+        "title": "P2PInventoryDeleteEntry",
+        "properties": {"path": _p2p_relpath(), "deleted": {"const": True}},
         "required": ["path", "deleted"],
         "additionalProperties": False,
     }
 
 
-def _lan_inventory_frame(mode: str) -> dict[str, Any]:
+def _p2p_inventory_frame(mode: str) -> dict[str, Any]:
     """LAN inventory snapshot/delta frame with mode-specific entry rules."""
     snapshot = mode == "snapshot"
     entries: dict[str, Any] = {
         "type": "array",
         "items": {"$ref": "#/$defs/inventoryUpsert" if snapshot else "#/$defs/inventoryEntry"},
-        "maxItems": LAN_INVENTORY_MAX_ENTRIES,
+        "maxItems": P2P_INVENTORY_MAX_ENTRIES,
         "uniqueItems": True,
         "description": "Each normalized path occurs exactly once in the frame.",
     }
@@ -628,11 +628,11 @@ def _lan_inventory_frame(mode: str) -> dict[str, Any]:
         entries["minItems"] = 1
     frame = {
         "type": "object",
-        "title": f"LanInventory{'Snapshot' if snapshot else 'Delta'}",
+        "title": f"P2PInventory{'Snapshot' if snapshot else 'Delta'}",
         "properties": {
             "type": {"const": "inventory"},
-            "gen": _lan_wire_int(),
-            "seq": _lan_wire_int(),
+            "gen": _p2p_wire_int(),
+            "seq": _p2p_wire_int(),
             "mode": {"const": mode},
             "more": {"type": "boolean"} if snapshot else {"const": False},
             "entries": entries,
@@ -655,13 +655,13 @@ def _lan_inventory_frame(mode: str) -> dict[str, Any]:
     return frame
 
 
-def _lan_inventory_ack(status: str) -> dict[str, Any]:
+def _p2p_inventory_ack(status: str) -> dict[str, Any]:
     """LAN inventory acknowledgement for one exact status."""
     rejected = status == "rejected"
     properties: dict[str, Any] = {
         "type": {"const": "inventory_ack"},
-        "gen": _lan_wire_int(),
-        "seq": _lan_wire_int(),
+        "gen": _p2p_wire_int(),
+        "seq": _p2p_wire_int(),
         "status": {"const": status},
     }
     required = ["type", "gen", "seq", "status"]
@@ -669,62 +669,62 @@ def _lan_inventory_ack(status: str) -> dict[str, Any]:
         properties["reason"] = {
             "type": "string",
             "pattern": r"^[a-z][a-z0-9_]{0,63}$",
-            "maxLength": LAN_INVENTORY_ACK_REASON_MAX_LENGTH,
+            "maxLength": P2P_INVENTORY_ACK_REASON_MAX_LENGTH,
         }
         required.append("reason")
     return {
         "type": "object",
-        "title": f"LanInventoryAck{status.capitalize()}",
+        "title": f"P2PInventoryAck{status.capitalize()}",
         "properties": properties,
         "required": required,
         "additionalProperties": False,
     }
 
 
-def build_lan_wss_schema() -> dict[str, Any]:
+def build_p2p_wss_schema() -> dict[str, Any]:
     """Build the additive LAN WebSocket JSON Schema from the Python SSOT.
 
     Codifies the master⇄slave handshake frames (ADR-0024): they exchange the
     capability registry over the authenticated channel, so the mDNS/TXT record
     is not the only capability source on the LAN. Inventory publication and its
-    acknowledgements extend ``lan/1`` additively under ADR-0028.
+    acknowledgements extend ``p2p/1`` additively under ADR-0028.
     """
     return {
         "$schema": JSON_SCHEMA_DIALECT,
-        "$id": f"https://hsync.dev/protocol/{PROTOCOL_VERSION_LAN}/wss",
-        "title": f"HSYNC LAN WebSocket protocol ({PROTOCOL_VERSION_LAN})",
+        "$id": f"https://hsync.dev/protocol/{PROTOCOL_VERSION_P2P}/wss",
+        "title": f"HSYNC p2p WebSocket protocol ({PROTOCOL_VERSION_P2P})",
         "description": (
-            "Wire contract for the LAN master⇄slave WebSocket handshake and "
+            "Wire contract for the p2p master⇄slave WebSocket handshake and "
             "peer inventory channel (ADR-0024, ADR-0028). Generated from "
             "hsync_common.protocol.schemas; do not hand-edit."
         ),
-        "x-maxMessageBytes": LAN_INVENTORY_MAX_FRAME_BYTES,
+        "x-maxMessageBytes": P2P_INVENTORY_MAX_FRAME_BYTES,
         "$defs": {
             **_entity_defs(),
-            "authRequired": _lan_auth_required(),
-            "auth": _lan_auth(),
-            "authOk": _lan_auth_result("ok"),
-            "authFailed": _lan_auth_result("failed"),
-            "hello": _lan_hello(),
-            "inventoryUpsert": _lan_inventory_upsert(),
-            "inventoryDelete": _lan_inventory_delete(),
+            "authRequired": _p2p_auth_required(),
+            "auth": _p2p_auth(),
+            "authOk": _p2p_auth_result("ok"),
+            "authFailed": _p2p_auth_result("failed"),
+            "hello": _p2p_hello(),
+            "inventoryUpsert": _p2p_inventory_upsert(),
+            "inventoryDelete": _p2p_inventory_delete(),
             "inventoryEntry": {
                 "oneOf": [
                     {"$ref": "#/$defs/inventoryUpsert"},
                     {"$ref": "#/$defs/inventoryDelete"},
                 ]
             },
-            "inventorySnapshot": _lan_inventory_frame("snapshot"),
-            "inventoryDelta": _lan_inventory_frame("delta"),
+            "inventorySnapshot": _p2p_inventory_frame("snapshot"),
+            "inventoryDelta": _p2p_inventory_frame("delta"),
             "inventory": {
                 "oneOf": [
                     {"$ref": "#/$defs/inventorySnapshot"},
                     {"$ref": "#/$defs/inventoryDelta"},
                 ]
             },
-            "inventoryAckOk": _lan_inventory_ack("ok"),
-            "inventoryAckResync": _lan_inventory_ack("resync"),
-            "inventoryAckRejected": _lan_inventory_ack("rejected"),
+            "inventoryAckOk": _p2p_inventory_ack("ok"),
+            "inventoryAckResync": _p2p_inventory_ack("resync"),
+            "inventoryAckRejected": _p2p_inventory_ack("rejected"),
             "inventoryAck": {
                 "oneOf": [
                     {"$ref": "#/$defs/inventoryAckOk"},
@@ -754,13 +754,13 @@ def build_lan_wss_schema() -> dict[str, Any]:
     }
 
 
-def build_lan_txt_schema() -> dict[str, Any]:
+def build_p2p_txt_schema() -> dict[str, Any]:
     """Build the LAN/mDNS TXT-record JSON Schema from the Python source of truth."""
     properties: dict[str, Any] = {
         "cid": {"type": "string"},
         "bucket": {"type": "string"},
         "version": {"type": "string", "description": "Semantic app version (informational)."},
-        "protocol": {"const": PROTOCOL_VERSION_LAN},
+        "protocol": {"const": PROTOCOL_VERSION_P2P},
         "startup_time": {
             "type": "string",
             "pattern": r"^[0-9]+(\.[0-9]+)?$",
@@ -804,14 +804,14 @@ def build_lan_txt_schema() -> dict[str, Any]:
     }
     return {
         "$schema": JSON_SCHEMA_DIALECT,
-        "$id": f"https://hsync.dev/protocol/{PROTOCOL_VERSION_LAN}",
-        "title": f"HSYNC LAN mDNS/TXT record ({PROTOCOL_VERSION_LAN})",
+        "$id": f"https://hsync.dev/protocol/{PROTOCOL_VERSION_P2P}",
+        "title": f"HSYNC p2p mDNS/TXT record ({PROTOCOL_VERSION_P2P})",
         "description": (
             "Contract for the mDNS service TXT record. All values are strings "
             "(mDNS encoding). Generated from hsync_common.protocol.schemas."
         ),
         "type": "object",
         "properties": properties,
-        "required": list(LAN_TXT_REQUIRED_KEYS),
+        "required": list(P2P_TXT_REQUIRED_KEYS),
         "additionalProperties": False,
     }

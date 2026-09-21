@@ -79,5 +79,5 @@ Alternatives rejected:
 
 - [ADR-0005](0005-protocol-versioning.md) — protocol versioning for both REST
   and WebSocket channels.
-- [ADR-0001](0001-server-vs-lan-modes.md) — LAN mode also uses REST+WS between
+- [ADR-0001](0001-server-vs-p2p-modes.md) — p2p mode also uses REST+WS between
   peers.

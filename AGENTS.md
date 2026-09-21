@@ -94,7 +94,7 @@ documentation-engineering rules:
 ## ⚠️ Domain-Critical Rules
 
 * **LAN Discovery & Master Election**
-  Before modifying any logic related to these mechanisms, you **MUST** read and follow the specifications outlined in `hsync-common/docs/lan-protocol.md`.
+  Before modifying any logic related to these mechanisms, you **MUST** read and follow the specifications outlined in `hsync-common/docs/p2p-protocol.md`.
 
 * **Packaging WD My Cloud OS5**
   Any change to CLI flags, environment variables (`HSYNC_*`), or user-facing behaviors/defaults **REQUIRES** a synchronous update to `hsync-client/packaging/wd-os5`:

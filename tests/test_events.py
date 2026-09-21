@@ -41,6 +41,15 @@ class TestBuildEvent:
         ev2 = build_event(UiEventName.progress, transferred=0, total=10)
         assert ev2["transferred"] == 0  # type: ignore[reportTypedDictNotRequiredAccess]
 
+    def test_discovery_event_carries_the_active_plan(self):
+        ev = build_event(UiEventName.discovery, plan="bootnode", bootnode="boot.example.net")
+        assert ev["event"] == "discovery"
+        assert ev["plan"] == "bootnode"  # type: ignore[reportTypedDictNotRequiredAccess]
+        assert ev["bootnode"] == "boot.example.net"  # type: ignore[reportTypedDictNotRequiredAccess]
+        # The mDNS plan omits the bootnode field (None payload values are dropped).
+        mdns = build_event(UiEventName.discovery, plan="mdns")
+        assert "bootnode" not in mdns
+
     def test_transfer_accepts_optional_source_cid(self):
         ev = build_event(
             UiEventName.transfer,
@@ -117,6 +126,7 @@ class TestEventNameCoverage:
             "role",
             "bucket",
             "group",
+            "discovery",
             "session",
             "server",
             "transfer",

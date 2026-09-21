@@ -30,16 +30,16 @@ differences between the Python and Kotlin implementations.
 |--------|--------|--------|-------|
 | File model | `hsync_common.models.file.File` | `com.hsync.android.data.model.FileItem` | `filepath`, `name`, `ctime`, `mtime`, `size`, `sha256sum`, `permissions` |
 | Sync actions | `hsync_common.models.sync_action.SyncActionName` | `com.hsync.android.data.model.SyncAction` | `NOTHING`, `DOWNLOAD`, `UPLOAD`, `DELETE`, `RENAME` |
-| Protocol version | `hsync_common.protocol.handshake` | `com.hsync.android.data.api.Protocol` | `VERSION_REST`, `VERSION_WS`, `VERSION_LAN`, capability tokens |
+| Protocol version | `hsync_common.protocol.handshake` | `com.hsync.android.data.api.Protocol` | `VERSION_REST`, `VERSION_WS`, `VERSION_P2P`, capability tokens |
 | Compression | `hsync_common.compression` | `com.hsync.android.util.CompressionManager` | Zstandard via `zstd-jni`, level 3 |
 | Tombstone store | `hsync_common.models.tombstone` | `com.hsync.android.util.TombstoneStore` (`Tombstones.kt`) | TTL pruning (storage GC), causal vclock merge; Android persistence mirrors ADR-0025 SQLite |
 | Sync state (three-way merge) | `hsync_common.models.version` | `com.hsync.android.util.SyncStateStore` (`Version.kt`) | `FileVersion`, `resolveThreeWay`; Python store is SQLite (ADR-0025) |
 | Delta engine | `hsync_common.delta` | `com.hsync.android.util.DeltaEngine` | Rolling Adler32, block signatures, find_matches, apply_delta |
 | Delta decision | `hsync_common.delta.decision` | `com.hsync.android.util.DeltaDecision` | Block size thresholds, worthwhileness gate |
 | Delta transfer | `hsync_client.delta_transfer` | `com.hsync.android.util.DeltaTransfer` | Client-side upload/download delta orchestration |
-| LAN delta | `hsync_client.lan_delta` | `com.hsync.android.p2p.LanDelta` | Master-side delta endpoints + token store |
-| LAN election | `hsync_common.protocol.lan` | `com.hsync.android.p2p.Election` | `electMaster`, `ranked` |
-| LAN pairing | `hsync_common.protocol.pairing` | `com.hsync.android.p2p.Pairing` | `evaluatePin`, `lanWriteRequiresKey`, `requiresPairingConfirmation` |
+| p2p delta | `hsync_client.p2p_delta` | `com.hsync.android.p2p.P2PDelta` | Master-side delta endpoints + token store |
+| p2p election | `hsync_common.protocol.p2p` | `com.hsync.android.p2p.Election` | `electMaster`, `ranked` |
+| p2p pairing | `hsync_common.protocol.pairing` | `com.hsync.android.p2p.Pairing` | `evaluatePin`, `p2pWriteRequiresKey`, `requiresPairingConfirmation` |
 
 ### What is NOT mirrored
 
@@ -76,11 +76,11 @@ The mirror follows a **contract-first** approach:
 ```
 hsync-common/
 └── hsync_common/protocol/fixtures/
-    ├── lan-election-scenarios.json   # Master election test vectors
-    └── lan-pairing-scenarios.json    # Pairing/pinning test vectors
+    ├── p2p-election-scenarios.json   # Master election test vectors
+    └── p2p-pairing-scenarios.json    # Pairing/pinning test vectors
 
 # Python tests use: tests/test_protocol_fixtures.py
-# Kotlin tests use: app/src/test/java/.../LanElectionParityTest.kt, LanPairingParityTest.kt
+# Kotlin tests use: app/src/test/java/.../P2PElectionParityTest.kt, P2PPairingParityTest.kt
 ```
 
 Both test suites load the same JSON files and verify their implementations
@@ -154,7 +154,7 @@ distributed across the Kotlin files that mirror their Python counterparts:
 | `HSYNC_VERSION` | `BuildConfig.VERSION_NAME` (Gradle `versionName`; sent as the WS `app_version` and the REST `X-Client-Version` header) |
 | `HEADER_*` | `com.hsync.android.data.api.Protocol` (`HEADER_PROTOCOL_VERSION` and `HEADER_CHECKSUM_SHA256`; client identity/version added by `ProtocolHeaderInterceptor`) |
 | `CLIENT_NAME_PATTERN` | `Protocol.CLIENT_NAME` slug + the server-side `is_valid_client_name` middleware check (Android sends a compliant slug) |
-| `CONTENT_TYPE_*` | literals in `LanServer.kt` (`CONTENT_TYPE_OCTET`), `SafHelper.kt`, `SyncRepository.kt`, `DeltaTransfer.kt` |
+| `CONTENT_TYPE_*` | literals in `P2PServer.kt` (`CONTENT_TYPE_OCTET`), `SafHelper.kt`, `SyncRepository.kt`, `DeltaTransfer.kt` |
 | `HSYNCKEEP_FILENAME`, `HSYNCIGNORE_FILENAME` | `com.hsync.android.util.IgnoreMatcher` (companion object) |
 | `HSYNCFOLDER_FILENAME` | Referenced as a string literal in `PathValidation.kt` |
 | `HSYNCTOMBSTONES_FILENAME` | Referenced as a string literal in `PathValidation.kt` / `IgnoreMatcher.kt` (legacy rejection) |
@@ -184,15 +184,15 @@ Python uses the `zstandard` package; Kotlin uses `zstd-jni` via JNI bindings.
 | Level | 3 | 3 |
 | Pre-compressed extensions | `PRECOMPRESSED_EXTENSIONS` (frozenset, 95 entries) | `PRECOMPRESSED_EXTENSIONS` (Set<String>) in `CompressionManager` |
 | Upload threshold | `MIN_SIZE_FOR_UPLOAD` = 32 KB | `MIN_SIZE_FOR_UPLOAD` = 32 KB |
-| LAN threshold | `MIN_SIZE_FOR_LAN` = 100 KB | `MIN_SIZE_FOR_LAN` = 100 KB |
+| LAN threshold | `MIN_SIZE_FOR_P2P` = 100 KB | `MIN_SIZE_FOR_P2P` = 100 KB |
 | Download threshold | `MIN_SIZE_FOR_COMPRESSION` = 10 KB | — (not exposed in `CompressionManager`) |
-| LAN master compressed-download cap | `LAN_COMPRESSION_MAX_FILE_BYTES` = 256 MB (`hsync-client/lan_server.py`) | `LAN_COMPRESSION_MAX_FILE_BYTES` = 256 MiB (`LanServer.kt`) |
+| p2p master compressed-download cap | `P2P_COMPRESSION_MAX_FILE_BYTES` = 256 MB (`hsync-client/p2p_server.py`) | `P2P_COMPRESSION_MAX_FILE_BYTES` = 256 MiB (`P2PServer.kt`) |
 
 Both implementations must produce byte-identical compressed output for the
 same input. The cross-language test fixtures include compression round-trip
 vectors to verify this.
 
-The LAN masters cap the compressed download branch at 256 MB because it
+The p2p masters cap the compressed download branch at 256 MB because it
 buffers the whole file in RAM to build the zstd frame: larger compressible
 files are served UNCOMPRESSED instead. The Kotlin master additionally
 refuses to buffer downloads above 512 MiB outright (phone memory) — a
@@ -216,7 +216,7 @@ deliberate divergence from the Python master, which streams any size.
 2. Update `hsync_common/protocol/handshake.py` if protocol version changes
 3. Implement the endpoint in the Kotlin networking layer
 4. Add cross-language test fixtures
-5. Update the relevant protocol documentation (`docs/protocol.md`, `docs/lan-protocol.md`)
+5. Update the relevant protocol documentation (`docs/protocol.md`, `docs/p2p-protocol.md`)
 
 ### Checklist for protocol changes
 
@@ -257,4 +257,4 @@ Both test suites should run in CI when either project changes:
 
 - [Architecture](internal/architecture.md) — `hsync-common` architecture overview.
 - [Architecture Decision Records](internal/adr/README.md) — why the mirroring approach was chosen.
-- [LAN Protocol](lan-protocol.md) — protocol specification.
+- [p2p Protocol](p2p-protocol.md) — protocol specification.

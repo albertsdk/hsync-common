@@ -3,23 +3,49 @@
 Versioned wire contract + generators. This is the SSOT; never redefine these
 constants in consumers.
 
-## handshake.py — versions, capabilities, WS + LAN-WSS auth
+## handshake.py — versions, capabilities, WS + p2p-WSS auth
 
 | Symbol | Line | Purpose |
 | ------ | ---- | ------- |
-| `PROTOCOL_VERSION_REST/WS/LAN` | `handshake.py:60` | `api/1`, `ws/1`, `lan/1` |
-| `Capability` (StrEnum) | `handshake.py:65` | feature tokens; `ALL_CAPABILITIES` `:89`; includes `delta`, `vector_clocks`, and additive LAN `peer_download` (ADR-0028) |
+| `PROTOCOL_VERSION_REST/WS/P2P` | `handshake.py:66` | `api/1`, `ws/1`, `p2p/1` |
+| `Capability` (StrEnum) | `handshake.py:65` | feature tokens; `ALL_CAPABILITIES` `:89`; includes `delta`, `vector_clocks`, and additive p2p `peer_download` (ADR-0028) |
 | `encode_capabilities` / `decode_capabilities` | `handshake.py:96` / `:101` | tokens ⇄ enum set |
 | `WsAuthRequest` / `WsAuthResponse` TypedDicts | `handshake.py:114` / `:124` | WS auth frames |
 | `build_ws_auth_request` | `handshake.py:136` | client/android → server (protocol_version, app_version, capabilities, token) |
 | `build_ws_auth_ok` / `build_ws_auth_error` | `handshake.py:149` / `:162` | server → client (ok lists server caps; error carries client_protocol_version) |
-| `LanAuthRequiredFrame` / `LanAuthFrame` / `LanAuthResultFrame` / `LanHelloFrame` | `handshake.py:196`–`240` | LAN master⇄slave handshake TypedDicts (ADR-0024) |
-| `build_lan_auth_required` / `build_lan_auth` / `build_lan_auth_ok` / `build_lan_auth_failed` / `build_lan_hello` | `handshake.py:243`–`296` | LAN-WSS frame builders: greeting, auth frame (+token/cid), ok/failed replies, hello (both directions) |
+| `P2PAuthRequiredFrame` / `P2PAuthFrame` / `P2PAuthResultFrame` / `P2PHelloFrame` | `handshake.py:196`–`240` | p2p master⇄slave handshake TypedDicts (ADR-0024) |
+| `build_p2p_auth_required` / `build_p2p_auth` / `build_p2p_auth_ok` / `build_p2p_auth_failed` / `build_p2p_hello` | `handshake.py:243`–`296` | p2p-WSS frame builders: greeting, auth frame (+token/cid), ok/failed replies, hello (both directions) |
 
 Strict policy: a protocol-version mismatch is a **hard fail** (server replies
 error / 426; peers disconnect / auth refused). Capabilities are feature flags
 within a version — intersection semantics, never cross-version negotiation
 (ADR-0024).
+
+## bootnode.py — `boot/1` bootstrap mirror (ADR-0032)
+
+Mirror of the canonical `boot/1` contract (`hsync-bootnode/protocol-spec/boot-1.md`
++ `hsync-bootnode/fixtures/`); the bootnode daemon never imports `hsync-common`.
+
+- `PROTOCOL_VERSION_BOOT = "boot/1"` (`bootnode.py:53`), `BOOT_ALPN = "hsync-boot/1"`.
+- TypedDict frames + strict `validate_*` validators (dependency-free, like the
+  rest of the package): `BootRegister` / `BootRefresh` / `BootLeave` /
+  `BootQuery` (client→server) and `BootAck` / `BootResponse` / `BootPeer`
+  (server→client); `validate_boot_frame` dispatches on `type`.
+- `CAPACITY_MAX = 32` bounds the advisory service-capacity hint (`0` = not a
+  seeder); `reachable` is derived from `bool(endpoints)`.
+- D11 token helpers: `derive_bucket_token` (`HMAC-SHA256(key, "boot/1"||bucket)`),
+  `is_valid_bucket_token`, `constant_time_equals`, `verify_bucket_token`.
+- Fixture mirror `protocol/fixtures/bootnode-*.json` is byte-checked against the
+  canonical bootnode fixtures by `tests/test_protocol_bootnode.py`.
+- Consumers: `hsync-client` (bootnode discovery, Fase C2), shared fixtures/tests.
+
+## capabilities.py — `--capabilities-json` document
+
+- `CAPABILITIES_SCHEMA_VERSION = 3` (`capabilities.py:54`); the desktop rejects
+  any other version outright.
+- `ProtocolVersions` (`capabilities.py:58`) carries `rest`, `ws`, `p2p`, `boot`.
+- `build_capabilities` (`:78`) assembles the doc; `parse_capabilities` (`:121`)
+  validates it strictly (`_field_types_valid` checks all four channels).
 
 ## events.py — UI/telemetry event stream
 
@@ -27,43 +53,48 @@ within a version — intersection semantics, never cross-version negotiation
 - `UiEventName` StrEnum (`events.py:44`) — the structured events emitted by the
   client and consumed by desktop/android (incl. `sync_paused`,
   `transfer_failed`, `fingerprint_changed`, `auth_required`, `pairing_needed`,
-  `duplicate_identity`, `security_rejected`).
+  `duplicate_identity`, `security_rejected`, `discovery`).
+- `discovery` carries `plan` (`mdns` | `bootnode`) and, with the bootnode plan,
+  the `bootnode` host: the client emits it once at `hsync p2p` startup so a GUI
+  can surface the active discovery plan instead of silently degrading to mDNS.
+  Adding it is additive (the payload stays a flat optional-field object and
+  `parse_event_line` ignores unknown names), so `EVENTS_SCHEMA_VERSION` stays 2.
 - `UiEventDict` (`events.py:85`) includes optional `source_cid` only for a
   successful verified peer-served full download; build/serialize/parse:
   `build_event` (`:119`), `serialize_event` (`:141`), `parse_event_line` (`:146`).
 
-## lan.py — master election SSOT
+## p2p.py — master election SSOT
 
-- `ElectionCandidate` dataclass (`lan.py:52`).
-- Ordering key `election_sort_key` (`lan.py:67`); SSOT ranking
-  `rank_election_candidates` (`lan.py:83`) returns the full ranked list
-  (never_master filtered out); `elect_master` (`lan.py:97`) is its
-  winner-only projection; `SYNC_DIRECTION_BIDIRECTIONAL` (`lan.py:48`).
-- The client `hsync_client/lan.py` consumes `rank_election_candidates` for
+- `ElectionCandidate` dataclass (`p2p.py:52`).
+- Ordering key `election_sort_key` (`p2p.py:67`); SSOT ranking
+  `rank_election_candidates` (`p2p.py:83`) returns the full ranked list
+  (never_master filtered out); `elect_master` (`p2p.py:97`) is its
+  winner-only projection; `SYNC_DIRECTION_BIDIRECTIONAL` (`p2p.py:48`).
+- The client `hsync_client/p2p.py` consumes `rank_election_candidates` for
   master, successor and the force_master conflict subset; android
   `Election.kt` mirrors the ordering; parity is pinned by the
-  `lan-election-scenarios` fixture.
+  `p2p-election-scenarios` fixture.
 
-## pairing.py — TOFU pin + LAN-key policy
+## pairing.py — TOFU pin + p2p-key policy
 
 - `PinDecision` StrEnum (`pairing.py:59`); `normalize_fingerprint`
   (`pairing.py:73`); `evaluate_pin` (`pairing.py:86`).
 - `requires_pairing_confirmation` (`pairing.py:115`) — strict out-of-band pairing.
-- `is_write_direction` (`pairing.py:135`) + `lan_write_requires_key`
+- `is_write_direction` (`pairing.py:135`) + `p2p_write_requires_key`
   (`pairing.py:140`); write directions set `pairing.py:56`. ADR-0029 makes every
   write-capable run require a key unless the explicit dangerous
   `allow_unauthenticated_writes` opt-in is set.
 
-## peer_download.py — strict LAN peer-download wire contract
+## peer_download.py — strict p2p peer-download wire contract
 
 - Payload TypedDicts cover batch source request/response candidates,
   snapshot/delta inventory entries and frames, and cumulative ACKs
   (`peer_download.py:91`–`:164`).
-- `validate_lan_sources_request` / `validate_lan_sources_response` and matching
+- `validate_p2p_sources_request` / `validate_p2p_sources_response` and matching
   builders enforce exact keys, canonical normalized paths, lowercase hashes,
   CID/candidate uniqueness, IP-literal HTTPS endpoints, 500-file/8-candidate
   limits, and the 2 MiB compact-payload ceiling (`peer_download.py:289`–`:468`).
-- `validate_lan_inventory_frame` / `validate_lan_inventory_ack` and matching
+- `validate_p2p_inventory_frame` / `validate_p2p_inventory_ack` and matching
   builders enforce mode-specific entries, non-boolean signed-64-bit counters,
   duplicate-path rejection, terminal empty snapshots, strict ACK reasons, and
   the shared 2 MiB/500-entry bounds (`peer_download.py:374`–`:507`).
@@ -84,18 +115,18 @@ within a version — intersection semantics, never cross-version negotiation
 
 ## schemas.py — JSON-Schema builders (draft 2020-12)
 
-- Dialect const `schemas.py:59`; LAN TXT key sets `:63`/`:71`/`:85` include the
+- Dialect const `schemas.py:59`; p2p TXT key sets `:63`/`:71`/`:85` include the
   optional `peer_download` implementation flag. Live seeder capacity is not a TXT
   fact: it travels on the authenticated handshake (ADR-0030).
-- `build_ws_schema` (`schemas.py:464`), `build_lan_wss_schema` (`:669`; pins
+- `build_ws_schema` (`schemas.py:464`), `build_p2p_wss_schema` (`:669`; pins
   auth/hello plus additive inventory/ACK frames, ADR-0024/0028),
-  `build_lan_sources_schema` (`:180`), and `build_lan_txt_schema` (`:742`) derive
+  `build_p2p_sources_schema` (`:180`), and `build_p2p_txt_schema` (`:742`) derive
   enums/objects and bounds from `handshake`, `peer_download`, `events`, and the
   `models/` types. Shared capabilities-array schema is `_capabilities_array`.
 
 ## fixtures.py — cross-language golden fixtures
 
-- `build_fixtures` (`fixtures.py`) assembles file-event, master/seeder LAN TXT,
+- `build_fixtures` (`fixtures.py`) assembles file-event, master/seeder p2p TXT,
   peer source request/response, inventory/ACK, election, pin/write-policy,
   pairing and causal scenarios from the SSOT builders.
 - The **delta fixtures** (`delta-signatures`, `delta-instructions`,
@@ -111,8 +142,8 @@ within a version — intersection semantics, never cross-version negotiation
 ## __init__.py — paths & (de)serialization
 
 - Artifact path constants: `REST_OPENAPI_PATH` (`__init__.py:30`),
-  `WS_SCHEMA_PATH` (`:34`), `LAN_TXT_SCHEMA_PATH` (`:35`),
-  `LAN_WSS_SCHEMA_PATH` (`:36`), `LAN_SOURCES_SCHEMA_PATH` (`:38`),
+  `WS_SCHEMA_PATH` (`:34`), `P2P_TXT_SCHEMA_PATH` (`:35`),
+  `P2P_WSS_SCHEMA_PATH` (`:36`), `P2P_SOURCES_SCHEMA_PATH` (`:38`),
   `FIXTURES_DIR` (`:42`), `ANDROID_FIXTURES_DIR` (`:48`).
 - Canonical dump/load: `dump_contract`/`load_contract` (`__init__.py:60`/`:69`),
   with `dump_openapi` (`:74`) reusing them.

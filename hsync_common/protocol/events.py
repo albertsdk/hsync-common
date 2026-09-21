@@ -48,7 +48,8 @@ class UiEventName(StrEnum):
     peers = "peers"  # client presence changed (connected / total clients in the share)
     role = "role"  # this client became master / client
     bucket = "bucket"  # bucket name detected
-    group = "group"  # LAN group name detected
+    group = "group"  # p2p group name detected
+    discovery = "discovery"  # active discovery plan (mdns | bootnode) at startup
     session = "session"  # session CID established
     server = "server"  # server / master URL detected
     transfer = "transfer"  # a file was downloaded / uploaded / deleted
@@ -114,6 +115,8 @@ class UiEventDict(TypedDict):
     conflict_copy: NotRequired[str]  # path of the preserved local copy (conflict_resolved)
     winner: NotRequired[str]  # which side won: "remote" (master) or "local"
     source_cid: NotRequired[str]  # verified peer source for a successful full-file transfer
+    plan: NotRequired[str]  # discovery event: "mdns" | "bootnode"
+    bootnode: NotRequired[str]  # discovery event: bootnode host (empty with the mDNS plan)
 
 
 def build_event(

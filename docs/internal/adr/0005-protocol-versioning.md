@@ -19,7 +19,7 @@ capabilities explicit, with a single source of truth in
 `hsync_common.protocol.handshake`:
 
 - Per-channel constants `PROTOCOL_VERSION_REST = "api/1"`,
-  `PROTOCOL_VERSION_WS = "ws/1"`, `PROTOCOL_VERSION_LAN = "lan/1"`, bumped only on
+  `PROTOCOL_VERSION_WS = "ws/1"`, `PROTOCOL_VERSION_P2P = "p2p/1"`, bumped only on
   a breaking change to *that* channel's wire shape.
 - A mismatched `protocol_version` is a **hard failure** (REST → 426, WS →
   handshake closed, LAN → peer ignored), never a negotiation.

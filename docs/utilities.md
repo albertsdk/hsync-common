@@ -44,7 +44,7 @@ Safety checks to prevent path manipulation attacks:
 |-------|-------------|
 | Path traversal | Rejects paths containing `../` or absolute paths |
 | Null bytes | Rejects paths with embedded null bytes (`\0`) |
-| Symlink escape | Validates that resolved symlink targets stay within the allowed directory (`is_safe_symlink_target` — the SSOT used by the client scan/upload guards, the LAN master listing/download, and the server listing/download/WS-event paths) |
+| Symlink escape | Validates that resolved symlink targets stay within the allowed directory (`is_safe_symlink_target` — the SSOT used by the client scan/upload guards, the p2p master listing/download, and the server listing/download/WS-event paths) |
 | Component validation | Rejects empty path components and reserved names |
 | Length limits | Enforces maximum path and filename length limits |
 
@@ -66,7 +66,7 @@ rationale and consequences.
 
 ## SSL utilities (`hsync_common.ssl_utils`)
 
-Self-signed certificate generation and fingerprint helpers. Used by LAN mode
+Self-signed certificate generation and fingerprint helpers. Used by p2p mode
 for persistent master identity.
 
 ## Logger (`hsync_common.logger`)
@@ -82,7 +82,7 @@ across devices:
 | Function | Description |
 |----------|-------------|
 | `measure_clock_offset` | NTP-like HTTP round-trip against the server/master `/api/v1/time` endpoint (client-server mode) — the server is the time authority |
-| `measure_clock_offset_ntp_multi` | UDP SNTP probe (RFC 4330) against a list of public NTP servers, tried in order until one answers (LAN P2P / no-server startup); the offset is the median of several round-trips |
+| `measure_clock_offset_ntp_multi` | UDP SNTP probe (RFC 4330) against a list of public NTP servers, tried in order until one answers (p2p / no-server startup); the offset is the median of several round-trips |
 | `parse_ntp_hosts` | Parses the `HSYNC_NTP_HOSTS` comma-separated host list (defaults: `pool.ntp.org`, `time.cloudflare.com`, `time.google.com`) |
 | `correct_mtime` | Applies the measured offset to a local modification time (`corrected_mtime = mtime + offset`) |
 | `clamp_wire_corrected_mtime` | Clamps a peer-supplied far-future corrected time so no device can win every tie-break |

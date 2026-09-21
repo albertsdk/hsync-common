@@ -75,7 +75,7 @@ class TransferMode(enum.Enum):
     """Network topology under which the delta protocol runs."""
 
     CLIENT_SERVER = "client-server"
-    LAN_P2P = "lan-p2p"
+    P2P = "p2p"
 
 
 # ---------------------------------------------------------------------------
@@ -142,7 +142,7 @@ class TrackedTransport:
     """Simulated network channel that records every segment.
 
     In *CLIENT_SERVER* mode messages are relayed through a central server
-    endpoint; in *LAN_P2P* mode they travel directly between peers.  The
+    endpoint; in *P2P* mode they travel directly between peers.  The
     delta protocol is identical in both cases — only the routing differs.
     """
 
@@ -345,7 +345,7 @@ def run_delta_transfer(
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture(params=[TransferMode.CLIENT_SERVER, TransferMode.LAN_P2P])
+@pytest.fixture(params=[TransferMode.CLIENT_SERVER, TransferMode.P2P])
 def mode(request: pytest.FixtureRequest) -> TransferMode:
     """Parametrized fixture: every test runs in both transfer modes."""
     return request.param
@@ -371,7 +371,7 @@ def base_file(tmp_path: pytest.TempPathFactory, base_data: bytes) -> str:
 # 1. Initial full transfer
 # ---------------------------------------------------------------------------
 # The suite's FILE_SIZE (512 KB) sits above DELTA_MIN_FILE_SIZE (256 KB) and
-# below DELTA_MIN_FILE_SIZE_LAN (1 MB) on purpose: the base file stays small
+# below DELTA_MIN_FILE_SIZE_P2P (1 MB) on purpose: the base file stays small
 # enough to keep the suite fast while still exercising real segmentation.
 # The production thresholds are configuration constants owned by their
 # consumers; this simulated-transfer suite pins behaviour, not constant values.
@@ -720,7 +720,7 @@ class TestModeSpecific:
         out_cs = str(tmp_path / "out_cs.bin")  # type: ignore[operator]
         run_delta_transfer(cs, base_file, bytes(new), out_cs)
 
-        p2p = TrackedTransport(TransferMode.LAN_P2P)
+        p2p = TrackedTransport(TransferMode.P2P)
         out_p2p = str(tmp_path / "out_p2p.bin")  # type: ignore[operator]
         run_delta_transfer(p2p, base_file, bytes(new), out_p2p)
 
@@ -739,7 +739,7 @@ class TestModeSpecific:
         out_cs = str(tmp_path / "out_cs.bin")  # type: ignore[operator]
         _, ops_cs, lit_cs, _ = run_delta_transfer(cs, base_file, bytes(new), out_cs)
 
-        p2p = TrackedTransport(TransferMode.LAN_P2P)
+        p2p = TrackedTransport(TransferMode.P2P)
         out_p2p = str(tmp_path / "out_p2p.bin")  # type: ignore[operator]
         _, ops_p2p, lit_p2p, _ = run_delta_transfer(p2p, base_file, bytes(new), out_p2p)
 
@@ -757,7 +757,7 @@ class TestModeSpecific:
         out_cs = str(tmp_path / "out_cs.bin")  # type: ignore[operator]
         sha_cs, _, _, _ = run_delta_transfer(cs, base_file, bytes(new), out_cs)
 
-        p2p = TrackedTransport(TransferMode.LAN_P2P)
+        p2p = TrackedTransport(TransferMode.P2P)
         out_p2p = str(tmp_path / "out_p2p.bin")  # type: ignore[operator]
         sha_p2p, _, _, _ = run_delta_transfer(p2p, base_file, bytes(new), out_p2p)
 
@@ -777,14 +777,14 @@ class TestModeSpecific:
         for rec in transport.tracker.records:
             assert rec.sender == "server" or rec.receiver == "server"
 
-    def test_lan_p2p_direct_between_peers(
+    def test_p2p_direct_between_peers(
         self, base_data: bytes, base_file: str, tmp_path: pytest.TempPathFactory
     ) -> None:
         new = bytearray(base_data)
         edit_offset = 13 * BLOCK_SIZE
         new[edit_offset : edit_offset + EDIT_SMALL] = b"O" * EDIT_SMALL
 
-        transport = TrackedTransport(TransferMode.LAN_P2P)
+        transport = TrackedTransport(TransferMode.P2P)
         out = str(tmp_path / "out.bin")  # type: ignore[operator]
         run_delta_transfer(transport, base_file, bytes(new), out)
 
@@ -806,7 +806,7 @@ class TestModeSpecific:
         edit_offset = 14 * BLOCK_SIZE
         new[edit_offset : edit_offset + EDIT_SMALL] = b"P" * EDIT_SMALL
 
-        transport = TrackedTransport(TransferMode.LAN_P2P)
+        transport = TrackedTransport(TransferMode.P2P)
         out = str(tmp_path / "out.bin")  # type: ignore[operator]
         _, ops, literals, _ = run_delta_transfer(transport, base_file, bytes(new), out)
 
@@ -825,7 +825,7 @@ class TestModeSpecific:
             edit_size = BLOCK_SIZE
             current[edit_offset : edit_offset + edit_size] = bytes([i + 0x41]) * edit_size
 
-            transport = TrackedTransport(TransferMode.LAN_P2P)
+            transport = TrackedTransport(TransferMode.P2P)
             out = str(tmp_path / f"out_{i}.bin")  # type: ignore[operator]
             sha, ops, literals, _ = run_delta_transfer(transport, prev_file, bytes(current), out)
 

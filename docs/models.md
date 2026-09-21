@@ -106,5 +106,5 @@ Wire models for rsync-style block-level sync:
 ## See also
 
 - [Utilities guide](utilities.md) — compression, hashing, ignore, path validation.
-- [Protocol guide](protocol.md) — handshake, capabilities, LAN election, pairing.
+- [Protocol guide](protocol.md) — handshake, capabilities, p2p election, pairing.
 - [Internal architecture](internal/architecture.md) — detailed model reference.

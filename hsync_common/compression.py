@@ -54,7 +54,7 @@ MIN_SIZE_FOR_UPLOAD = 32 * 1024  # 32 KB
 # LAN mode threshold: 100KB
 # Local network is very fast (1Gbps+); below 100KB the compression time
 # exceeds the transfer time saved.
-MIN_SIZE_FOR_LAN = 100 * 1024  # 100 KB
+MIN_SIZE_FOR_P2P = 100 * 1024  # 100 KB
 
 # File extensions that are already compressed (compression won't help).
 #
@@ -211,7 +211,7 @@ def should_compress(
     filepath: str,
     size: int,
     transfer_type: str = "download",
-    is_lan: bool = False,
+    is_p2p: bool = False,
 ) -> bool:
     """
     Determine if a file should be compressed before transfer.
@@ -225,13 +225,13 @@ def should_compress(
         filepath: Path to the file.
         size: Size of the file in bytes.
         transfer_type: "download" or "upload" (default: "download").
-        is_lan: True if operating in LAN P2P mode (default: False).
+        is_p2p: True if operating in LAN P2P mode (default: False).
 
     Returns:
         True if file should be compressed, False otherwise.
     """
-    if is_lan:
-        threshold = MIN_SIZE_FOR_LAN
+    if is_p2p:
+        threshold = MIN_SIZE_FOR_P2P
         context = "LAN"
     elif transfer_type == "upload":
         threshold = MIN_SIZE_FOR_UPLOAD
@@ -258,7 +258,7 @@ def should_compress(
     return True
 
 
-def compression_level(transfer_type: str = "download", is_lan: bool = False) -> int:
+def compression_level(transfer_type: str = "download", is_p2p: bool = False) -> int:
     """Return the direction-aware zstd level (SSOT alongside :func:`should_compress`).
 
     ``download`` keeps :data:`COMPRESSION_LEVEL`: the server compresses and can
@@ -268,9 +268,9 @@ def compression_level(transfer_type: str = "download", is_lan: bool = False) -> 
 
     Args:
         transfer_type: ``"download"`` or ``"upload"`` (default ``"download"``).
-        is_lan: True when operating in LAN P2P mode (default False).
+        is_p2p: True when operating in LAN P2P mode (default False).
     """
-    if is_lan or transfer_type == "upload":
+    if is_p2p or transfer_type == "upload":
         return COMPRESSION_LEVEL_FAST
     return COMPRESSION_LEVEL
 

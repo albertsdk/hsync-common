@@ -6,11 +6,11 @@
 # Copyright (C) 2025 Alberto Basso
 
 """
-Export the WebSocket/LAN JSON Schemas and golden fixtures to the protocol contract.
+Export the WebSocket/p2p JSON Schemas and golden fixtures to the protocol contract.
 
 This is the only supported way to update the committed snapshots
-(``hsync_common.protocol.WS_SCHEMA_PATH``, ``LAN_TXT_SCHEMA_PATH``,
-``LAN_WSS_SCHEMA_PATH``, ``LAN_SOURCES_SCHEMA_PATH`` and the ``FIXTURES_DIR``
+(``hsync_common.protocol.WS_SCHEMA_PATH``, ``P2P_TXT_SCHEMA_PATH``,
+``P2P_WSS_SCHEMA_PATH``, ``P2P_SOURCES_SCHEMA_PATH`` and the ``FIXTURES_DIR``
 golden fixtures). The matching drift-check tests
 (`tests/test_protocol_schemas.py`, `tests/test_protocol_fixtures.py`) fail
 whenever what is rebuilt from the Python source of truth diverges from the
@@ -26,29 +26,29 @@ from pathlib import Path
 
 from hsync_common.protocol import (
     FIXTURES_DIR,
-    LAN_SOURCES_SCHEMA_PATH,
-    LAN_TXT_SCHEMA_PATH,
-    LAN_WSS_SCHEMA_PATH,
+    P2P_SOURCES_SCHEMA_PATH,
+    P2P_TXT_SCHEMA_PATH,
+    P2P_WSS_SCHEMA_PATH,
     WS_SCHEMA_PATH,
     dump_contract,
 )
 from hsync_common.protocol.fixtures import build_fixtures
 from hsync_common.protocol.schemas import (
-    build_lan_sources_schema,
-    build_lan_txt_schema,
-    build_lan_wss_schema,
+    build_p2p_sources_schema,
+    build_p2p_txt_schema,
+    build_p2p_wss_schema,
     build_ws_schema,
 )
 
 
 def export_schemas() -> list[Path]:
-    """Write the canonical WS/LAN JSON Schemas; return the written paths."""
+    """Write the canonical WS/p2p JSON Schemas; return the written paths."""
     written: list[Path] = []
     for path, schema in (
         (WS_SCHEMA_PATH, build_ws_schema()),
-        (LAN_TXT_SCHEMA_PATH, build_lan_txt_schema()),
-        (LAN_WSS_SCHEMA_PATH, build_lan_wss_schema()),
-        (LAN_SOURCES_SCHEMA_PATH, build_lan_sources_schema()),
+        (P2P_TXT_SCHEMA_PATH, build_p2p_txt_schema()),
+        (P2P_WSS_SCHEMA_PATH, build_p2p_wss_schema()),
+        (P2P_SOURCES_SCHEMA_PATH, build_p2p_sources_schema()),
     ):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(dump_contract(schema), encoding="utf-8")
@@ -68,7 +68,7 @@ def export_fixtures() -> list[Path]:
 
 
 def main() -> None:
-    """Regenerate and write the canonical WS/LAN schemas and golden fixtures."""
+    """Regenerate and write the canonical WS/p2p schemas and golden fixtures."""
     for path in (*export_schemas(), *export_fixtures()):
         print(f"Wrote {path}")
 

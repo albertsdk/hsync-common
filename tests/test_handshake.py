@@ -8,7 +8,7 @@
 
 from hsync_common.protocol.handshake import (
     ALL_CAPABILITIES,
-    PROTOCOL_VERSION_LAN,
+    PROTOCOL_VERSION_P2P,
     PROTOCOL_VERSION_REST,
     PROTOCOL_VERSION_WS,
     Capability,
@@ -24,13 +24,13 @@ class TestProtocolVersions:
     """The per-channel protocol versions are distinct, stable identifiers."""
 
     def test_versions_are_distinct(self):
-        versions = {PROTOCOL_VERSION_REST, PROTOCOL_VERSION_WS, PROTOCOL_VERSION_LAN}
+        versions = {PROTOCOL_VERSION_REST, PROTOCOL_VERSION_WS, PROTOCOL_VERSION_P2P}
         assert len(versions) == 3
 
     def test_versions_have_channel_prefix(self):
         assert PROTOCOL_VERSION_REST.startswith("api/")
         assert PROTOCOL_VERSION_WS.startswith("ws/")
-        assert PROTOCOL_VERSION_LAN.startswith("lan/")
+        assert PROTOCOL_VERSION_P2P.startswith("p2p/")
 
 
 class TestCapabilities:

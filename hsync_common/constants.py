@@ -209,7 +209,7 @@ DELTA_MIN_FILE_SIZE = 256 * 1024  # 256 KB (remote/server mode)
 # Higher threshold for LAN mode: on gigabit links with slow CPUs (e.g. NAS ARM)
 # the signature computation cost can exceed the bandwidth saving, so delta is
 # only attempted for larger files (same rationale as the LAN compression floor).
-DELTA_MIN_FILE_SIZE_LAN = 1024 * 1024  # 1 MB
+DELTA_MIN_FILE_SIZE_P2P = 1024 * 1024  # 1 MB
 
 # Maximum fraction of changed base blocks for delta to stay worthwhile; above
 # this the sender aborts and falls back to a full transfer.

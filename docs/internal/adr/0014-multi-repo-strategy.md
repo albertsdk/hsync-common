@@ -41,8 +41,8 @@ code:
   (`hsync-common = { path = "../hsync-common", develop = true }`) by the Python
   projects, and mirrored in Kotlin for Android with parity tests.
 - **Cross-repo compatibility** is enforced by:
-  - **ADR golden fixtures** (e.g. `protocol/fixtures/lan-election-scenarios.json`,
-    `lan-pairing-scenarios.json`) replayed in both Python and Kotlin tests.
+  - **ADR golden fixtures** (e.g. `protocol/fixtures/p2p-election-scenarios.json`,
+    `p2p-pairing-scenarios.json`) replayed in both Python and Kotlin tests.
   - **Protocol versioning** ([ADR-0005](0005-protocol-versioning.md)): breaking
     changes bump a protocol version and cause hard-fail, preventing silent drift.
   - **ADRs in `hsync-common`**: all architectural decisions that span
@@ -86,5 +86,5 @@ Alternatives rejected:
   drift across repos.
 - [ADR-0004](0004-desktop-subprocess-contract.md) — desktop↔client contract
   across `hsync-desktop` and `hsync-client`.
-- [ADR-0002](0002-lan-master-election.md) — cross-language election algorithm
+- [ADR-0002](0002-p2p-master-election.md) — cross-language election algorithm
   mirrored in Python and Kotlin.

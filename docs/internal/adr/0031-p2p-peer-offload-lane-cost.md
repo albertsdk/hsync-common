@@ -1,4 +1,4 @@
-# ADR 0031 — LAN peer-offload lane cost: attribution and accepted trade-off
+# ADR 0031 — p2p peer-offload lane cost: attribution and accepted trade-off
 
 - **Status:** Accepted (2026-09-21; decision: keep the lane, accept the measured
   cost, `--no-peer-download` is the opt-out)
@@ -8,8 +8,8 @@
 
 LAN synchronization moves full-file downloads through the elected master, with
 an optional peer-assisted path layered on top
-([ADR-0028](0028-lan-peer-assisted-download.md),
-[ADR-0030](0030-lan-seeder-capacity-advertisement.md)). That lane is enabled by
+([ADR-0028](0028-p2p-peer-assisted-download.md),
+[ADR-0030](0030-p2p-seeder-capacity-advertisement.md)). That lane is enabled by
 default and consists of three parts inside the slave process:
 
 1. a read-only HTTPS **seeder** (`LANServer` in seeder mode);
@@ -18,7 +18,7 @@ default and consists of three parts inside the slave process:
 3. a per-file **source resolver** invoked from the apply path
    (`sync.update_file`).
 
-The initial LAN burst is CPU-bound: the Python side serialises on ~1 core (GIL),
+The initial p2p burst is CPU-bound: the Python side serialises on ~1 core (GIL),
 so throughput ≈ one core divided by per-file CPU. An A/B with
 `--no-peer-download` (which disables the whole lane) measures **+41-51 % burst
 throughput** and **−33 % slave CPU/file**.

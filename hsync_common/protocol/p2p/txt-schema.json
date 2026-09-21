@@ -1,5 +1,5 @@
 {
-  "$id": "https://hsync.dev/protocol/lan/1",
+  "$id": "https://hsync.dev/protocol/p2p/1",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "Contract for the mDNS service TXT record. All values are strings (mDNS encoding). Generated from hsync_common.protocol.schemas.",
@@ -65,7 +65,7 @@
       "type": "string"
     },
     "protocol": {
-      "const": "lan/1"
+      "const": "p2p/1"
     },
     "server_ready": {
       "enum": [
@@ -94,6 +94,6 @@
     "startup_time",
     "sync_direction"
   ],
-  "title": "HSYNC LAN mDNS/TXT record (lan/1)",
+  "title": "HSYNC p2p mDNS/TXT record (p2p/1)",
   "type": "object"
 }

@@ -5,7 +5,7 @@
 
 ## Context
 
-In HSYNC,the server (or the elected LAN master) serves the file listing that
+In HSYNC,the server (or the elected p2p master) serves the file listing that
 every connected peer reconciles its local state against on each sync cycle.
 Files present locally but absent from the master listing are deleted to converge
 toward the shared state.
@@ -14,14 +14,14 @@ This model is correct when the master listing is correct, but a transient
 failure or misconfiguration can cause the master to expose an **empty or
 nearly-empty bucket**. Examples of how this can happen:
 
-- A LAN slave is mistakenly set to `--force-master` while its synced directory is
+- A p2p slave is mistakenly set to `--force-master` while its synced directory is
   empty (e.g. after a factory reset or a failed migration).
 - The server's backing storage (S3/MinIO) is temporarily unavailable and returns
   an empty object list.
 - A new bucket is created but a peer connects to it before the first file is
   uploaded — the master's empty listing would cause every local file to be
   deleted.
-- A LAN master is elected whose network path is only partially accessible, and
+- A p2p master is elected whose network path is only partially accessible, and
   it times out the file-list request while returning an empty cache.
 
 Without a safety mechanism, a single reconciliation cycle would **irreversibly

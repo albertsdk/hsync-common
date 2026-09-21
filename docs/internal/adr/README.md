@@ -23,8 +23,8 @@ consequences accepted. Code answers "how"; these records answer "why".
 
 | ADR | Title | Status |
 |---|---|---|
-| [0001](0001-server-vs-lan-modes.md) | Two sync modes: central server vs LAN P2P | Accepted |
-| [0002](0002-lan-master-election.md) | Deterministic LAN master election | Accepted |
+| [0001](0001-server-vs-p2p-modes.md) | Two sync modes: central server vs p2p | Accepted |
+| [0002](0002-p2p-master-election.md) | Deterministic p2p master election | Accepted |
 | [0003](0003-tombstone-gossip.md) | Causal tombstone gossip for deletions | Accepted |
 | [0004](0004-desktop-subprocess-contract.md) | Desktop ↔ client subprocess contract | Accepted |
 | [0005](0005-protocol-versioning.md) | Protocol versioning & capability negotiation | Accepted |
@@ -38,21 +38,22 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0014](0014-multi-repo-strategy.md) | Multi-repository architecture | Accepted |
 | [0015](0015-mass-deletion-guard.md) | Mass-deletion safety guard | Accepted |
 | [0016](0016-delta-transfer.md) | Delta transfer (rsync-style block sync) | Accepted |
-| [0017](0017-lan-slave-outbound-event-reliability.md) | LAN slave outbound event reliability (defer-to-close uploads, echo-pair rename caching) | Accepted (uses the origin-based log labels of [ADR-0018](0018-origin-based-log-labels.md)) |
+| [0017](0017-p2p-slave-outbound-event-reliability.md) | p2p slave outbound event reliability (defer-to-close uploads, echo-pair rename caching) | Accepted (uses the origin-based log labels of [ADR-0018](0018-origin-based-log-labels.md)) |
 | [0018](0018-origin-based-log-labels.md) | Origin-based log labels (`LOCAL ` / `REMOTE `) with unified verbs | Accepted |
-| [0020](0020-lan-security-model.md) | LAN security model: TOFU pinning, LAN key, and strict pairing | Accepted (unauthenticated-write policy superseded by [ADR-0029](0029-explicit-opt-in-unauthenticated-lan-writes.md)) |
+| [0020](0020-p2p-security-model.md) | p2p security model: TOFU pinning, p2p key, and strict pairing | Accepted (unauthenticated-write policy superseded by [ADR-0029](0029-explicit-opt-in-unauthenticated-p2p-writes.md)) |
 | [0022](0022-causal-vector-clock-conflict-model.md) | Causal vector-clock conflict model | Accepted (tie-break defined by [ADR-0023](0023-corrected-mtime-tie-break.md)) |
 | [0023](0023-corrected-mtime-tie-break.md) | Corrected-mtime chronological tie-break | Accepted |
 | [0024](0024-capability-negotiation.md) | Capability negotiation (registry, channels, intersection) | Accepted |
 | [0025](0025-sqlite-external-state-store.md) | SQLite external state store (folder UUID + ``syncstate.db``) | Accepted |
 | [0026](0026-permission-special-bits-policy.md) | Special permission bits (setuid/setgid/sticky) policy | Accepted |
-| [0027](0027-lan-leadership-lease.md) | LAN leadership lease: bounded incumbency and immediate yield | Accepted |
-| [0028](0028-lan-peer-assisted-download.md) | LAN peer-assisted download | Accepted (eligibility/admission superseded in part by [ADR-0030](0030-lan-seeder-capacity-advertisement.md)) |
-| [0029](0029-explicit-opt-in-unauthenticated-lan-writes.md) | Explicit opt-in for unauthenticated LAN writes | Accepted |
-| [0030](0030-lan-seeder-capacity-advertisement.md) | LAN seeder capacity advertisement and requester admission | Accepted |
-| [0031](0031-lan-peer-offload-lane-cost.md) | LAN peer-offload lane cost: attribution and accepted trade-off | Accepted |
+| [0027](0027-p2p-leadership-lease.md) | p2p leadership lease: bounded incumbency and immediate yield | Accepted |
+| [0028](0028-p2p-peer-assisted-download.md) | p2p peer-assisted download | Accepted (eligibility/admission superseded in part by [ADR-0030](0030-p2p-seeder-capacity-advertisement.md)) |
+| [0029](0029-explicit-opt-in-unauthenticated-p2p-writes.md) | Explicit opt-in for unauthenticated p2p writes | Accepted |
+| [0030](0030-p2p-seeder-capacity-advertisement.md) | p2p seeder capacity advertisement and requester admission | Accepted |
+| [0031](0031-p2p-peer-offload-lane-cost.md) | p2p peer-offload lane cost: attribution and accepted trade-off | Accepted |
+| [0032](0032-bootnode-discovery.md) | Bootnode discovery (`boot/1`) and the hsync-common mirror | Accepted |
 
 ## Related documents
 
 - [HSYNC Common Architecture](../architecture.md)
-- [LAN Discovery & Master Election](../../lan-protocol.md)
+- [p2p Discovery & Master Election](../../p2p-protocol.md)

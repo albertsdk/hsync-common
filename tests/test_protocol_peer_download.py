@@ -12,28 +12,28 @@ import pytest
 
 from hsync_common.constants import WS_MAX_MESSAGE_BYTES
 from hsync_common.protocol.peer_download import (
-    LAN_INVENTORY_MAX_ENTRIES,
-    LAN_INVENTORY_MAX_FRAME_BYTES,
-    LAN_SERVE_SLOTS_MAX,
-    LAN_SERVE_SLOTS_MIN,
-    LAN_SOURCES_MAX_BODY_BYTES,
-    LAN_SOURCES_MAX_CANDIDATES,
-    LAN_SOURCES_MAX_FILES,
-    LAN_WIRE_INT_MAX,
-    LanInventoryDeleteEntry,
-    LanInventoryUpsertEntry,
-    LanSourceCandidate,
-    LanSourceFile,
-    LanSourcesResponseFile,
-    build_lan_inventory_ack,
-    build_lan_inventory_frame,
-    build_lan_sources_request,
-    build_lan_sources_response,
+    P2P_INVENTORY_MAX_ENTRIES,
+    P2P_INVENTORY_MAX_FRAME_BYTES,
+    P2P_SERVE_SLOTS_MAX,
+    P2P_SERVE_SLOTS_MIN,
+    P2P_SOURCES_MAX_BODY_BYTES,
+    P2P_SOURCES_MAX_CANDIDATES,
+    P2P_SOURCES_MAX_FILES,
+    P2P_WIRE_INT_MAX,
+    P2PInventoryDeleteEntry,
+    P2PInventoryUpsertEntry,
+    P2PSourceCandidate,
+    P2PSourceFile,
+    P2PSourcesResponseFile,
+    build_p2p_inventory_ack,
+    build_p2p_inventory_frame,
+    build_p2p_sources_request,
+    build_p2p_sources_response,
     is_valid_serve_slots,
-    validate_lan_inventory_ack,
-    validate_lan_inventory_frame,
-    validate_lan_sources_request,
-    validate_lan_sources_response,
+    validate_p2p_inventory_ack,
+    validate_p2p_inventory_frame,
+    validate_p2p_sources_request,
+    validate_p2p_sources_response,
 )
 
 _CID = "TestClientX1234567890"
@@ -99,19 +99,19 @@ def _compact_size(value: object) -> int:
 
 class TestLimits:
     def test_contract_limits(self):
-        assert LAN_SOURCES_MAX_FILES == 500
-        assert LAN_SOURCES_MAX_CANDIDATES == 8
-        assert LAN_INVENTORY_MAX_ENTRIES == 500
-        assert LAN_WIRE_INT_MAX == (1 << 63) - 1
-        assert LAN_SOURCES_MAX_BODY_BYTES == WS_MAX_MESSAGE_BYTES
-        assert LAN_INVENTORY_MAX_FRAME_BYTES == WS_MAX_MESSAGE_BYTES
+        assert P2P_SOURCES_MAX_FILES == 500
+        assert P2P_SOURCES_MAX_CANDIDATES == 8
+        assert P2P_INVENTORY_MAX_ENTRIES == 500
+        assert P2P_WIRE_INT_MAX == (1 << 63) - 1
+        assert P2P_SOURCES_MAX_BODY_BYTES == WS_MAX_MESSAGE_BYTES
+        assert P2P_INVENTORY_MAX_FRAME_BYTES == WS_MAX_MESSAGE_BYTES
 
 
 class TestSourcesRequest:
     def test_builder_emits_canonical_request(self):
-        request = build_lan_sources_request(
+        request = build_p2p_sources_request(
             cid=_CID,
-            files=[LanSourceFile(path="cafe\u0301/report.bin", sha256=_SHA256)],
+            files=[P2PSourceFile(path="cafe\u0301/report.bin", sha256=_SHA256)],
         )
         assert request == {
             "cid": _CID,
@@ -134,48 +134,48 @@ class TestSourcesRequest:
         ],
     )
     def test_rejects_invalid_request(self, payload):
-        assert validate_lan_sources_request(payload) is None
+        assert validate_p2p_sources_request(payload) is None
 
     def test_rejects_duplicate_normalized_paths(self):
         request = {
             "cid": _CID,
             "files": [_source("caf\u00e9.bin"), _source("cafe\u0301.bin")],
         }
-        assert validate_lan_sources_request(request) is None
+        assert validate_p2p_sources_request(request) is None
 
     def test_rejects_more_than_500_files(self):
         request = {
             "cid": _CID,
-            "files": [_source(f"files/{index}.bin") for index in range(LAN_SOURCES_MAX_FILES + 1)],
+            "files": [_source(f"files/{index}.bin") for index in range(P2P_SOURCES_MAX_FILES + 1)],
         }
-        assert validate_lan_sources_request(request) is None
+        assert validate_p2p_sources_request(request) is None
 
     def test_accepts_500_files(self):
         request = {
             "cid": _CID,
-            "files": [_source(f"files/{index}.bin") for index in range(LAN_SOURCES_MAX_FILES)],
+            "files": [_source(f"files/{index}.bin") for index in range(P2P_SOURCES_MAX_FILES)],
         }
-        assert validate_lan_sources_request(request) is not None
+        assert validate_p2p_sources_request(request) is not None
 
     def test_accepts_maximum_path_length(self):
         request = {"cid": _CID, "files": [_source(_max_length_path(0))]}
-        assert validate_lan_sources_request(request) is not None
+        assert validate_p2p_sources_request(request) is not None
 
     def test_builder_raises_for_invalid_request(self):
         with pytest.raises(ValueError, match="LAN sources request"):
-            build_lan_sources_request(cid="bad", files=[LanSourceFile(path="a", sha256=_SHA256)])
+            build_p2p_sources_request(cid="bad", files=[P2PSourceFile(path="a", sha256=_SHA256)])
 
 
 class TestSourcesResponse:
     def test_builder_accepts_ipv6_endpoint(self):
         url = "https://[2001:db8::1]:8443/api/v1/buckets/bucket-1/files/download"
-        response = build_lan_sources_response(
+        response = build_p2p_sources_response(
             files=[
-                LanSourcesResponseFile(
+                P2PSourcesResponseFile(
                     path="docs/report.bin",
                     sha256=_SHA256,
                     sources=[
-                        LanSourceCandidate(
+                        P2PSourceCandidate(
                             cid=_SEEDER_CID,
                             download_url=url,
                             cert_fp=_CERT_FP,
@@ -191,12 +191,12 @@ class TestSourcesResponse:
     @pytest.mark.parametrize("port", [1, 65535])
     def test_accepts_port_boundaries(self, port):
         url = f"https://192.0.2.10:{port}/api/v1/buckets/bucket-1/files/download"
-        assert validate_lan_sources_response(_sources_response(url)) is not None
+        assert validate_p2p_sources_response(_sources_response(url)) is not None
 
     def test_empty_candidate_list_is_valid(self):
         response = _sources_response()
         response["files"][0]["sources"] = []  # type: ignore[index]
-        assert validate_lan_sources_response(response) is not None
+        assert validate_p2p_sources_response(response) is not None
 
     @pytest.mark.parametrize(
         "url",
@@ -215,7 +215,7 @@ class TestSourcesResponse:
         ],
     )
     def test_rejects_invalid_candidate_url(self, url):
-        assert validate_lan_sources_response(_sources_response(url)) is None
+        assert validate_p2p_sources_response(_sources_response(url)) is None
 
     def test_rejects_missing_serve_slots(self):
         """A candidate without the capacity advertisement is not a candidate."""
@@ -223,31 +223,31 @@ class TestSourcesResponse:
         candidate.pop("serve_slots")
         response = _sources_response()
         response["files"][0]["sources"] = [candidate]  # type: ignore[index]
-        assert validate_lan_sources_response(response) is None
+        assert validate_p2p_sources_response(response) is None
 
     @pytest.mark.parametrize(
         "serve_slots",
-        [0, -1, LAN_SERVE_SLOTS_MAX + 1, True, False, 2.0, "2", None],
+        [0, -1, P2P_SERVE_SLOTS_MAX + 1, True, False, 2.0, "2", None],
     )
     def test_rejects_invalid_serve_slots(self, serve_slots):
         """Bounds are enforced strictly: bool, float, str and out-of-range fail."""
         response = _sources_response()
         response["files"][0]["sources"] = [_candidate(serve_slots=serve_slots)]  # type: ignore[index]
-        assert validate_lan_sources_response(response) is None
+        assert validate_p2p_sources_response(response) is None
 
-    @pytest.mark.parametrize("serve_slots", [LAN_SERVE_SLOTS_MIN, LAN_SERVE_SLOTS_MAX])
+    @pytest.mark.parametrize("serve_slots", [P2P_SERVE_SLOTS_MIN, P2P_SERVE_SLOTS_MAX])
     def test_accepts_serve_slots_boundaries(self, serve_slots):
         response = _sources_response()
         response["files"][0]["sources"] = [_candidate(serve_slots=serve_slots)]  # type: ignore[index]
-        assert validate_lan_sources_response(response) is not None
+        assert validate_p2p_sources_response(response) is not None
 
     @pytest.mark.parametrize(
         "value",
         [
-            LAN_SERVE_SLOTS_MIN,
-            LAN_SERVE_SLOTS_MAX,
+            P2P_SERVE_SLOTS_MIN,
+            P2P_SERVE_SLOTS_MAX,
             0,
-            LAN_SERVE_SLOTS_MAX + 1,
+            P2P_SERVE_SLOTS_MAX + 1,
             True,
             1.0,
             "1",
@@ -258,7 +258,7 @@ class TestSourcesResponse:
         expected = (
             isinstance(value, int)
             and not isinstance(value, bool)
-            and 1 <= value <= LAN_SERVE_SLOTS_MAX
+            and 1 <= value <= P2P_SERVE_SLOTS_MAX
         )
         assert is_valid_serve_slots(value) is expected
 
@@ -266,22 +266,22 @@ class TestSourcesResponse:
         response = _sources_response()
         response["files"][0]["sources"] = [  # type: ignore[index]
             _candidate().copy() | {"cid": f"SeederClient{index:09d}"}
-            for index in range(LAN_SOURCES_MAX_CANDIDATES + 1)
+            for index in range(P2P_SOURCES_MAX_CANDIDATES + 1)
         ]
-        assert validate_lan_sources_response(response) is None
+        assert validate_p2p_sources_response(response) is None
 
     def test_accepts_eight_unique_candidates(self):
         response = _sources_response()
         response["files"][0]["sources"] = [  # type: ignore[index]
             _candidate().copy() | {"cid": f"SeederClient{index:09d}"}
-            for index in range(LAN_SOURCES_MAX_CANDIDATES)
+            for index in range(P2P_SOURCES_MAX_CANDIDATES)
         ]
-        assert validate_lan_sources_response(response) is not None
+        assert validate_p2p_sources_response(response) is not None
 
     def test_rejects_duplicate_candidate_cid(self):
         response = _sources_response()
         response["files"][0]["sources"] = [_candidate(), _candidate()]  # type: ignore[index]
-        assert validate_lan_sources_response(response) is None
+        assert validate_p2p_sources_response(response) is None
 
     def test_rejects_duplicate_normalized_response_paths(self):
         response = _sources_response()
@@ -293,7 +293,7 @@ class TestSourcesResponse:
             }
         )
         response["files"][0]["path"] = "caf\u00e9.bin"  # type: ignore[index]
-        assert validate_lan_sources_response(response) is None
+        assert validate_p2p_sources_response(response) is None
 
     @pytest.mark.parametrize(
         "payload",
@@ -314,7 +314,7 @@ class TestSourcesResponse:
         ],
     )
     def test_rejects_invalid_response_shape(self, payload):
-        assert validate_lan_sources_response(payload) is None
+        assert validate_p2p_sources_response(payload) is None
 
     def test_rejects_response_over_body_limit(self):
         response = {
@@ -324,11 +324,11 @@ class TestSourcesResponse:
                     "sha256": _SHA256,
                     "sources": [_candidate()],
                 }
-                for index in range(LAN_SOURCES_MAX_FILES)
+                for index in range(P2P_SOURCES_MAX_FILES)
             ]
         }
-        assert _compact_size(response) > LAN_SOURCES_MAX_BODY_BYTES
-        assert validate_lan_sources_response(response) is None
+        assert _compact_size(response) > P2P_SOURCES_MAX_BODY_BYTES
+        assert validate_p2p_sources_response(response) is None
 
     @pytest.mark.parametrize(
         "field,value",
@@ -341,13 +341,13 @@ class TestSourcesResponse:
     def test_rejects_invalid_candidate_metadata(self, field, value):
         response = _sources_response()
         response["files"][0]["sources"][0][field] = value  # type: ignore[index]
-        assert validate_lan_sources_response(response) is None
+        assert validate_p2p_sources_response(response) is None
 
 
 class TestInventoryFrame:
     def test_snapshot_builder(self):
-        entry = LanInventoryUpsertEntry(path="a.bin", sha256=_SHA256, size=0)
-        assert build_lan_inventory_frame(
+        entry = P2PInventoryUpsertEntry(path="a.bin", sha256=_SHA256, size=0)
+        assert build_p2p_inventory_frame(
             gen=1, seq=0, mode="snapshot", more=False, entries=[entry]
         ) == {
             "type": "inventory",
@@ -359,7 +359,7 @@ class TestInventoryFrame:
         }
 
     def test_empty_terminal_snapshot_is_valid(self):
-        assert validate_lan_inventory_frame(_inventory(entries=[])) is not None
+        assert validate_p2p_inventory_frame(_inventory(entries=[])) is not None
 
     @pytest.mark.parametrize(
         "frame",
@@ -369,55 +369,55 @@ class TestInventoryFrame:
         ],
     )
     def test_empty_snapshot_must_be_terminal_sequence_zero(self, frame):
-        assert validate_lan_inventory_frame(frame) is None
+        assert validate_p2p_inventory_frame(frame) is None
 
     def test_delta_upsert_and_delete_are_valid(self):
         upsert = _source("new.bin") | {"size": 7}
         deleted = {"path": "old.bin", "deleted": True}
         frame = _inventory(mode="delta", entries=[upsert, deleted], seq=1)
-        assert validate_lan_inventory_frame(frame) is not None
+        assert validate_p2p_inventory_frame(frame) is not None
 
     def test_accepts_wire_integer_maximum(self):
-        entry = _source() | {"size": LAN_WIRE_INT_MAX}
-        frame = _inventory(gen=LAN_WIRE_INT_MAX, seq=LAN_WIRE_INT_MAX, entries=[entry])
-        assert validate_lan_inventory_frame(frame) is not None
+        entry = _source() | {"size": P2P_WIRE_INT_MAX}
+        frame = _inventory(gen=P2P_WIRE_INT_MAX, seq=P2P_WIRE_INT_MAX, entries=[entry])
+        assert validate_p2p_inventory_frame(frame) is not None
 
     @pytest.mark.parametrize(
-        "field,value", [("gen", True), ("seq", -1), ("gen", LAN_WIRE_INT_MAX + 1)]
+        "field,value", [("gen", True), ("seq", -1), ("gen", P2P_WIRE_INT_MAX + 1)]
     )
     def test_rejects_invalid_wire_integer(self, field, value):
         frame = _inventory()
         frame[field] = value
-        assert validate_lan_inventory_frame(frame) is None
+        assert validate_p2p_inventory_frame(frame) is None
 
     def test_rejects_snapshot_delete(self):
         frame = _inventory(entries=[{"path": "old.bin", "deleted": True}])
-        assert validate_lan_inventory_frame(frame) is None
+        assert validate_p2p_inventory_frame(frame) is None
 
     def test_rejects_empty_or_chunked_delta(self):
-        assert validate_lan_inventory_frame(_inventory(mode="delta", entries=[])) is None
-        assert validate_lan_inventory_frame(_inventory(mode="delta", more=True)) is None
+        assert validate_p2p_inventory_frame(_inventory(mode="delta", entries=[])) is None
+        assert validate_p2p_inventory_frame(_inventory(mode="delta", more=True)) is None
 
     def test_rejects_duplicate_path_in_one_frame(self):
         frame = _inventory(
             mode="delta",
             entries=[_source("a.bin") | {"size": 1}, {"path": "a.bin", "deleted": True}],
         )
-        assert validate_lan_inventory_frame(frame) is None
+        assert validate_p2p_inventory_frame(frame) is None
 
     def test_rejects_too_many_entries(self):
         entries = [
             _source(f"files/{index}.bin") | {"size": index}
-            for index in range(LAN_INVENTORY_MAX_ENTRIES + 1)
+            for index in range(P2P_INVENTORY_MAX_ENTRIES + 1)
         ]
-        assert validate_lan_inventory_frame(_inventory(entries=entries)) is None
+        assert validate_p2p_inventory_frame(_inventory(entries=entries)) is None
 
     def test_accepts_500_entries(self):
         entries = [
             _source(f"files/{index}.bin") | {"size": index}
-            for index in range(LAN_INVENTORY_MAX_ENTRIES)
+            for index in range(P2P_INVENTORY_MAX_ENTRIES)
         ]
-        assert validate_lan_inventory_frame(_inventory(entries=entries)) is not None
+        assert validate_p2p_inventory_frame(_inventory(entries=entries)) is not None
 
     @pytest.mark.parametrize(
         "entry",
@@ -433,42 +433,42 @@ class TestInventoryFrame:
     )
     def test_rejects_invalid_entry(self, entry):
         mode = "delta" if "deleted" in entry else "snapshot"
-        assert validate_lan_inventory_frame(_inventory(mode=mode, entries=[entry])) is None
+        assert validate_p2p_inventory_frame(_inventory(mode=mode, entries=[entry])) is None
 
     def test_builder_raises_for_invalid_delta(self):
         with pytest.raises(ValueError, match="LAN inventory frame"):
-            build_lan_inventory_frame(gen=1, seq=1, mode="delta", more=True, entries=[])
+            build_p2p_inventory_frame(gen=1, seq=1, mode="delta", more=True, entries=[])
 
     def test_rejects_frame_over_message_limit(self):
         frame = _inventory(
             entries=[
                 {"path": _max_length_path(index), "sha256": _SHA256, "size": index}
-                for index in range(LAN_INVENTORY_MAX_ENTRIES)
+                for index in range(P2P_INVENTORY_MAX_ENTRIES)
             ]
         )
-        assert _compact_size(frame) > LAN_INVENTORY_MAX_FRAME_BYTES
-        assert validate_lan_inventory_frame(frame) is None
+        assert _compact_size(frame) > P2P_INVENTORY_MAX_FRAME_BYTES
+        assert validate_p2p_inventory_frame(frame) is None
 
     def test_rejects_unknown_frame_property(self):
         frame = _inventory()
         frame["extra"] = True
-        assert validate_lan_inventory_frame(frame) is None
+        assert validate_p2p_inventory_frame(frame) is None
 
 
 class TestInventoryAck:
     @pytest.mark.parametrize("status", ["ok", "resync"])
     def test_non_rejected_ack_has_no_reason(self, status):
-        frame = build_lan_inventory_ack(gen=1, seq=7, status=status)
+        frame = build_p2p_inventory_ack(gen=1, seq=7, status=status)
         assert frame == {"type": "inventory_ack", "gen": 1, "seq": 7, "status": status}
 
     def test_rejected_ack_requires_machine_reason(self):
-        frame = build_lan_inventory_ack(gen=1, seq=7, status="rejected", reason="quota")
+        frame = build_p2p_inventory_ack(gen=1, seq=7, status="rejected", reason="quota")
         assert frame["reason"] == "quota"  # type: ignore[reportTypedDictNotRequiredAccess]
 
     def test_rejected_ack_accepts_maximum_reason_length(self):
         reason = "a" + "0" * 63
         assert (
-            build_lan_inventory_ack(gen=1, seq=7, status="rejected", reason=reason)["reason"]
+            build_p2p_inventory_ack(gen=1, seq=7, status="rejected", reason=reason)["reason"]
             == reason
         )
 
@@ -504,13 +504,13 @@ class TestInventoryAck:
         ],
     )
     def test_rejects_invalid_ack(self, frame):
-        assert validate_lan_inventory_ack(frame) is None
+        assert validate_p2p_inventory_ack(frame) is None
 
     def test_builder_rejects_reason_on_ok(self):
         with pytest.raises(ValueError, match="LAN inventory acknowledgement"):
-            build_lan_inventory_ack(gen=1, seq=0, status="ok", reason="invalid")
+            build_p2p_inventory_ack(gen=1, seq=0, status="ok", reason="invalid")
 
     def test_typed_delete_entry_builds_delta(self):
-        entry = LanInventoryDeleteEntry(path="old.bin", deleted=True)
-        frame = build_lan_inventory_frame(gen=1, seq=1, mode="delta", more=False, entries=[entry])
+        entry = P2PInventoryDeleteEntry(path="old.bin", deleted=True)
+        frame = build_p2p_inventory_frame(gen=1, seq=1, mode="delta", more=False, entries=[entry])
         assert frame["entries"] == [{"path": "old.bin", "deleted": True}]

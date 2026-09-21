@@ -6,14 +6,14 @@
 
 """Tests for the canonical LAN master-election algorithm.
 
-These verify the single source of truth in ``hsync_common.protocol.lan`` against
+These verify the single source of truth in ``hsync_common.protocol.p2p`` against
 hand-written expectations (independent of the committed fixtures) and assert that
 the published election-scenario fixture is exactly what the algorithm decides, so
 the cross-language parity test consumes a known-correct contract.
 """
 
 from hsync_common.protocol.fixtures import build_fixtures
-from hsync_common.protocol.lan import (
+from hsync_common.protocol.p2p import (
     SYNC_DIRECTION_BIDIRECTIONAL,
     ElectionCandidate,
     elect_master,
@@ -147,7 +147,7 @@ class TestElectionScenarioFixture:
     """The published scenario fixture matches the algorithm decision."""
 
     def test_each_scenario_expectation_is_recomputable(self):
-        scenarios = build_fixtures()["lan-election-scenarios"]["scenarios"]
+        scenarios = build_fixtures()["p2p-election-scenarios"]["scenarios"]
         assert scenarios, "expected at least one election scenario"
         for scenario in scenarios:
             candidates = [ElectionCandidate(**c) for c in scenario["candidates"]]

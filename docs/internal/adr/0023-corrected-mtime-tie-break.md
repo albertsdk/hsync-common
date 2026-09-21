@@ -27,11 +27,11 @@ shared time reference, measured per device.
 A clock offset (trusted remote clock − local clock) is measured and kept
 process-local by ``hsync_common.clock``:
 
-- **Client-server mode** — the HSYNC server (or the LAN master) is the time
+- **Client-server mode** — the HSYNC server (or the p2p master) is the time
   authority: an NTP-like HTTP round-trip against the existing
   ``/api/v1/time`` endpoint (``measure_clock_offset`` /
   ``compute_clock_offset``).
-- **LAN P2P / no-server startup** — a configurable list of public SNTP
+- **p2p / no-server startup** — a configurable list of public SNTP
   servers (UDP, RFC 4330) is probed in order until one answers
   (``measure_clock_offset_ntp_multi``); the estimate is the median of several
   round-trips. The host list is overridable through the ``HSYNC_NTP_HOSTS``
@@ -110,5 +110,5 @@ on true divergence. §3.4.5 of ADR-0022 (Sha fallback) otherwise unchanged.
   clamping
 - `hsync_common/models/version.py` — `corrected_mtime` field and tie-break
 - `hsync-client` (`sync_state.py`, `transfer.py`, `main_logic.py`,
-  `lan_handler.py`) — probing and metadata propagation
+  `p2p_handler.py`) — probing and metadata propagation
 - `hsync-server/arbitration.py` — upload arbitration consuming the field

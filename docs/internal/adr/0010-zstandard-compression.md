@@ -37,7 +37,7 @@ thresholds** that vary by context:
     compress files where savings clearly outweigh cost.
   - **Download**: 10 KB — server CPU is more abundant; compress even smaller
     files.
-  - **LAN mode**: 100 KB — local network is fast (1 Gbps+); below 100 KB the
+  - **p2p mode**: 100 KB — local network is fast (1 Gbps+); below 100 KB the
     compression time exceeds the transfer time saved.
 - **Precompressed extension list** (`PRECOMPRESSED_EXTENSIONS`): a hardcoded set
   of 30+ file extensions (`.zip`, `.gz`, `.jpg`, `.png`, `.mp4`, `.apk`, etc.)

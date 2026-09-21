@@ -1,27 +1,27 @@
 # LAN Discovery & Master Election
 
 This document is the human-readable companion to the machine-checked sources of
-truth for the LAN channel. It exists so the Python client (`hsync_client.lan`,
-`PeerManager`) and the Android client (`com.hsync.android.p2p`, `LanManager`)
+truth for the p2p channel. It exists so the Python client (`hsync_client.lan`,
+`PeerManager`) and the Android client (`com.hsync.android.p2p`, `P2PManager`)
 cannot drift: both consume the same canonical algorithm and are validated against
 the same golden fixtures.
 
 | Concern | Single source of truth |
 |---|---|
-| TXT record keys / schema | `hsync_common.protocol.schemas` (`LAN_TXT_KEYS`, `build_lan_txt_schema`) |
-| WSS handshake + inventory frames / schema | `hsync_common.protocol.handshake` (`build_lan_*`), `hsync_common.protocol.peer_download` (`build_lan_inventory_*`), `hsync_common.protocol.schemas` (`build_lan_wss_schema`) |
-| Peer-source REST payloads / schema | `hsync_common.protocol.peer_download` (`build_lan_sources_*`, strict validators), `hsync_common.protocol.schemas` (`build_lan_sources_schema`) |
+| TXT record keys / schema | `hsync_common.protocol.schemas` (`P2P_TXT_KEYS`, `build_p2p_txt_schema`) |
+| WSS handshake + inventory frames / schema | `hsync_common.protocol.handshake` (`build_p2p_*`), `hsync_common.protocol.peer_download` (`build_p2p_inventory_*`), `hsync_common.protocol.schemas` (`build_p2p_wss_schema`) |
+| Peer-source REST payloads / schema | `hsync_common.protocol.peer_download` (`build_p2p_sources_*`, strict validators), `hsync_common.protocol.schemas` (`build_p2p_sources_schema`) |
 | Full-download checksum header | `hsync_common.constants.HEADER_CHECKSUM_SHA256` (`X-Checksum-SHA256`) |
-| Election algorithm | `hsync_common.protocol.lan` (`rank_election_candidates`, `elect_master`, `election_sort_key`) |
-| Pairing / trust policy | `hsync_common.protocol.pairing` (`evaluate_pin`, `lan_write_requires_key`, `requires_pairing_confirmation`) |
+| Election algorithm | `hsync_common.protocol.p2p` (`rank_election_candidates`, `elect_master`, `election_sort_key`) |
+| Pairing / trust policy | `hsync_common.protocol.pairing` (`evaluate_pin`, `p2p_write_requires_key`, `requires_pairing_confirmation`) |
 | Kotlin mirror | `com.hsync.android.p2p.Election`, `com.hsync.android.p2p.Pairing`, `com.hsync.android.data.api.Protocol` |
-| Cross-language scenarios | `protocol/fixtures/lan-election-scenarios.json`, `protocol/fixtures/lan-pairing-scenarios.json`, `protocol/fixtures/lan-sources-*.json`, `protocol/fixtures/lan-wss-*.json` |
+| Cross-language scenarios | `protocol/fixtures/p2p-election-scenarios.json`, `protocol/fixtures/p2p-pairing-scenarios.json`, `protocol/fixtures/p2p-sources-*.json`, `protocol/fixtures/p2p-wss-*.json` |
 
 ## mDNS / TXT record
 
 Each peer announces itself over mDNS/NSD. All TXT values are strings (mDNS
 encoding); boolean flags are advertised **only when true**. The canonical key set
-lives in `LAN_TXT_KEYS`; do not introduce keys outside it.
+lives in `P2P_TXT_KEYS`; do not introduce keys outside it.
 
 **Required keys**
 
@@ -30,7 +30,7 @@ lives in `LAN_TXT_KEYS`; do not introduce keys outside it.
 | `cid` | string | Unique client id; strictly alphanumeric (`[A-Za-z0-9]{21}`), so it always starts with a letter or digit; final election tiebreaker. |
 | `bucket` | string | Bucket served/synced. |
 | `version` | string | Semantic app version (informational only). |
-| `protocol` | string | LAN protocol version (`lan/1`); mismatched peers are ignored. |
+| `protocol` | string | p2p protocol version (`p2p/1`); mismatched peers are ignored. |
 | `startup_time` | string (number) | Unix start time; earlier wins. |
 | `sync_direction` | string | `bidirectional` (preferred), `upload-only`, `download-only`. |
 
@@ -85,12 +85,12 @@ The connecting slave and the master exchange the **capability registry on the
 WSS connection itself** (ADR-0024), on both the authenticated and the
 unauthenticated path. The frames are built by
 `hsync_common.protocol.handshake` builders and are pinned by
-`protocol/lan/wss-schema.json` and the `lan-wss-*` golden fixtures (mirrored in
+`protocol/p2p/wss-schema.json` and the `p2p-wss-*` golden fixtures (mirrored in
 Android):
 
 1. The master greets first:
-   - **With a LAN key** — `{"type": "auth_required", "protocol_version": "lan/1", "capabilities": [...]}`.
-   - **Without a LAN key** — `{"type": "hello", "protocol_version": "lan/1", "capabilities": [...]}` (the slave replies with the same shape plus its `cid`).
+   - **With a p2p key** — `{"type": "auth_required", "protocol_version": "p2p/1", "capabilities": [...]}`.
+   - **Without a p2p key** — `{"type": "hello", "protocol_version": "p2p/1", "capabilities": [...]}` (the slave replies with the same shape plus its `cid`).
 2. On the auth path the slave replies
    `{"type": "auth", "token", "cid", "protocol_version", "capabilities"}`; the
    master validates the CID format **first**, then the `protocol_version` (hard
@@ -113,7 +113,7 @@ Semantics:
   advertise it; an absent capability degrades the feature (delta → full
   transfer, compression → raw bytes, no `vector_clocks` → empty clock), never an
   error. Unknown tokens are silently ignored.
-- **The hello path is coherence only.** Without a `LAN_KEY` neither the CID nor
+- **The hello path is coherence only.** Without a `P2P_KEY` neither the CID nor
   the capabilities are authenticated: the values are logged, never trusted for
   gating decisions on the master side; the slave keeps using the TXT values
   unless it later authenticates.
@@ -193,7 +193,7 @@ Response:
 }
 ```
 
-The machine-readable contract is `protocol/lan/sources-schema.json`; strict
+The machine-readable contract is `protocol/p2p/sources-schema.json`; strict
 builders and validators live in `hsync_common.protocol.peer_download`.
 
 - Request and response objects reject unknown properties. A body is at most
@@ -250,7 +250,7 @@ an interrupted body, never a completed hash/range/size failure.
 
 ### Inventory frames
 
-Inventory extends `lan/1` additively. Slave to master snapshot:
+Inventory extends `p2p/1` additively. Slave to master snapshot:
 
 ```json
 {
@@ -463,13 +463,13 @@ with fixed membership, which conflicts with the dynamic home-LAN topology.
 
 ## Cross-language parity
 
-`lan-election-scenarios.json` is generated from the Python source
+`p2p-election-scenarios.json` is generated from the Python source
 (`hsync_common.protocol.fixtures`): each scenario stores its candidates and the
 winner **computed by `elect_master`** (never hand-written). The file is copied
 verbatim into the Android test resources and replayed by both runners:
 
-- Python — `tests/test_protocol_lan.py`.
-- Android — `LanElectionParityTest` (via `Election.electMaster`).
+- Python — `tests/test_protocol_p2p.py`.
+- Android — `P2PElectionParityTest` (via `Election.electMaster`).
 
 A divergence on either side fails the parity test instead of becoming a
 split-brain in the field. Regenerate after any change with:
@@ -485,7 +485,7 @@ then copy the regenerated `protocol/fixtures/*.json` into
 ## Causal tombstones (deletion gossip)
 
 Deletion markers exchanged over the LAN gossip channel (`/tombstones` on the
-master, see `hsync-client/lan_server.py`) are **causal** ([ADR-0003](../docs/internal/adr/0003-tombstone-gossip.md)):
+master, see `hsync-client/p2p_server.py`) are **causal** ([ADR-0003](../docs/internal/adr/0003-tombstone-gossip.md)):
 each entry carries `sha256`, `version_id`, `origin_cid`, the informational `ts`
 and a `vclock` — the stored version clock for the path, merged and ticked by
 the deleter. The merge between peers is decided by **causal dominance** of the
@@ -516,7 +516,7 @@ marker, and the next reconciliation deletes the stale remote copy on the master
 instead of downloading it back. The client-side `delete_remote` action therefore
 speaks both transports' DELETE contracts: form fields (`filename`, `cid`)
 against the central server and query parameters (`path`, `is_dir`, `cid`)
-against the LAN master (`hsync-client/hsync_client/transfer.py`
+against the p2p master (`hsync-client/hsync_client/transfer.py`
 `delete_file_remote`).
 
 The tombstone **TTL (default 90 days) is a storage bound only**: correctness
@@ -594,7 +594,7 @@ trust decisions are the single source of truth in
 
 ### Threat model
 
-The LAN channel is designed for a **trusted LAN** (a home/office network the
+The p2p channel is designed for a **trusted LAN** (a home/office network the
 operator controls) and degrades safely on an **untrusted LAN** (shared/public
 Wi-Fi):
 
@@ -607,7 +607,7 @@ Wi-Fi):
   distinguish the real master from an impostor that generated its own
   certificate. A peer that does not advertise both `https` and `cert_fp` is not a
   valid master and is refused (`[INSECURE MASTER]`).
-- `HSYNC_LAN_KEY` is a shared secret presented as a bearer token. It authenticates
+- `HSYNC_P2P_KEY` is a shared secret presented as a bearer token. It authenticates
   *writes* to the master, travels only over the (mandatory) encrypted transport,
   and is shared, not per-peer.
 
@@ -619,7 +619,7 @@ write opt-in on both the writing client and the master.
 
 A peer's identity is **persistent**, not per-session: each installation owns a
 device identity (Syncthing-style) — a stable 21-character device ID plus the
-LAN keypair — stored in the device directory (`~/.local/state/hsync/device`,
+p2p keypair — stored in the device directory (`~/.local/state/hsync/device`,
 overridable via `HSYNC_DEVICE_DIR`). The device ID is advertised as the mDNS
 `cid` and
 anchors the TOFU pin (`(cid, bucket)`), so a restarted master is recognised by
@@ -637,7 +637,7 @@ is no key password.
 
 The first `cert_fp` seen for a `(cid, bucket)` is pinned (client store:
 `hsync_client.pinning.PinStore`, outside the synced bucket and overridable via
-`HSYNC_LAN_PIN_FILE`). Because the transport is HTTPS-only, every master sighting
+`HSYNC_P2P_PIN_FILE`). Because the transport is HTTPS-only, every master sighting
 carries a fingerprint; a missing one is a contract violation and `evaluate_pin`
 raises. `evaluate_pin` classifies every (present) later sighting:
 
@@ -665,10 +665,10 @@ carries the data, with no separate probe (which would leave a TOCTOU window):
 
 ### LAN mutation authorization (ADR-0029)
 
-Because a self-signed transport does not authorize mutation, LAN writes fail
+Because a self-signed transport does not authorize mutation, p2p writes fail
 closed independently of whether the invocation is interactive:
 
-- When a LAN key is configured, every mutation requires its matching Bearer
+- When a p2p key is configured, every mutation requires its matching Bearer
   token. The keyless-write setting is ignored and cannot bypass the key.
 - With no configured key, mutation is rejected by default. Read endpoints,
   health/time, source lookup, inventory publication, and seeder downloads remain
@@ -677,7 +677,7 @@ closed independently of whether the invocation is interactive:
   enables unauthenticated writes. A write-capable client must independently opt
   in before emitting such a request; its setting cannot override the master.
 
-`lan_write_requires_key(sync_direction,
+`p2p_write_requires_key(sync_direction,
 allow_unauthenticated_writes=...)` is the canonical client-side rule. It returns
 true for `bidirectional` and `upload-only` unless the explicit opt-in is set.
 `download-only` never writes and therefore does not require the key.
@@ -692,9 +692,9 @@ tombstone mutation all use this same matrix.
 
 TOFU trusts a peer's *first* certificate automatically, which is convenient on a
 trusted LAN but assumes no attacker was already present at first sighting. Strict
-pairing (`HSYNC_LAN_REQUIRE_PAIRING` / client `LAN_REQUIRE_PAIRING` or the
+pairing (`HSYNC_P2P_REQUIRE_PAIRING` / client `P2P_REQUIRE_PAIRING` or the
 `--require-pairing` CLI flag, Desktop *Require pairing* toggle, Android
-`SyncConfig.lanRequirePairing`) closes that window by disabling the auto-pin
+`SyncConfig.p2pRequirePairing`) closes that window by disabling the auto-pin
 shortcut. `requires_pairing_confirmation(decision, require_pairing=...)` is the
 canonical rule: it returns true only for a first sighting (`trusted`) while
 strict pairing is on; `matched`/`changed` are unaffected.

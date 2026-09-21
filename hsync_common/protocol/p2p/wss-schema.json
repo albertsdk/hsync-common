@@ -22,7 +22,7 @@
           "type": "string"
         },
         "protocol_version": {
-          "const": "lan/1"
+          "const": "p2p/1"
         },
         "serve_slots": {
           "description": "Concurrent peer-download response bodies this seeder accepts; the requester uses it as its per-seeder admission limit (ADR-0028).",
@@ -44,14 +44,14 @@
         "protocol_version",
         "capabilities"
       ],
-      "title": "LanAuth",
+      "title": "P2PAuth",
       "type": "object"
     },
     "authFailed": {
       "additionalProperties": false,
       "properties": {
         "protocol_version": {
-          "const": "lan/1"
+          "const": "p2p/1"
         },
         "reason": {
           "type": "string"
@@ -69,7 +69,7 @@
         "protocol_version",
         "reason"
       ],
-      "title": "LanAuthFailed",
+      "title": "P2PAuthFailed",
       "type": "object"
     },
     "authOk": {
@@ -91,7 +91,7 @@
           "uniqueItems": true
         },
         "protocol_version": {
-          "const": "lan/1"
+          "const": "p2p/1"
         },
         "status": {
           "const": "ok"
@@ -106,7 +106,7 @@
         "protocol_version",
         "capabilities"
       ],
-      "title": "LanAuthOk",
+      "title": "P2PAuthOk",
       "type": "object"
     },
     "authRequired": {
@@ -128,7 +128,7 @@
           "uniqueItems": true
         },
         "protocol_version": {
-          "const": "lan/1"
+          "const": "p2p/1"
         },
         "type": {
           "const": "auth_required"
@@ -139,7 +139,7 @@
         "protocol_version",
         "capabilities"
       ],
-      "title": "LanAuthRequired",
+      "title": "P2PAuthRequired",
       "type": "object"
     },
     "dir": {
@@ -342,7 +342,7 @@
           "type": "string"
         },
         "protocol_version": {
-          "const": "lan/1"
+          "const": "p2p/1"
         },
         "serve_slots": {
           "description": "Concurrent peer-download response bodies this seeder accepts; the requester uses it as its per-seeder admission limit (ADR-0028).",
@@ -359,7 +359,7 @@
         "protocol_version",
         "capabilities"
       ],
-      "title": "LanHello",
+      "title": "P2PHello",
       "type": "object"
     },
     "inventory": {
@@ -411,7 +411,7 @@
         "seq",
         "status"
       ],
-      "title": "LanInventoryAckOk",
+      "title": "P2PInventoryAckOk",
       "type": "object"
     },
     "inventoryAckRejected": {
@@ -446,7 +446,7 @@
         "status",
         "reason"
       ],
-      "title": "LanInventoryAckRejected",
+      "title": "P2PInventoryAckRejected",
       "type": "object"
     },
     "inventoryAckResync": {
@@ -475,7 +475,7 @@
         "seq",
         "status"
       ],
-      "title": "LanInventoryAckResync",
+      "title": "P2PInventoryAckResync",
       "type": "object"
     },
     "inventoryDelete": {
@@ -496,7 +496,7 @@
         "path",
         "deleted"
       ],
-      "title": "LanInventoryDeleteEntry",
+      "title": "P2PInventoryDeleteEntry",
       "type": "object"
     },
     "inventoryDelta": {
@@ -540,7 +540,7 @@
         "more",
         "entries"
       ],
-      "title": "LanInventoryDelta",
+      "title": "P2PInventoryDelta",
       "type": "object"
     },
     "inventoryEntry": {
@@ -617,7 +617,7 @@
         "more",
         "entries"
       ],
-      "title": "LanInventorySnapshot",
+      "title": "P2PInventorySnapshot",
       "type": "object"
     },
     "inventoryUpsert": {
@@ -647,7 +647,7 @@
         "sha256",
         "size"
       ],
-      "title": "LanInventoryUpsertEntry",
+      "title": "P2PInventoryUpsertEntry",
       "type": "object"
     },
     "symlink": {
@@ -697,9 +697,9 @@
       "type": "object"
     }
   },
-  "$id": "https://hsync.dev/protocol/lan/1/wss",
+  "$id": "https://hsync.dev/protocol/p2p/1/wss",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "Wire contract for the LAN master⇄slave WebSocket handshake and peer inventory channel (ADR-0024, ADR-0028). Generated from hsync_common.protocol.schemas; do not hand-edit.",
+  "description": "Wire contract for the p2p master⇄slave WebSocket handshake and peer inventory channel (ADR-0024, ADR-0028). Generated from hsync_common.protocol.schemas; do not hand-edit.",
   "masterToSlave": {
     "oneOf": [
       {
@@ -738,6 +738,6 @@
       }
     ]
   },
-  "title": "HSYNC LAN WebSocket protocol (lan/1)",
+  "title": "HSYNC p2p WebSocket protocol (p2p/1)",
   "x-maxMessageBytes": 2097152
 }

@@ -43,7 +43,7 @@ Both sides compute the same winner from the same inputs.
 
 ### 4. No authoritative node
 
-The server and the elected LAN master are **transport hubs only** (who serves,
+The server and the elected p2p master are **transport hubs only** (who serves,
 ADR 0002); they do not decide conflicts by role. Every node applies the same
 algorithm. Upload arbitration at the hub compares the incoming version against
 its current stored version (causally, with a self-record pre-step for
@@ -68,7 +68,7 @@ read-only.
 ### 7. Capability, not version bump
 
 A `Capability.vector_clocks` is advertised on the authenticated handshakes
-(WS auth, LAN WSS) within the same protocol version (`api/1`, `ws/1`, `lan/1`).
+(WS auth, p2p WSS) within the same protocol version (`api/1`, `ws/1`, `p2p/1`).
 Version metadata is attached to file payloads (`FileDict.version`)
 unconditionally by new builds; old peers ignore unknown fields. Absent metadata
 ⇒ empty clock, handled natively by the same matrix.

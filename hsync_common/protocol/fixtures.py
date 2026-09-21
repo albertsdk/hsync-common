@@ -32,34 +32,34 @@ from hsync_common.models.tombstone import TombstoneEntry, tombstone_merge_decisi
 from hsync_common.models.version import VersionInfo, resolve_three_way
 
 from .handshake import (
-    PROTOCOL_VERSION_LAN,
+    PROTOCOL_VERSION_P2P,
     Capability,
-    build_lan_auth,
-    build_lan_auth_failed,
-    build_lan_auth_ok,
-    build_lan_auth_required,
-    build_lan_hello,
+    build_p2p_auth,
+    build_p2p_auth_failed,
+    build_p2p_auth_ok,
+    build_p2p_auth_required,
+    build_p2p_hello,
     build_ws_auth_error,
     build_ws_auth_ok,
     build_ws_auth_request,
     build_ws_presence,
 )
-from .lan import ElectionCandidate, elect_master
+from .p2p import ElectionCandidate, elect_master
 from .pairing import (
     evaluate_pin,
-    lan_write_requires_key,
+    p2p_write_requires_key,
     requires_pairing_confirmation,
 )
 from .peer_download import (
-    LanInventoryDeleteEntry,
-    LanInventoryUpsertEntry,
-    LanSourceCandidate,
-    LanSourceFile,
-    LanSourcesResponseFile,
-    build_lan_inventory_ack,
-    build_lan_inventory_frame,
-    build_lan_sources_request,
-    build_lan_sources_response,
+    P2PInventoryDeleteEntry,
+    P2PInventoryUpsertEntry,
+    P2PSourceCandidate,
+    P2PSourceFile,
+    P2PSourcesResponseFile,
+    build_p2p_inventory_ack,
+    build_p2p_inventory_frame,
+    build_p2p_sources_request,
+    build_p2p_sources_response,
 )
 
 __all__ = ["FIXTURE_TOKEN", "FIXTURE_APP_VERSION", "build_fixtures"]
@@ -72,7 +72,7 @@ FIXTURE_APP_VERSION = "1.0.0"
 # Fixed capability advertised by the sample client/server (kept minimal so the
 # fixture exercises a non-empty list without coupling to the full registry).
 _FIXTURE_CAPS = frozenset({Capability.compression})
-_FIXTURE_LAN_CAPS = frozenset({Capability.compression, Capability.peer_download})
+_FIXTURE_P2P_CAPS = frozenset({Capability.compression, Capability.peer_download})
 
 # Stable timestamps for the sample file event (Unix seconds, UTC).
 _FIXTURE_CTIME = 1_700_000_000
@@ -107,13 +107,13 @@ def _file_event() -> dict[str, Any]:
     return dict(event.to_dict())
 
 
-def _lan_txt_record() -> dict[str, Any]:
+def _p2p_txt_record() -> dict[str, Any]:
     """Sample mDNS/TXT record: all values are strings (mDNS encoding)."""
     return {
         "cid": "TestClientX1234567890",
         "bucket": "bucket-1",
         "version": FIXTURE_APP_VERSION,
-        "protocol": PROTOCOL_VERSION_LAN,
+        "protocol": PROTOCOL_VERSION_P2P,
         "startup_time": "1700000000.5",
         "sync_direction": "bidirectional",
         "compression": "true",
@@ -127,13 +127,13 @@ def _lan_txt_record() -> dict[str, Any]:
     }
 
 
-def _lan_txt_seeder_record() -> dict[str, Any]:
+def _p2p_txt_seeder_record() -> dict[str, Any]:
     """Sample bound slave seeder: endpoint material is present without mastership."""
     return {
         "cid": "TestClientA1234567890",
         "bucket": "bucket-1",
         "version": FIXTURE_APP_VERSION,
-        "protocol": PROTOCOL_VERSION_LAN,
+        "protocol": PROTOCOL_VERSION_P2P,
         "startup_time": "1700000001",
         "sync_direction": "download-only",
         "https": "true",
@@ -143,19 +143,19 @@ def _lan_txt_seeder_record() -> dict[str, Any]:
     }
 
 
-def _lan_sources_request() -> dict[str, Any]:
+def _p2p_sources_request() -> dict[str, Any]:
     """Canonical one-file batch source lookup request."""
     return dict(
-        build_lan_sources_request(
+        build_p2p_sources_request(
             cid="TestClientX1234567890",
-            files=[LanSourceFile(path="docs/report.bin", sha256=_FIXTURE_SHA256)],
+            files=[P2PSourceFile(path="docs/report.bin", sha256=_FIXTURE_SHA256)],
         )
     )
 
 
-def _lan_sources_response() -> dict[str, Any]:
+def _p2p_sources_response() -> dict[str, Any]:
     """Canonical source lookup response with one exact-hash seeder."""
-    source = LanSourceCandidate(
+    source = P2PSourceCandidate(
         cid="TestClientA1234567890",
         download_url="https://192.0.2.10:8443/api/v1/buckets/bucket-1/files/download",
         cert_fp=_FIXTURE_CERT_FP,
@@ -163,9 +163,9 @@ def _lan_sources_response() -> dict[str, Any]:
         serve_slots=2,
     )
     return dict(
-        build_lan_sources_response(
+        build_p2p_sources_response(
             files=[
-                LanSourcesResponseFile(
+                P2PSourcesResponseFile(
                     path="docs/report.bin",
                     sha256=_FIXTURE_SHA256,
                     sources=[source],
@@ -175,35 +175,35 @@ def _lan_sources_response() -> dict[str, Any]:
     )
 
 
-def _lan_inventory_snapshot() -> dict[str, Any]:
+def _p2p_inventory_snapshot() -> dict[str, Any]:
     """Terminal snapshot containing one serveable regular file."""
-    entry = LanInventoryUpsertEntry(path="docs/report.bin", sha256=_FIXTURE_SHA256, size=42)
+    entry = P2PInventoryUpsertEntry(path="docs/report.bin", sha256=_FIXTURE_SHA256, size=42)
     return dict(
-        build_lan_inventory_frame(gen=1, seq=0, mode="snapshot", more=False, entries=[entry])
+        build_p2p_inventory_frame(gen=1, seq=0, mode="snapshot", more=False, entries=[entry])
     )
 
 
-def _lan_inventory_empty_snapshot() -> dict[str, Any]:
+def _p2p_inventory_empty_snapshot() -> dict[str, Any]:
     """An empty inventory is represented by one terminal snapshot frame."""
-    return dict(build_lan_inventory_frame(gen=2, seq=0, mode="snapshot", more=False, entries=[]))
+    return dict(build_p2p_inventory_frame(gen=2, seq=0, mode="snapshot", more=False, entries=[]))
 
 
-def _lan_inventory_delta_upsert() -> dict[str, Any]:
+def _p2p_inventory_delta_upsert() -> dict[str, Any]:
     """Independent delta transaction adding or replacing one file identity."""
-    entry = LanInventoryUpsertEntry(path="media/video.bin", sha256=_FIXTURE_SHA256, size=1_048_576)
-    return dict(build_lan_inventory_frame(gen=1, seq=1, mode="delta", more=False, entries=[entry]))
+    entry = P2PInventoryUpsertEntry(path="media/video.bin", sha256=_FIXTURE_SHA256, size=1_048_576)
+    return dict(build_p2p_inventory_frame(gen=1, seq=1, mode="delta", more=False, entries=[entry]))
 
 
-def _lan_inventory_delta_delete() -> dict[str, Any]:
+def _p2p_inventory_delta_delete() -> dict[str, Any]:
     """Independent delta transaction deleting one inventory path."""
-    entry = LanInventoryDeleteEntry(path="docs/report.bin", deleted=True)
-    return dict(build_lan_inventory_frame(gen=1, seq=2, mode="delta", more=False, entries=[entry]))
+    entry = P2PInventoryDeleteEntry(path="docs/report.bin", deleted=True)
+    return dict(build_p2p_inventory_frame(gen=1, seq=2, mode="delta", more=False, entries=[entry]))
 
 
 # Cross-language master-election scenarios. Each scenario lists its candidates
 # and the expected winning ``cid``; the expectation is *computed* from the shared
 # algorithm (never hand-written), so the committed snapshot can only encode what
-# hsync_common.protocol.lan actually decides. Both the Python client tests and the
+# hsync_common.protocol.p2p actually decides. Both the Python client tests and the
 # Android parity test replay these exact inputs and must reach the same outcome.
 _ELECTION_SCENARIOS: tuple[tuple[str, tuple[ElectionCandidate, ...]], ...] = (
     (
@@ -292,7 +292,7 @@ _PIN_SCENARIOS: tuple[tuple[str, str | None, str], ...] = (
 )
 
 # Cross-language LAN write-policy scenarios. ``expected_requires_key`` is computed
-# from the shared ``lan_write_requires_key`` so Python and Android agree that
+# from the shared ``p2p_write_requires_key`` so Python and Android agree that
 # no-key mutation requires an explicit opt-in.
 _WRITE_POLICY_SCENARIOS: tuple[tuple[str, str, bool], ...] = (
     ("bidirectional-requires-key", "bidirectional", False),
@@ -332,7 +332,7 @@ def _pairing_scenarios() -> dict[str, Any]:
                 "name": name,
                 "sync_direction": direction,
                 "allow_unauthenticated_writes": allow_unauthenticated_writes,
-                "expected_requires_key": lan_write_requires_key(
+                "expected_requires_key": p2p_write_requires_key(
                     direction,
                     allow_unauthenticated_writes=allow_unauthenticated_writes,
                 ),
@@ -662,37 +662,37 @@ def build_fixtures() -> dict[str, dict[str, Any]]:
         "ws-pong": {"type": "pong"},
         "ws-presence": dict(build_ws_presence(connected=3, total=5)),
         "ws-file-event": _file_event(),
-        "lan-txt-record": _lan_txt_record(),
-        "lan-txt-seeder-record": _lan_txt_seeder_record(),
-        "lan-sources-request": _lan_sources_request(),
-        "lan-sources-response": _lan_sources_response(),
-        "lan-wss-auth-required": dict(build_lan_auth_required(capabilities=_FIXTURE_LAN_CAPS)),
-        "lan-wss-auth": dict(
-            build_lan_auth(
+        "p2p-txt-record": _p2p_txt_record(),
+        "p2p-txt-seeder-record": _p2p_txt_seeder_record(),
+        "p2p-sources-request": _p2p_sources_request(),
+        "p2p-sources-response": _p2p_sources_response(),
+        "p2p-wss-auth-required": dict(build_p2p_auth_required(capabilities=_FIXTURE_P2P_CAPS)),
+        "p2p-wss-auth": dict(
+            build_p2p_auth(
                 token=FIXTURE_TOKEN,
                 cid="TestClientX1234567890",
-                capabilities=_FIXTURE_LAN_CAPS,
+                capabilities=_FIXTURE_P2P_CAPS,
             )
         ),
-        "lan-wss-auth-ok": dict(build_lan_auth_ok(capabilities=_FIXTURE_LAN_CAPS)),
-        "lan-wss-auth-failed": dict(build_lan_auth_failed(reason="invalid_token")),
-        "lan-wss-hello-master": dict(build_lan_hello(capabilities=_FIXTURE_LAN_CAPS)),
-        "lan-wss-hello-slave": dict(
-            build_lan_hello(capabilities=_FIXTURE_LAN_CAPS, cid="TestClientX1234567890")
+        "p2p-wss-auth-ok": dict(build_p2p_auth_ok(capabilities=_FIXTURE_P2P_CAPS)),
+        "p2p-wss-auth-failed": dict(build_p2p_auth_failed(reason="invalid_token")),
+        "p2p-wss-hello-master": dict(build_p2p_hello(capabilities=_FIXTURE_P2P_CAPS)),
+        "p2p-wss-hello-slave": dict(
+            build_p2p_hello(capabilities=_FIXTURE_P2P_CAPS, cid="TestClientX1234567890")
         ),
-        "lan-wss-inventory-snapshot": _lan_inventory_snapshot(),
-        "lan-wss-inventory-empty-snapshot": _lan_inventory_empty_snapshot(),
-        "lan-wss-inventory-delta-upsert": _lan_inventory_delta_upsert(),
-        "lan-wss-inventory-delta-delete": _lan_inventory_delta_delete(),
-        "lan-wss-inventory-ack-ok": dict(build_lan_inventory_ack(gen=1, seq=0, status="ok")),
-        "lan-wss-inventory-ack-resync": dict(
-            build_lan_inventory_ack(gen=1, seq=3, status="resync")
+        "p2p-wss-inventory-snapshot": _p2p_inventory_snapshot(),
+        "p2p-wss-inventory-empty-snapshot": _p2p_inventory_empty_snapshot(),
+        "p2p-wss-inventory-delta-upsert": _p2p_inventory_delta_upsert(),
+        "p2p-wss-inventory-delta-delete": _p2p_inventory_delta_delete(),
+        "p2p-wss-inventory-ack-ok": dict(build_p2p_inventory_ack(gen=1, seq=0, status="ok")),
+        "p2p-wss-inventory-ack-resync": dict(
+            build_p2p_inventory_ack(gen=1, seq=3, status="resync")
         ),
-        "lan-wss-inventory-ack-rejected": dict(
-            build_lan_inventory_ack(gen=1, seq=1, status="rejected", reason="quota")
+        "p2p-wss-inventory-ack-rejected": dict(
+            build_p2p_inventory_ack(gen=1, seq=1, status="rejected", reason="quota")
         ),
-        "lan-election-scenarios": _election_scenarios(),
-        "lan-pairing-scenarios": _pairing_scenarios(),
+        "p2p-election-scenarios": _election_scenarios(),
+        "p2p-pairing-scenarios": _pairing_scenarios(),
         "causal-resolution-scenarios": _causal_resolution_scenarios(),
         "causal-tombstone-scenarios": _causal_tombstone_scenarios(),
         "delta-signatures": _delta_signatures(),

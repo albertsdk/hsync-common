@@ -59,7 +59,7 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
   delete_remote, upload_symlink, download_symlink, nothing`. The two
   symlink actions replicate the LINK STRUCTURALLY (pair path+target) during
   the full-sync reconcile — never file content; they are transport-agnostic
-  (server `/symlinks` and LAN master share the same surface).
+  (server `/symlinks` and p2p master share the same surface).
 - `SyncAction.to_dict` (`models/sync_action.py:88`) serializes
   `file, name, timedelta, conflict, tombstone_confirmed, permissions_only` —
   `conflict` is the "preserve the local copy first" signal; `tombstone_confirmed`
@@ -167,7 +167,7 @@ or poisoning.
 
 ## Serialization & protocol tie-in
 
-`File`/`Dir`/`Symlink`/`Event` shapes are reflected into the WS and LAN JSON
+`File`/`Dir`/`Symlink`/`Event` shapes are reflected into the WS and p2p JSON
 Schemas by the builders in `protocol/schemas.py` (`_file_object` `:82`,
 `_dir_object` `:103`, `_symlink_object` `:117`, `_event_message` `:135`), so a
 model field change must regenerate the contract artifacts (see

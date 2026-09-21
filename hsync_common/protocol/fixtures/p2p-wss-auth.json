@@ -4,7 +4,7 @@
     "peer_download"
   ],
   "cid": "TestClientX1234567890",
-  "protocol_version": "lan/1",
+  "protocol_version": "p2p/1",
   "token": "example-api-token",
   "type": "auth"
 }

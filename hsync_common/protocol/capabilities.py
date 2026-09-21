@@ -12,10 +12,10 @@ parent process (the Desktop GUI) can drive its UI from the *binary's* declared
 capabilities instead of coupling to a specific CLI/Semver contract. The document
 bundles, in one versioned payload:
 
-* the supported CLI subcommands (``lan``, ``server``),
+* the supported CLI subcommands (``p2p``, ``server``),
 * the per-subcommand supported CLI option flags (introspected by the client
   from its own commands, so the lists can never drift from the real interface),
-* the per-channel ``protocol_version`` (REST/WS/LAN) from the handshake SSOT,
+* the per-channel ``protocol_version`` (REST/WS/p2p/boot) from the handshake SSOT,
 * the structured-events ``schema_version`` (the ``--events-json-fd`` channel),
 * the feature-flag ``capabilities`` registry (the same wire tokens used in the
   handshake).
@@ -29,10 +29,11 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any, TypedDict
 
+from .bootnode import PROTOCOL_VERSION_BOOT
 from .events import EVENTS_SCHEMA_VERSION
 from .handshake import (
     ALL_CAPABILITIES,
-    PROTOCOL_VERSION_LAN,
+    PROTOCOL_VERSION_P2P,
     PROTOCOL_VERSION_REST,
     PROTOCOL_VERSION_WS,
     Capability,
@@ -51,7 +52,7 @@ __all__ = [
 
 # Bump only on a breaking change to the document shape below. The consumer
 # rejects any other version outright (see ``parse_capabilities``).
-CAPABILITIES_SCHEMA_VERSION = 2
+CAPABILITIES_SCHEMA_VERSION = 3
 
 
 class ProtocolVersions(TypedDict):
@@ -59,7 +60,8 @@ class ProtocolVersions(TypedDict):
 
     rest: str
     ws: str
-    lan: str
+    p2p: str
+    boot: str
 
 
 class CapabilitiesDoc(TypedDict):
@@ -85,11 +87,11 @@ def build_capabilities(
 
     Args:
         app_version: The binary's semantic version (distinct from the protocol).
-        subcommands: The supported CLI subcommands (e.g. ``["lan", "server"]``).
+        subcommands: The supported CLI subcommands (e.g. ``["p2p", "server"]``).
             Listed explicitly (not derived from ``cli_options_by_subcommand``
             keys) so a subcommand exposing no options stays discoverable.
         cli_options_by_subcommand: The supported CLI option flags per
-            subcommand (e.g. ``{"lan": ["--never-master"], "server":
+            subcommand (e.g. ``{"p2p": ["--never-master"], "server":
             ["--ca-cert"]}``).
         capabilities: Advertised feature flags; defaults to every known
             :class:`Capability`.
@@ -101,7 +103,8 @@ def build_capabilities(
         "protocol_version": {
             "rest": PROTOCOL_VERSION_REST,
             "ws": PROTOCOL_VERSION_WS,
-            "lan": PROTOCOL_VERSION_LAN,
+            "p2p": PROTOCOL_VERSION_P2P,
+            "boot": PROTOCOL_VERSION_BOOT,
         },
         "events_schema_version": EVENTS_SCHEMA_VERSION,
         "capabilities": encode_capabilities(caps),
@@ -155,7 +158,7 @@ def _field_types_valid(data: dict[str, Any]) -> bool:
     """
     protocol = data["protocol_version"]
     if not isinstance(protocol, dict) or not all(
-        isinstance(protocol.get(channel), str) for channel in ("rest", "ws", "lan")
+        isinstance(protocol.get(channel), str) for channel in ("rest", "ws", "p2p", "boot")
     ):
         return False
     if not isinstance(data["app_version"], str):

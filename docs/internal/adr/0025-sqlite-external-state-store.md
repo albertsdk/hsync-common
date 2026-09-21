@@ -15,7 +15,7 @@ grows with peer count because each ``vclock`` can hold up to 256 entries.
 
 The wire protocol is not the problem. Upload, listing, tombstone gossip,
 WS/LAN events and the ``vector_clocks`` capability already carry JSON
-``vclock`` / ``version`` dicts (``api/1``, ``ws/1``, ``lan/1``). Only local
+``vclock`` / ``version`` dicts (``api/1``, ``ws/1``, ``p2p/1``). Only local
 persistence is inadequate.
 
 Alternatives considered:
@@ -47,7 +47,7 @@ bucket.
 
 | Platform | DB location | Marker in bucket |
 |---|---|---|
-| Client / LAN master (Python) | ``$XDG_STATE_HOME/hsync/syncstate.db`` (fallback ``~/.local/state/hsync/syncstate.db``; env ``HSYNC_STATE_DIR``) | ``.hsyncfolder`` (UUIDv4 text + newline) |
+| Client / p2p master (Python) | ``$XDG_STATE_HOME/hsync/syncstate.db`` (fallback ``~/.local/state/hsync/syncstate.db``; env ``HSYNC_STATE_DIR``) | ``.hsyncfolder`` (UUIDv4 text + newline) |
 | Server (Python) | ``{state_dir}/syncstate.db`` (``get_state_dir()``; env ``HSYNC_STATE_DIR``) | none; ``buckets`` table maps bucket name → UUID |
 | Android | ``<filesDir>/syncstate.db`` | same ``.hsyncfolder`` marker (SAF/path) |
 

@@ -2,8 +2,8 @@
 
 - **Status:** Accepted
 - **Date:** 2026-08-05
-- **Supersedes (terminology):** the `LAN_*` / `CLIENT_*` label terminology used
-  in [ADR 0017](0017-lan-slave-outbound-event-reliability.md).
+- **Supersedes (terminology):** the `P2P_*` / `CLIENT_*` label terminology used
+  in [ADR 0017](0017-p2p-slave-outbound-event-reliability.md).
 
 ## Context
 
@@ -39,7 +39,7 @@ and the abbreviations produced pairs indistinguishable at a glance.
 - `REMOTE ` — event caused by a peer (the master for a slave, a slave for the
   master, the central server in remote mode).
 
-The scheme applies to **both** LAN mode and the central-server mode. Extending
+The scheme applies to **both** p2p mode and the central-server mode. Extending
 it to remote mode removes the `REMOVE`/`DELETE` dualism, needs no extra enum
 members, and gives a single mental model. Accepted cost: the log lines of a
 central-server sync change.
@@ -70,7 +70,7 @@ mirrors the single `[DOWNLOAD]` line of the inbound path.
 - `BaseFileEventHandler._label(name, src_path, dst_path)` computes the prefix
   by reusing the existing `_origin_cid()` hook (`"REMOTE "` when it returns a
   CID, else `"LOCAL "`); there is no static per-class `_LOG_PREFIX` anymore.
-  The LAN master's `_origin_cid` already peeks the inbound-origin map without
+  The p2p master's `_origin_cid` already peeks the inbound-origin map without
   consuming it (the subsequent `_broadcast_event` still consumes for echo
   suppression), so no new hook and no second peek was needed.
 - `EventDispatchContext.log_prefix` was removed: both inbound contexts would
@@ -95,7 +95,7 @@ mirrors the single `[DOWNLOAD]` line of the inbound path.
 - The `REMOVE`/`DELETE` dualism and the abbreviated verb set are gone; the
   enum shrinks by two members net (18 removed, 16 added).
 - The Kotlin mirror gains `REMOTE_DOWNLOAD`, closing a pre-existing parity
-  drift (`LAN_DOWNLOAD` existed only in Python). `LogActionTest` now also
+  drift (`P2P_DOWNLOAD` existed only in Python). `LogActionTest` now also
   asserts the mirror map is complete, so a future drift fails the test.
 
 ### Costs
@@ -115,6 +115,6 @@ mirrors the single `[DOWNLOAD]` line of the inbound path.
 
 - Canonical catalog: [`docs/log-labels.md`](../../log-labels.md)
 - SSOT: `hsync_common/labels.py` (`ActionLabel`, `resolve_label`)
-- [ADR 0017 — LAN slave outbound event reliability](0017-lan-slave-outbound-event-reliability.md)
+- [ADR 0017 — p2p slave outbound event reliability](0017-p2p-slave-outbound-event-reliability.md)
   (its `CLIENT_*` terminology is superseded by this record)
 - Kotlin mirror: `hsync-android/.../util/LogManager.kt` (`LogAction`)

@@ -29,17 +29,23 @@ PROTOCOL_DIR = Path(__file__).resolve().parent
 # Canonical location of the committed REST OpenAPI snapshot.
 REST_OPENAPI_PATH = PROTOCOL_DIR / "rest" / "openapi.json"
 
-# Canonical locations of the committed WebSocket and LAN JSON Schemas
+# Canonical locations of the committed WebSocket and p2p JSON Schemas
 # (generated from hsync_common.protocol.schemas; never hand-edit them).
 WS_SCHEMA_PATH = PROTOCOL_DIR / "ws" / "ws-schema.json"
-LAN_TXT_SCHEMA_PATH = PROTOCOL_DIR / "lan" / "txt-schema.json"
-LAN_WSS_SCHEMA_PATH = PROTOCOL_DIR / "lan" / "wss-schema.json"
+P2P_TXT_SCHEMA_PATH = PROTOCOL_DIR / "p2p" / "txt-schema.json"
+P2P_WSS_SCHEMA_PATH = PROTOCOL_DIR / "p2p" / "wss-schema.json"
 # Consumed by hsync-client source lookup, the Android mirror, and drift tests.
-LAN_SOURCES_SCHEMA_PATH = PROTOCOL_DIR / "lan" / "sources-schema.json"
+P2P_SOURCES_SCHEMA_PATH = PROTOCOL_DIR / "p2p" / "sources-schema.json"
 
 # Canonical directory of the committed golden protocol fixtures (generated from
 # hsync_common.protocol.fixtures; consumed as cross-language test inputs).
 FIXTURES_DIR = PROTOCOL_DIR / "fixtures"
+
+# Canonical bootstrap-protocol fixtures live in the sibling hsync-bootnode repo
+# (the SSOT for ``boot/1``; the bootnode never imports hsync-common). The
+# mirrored copies under FIXTURES_DIR are drift-checked byte-for-byte against
+# these by tests/test_protocol_bootnode.py.
+BOOTNODE_FIXTURES_DIR = FIXTURES_DIR.parents[3] / "hsync-bootnode" / "fixtures"
 
 # Sibling Android test-resource mirror of FIXTURES_DIR. The Android contract
 # test consumes byte-identical copies of the golden fixtures; resolved from the
@@ -83,11 +89,12 @@ __all__ = [
     "PROTOCOL_DIR",
     "REST_OPENAPI_PATH",
     "WS_SCHEMA_PATH",
-    "LAN_TXT_SCHEMA_PATH",
-    "LAN_WSS_SCHEMA_PATH",
-    "LAN_SOURCES_SCHEMA_PATH",
+    "P2P_TXT_SCHEMA_PATH",
+    "P2P_WSS_SCHEMA_PATH",
+    "P2P_SOURCES_SCHEMA_PATH",
     "FIXTURES_DIR",
     "ANDROID_FIXTURES_DIR",
+    "BOOTNODE_FIXTURES_DIR",
     "dump_contract",
     "load_contract",
     "dump_openapi",

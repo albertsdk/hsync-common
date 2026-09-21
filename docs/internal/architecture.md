@@ -72,7 +72,7 @@ hsync-common/
 ├── README.md
 ├── docs/
 │   ├── architecture.md         # This file
-│   ├── lan-protocol.md         # LAN discovery/election/pairing/security spec
+│   ├── p2p-protocol.md         # p2p discovery/election/pairing/security spec
 │   └── adr/                    # Architecture Decision Records
 ├── llm-wiki/                   # Agent-optimized knowledge base
 └── hsync_common/
@@ -111,15 +111,15 @@ hsync-common/
         ├── handshake.py         # Protocol versions, capabilities, WS auth frames
         ├── capabilities.py      # Capabilities document (desktop UI gating)
         ├── events.py            # UiEventName enum, event build/serialize/parse
-        ├── lan.py               # elect_master, election_sort_key
-        ├── pairing.py           # evaluate_pin, lan_write_requires_key
+        ├── p2p.py               # elect_master, election_sort_key
+        ├── pairing.py           # evaluate_pin, p2p_write_requires_key
         ├── peer_download.py     # Strict LAN source/inventory models and validators
-        ├── schemas.py           # JSON-Schema builders (WS, LAN TXT/WSS/sources)
+        ├── schemas.py           # JSON-Schema builders (WS, p2p TXT/WSS/sources)
         ├── fixtures.py          # Cross-language golden fixture generation
         ├── fixtures/             # Committed test scenarios (JSON)
         ├── rest/                # Generated OpenAPI snapshot (REST contract)
         ├── ws/                  # Generated WS JSON-Schema snapshot
-        └── lan/                 # Generated LAN TXT, WSS, and source JSON-Schemas
+        └── lan/                 # Generated p2p TXT, WSS, and source JSON-Schemas
 ```
 
 ## Models
@@ -347,7 +347,7 @@ Engine-owned artifacts (`.hsyncignore`, `.hsyncfolder`, leftover
 | `FILE_SIZE_SMALL`            | 1 MB                 | Threshold for medium chunk size          |
 | `FILE_SIZE_MEDIUM`           | 100 MB               | Threshold for large chunk size           |
 | `DELTA_MIN_FILE_SIZE`        | 256 KB               | Minimum file size to attempt delta sync  |
-| `DELTA_MIN_FILE_SIZE_LAN`    | 1 MB                 | Minimum file size for LAN delta sync     |
+| `DELTA_MIN_FILE_SIZE_P2P`    | 1 MB                 | Minimum file size for LAN delta sync     |
 | `DELTA_MAX_CHANGE_RATIO`     | `0.50`               | Max changed-block ratio for delta sync   |
 | `DELTA_TOKEN_TTL`            | 300 s                | Delta token expiry (single-use)          |
 
