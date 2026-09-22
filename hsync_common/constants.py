@@ -269,6 +269,11 @@ NTP_DEFAULT_HOSTS: tuple[str, ...] = (
 # SNTP server port (RFC 4330).
 NTP_PORT = 123
 
+# Default UDP port of the boot/1 bootstrap listener (boot-1.md §Transport).
+# Single SSOT shared by the hsync-bootnode CLI (`--port` default) and the
+# hsync-client bare-host default, so the two can never drift.
+BOOT_DEFAULT_PORT = 443
+
 # Seconds to wait for a single SNTP probe before moving to the next host.
 NTP_TIMEOUT_SECONDS = 3.0
 

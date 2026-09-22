@@ -21,12 +21,17 @@ error / 426; peers disconnect / auth refused). Capabilities are feature flags
 within a version — intersection semantics, never cross-version negotiation
 (ADR-0024).
 
-## bootnode.py — `boot/1` bootstrap mirror (ADR-0032)
+## bootnode.py — `boot/1` bootstrap mirror (ADR-0032, ADR-0033)
 
 Mirror of the canonical `boot/1` contract (`hsync-bootnode/protocol-spec/boot-1.md`
-+ `hsync-bootnode/fixtures/`); the bootnode daemon never imports `hsync-common`.
++ `hsync-bootnode/fixtures/`). The daemon keeps its own frame models and does not
+import this mirror; its Python v1 reuses only generic `hsync-common` utilities
+(`ssl_utils`, `CID_PATTERN`, `is_valid_bucket_name` — ADR-0033).
 
-- `PROTOCOL_VERSION_BOOT = "boot/1"` (`bootnode.py:53`), `BOOT_ALPN = "hsync-boot/1"`.
+- `PROTOCOL_VERSION_BOOT = "boot/1"` (`bootnode.py:69`), `BOOT_ALPN = "hsync-boot/1"`.
+  The default listener port is `BOOT_DEFAULT_PORT = 443`
+  (`hsync_common/constants.py`, next to `NTP_PORT`) — consumers: hsync-bootnode
+  CLI `--port` default and hsync-client bare-host default.
 - TypedDict frames + strict `validate_*` validators (dependency-free, like the
   rest of the package): `BootRegister` / `BootRefresh` / `BootLeave` /
   `BootQuery` (client→server) and `BootAck` / `BootResponse` / `BootPeer`

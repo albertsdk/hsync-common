@@ -19,9 +19,11 @@ across networks through a bootstrap node.
 | Drift test (bytes vs the canonical fixtures) | `tests/test_protocol_bootnode.py` |
 | Consumer | `hsync-client` (`hsync p2p`, bootnode discovery plan) |
 
-The bootnode daemon is standalone and never imports `hsync-common`; it keeps its
-own model of the frames. The two copies are kept honest by the drift test, which
-compares the mirrored fixtures byte-for-byte with the canonical ones.
+The bootnode daemon keeps its own model of the frames (it does not import this
+mirror); its Python v1 reuses only generic `hsync-common` utilities — the TLS
+identity helpers, the CID pattern and the canonical bucket-name rule. The two
+copies are kept honest by the drift test, which compares the mirrored fixtures
+byte-for-byte with the canonical ones.
 
 ## Transport
 

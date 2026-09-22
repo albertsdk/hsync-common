@@ -8,13 +8,15 @@
 
 The canonical specification and the canonical golden fixtures live in the
 ``hsync-bootnode`` repository (``protocol-spec/boot-1.md`` and ``fixtures/``);
-the bootnode daemon does **not** import ``hsync-common`` (it stays a standalone
-package so it can be ported to Rust). This module is therefore a *mirror* of
-that contract for the consumers that do live in this monorepo — today the
-``hsync-client`` bootnode discovery (Fase C2) and the shared fixtures/drift
-tests. A drift test (``tests/test_protocol_bootnode.py``) compares the mirrored
-fixtures against the canonical ``hsync-bootnode/fixtures/`` bytes so the two
-copies cannot diverge silently.
+this module is a *mirror* of that contract for the consumers that live in this
+monorepo — today the ``hsync-client`` bootnode discovery (Fase C2) and the
+shared fixtures/drift tests. The daemon keeps its own frame models and never
+imports this mirror (the fixtures are the cross-language contract), but its
+Python v1 does reuse a small set of generic ``hsync-common`` utilities
+(``ssl_utils``, ``CID_PATTERN``, ``is_valid_bucket_name``) — see ADR-0033. A
+drift test (``tests/test_protocol_bootnode.py``) compares the mirrored fixtures
+against the canonical ``hsync-bootnode/fixtures/`` bytes so the two copies
+cannot diverge silently.
 
 Like the rest of the protocol package this mirror is dependency-free: TypedDicts
 describe the wire shape and strict ``validate_*`` helpers reject unknown or

@@ -1,6 +1,6 @@
 # ADR 0032 — Bootnode discovery (`boot/1`)
 
-- **Status:** Accepted
+- **Status:** Accepted (its "never imports `hsync-common`" clause is superseded by [ADR-0033](0033-bootnode-python-reuses-hsync-common.md))
 - **Date:** 2026-10-09
 
 ## Context

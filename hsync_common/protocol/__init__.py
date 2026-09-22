@@ -42,9 +42,10 @@ P2P_SOURCES_SCHEMA_PATH = PROTOCOL_DIR / "p2p" / "sources-schema.json"
 FIXTURES_DIR = PROTOCOL_DIR / "fixtures"
 
 # Canonical bootstrap-protocol fixtures live in the sibling hsync-bootnode repo
-# (the SSOT for ``boot/1``; the bootnode never imports hsync-common). The
-# mirrored copies under FIXTURES_DIR are drift-checked byte-for-byte against
-# these by tests/test_protocol_bootnode.py.
+# (the SSOT for ``boot/1``; the daemon keeps its own frame models and does not
+# import this mirror, though its Python v1 reuses a few generic hsync-common
+# utilities — ADR-0033). The mirrored copies under FIXTURES_DIR are drift-checked
+# byte-for-byte against these by tests/test_protocol_bootnode.py.
 BOOTNODE_FIXTURES_DIR = FIXTURES_DIR.parents[3] / "hsync-bootnode" / "fixtures"
 
 # Sibling Android test-resource mirror of FIXTURES_DIR. The Android contract

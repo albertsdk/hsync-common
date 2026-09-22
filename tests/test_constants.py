@@ -1,6 +1,7 @@
 """Tests for hsync_common.constants."""
 
 from hsync_common.constants import (
+    BOOT_DEFAULT_PORT,
     CHUNK_SIZE_LARGE,
     CHUNK_SIZE_MEDIUM,
     CHUNK_SIZE_SMALL,
@@ -120,3 +121,9 @@ class TestFileSizeThresholds:
 
     def test_medium_is_around_100mb(self):
         assert 50_000_000 < FILE_SIZE_MEDIUM < 200_000_000
+
+
+class TestBootDefaultPort:
+    def test_pins_the_spec_value(self):
+        """The boot/1 default UDP port matches boot-1.md §Transport."""
+        assert BOOT_DEFAULT_PORT == 443

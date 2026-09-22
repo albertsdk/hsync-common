@@ -51,7 +51,8 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0029](0029-explicit-opt-in-unauthenticated-p2p-writes.md) | Explicit opt-in for unauthenticated p2p writes | Accepted |
 | [0030](0030-p2p-seeder-capacity-advertisement.md) | p2p seeder capacity advertisement and requester admission | Accepted |
 | [0031](0031-p2p-peer-offload-lane-cost.md) | p2p peer-offload lane cost: attribution and accepted trade-off | Accepted |
-| [0032](0032-bootnode-discovery.md) | Bootnode discovery (`boot/1`) and the hsync-common mirror | Accepted |
+| [0032](0032-bootnode-discovery.md) | Bootnode discovery (`boot/1`) and the hsync-common mirror | Accepted (the "never imports hsync-common" clause superseded by [ADR-0033](0033-bootnode-python-reuses-hsync-common.md)) |
+| [0033](0033-bootnode-python-reuses-hsync-common.md) | The bootnode Python v1 reuses hsync-common utilities | Accepted |
 
 ## Related documents
 
