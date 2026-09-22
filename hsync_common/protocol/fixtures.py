@@ -5,7 +5,7 @@
 # Copyright (C) 2025 Alberto Basso
 
 """
-Golden protocol fixtures shared across every HSYNC component (P0-A, Fase 4).
+Golden protocol fixtures shared across every HSYNC component.
 
 These are canonical, deterministic examples of each on-the-wire message, built
 *from the Python source of truth* — the handshake builders and the shared

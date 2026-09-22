@@ -38,11 +38,11 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   (server→client); `validate_boot_frame` dispatches on `type`.
 - `CAPACITY_MAX = 32` bounds the advisory service-capacity hint (`0` = not a
   seeder); `reachable` is derived from `bool(endpoints)`.
-- D11 token helpers: `derive_bucket_token` (`HMAC-SHA256(key, "boot/1"||bucket)`),
+- Token helpers: `derive_bucket_token` (`HMAC-SHA256(key, "boot/1"||bucket)`),
   `is_valid_bucket_token`, `constant_time_equals`, `verify_bucket_token`.
 - Fixture mirror `protocol/fixtures/bootnode-*.json` is byte-checked against the
   canonical bootnode fixtures by `tests/test_protocol_bootnode.py`.
-- Consumers: `hsync-client` (bootnode discovery, Fase C2), shared fixtures/tests.
+- Consumers: `hsync-client` (bootnode discovery), shared fixtures/tests.
 
 ## capabilities.py — `--capabilities-json` document
 

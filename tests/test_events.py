@@ -1,4 +1,4 @@
-"""Tests for hsync_common.protocol.events (P0-B structured event channel)."""
+"""Tests for hsync_common.protocol.events."""
 
 import json
 

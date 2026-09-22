@@ -36,7 +36,7 @@ __all__ = [
 ]
 
 # Bump only on a breaking change to the event payload shape. The Desktop hard
-# fails on an unknown version rather than silently mis-parsing (P0-B has no
+# fails on an unknown version rather than silently mis-parsing (there is no
 # legacy channel to fall back to).
 EVENTS_SCHEMA_VERSION = 2
 

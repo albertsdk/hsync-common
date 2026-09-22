@@ -76,6 +76,6 @@ live in [`../docs/p2p-protocol.md`](../docs/p2p-protocol.md) and map to
   rejects any other schema version outright, so this is an atomic boundary.
 - **`boot/1` mirror**: canonical spec/fixtures stay in `hsync-bootnode`;
   `hsync_common/protocol/bootnode.py` mirrors the frames (TypedDicts + strict
-  `validate_*` helpers, dependency-free like the rest of the package) and the D11
+  `validate_*` helpers, dependency-free like the rest of the package) and the
   token helpers; the mirrored fixtures are drift-tested byte-for-byte against
   `hsync-bootnode/fixtures/`.

@@ -26,7 +26,7 @@ the frames and never imports `hsync-common`.
 
 `hsync-common` carries a **mirror** of the contract in
 `hsync_common/protocol/bootnode.py` (frame models, `PROTOCOL_VERSION_BOOT`,
-`BOOT_ALPN`, the D11 bucket-token helpers) plus a byte-identical copy of the
+`BOOT_ALPN`, the bucket-token helpers) plus a byte-identical copy of the
 golden fixtures. A drift test (`tests/test_protocol_bootnode.py`) compares the
 mirror against the canonical `hsync-bootnode/fixtures/`, so the two copies
 cannot diverge silently. The mirror is the single source for the client; the

@@ -82,11 +82,11 @@ anomaly needs a cost breakdown.
 * `compute_sha256` runs at ~1.5 GB/s (`sha256_async(16MB)` now matches the
   sync 16 MB rate: A3 replaced the 8 KB-chunk `aiofiles` loop with a single
   `asyncio.to_thread` hop).
-* zstd direction-aware levels (A4): on `binary-1MB` level 1 is **5.5x faster**
+* zstd direction-aware levels: on `binary-1MB` level 1 is **5.5x faster**
   than level 3 (1146 vs 208 ops/s) and even 3 % smaller
   (524461 B vs 540956 B); on `text-1MB` it is 1.2x faster for 13 % larger
   output — the upload/LAN tradeoff the `compression_level()` SSOT encodes.
-* Compression gate (C1): `should_compress` at ~0.0005 ms (~1.9M ops/s) — the
+* Compression gate: `should_compress` at ~0.0005 ms (~1.9M ops/s) — the
   skip-path `log.debug` calls switched to lazy loguru args (the f-string was
   formatted even at INFO level), a ~9 % win on the per-file gate
   (`hsync_common/compression.py:224`).
@@ -104,7 +104,7 @@ anomaly needs a cost breakdown.
   `should_skip` lock-free (direct `_active_matcher` read) and skipped the
   `\\`→`/` rewrite when absent — sweep noise dominates, single-path is
   unchanged.
-* Path prepend (B3): `file_from_dict(prepend)` at ~1.0 µs (was ~4.0 µs, **~4x**),
+* Path prepend: `file_from_dict(prepend)` at ~1.0 µs (was ~4.0 µs, **~4x**),
   `dir_from_dict(prepend)` at ~0.6 µs (was ~3.1 µs, **~5x**),
   `symlink_from_dict` at ~0.8 µs (was ~3.3 µs, **~4x**) —
   `_resolve_prefixed_path` (`models/_util.py:124`)
@@ -113,12 +113,12 @@ anomaly needs a cost breakdown.
   `tests/test_models_file.py`). `file_from_dict(strip)` unchanged at ~2.1 µs
   (C5, direct dict access in the same decode, was a semantic cleanup with no
   measurable gain).
-* Path stripping (A1): `relpath_in_bucket` at ~1.1 µs and
+* Path stripping: `relpath_in_bucket` at ~1.1 µs and
   `file_from_dict(strip)` at ~2.1 µs — up from 12.8 µs/14 µs
   (~9x/6.5x), so model decode is no longer path-normalisation dominated.
   (`Event` construction at ~1.8 µs still costs ~2x its own serialization
   (~0.9 µs) because it re-normalises the src/dst paths.)
-* Steady-state reconcide micro-opts (D1): a `hsync-client` cProfile of the
+* Steady-state reconcide micro-opts: a `hsync-client` cProfile of the
   in-sync reconcile showed the per-file cost spread flatly across the shared
   model/validation layer, so four behavior-preserving fast paths were added
   here — `to_epoch` returns an int verbatim (`time_utils.py:101`),
@@ -138,7 +138,7 @@ anomaly needs a cost breakdown.
   (`compress_data(binary-1MB)` ~4.81 ms, `text-1MB` ~0.38 ms) and
   `signatures`/`apply_delta` are within run-to-run noise of the A1–A5
   baseline.
-* New coverage (C6): `resolve_within(valid)` at ~0.028 ms is ~15x the pure-lex
+* New coverage: `resolve_within(valid)` at ~0.028 ms is ~15x the pure-lex
   `validate_remote_relpath(valid)` (~0.0019 ms) — the confining `Path.resolve()`
   syscall dominates the hit path; an escaping `../` path is rejected at
   ~0.0004 ms (lexical guards fire before any syscall). Store layer:
