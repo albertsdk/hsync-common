@@ -29,6 +29,12 @@ byte-for-byte with the canonical ones.
 
 - QUIC over UDP, TLS 1.3, ALPN **`hsync-boot/1`**
   (`BOOT_ALPN`).
+- The QUIC/TLS listener presents a **self-signed** certificate: the client
+  verifies its SHA-256 DER fingerprint against an explicit pin or the opt-in
+  TOFU store and refuses an unpinned node before sending any frame. The full
+  rule lives in the canonical spec's *Trust & identity* section; the operator
+  procedure is
+  [`hsync-client` — Sync across networks](https://github.com/albertsdk/hsync-client/blob/main/docs/p2p-bootnode.md).
 - One bidirectional stream per request; frames are **newline-terminated JSON**
   (NDJSON).
 - A refusal is a uniform `response` with `error` (`token_required` /

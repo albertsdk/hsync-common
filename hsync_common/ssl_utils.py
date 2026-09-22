@@ -20,10 +20,14 @@ from datetime import UTC, datetime, timedelta
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric import ed25519, rsa
 
 # Default RSA key size in bits (good security/performance balance).
 DEFAULT_KEY_SIZE = 2048
+
+# A self-signed identity may use RSA (legacy, still supported for pre-existing
+# files) or Ed25519 (preferred for new identities — ADR-0034).
+PrivateKey = rsa.RSAPrivateKey | ed25519.Ed25519PrivateKey
 
 
 def generate_rsa_private_key(key_size: int = DEFAULT_KEY_SIZE) -> rsa.RSAPrivateKey:
@@ -31,8 +35,17 @@ def generate_rsa_private_key(key_size: int = DEFAULT_KEY_SIZE) -> rsa.RSAPrivate
     return rsa.generate_private_key(public_exponent=65537, key_size=key_size)
 
 
+def generate_ed25519_private_key() -> ed25519.Ed25519PrivateKey:
+    """Generate an Ed25519 private key for long-lived self-signed identities.
+
+    Preferred over RSA for new bootnode identities (ADR-0034): smaller keys and
+    signatures. Consumers: ``hsync-bootnode`` (persistent identity), tests.
+    """
+    return ed25519.Ed25519PrivateKey.generate()
+
+
 def build_self_signed_certificate(
-    private_key: rsa.RSAPrivateKey,
+    private_key: PrivateKey,
     subject_attrs: Sequence[x509.NameAttribute],
     san_list: Sequence[x509.GeneralName],
     validity_days: int,
@@ -43,7 +56,7 @@ def build_self_signed_certificate(
     Build a self-signed X.509 certificate.
 
     Args:
-        private_key: The RSA private key used to sign the certificate.
+        private_key: The RSA or Ed25519 private key used to sign the certificate.
         subject_attrs: Name attributes for both subject and issuer.
         san_list: Subject Alternative Names (DNS names, IP addresses, ...).
         validity_days: Days the certificate is valid for.
@@ -76,7 +89,11 @@ def build_self_signed_certificate(
             critical=True,
         )
 
-    return builder.sign(private_key, hashes.SHA256())
+    # Ed25519 is a fixed scheme with no hash parameter; RSA/ECDSA sign over SHA-256.
+    signature_algorithm: hashes.HashAlgorithm | None = (
+        None if isinstance(private_key, ed25519.Ed25519PrivateKey) else hashes.SHA256()
+    )
+    return builder.sign(private_key, signature_algorithm)
 
 
 def serialize_cert_pem(cert: x509.Certificate) -> bytes:
@@ -100,8 +117,8 @@ def serialize_key_pem(private_key: rsa.RSAPrivateKey, password: bytes) -> bytes:
     )
 
 
-def serialize_private_key_unencrypted(private_key: rsa.RSAPrivateKey) -> bytes:
-    """Serialize an RSA private key to *unencrypted* PKCS#8 PEM bytes.
+def serialize_private_key_unencrypted(private_key: PrivateKey) -> bytes:
+    """Serialize an RSA or Ed25519 private key to *unencrypted* PKCS#8 PEM bytes.
 
     Intended for long-lived self-signed service identities whose confidentiality
     is enforced by filesystem permissions (``0o600`` in a ``0o700`` directory)

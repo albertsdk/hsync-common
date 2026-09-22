@@ -27,6 +27,7 @@ from hsync_common.protocol.bootnode import (
     validate_boot_response,
     verify_bucket_token,
 )
+from hsync_common.protocol.pairing import fingerprint_matches, parse_fingerprint
 
 _MIRRORED = {
     "bootnode-register": validate_boot_frame,
@@ -119,3 +120,29 @@ def test_bucket_token_derivation_and_verify():
     assert verify_bucket_token(token, None) is False
     assert verify_bucket_token(token, "not-a-token") is False
     assert derive_bucket_token(b"secret", "other") != token
+
+
+def test_bootnode_fingerprint_fixture_vectors():
+    """The golden bootnode-fingerprint scenarios pin the shared trust contract.
+
+    The fixture lives in the canonical ``hsync-bootnode/fixtures/`` (SSOT); the
+    shared ``parse_fingerprint``/``fingerprint_matches`` in
+    ``hsync_common.protocol.pairing`` must normalize and match every vector
+    identically, so the future Rust/Android ports replay the same inputs.
+    """
+    canonical = BOOTNODE_FIXTURES_DIR / "bootnode-fingerprint.json"
+    if not canonical.is_file():
+        pytest.skip(f"hsync-bootnode fixtures not present at {BOOTNODE_FIXTURES_DIR}")
+    doc = json.loads(canonical.read_text(encoding="utf-8"))
+
+    for scenario in doc["parse_scenarios"]:
+        assert parse_fingerprint(scenario["input"]) == scenario["normalized"], scenario
+
+    for scenario in doc["match_scenarios"]:
+        assert fingerprint_matches(scenario["observed"], scenario["pins"]) is scenario["matches"], (
+            scenario
+        )
+
+    # The canonical form round-trips to the bare hex digest and back.
+    assert parse_fingerprint(doc["canonical"]) == doc["hex"]
+    assert parse_fingerprint(doc["hex"]) == doc["hex"]

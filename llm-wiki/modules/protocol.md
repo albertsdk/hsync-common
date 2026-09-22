@@ -82,11 +82,16 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
 
 ## pairing.py — TOFU pin + p2p-key policy
 
-- `PinDecision` StrEnum (`pairing.py:59`); `normalize_fingerprint`
-  (`pairing.py:73`); `evaluate_pin` (`pairing.py:86`).
-- `requires_pairing_confirmation` (`pairing.py:115`) — strict out-of-band pairing.
-- `is_write_direction` (`pairing.py:135`) + `p2p_write_requires_key`
-  (`pairing.py:140`); write directions set `pairing.py:56`. ADR-0029 makes every
+- `PinDecision` StrEnum (`pairing.py:66`); `normalize_fingerprint`
+  (`pairing.py:89`); `evaluate_pin` (`pairing.py:124`).
+- Bootnode trust primitives (ADR-0034): `parse_fingerprint` (`pairing.py:102`)
+  normalizes `sha256:<hex>` / bare hex to lowercase 64-char hex (rejects invalid),
+  `fingerprint_matches` (`pairing.py:153`) compares constant-time against a pin
+  set, `FingerprintMismatch` (`pairing.py:80`) is the shared fatal-exception.
+  Consumers: `hsync-client` bootnode pinning; future Rust/Android parity.
+- `requires_pairing_confirmation` (`pairing.py:174`) — strict out-of-band pairing.
+- `is_write_direction` (`pairing.py:194`) + `p2p_write_requires_key`
+  (`pairing.py:199`); write directions set `pairing.py:63`. ADR-0029 makes every
   write-capable run require a key unless the explicit dangerous
   `allow_unauthenticated_writes` opt-in is set.
 

@@ -31,8 +31,8 @@ anomaly needs a cost breakdown.
 
 | Scenario | Public API measured |
 | --- | --- |
-| `sha256(64KB/1MB/16MB)`, `sha256_async(...)` | `hashing.compute_sha256` (`hsync_common/hashing.py:83`), `compute_sha256_async` (`:100`) |
-| `is_sha256_hex`, `adaptive_chunk_size` | `hsync_common/hashing.py:38`, `:62` |
+| `sha256(64KB/1MB/16MB)`, `sha256_async(...)` | `hashing.compute_sha256` (`hsync_common/hashing.py:82`), `compute_sha256_async` (`:99`) |
+| `is_sha256_hex`, `adaptive_chunk_size` | `hsync_common/hashing.py:37`, `:61` |
 | `should_compress` | `hsync_common/compression.py:172` (threshold + `PRECOMPRESSED_EXTENSIONS` gate) |
 | `compress_data` / `decompress_data` | `hsync_common/compression.py:219`, `:224` (capped streaming read) |
 | `compress_file_to_file` | `hsync_common/compression.py:312` (streaming upload path) |

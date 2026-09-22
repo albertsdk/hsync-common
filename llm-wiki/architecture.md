@@ -40,7 +40,7 @@ these constants:
 | `build_ws_auth_request/ok/error` | `protocol/handshake.py:136` | client/android WS auth, server `events.py` |
 | `UiEventName` + `build_event` | `protocol/events.py:44` | client emits, desktop/android parse; transfer payload may carry peer `source_cid` |
 | `elect_master` / `election_sort_key` | `protocol/p2p.py:67` | client `p2p.py`, android `Election.kt` |
-| `evaluate_pin` / `p2p_write_requires_key` | `protocol/pairing.py:86` | client `pinning.py`, android `Pairing.kt` |
+| `evaluate_pin` / `p2p_write_requires_key` | `protocol/pairing.py:124` | client `pinning.py`, android `Pairing.kt` |
 | LAN source/inventory builders + validators | `protocol/peer_download.py:91` | client master/seeder/source resolver, Android mirror, generated contracts |
 
 ## Causal conflict model (ADR-0022)

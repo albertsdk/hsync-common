@@ -17,11 +17,14 @@ import pytest
 from hsync_common.protocol.pairing import (
     SYNC_DIRECTION_DOWNLOAD_ONLY,
     SYNC_DIRECTION_UPLOAD_ONLY,
+    FingerprintMismatch,
     PinDecision,
     evaluate_pin,
+    fingerprint_matches,
     is_write_direction,
     normalize_fingerprint,
     p2p_write_requires_key,
+    parse_fingerprint,
     requires_pairing_confirmation,
 )
 
@@ -58,6 +61,53 @@ class TestEvaluatePin:
 
     def test_different_fingerprint_is_changed(self):
         assert evaluate_pin("abc123", "def456") is PinDecision.changed
+
+
+_HEX64 = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+
+class TestParseFingerprint:
+    def test_canonical_sha256_prefix(self):
+        assert parse_fingerprint(f"sha256:{_HEX64}") == _HEX64
+
+    def test_bare_hex(self):
+        assert parse_fingerprint(_HEX64) == _HEX64
+
+    def test_uppercase_and_colons_normalize(self):
+        assert parse_fingerprint(_HEX64.upper()) == _HEX64
+        assert parse_fingerprint(":".join(_HEX64[i : i + 2] for i in range(0, 64, 2))) == _HEX64
+
+    def test_sha256_prefix_is_case_insensitive(self):
+        assert parse_fingerprint(f"SHA256:{_HEX64}") == _HEX64
+
+    def test_invalid_inputs_are_none(self):
+        assert parse_fingerprint(None) is None
+        assert parse_fingerprint("") is None
+        assert parse_fingerprint("   ") is None
+        assert parse_fingerprint("short") is None
+        assert parse_fingerprint("z" * 64) is None  # non-hex
+        assert parse_fingerprint("0" * 63) is None  # too short
+        assert parse_fingerprint("0" * 65) is None  # too long
+
+
+class TestFingerprintMatches:
+    def test_matches_any_pin(self):
+        assert fingerprint_matches(_HEX64, [_HEX64]) is True
+        assert fingerprint_matches(_HEX64.upper(), [_HEX64]) is True
+
+    def test_matches_one_of_several(self):
+        assert fingerprint_matches(_HEX64, ["0" * 64, f"sha256:{_HEX64}"]) is True
+
+    def test_no_match(self):
+        assert fingerprint_matches(_HEX64, ["f" * 64]) is False
+        assert fingerprint_matches(_HEX64, []) is False
+
+    def test_missing_observed_never_matches(self):
+        assert fingerprint_matches("", [_HEX64]) is False
+
+
+def test_fingerprint_mismatch_is_an_exception():
+    assert issubclass(FingerprintMismatch, Exception)
 
 
 class TestRequiresPairingConfirmation:

@@ -29,18 +29,25 @@ implement is documented in ``hsync-common/docs/p2p-protocol.md``.
 
 from __future__ import annotations
 
+import hmac
+from collections.abc import Sequence
 from enum import StrEnum
+
+from hsync_common.hashing import is_sha256_hex
 
 from .p2p import SYNC_DIRECTION_BIDIRECTIONAL
 
 __all__ = [
     "SYNC_DIRECTION_DOWNLOAD_ONLY",
     "SYNC_DIRECTION_UPLOAD_ONLY",
+    "FingerprintMismatch",
     "PinDecision",
     "evaluate_pin",
+    "fingerprint_matches",
     "is_write_direction",
     "p2p_write_requires_key",
     "normalize_fingerprint",
+    "parse_fingerprint",
     "requires_pairing_confirmation",
 ]
 
@@ -70,6 +77,15 @@ class PinDecision(StrEnum):
     changed = "changed"  # observed differs from the stored pin: refuse (possible MITM)
 
 
+class FingerprintMismatch(Exception):
+    """The observed certificate fingerprint matches none of the accepted pins.
+
+    Raised by the consuming client when a bootnode presents a certificate whose
+    SHA-256 DER fingerprint is not in the accepted set (explicit pins or the TOFU
+    store). It is fatal: the connection is closed before any frame is sent.
+    """
+
+
 def normalize_fingerprint(fingerprint: str | None) -> str | None:
     """Normalise a certificate fingerprint for stable, case-insensitive compares.
 
@@ -81,6 +97,28 @@ def normalize_fingerprint(fingerprint: str | None) -> str | None:
         return None
     cleaned = fingerprint.strip().lower().replace(":", "").replace(" ", "")
     return cleaned or None
+
+
+def parse_fingerprint(value: str | None) -> str | None:
+    """Parse a bootnode certificate fingerprint into canonical lowercase hex.
+
+    Accepts the canonical ``sha256:<hex>`` form and bare hex (optionally
+    colon- or space-separated), and returns the normalized 64-char lowercase hex
+    digest. Returns ``None`` when the value is missing, blank, or not a full
+    SHA-256 hex digest — an invalid pin never becomes a silent match.
+
+    Consumers: ``hsync-client`` (bootnode fingerprint pinning), the bootnode
+    CLI ``identity show``, and the language-neutral parity test.
+    """
+    if not value:
+        return None
+    cleaned = value.strip().lower()
+    if cleaned.startswith("sha256:"):
+        cleaned = cleaned[len("sha256:") :]
+    normalized = normalize_fingerprint(cleaned)
+    if normalized is None or not is_sha256_hex(normalized):
+        return None
+    return normalized
 
 
 def evaluate_pin(stored_fp: str | None, observed_fp: str | None) -> PinDecision:
@@ -110,6 +148,27 @@ def evaluate_pin(stored_fp: str | None, observed_fp: str | None) -> PinDecision:
     if stored is None:
         return PinDecision.trusted
     return PinDecision.matched if observed == stored else PinDecision.changed
+
+
+def fingerprint_matches(observed: str, pins: Sequence[str]) -> bool:
+    """Return ``True`` when *observed* matches any accepted pin, constant-time.
+
+    The observed fingerprint and each pin are parsed with
+    :func:`parse_fingerprint` (so ``sha256:<hex>`` and bare/colon-separated hex
+    all normalize to the same 64-char lowercase digest) and compared with
+    :func:`hmac.compare_digest`, so an attacker cannot time the comparison. An
+    invalid observed fingerprint or an invalid pin never matches.
+
+    Consumers: ``hsync-client`` (bootnode fingerprint pinning).
+    """
+    observed_norm = parse_fingerprint(observed)
+    if observed_norm is None:
+        return False
+    for pin in pins:
+        pin_norm = parse_fingerprint(pin)
+        if pin_norm is not None and hmac.compare_digest(observed_norm, pin_norm):
+            return True
+    return False
 
 
 def requires_pairing_confirmation(decision: PinDecision, *, require_pairing: bool) -> bool:

@@ -4,12 +4,13 @@ import hashlib
 
 import pytest
 from cryptography import x509
-from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric import ed25519, rsa
 
 from hsync_common.ssl_utils import (
     DEFAULT_KEY_SIZE,
     build_self_signed_certificate,
     compute_cert_fingerprint,
+    generate_ed25519_private_key,
     generate_rsa_private_key,
     serialize_cert_pem,
     serialize_key_pem,
@@ -191,3 +192,29 @@ class TestFingerprints:
         der = self_signed_cert.public_bytes(Encoding.DER)
         expected = hashlib.sha256(der).hexdigest().upper()
         assert verify_cert_fingerprint(der, expected) is True
+
+
+class TestEd25519:
+    def test_generate_returns_ed25519_key(self):
+        key = generate_ed25519_private_key()
+        assert isinstance(key, ed25519.Ed25519PrivateKey)
+
+    def test_self_signed_cert_with_ed25519(self):
+        key = generate_ed25519_private_key()
+        cert = build_self_signed_certificate(
+            private_key=key,
+            subject_attrs=[x509.NameAttribute(x509.oid.NameOID.COMMON_NAME, "boot.hsync.local")],
+            san_list=[x509.DNSName("boot.hsync.local")],
+            validity_days=365,
+        )
+        assert isinstance(cert, x509.Certificate)
+        assert len(compute_cert_fingerprint(cert)) == 64
+
+    def test_ed25519_private_key_serializes_unencrypted(self):
+        from cryptography.hazmat.primitives import serialization
+
+        key = generate_ed25519_private_key()
+        pem = serialize_private_key_unencrypted(key)
+        assert pem.startswith(b"-----BEGIN PRIVATE KEY-----")
+        loaded = serialization.load_pem_private_key(pem, password=None)
+        assert isinstance(loaded, ed25519.Ed25519PrivateKey)

@@ -29,14 +29,17 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
 
 ## hashing.py
 
-- `is_sha256_hex` (`hashing.py:38`): wire-facing digest-shape gate — required
+- `is_sha256_hex` (`hashing.py:37`): wire-facing digest-shape gate — required
   before `hmac.compare_digest` (raises `TypeError` on non-ASCII input).
-- `is_lower_sha256_hex` (`hashing.py:49`): lowercase-only variant, single
+- `is_lower_sha256_hex` (`hashing.py:48`): lowercase-only variant, single
   definition for the tombstone keys and the peer-download keys
   (`tombstone._is_valid_key`, `peer_download._is_lower_sha256`).
-- `adaptive_chunk_size` (`hashing.py:62`) picks a tier from file size.
-- `compute_sha256` (`hashing.py:83`) + async `compute_sha256_async`
-  (`hashing.py:100`).
+- `adaptive_chunk_size` (`hashing.py:61`) picks a tier from file size.
+- `compute_sha256` (`hashing.py:82`) + async `compute_sha256_async`
+  (`hashing.py:99`) — the async variant imports `asyncio` **inside** the
+  coroutine, so importing this module (e.g. through
+  `protocol.pairing` on the client CLI fast path) never pays the `asyncio`
+  startup cost; keep it that way when refactoring.
 
 ## delta/rolling_checksum.py
 
@@ -137,14 +140,16 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
   excluded. `_to_relative` strips only a
   leading `./`, so user patterns can match dotfiles.
 
-## ssl_utils.py (LAN TLS identity)
+## ssl_utils.py (TLS identity)
 
-- `generate_rsa_private_key` (`:32`, `DEFAULT_KEY_SIZE = 2048` `:29`),
-  `build_self_signed_certificate` (`:37`).
-- Serialization: PEM cert/key (`:85`/`:90`), unencrypted PKCS#8
-  `serialize_private_key_unencrypted` (`:106`).
-- Fingerprints: `compute_cert_fingerprint` (`:124`), `verify_cert_fingerprint`
-  (`:130`). Underpins TOFU pinning.
+- `generate_rsa_private_key` (`:33`, `DEFAULT_KEY_SIZE = 2048` `:30`),
+  `generate_ed25519_private_key` (`:41`, preferred for new bootnode identities,
+  ADR-0034), `build_self_signed_certificate` (`:48`) — accepts RSA or Ed25519
+  (`PrivateKey` type alias `:27`; Ed25519 signs with no hash parameter).
+- Serialization: PEM cert/key, unencrypted PKCS#8
+  `serialize_private_key_unencrypted` (RSA or Ed25519).
+- Fingerprints: `compute_cert_fingerprint`, `verify_cert_fingerprint` — the DER
+  SHA-256 domain shared with the bootnode trust contract (ADR-0034).
 
 ## logger.py
 

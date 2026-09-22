@@ -17,7 +17,6 @@ server, and the shared :class:`hsync_common.models.file.File` model:
 
 from __future__ import annotations
 
-import asyncio
 import re
 from hashlib import file_digest, sha256
 from typing import TypeGuard
@@ -116,4 +115,13 @@ async def compute_sha256_async(filepath: str) -> str:
     Returns:
         Hexadecimal SHA-256 digest string.
     """
+    # Imported here rather than at module scope: ``hsync_common.hashing`` is
+    # reachable from CLI startup paths (``hsync_common.protocol.pairing`` backs
+    # the hsync-client flag validation), and a module-level ``asyncio`` import
+    # would force that deep stdlib cost onto fast paths such as ``hsync
+    # --version`` (guarded by ``hsync-client/tests/test_startup_imports.py``).
+    # A coroutine only runs inside an active loop, so this is a ``sys.modules``
+    # hit, not a real cost.
+    import asyncio
+
     return await asyncio.to_thread(compute_sha256, filepath)
