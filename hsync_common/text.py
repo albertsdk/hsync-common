@@ -26,6 +26,12 @@ from __future__ import annotations
 from json import dumps
 from typing import Any
 
+# Single-pass translation table: each source char maps to its escaped form in
+# one C-level ``str.translate`` call instead of three ``str.replace`` passes
+# (three intermediate allocations). Inserted characters are never rescanned,
+# so the output is identical to the sequential replace chain.
+_LOGURU_ESCAPE_TABLE = str.maketrans({"{": "{{", "}": "}}", "<": "\\<"})
+
 
 def escape_loguru_markup(s: str) -> str:
     """Escape loguru markup in *s* so it is rendered verbatim.
@@ -34,7 +40,7 @@ def escape_loguru_markup(s: str) -> str:
     backslash-escapes ``<`` so it does not open a color tag. ``>`` is harmless
     on its own and is left untouched.
     """
-    return s.replace("{", "{{").replace("}", "}}").replace("<", r"\<")
+    return s.translate(_LOGURU_ESCAPE_TABLE)
 
 
 def safe_json_for_log(obj: Any) -> str:

@@ -6,7 +6,6 @@ file system events (add, modify, rename, delete) that are synchronized
 between client and server via WebSocket.
 """
 
-import re
 from enum import StrEnum
 from typing import TYPE_CHECKING, TypedDict
 
@@ -23,18 +22,20 @@ if TYPE_CHECKING:
 # always starts with a letter or digit — never ``-`` or ``_``. Applied to cid
 # values received from remote peers (form fields, WS paths, event payloads)
 # before trusting them for echo suppression or logging.
+#
+# ``CID_PATTERN`` is the public regex string (consumed by protocol.schemas and
+# protocol.bootnode); :func:`is_valid_cid` deliberately does NOT use it at
+# runtime — the ``len``/``isascii``/``isalnum`` chain is exactly equivalent and
+# avoids the regex engine on the hot path (per vclock key, per event cid).
 CID_PATTERN = r"^[A-Za-z0-9]{21}$"
-_CID_RE = re.compile(CID_PATTERN)
+_CID_LENGTH = 21
 
 
 def is_valid_cid(value: object) -> bool:
-    """Return True when *value* is a well-formed client ID (see CID_PATTERN).
-
-    Uses ``fullmatch``: with ``$``-anchored ``match`` a trailing ``\\n`` would
-    be accepted (Python's ``$`` also matches before a final newline), letting
-    a cid smuggle forged lines into logs.
-    """
-    return isinstance(value, str) and bool(_CID_RE.fullmatch(value))
+    """Return True when *value* is a well-formed client ID (see CID_PATTERN)."""
+    return (
+        isinstance(value, str) and len(value) == _CID_LENGTH and value.isascii() and value.isalnum()
+    )
 
 
 class EventDict(TypedDict):

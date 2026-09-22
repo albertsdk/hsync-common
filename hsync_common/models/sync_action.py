@@ -106,6 +106,8 @@ class SyncAction:
 
     def _format_timedelta(self, delta_seconds: int) -> str:
         """Format a time delta in seconds to a human-readable string."""
+        if delta_seconds == 0:
+            return "0s"
         delta = td(seconds=delta_seconds)
         days = delta.days
         hours, remainder = divmod(delta.seconds, 3600)

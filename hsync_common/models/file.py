@@ -140,6 +140,12 @@ class FileDict(TypedDict):
 # so the hot is_partial_file() check does not rebuild the string per entry.
 _PARTIAL_DELTA_LIT_SUFFIX = f"{PARTIAL_DELTA_SUFFIX}.lit"
 
+# Keys always emitted by the production wire shape (``to_dict`` / server
+# listing). A single C-level set-containment test decides the ``from_dict``
+# fast path instead of rebuilding a tuple and running a Python ``all()``
+# generator per decode.
+_FILE_REQUIRED_KEYS = frozenset({"filepath", "ctime", "mtime", "size", "sha256sum", "permissions"})
+
 
 def is_partial_file(file_path: str) -> bool:
     """Return True if *file_path* is an in-progress hsync transfer artifact.
@@ -318,8 +324,8 @@ class File:
         field. The construction is shared by both paths: only the lookup
         strategy (and the ``size`` default) differ.
         """
-        required = ("filepath", "ctime", "mtime", "size", "sha256sum", "permissions")
-        fast = all(key in data for key in required)
+        required = _FILE_REQUIRED_KEYS
+        fast = required <= data.keys()
         lookup = data.__getitem__ if fast else data.get
         filepath = _resolve_prefixed_path(
             str(data.get("filepath") or ""),

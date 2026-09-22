@@ -152,7 +152,7 @@ class CausalStoreBase[T]:
         # must not survive: the old full-rewrite save pruned them, so the
         # incremental save has to mark them explicitly or the table would grow
         # unbounded and reload arbitrary subsets.
-        for key in excluded - set(data):
+        for key in excluded - data.keys():
             self._mark_deleted(key)
 
     def save(self) -> None:

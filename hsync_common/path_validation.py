@@ -58,6 +58,10 @@ CONTROL_CHARS: frozenset[str] = frozenset(chr(i) for i in range(1, 32))
 # Derived from FORBIDDEN_FILENAME_CHARS minus the forward slash.
 FORBIDDEN_PATH_CHARS: frozenset[str] = FORBIDDEN_FILENAME_CHARS - {"/"}
 
+# Single merged set for the wire-relpath scan: one C-level ``isdisjoint`` pass
+# instead of two (forbidden + control), precomputed so the union is never rebuilt.
+_FORBIDDEN_OR_CONTROL: frozenset[str] = FORBIDDEN_PATH_CHARS | CONTROL_CHARS
+
 # =============================================================================
 # Reserved Filenames
 # =============================================================================
@@ -225,8 +229,11 @@ def has_dotdot_component(path: str) -> bool:
         True if any component (split on / or \\) is exactly "..".
     """
     # Normalize separators, then look for an exact ".." component with a
-    # single C-regex pass (no intermediate split list allocation).
-    return bool(_DOTDOT_COMPONENT_RE.search(path.replace("\\", "/")))
+    # single C-regex pass (no intermediate split list allocation). The replace
+    # is skipped on POSIX-style paths with no backslash (the dominant case).
+    if "\\" in path:
+        path = path.replace("\\", "/")
+    return bool(_DOTDOT_COMPONENT_RE.search(path))
 
 
 def is_safe_path_component(path: str) -> bool:
@@ -432,6 +439,10 @@ INTERNAL_FILENAMES: frozenset[str] = frozenset(
 # matching done by :func:`is_internal_name` (case-insensitive filesystems).
 _INTERNAL_FILENAMES_LOWER: frozenset[str] = frozenset(n.lower() for n in INTERNAL_FILENAMES)
 
+# Lowercase partial-download suffix, precomputed so the hot is_internal_name()
+# check does not rebuild it per scanned entry.
+_PARTIAL_SUFFIX_LOWER: str = PARTIAL_DOWNLOAD_SUFFIX.lower()
+
 
 def is_internal_name(name: str) -> bool:
     """Return True if *name* is an internal sync-engine artifact.
@@ -451,8 +462,13 @@ def is_internal_name(name: str) -> bool:
     Returns:
         True when the basename is an engine-owned artifact.
     """
-    base = name.replace("\\", "/").rstrip("/").rsplit("/", 1)[-1].lower()
-    return base in _INTERNAL_FILENAMES_LOWER or base.endswith(PARTIAL_DOWNLOAD_SUFFIX.lower())
+    if "/" in name or "\\" in name:
+        base = name.replace("\\", "/").rstrip("/").rsplit("/", 1)[-1].lower()
+    else:
+        # Fast path: an already-basename value (the common caller shape) skips
+        # the separator folding / trailing-strip / split entirely.
+        base = name.lower()
+    return base in _INTERNAL_FILENAMES_LOWER or base.endswith(_PARTIAL_SUFFIX_LOWER)
 
 
 # Path-carrying keys of a sync event payload (both may be present at once —
@@ -522,8 +538,9 @@ def validate_remote_relpath(rel: str) -> str | None:
     if not is_safe_path_component(rel):
         return None
 
-    # Backslash and other cross-platform forbidden/control characters.
-    if has_forbidden_chars(rel, FORBIDDEN_PATH_CHARS) or has_control_chars(rel):
+    # Backslash and other cross-platform forbidden/control characters: one
+    # merged C-level scan instead of two (forbidden then control).
+    if not _FORBIDDEN_OR_CONTROL.isdisjoint(rel):
         return None
 
     rel = rel.strip("/")
@@ -531,8 +548,13 @@ def validate_remote_relpath(rel: str) -> str | None:
         return None
 
     # Total path length bound (byte-aware for cross-platform safety).
-    if len(rel.encode("utf-8")) > MAX_REMOTE_RELPATH_BYTES:
+    total_bytes = len(rel.encode("utf-8"))
+    if total_bytes > MAX_REMOTE_RELPATH_BYTES:
         return None
+    # A component can never exceed 255 bytes when the whole path already fits
+    # in 255 bytes, so the per-component byte check below is skipped for the
+    # common short-path case.
+    check_component_bytes = total_bytes > MAX_PATH_COMPONENT_BYTES
 
     for part in rel.split("/"):
         if not part or part in (".", ".."):
@@ -540,7 +562,7 @@ def validate_remote_relpath(rel: str) -> str | None:
         if is_reserved_name(part) or has_problematic_trailing(part):
             return None
         # Per-component byte bound (filesystem limit).
-        if len(part.encode("utf-8")) > MAX_PATH_COMPONENT_BYTES:
+        if check_component_bytes and len(part.encode("utf-8")) > MAX_PATH_COMPONENT_BYTES:
             return None
 
     if is_internal_name(rel):

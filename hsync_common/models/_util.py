@@ -70,6 +70,14 @@ def _split_path_components(path: str) -> list[str]:
     return ["", *parts] if path.startswith(os.sep) else parts
 
 
+# LRU-1 cache of the *prefix* component split: ``relpath_in_bucket`` / decoded
+# models call :func:`_strip_prefix_components` once per scanned path with the
+# same bucket root, so re-splitting the constant prefix per entry is pure waste.
+# A single entry keeps memory bounded; a concurrent miss just recomputes.
+_last_prefix: str | None = None
+_last_prefix_parts: list[str] = []
+
+
 def _strip_prefix_components(path: str, prefix: str) -> str | None:
     """Return *path* relative to *prefix*, or ``None`` when it is not inside.
 
@@ -82,10 +90,16 @@ def _strip_prefix_components(path: str, prefix: str) -> str | None:
     parsing costs ~12.7 us per call against ~1.0 us here, and it is invoked once
     per path of every scan (``relpath_in_bucket``) and per decoded model.
     """
+    global _last_prefix, _last_prefix_parts
     if not prefix:
         return None
+    if prefix == _last_prefix:
+        prefix_parts = _last_prefix_parts
+    else:
+        prefix_parts = _split_path_components(prefix)
+        _last_prefix = prefix
+        _last_prefix_parts = prefix_parts
     path_parts = _split_path_components(str(path))
-    prefix_parts = _split_path_components(prefix)
     if len(path_parts) < len(prefix_parts) or path_parts[: len(prefix_parts)] != prefix_parts:
         return None
     return os.sep.join(path_parts[len(prefix_parts) :])

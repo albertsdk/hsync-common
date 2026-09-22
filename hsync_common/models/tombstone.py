@@ -152,10 +152,14 @@ def _prefer_incoming(existing: TombstoneEntry, incoming: TombstoneEntry) -> bool
     content hash first, then version id, then author cid. Both computed
     locally from the same inputs, so all nodes pick the same winner.
     """
-    if (incoming["sha256"] or "") != (existing["sha256"] or ""):
-        return (incoming["sha256"] or "") > (existing["sha256"] or "")
-    if incoming["version_id"] != existing["version_id"]:
-        return incoming["version_id"] > existing["version_id"]
+    inc_sha = incoming["sha256"] or ""
+    ex_sha = existing["sha256"] or ""
+    if inc_sha != ex_sha:
+        return inc_sha > ex_sha
+    inc_vid = incoming["version_id"]
+    ex_vid = existing["version_id"]
+    if inc_vid != ex_vid:
+        return inc_vid > ex_vid
     return (incoming["origin_cid"] or "") > (existing["origin_cid"] or "")
 
 

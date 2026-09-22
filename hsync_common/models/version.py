@@ -155,9 +155,23 @@ def compare_vclocks(a: dict[str, int] | None, b: dict[str, int] | None) -> VCloc
     """
     a = a or {}
     b = b or {}
-    keys = a.keys() | b.keys()
-    a_ge = all(a.get(k, 0) >= b.get(k, 0) for k in keys)
-    b_ge = all(b.get(k, 0) >= a.get(k, 0) for k in keys)
+    a_ge = True
+    b_ge = True
+    # Single pass over the key union with early exit: the previous two ``all()``
+    # generators walked the union twice and paid four dict.get() per key. The
+    # early return is exact — once both flags are False no remaining key can
+    # change the outcome.
+    a_get = a.get
+    b_get = b.get
+    for k in a.keys() | b.keys():
+        av = a_get(k, 0)
+        bv = b_get(k, 0)
+        if av < bv:
+            a_ge = False
+        elif av > bv:
+            b_ge = False
+        if not a_ge and not b_ge:
+            return VClockOrder.concurrent
     if a_ge and b_ge:
         return VClockOrder.equal
     if a_ge:
