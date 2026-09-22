@@ -26,7 +26,7 @@ Two path classes are measured:
   still runs (the syscall happens before the containment check), so this measures
   the rejection cost as seen by a hostile peer.
 
-The hit/escape split is what the LAN P2P and server relays pay on every inbound
+The hit/escape split is what the p2p and server relays pay on every inbound
 listing entry and every delta base lookup: validating a hostile path must not be
 cheaper (or slower) than a valid one, because the cost floor is the
 ``resolve()`` syscall itself.

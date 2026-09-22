@@ -51,7 +51,7 @@ MIN_SIZE_FOR_COMPRESSION = 10 * 1024  # 10 KB
 # files where the benefit is clear.
 MIN_SIZE_FOR_UPLOAD = 32 * 1024  # 32 KB
 
-# LAN mode threshold: 100KB
+# p2p mode threshold: 100KB
 # Local network is very fast (1Gbps+); below 100KB the compression time
 # exceeds the transfer time saved.
 MIN_SIZE_FOR_P2P = 100 * 1024  # 100 KB
@@ -219,13 +219,13 @@ def should_compress(
     Uses different thresholds based on transfer direction and network type:
     - Download (server -> client): 10KB threshold
     - Upload (client -> server):   32KB threshold (client CPU is more precious)
-    - LAN mode (P2P local):       100KB threshold (local network is very fast)
+    - p2p mode (P2P local):       100KB threshold (local network is very fast)
 
     Args:
         filepath: Path to the file.
         size: Size of the file in bytes.
         transfer_type: "download" or "upload" (default: "download").
-        is_p2p: True if operating in LAN P2P mode (default: False).
+        is_p2p: True if operating in p2p mode (default: False).
 
     Returns:
         True if file should be compressed, False otherwise.
@@ -268,7 +268,7 @@ def compression_level(transfer_type: str = "download", is_p2p: bool = False) -> 
 
     Args:
         transfer_type: ``"download"`` or ``"upload"`` (default ``"download"``).
-        is_p2p: True when operating in LAN P2P mode (default False).
+        is_p2p: True when operating in p2p mode (default False).
     """
     if is_p2p or transfer_type == "upload":
         return COMPRESSION_LEVEL_FAST

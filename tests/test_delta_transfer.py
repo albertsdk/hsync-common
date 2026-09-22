@@ -707,7 +707,7 @@ class TestByteLevelAccountability:
 
 
 class TestModeSpecific:
-    """Topology differences between client-server and LAN P2P."""
+    """Topology differences between client-server and p2p."""
 
     def test_client_server_has_double_segments(
         self, base_data: bytes, base_file: str, tmp_path: pytest.TempPathFactory

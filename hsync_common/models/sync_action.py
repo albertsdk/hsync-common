@@ -21,7 +21,7 @@ class SyncActionName(StrEnum):
     Values:
         download: File should be downloaded from server (remote is newer).
         upload: File should be uploaded to server (local is newer).
-        delete: File should be deleted locally (not present on server in LAN mode).
+        delete: File should be deleted locally (not present on server in p2p mode).
         delete_remote: File should be deleted on the server/master (a local
             tombstone says it was deleted here while offline; it must not be
             resurrected by downloading it back).

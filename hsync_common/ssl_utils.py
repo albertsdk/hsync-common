@@ -8,7 +8,7 @@
 Shared SSL/TLS primitives for HSYNC projects.
 
 Low-level helpers for self-signed certificate generation, PEM serialization
-and fingerprint handling. Higher-level wrappers (LAN P2P certs in the client,
+and fingerprint handling. Higher-level wrappers (p2p certs in the client,
 file-backed server certs in the server) live in the consumer projects.
 """
 

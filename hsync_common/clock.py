@@ -18,7 +18,7 @@ the offset measured against a trusted reference:
   :func:`measure_clock_offset` performs an NTP-like HTTP round-trip against the
   ``/api/v1/time`` endpoint (``compute_clock_offset`` is the shared math).
 
-* **LAN P2P / no-server startup** — :func:`measure_clock_offset_ntp_multi`
+* **p2p / no-server startup** — :func:`measure_clock_offset_ntp_multi`
   probes a configurable list of public SNTP servers (UDP, RFC 4330) in order
   until one answers; the estimate is the median of several round-trips.
 
@@ -168,7 +168,7 @@ def measure_clock_offset(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SNTP probe (UDP, RFC 4330 — LAN P2P / no-server startup)
+# SNTP probe (UDP, RFC 4330 — p2p / no-server startup)
 # ─────────────────────────────────────────────────────────────────────────────
 
 

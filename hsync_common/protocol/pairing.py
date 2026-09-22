@@ -103,7 +103,7 @@ def evaluate_pin(stored_fp: str | None, observed_fp: str | None) -> PinDecision:
     observed = normalize_fingerprint(observed_fp)
     if observed is None:
         raise ValueError(
-            "a certificate fingerprint is mandatory in LAN mode (HTTPS-only); "
+            "a certificate fingerprint is mandatory in p2p mode (HTTPS-only); "
             "got a missing/blank fingerprint"
         )
     stored = normalize_fingerprint(stored_fp)

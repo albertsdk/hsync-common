@@ -271,7 +271,7 @@ Compression support is negotiated between peers during connection setup:
   The client reads this header and enables compression for subsequent file
   transfers. The `/health` endpoint also returns `{"compression": true}` in
   its JSON response.
-- **LAN Mode**: Peers advertise compression support via mDNS TXT records
+- **P2P Mode**: Peers advertise compression support via mDNS TXT records
   (`compression=zstd`). During master election, the elected master's
   compression capability is propagated to all slaves.
 

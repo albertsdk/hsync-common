@@ -206,7 +206,7 @@ PARTIAL_DELTA_SUFFIX = ".delta.part"
 # the signature/matching overhead exceeds the bandwidth saved.
 DELTA_MIN_FILE_SIZE = 256 * 1024  # 256 KB (remote/server mode)
 
-# Higher threshold for LAN mode: on gigabit links with slow CPUs (e.g. NAS ARM)
+# Higher threshold for p2p mode: on gigabit links with slow CPUs (e.g. NAS ARM)
 # the signature computation cost can exceed the bandwidth saving, so delta is
 # only attempted for larger files (same rationale as the LAN compression floor).
 DELTA_MIN_FILE_SIZE_P2P = 1024 * 1024  # 1 MB
