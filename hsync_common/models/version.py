@@ -172,13 +172,11 @@ def compare_vclocks(a: dict[str, int] | None, b: dict[str, int] | None) -> VCloc
             b_ge = False
         if not a_ge and not b_ge:
             return VClockOrder.concurrent
+    # Loop exit guarantees at least one flag is still true: once both drop the
+    # body returns ``concurrent`` immediately, so this is exhaustive.
     if a_ge and b_ge:
         return VClockOrder.equal
-    if a_ge:
-        return VClockOrder.dominates
-    if b_ge:
-        return VClockOrder.dominated
-    return VClockOrder.concurrent
+    return VClockOrder.dominates if a_ge else VClockOrder.dominated
 
 
 def tick_vclock(vclock: dict[str, int] | None, cid: str) -> dict[str, int]:

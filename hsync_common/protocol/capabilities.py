@@ -26,6 +26,7 @@ rather than mis-reading it: there is no legacy channel to fall back to.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable
 from typing import Any, TypedDict
 
@@ -127,10 +128,8 @@ def parse_capabilities(text: str) -> CapabilitiesDoc | None:
     unsupported ``schema_version``, a missing required key or a required key
     holding a value of the wrong type (e.g. ``cli_options`` as a plain string
     would make ``supports_cli_option`` silently mis-answer) — the caller treats
-    any of these as "capabilities unknown" and degrades to a best-effort UI.
+        any of these as "capabilities unknown" and degrades to a best-effort UI.
     """
-    import json
-
     stripped = text.strip()
     if not stripped:
         return None

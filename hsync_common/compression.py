@@ -202,11 +202,6 @@ def _compressor_for(level: int) -> zstd.ZstdCompressor:
     return compressor
 
 
-def _decompressor_for() -> zstd.ZstdDecompressor:
-    """Return the calling thread's decompressor."""
-    return _zstd_tls.decompressor
-
-
 def should_compress(
     filepath: str,
     size: int,
@@ -309,7 +304,7 @@ def decompress_data(data: bytes, max_output_size: int = 100 * 1024 * 1024) -> by
     if max_output_size < 0:
         raise ValueError("max_output_size must be >= 0")
 
-    with _decompressor_for().stream_reader(BytesIO(data)) as reader:
+    with _zstd_tls.decompressor.stream_reader(BytesIO(data)) as reader:
         out = reader.read(max_output_size + 1)
     if len(out) > max_output_size:
         raise zstd.ZstdError(f"Decompressed data exceeds max_output_size ({max_output_size} bytes)")
@@ -347,7 +342,7 @@ def decompress_stream(
         raise ValueError("max_output_size must be >= 0")
 
     produced = 0
-    with _decompressor_for().stream_reader(stream) as reader:
+    with _zstd_tls.decompressor.stream_reader(stream) as reader:
         while True:
             chunk = reader.read(read_size)
             if not chunk:

@@ -83,8 +83,8 @@ CAPACITY_MAX = 32
 
 _TOKEN_DOMAIN = b"boot/1"
 
-# Wire bounds, mirrored from the bootnode models.
-_MAX_BUCKET_LEN = 128
+# Wire bounds, mirrored from the bootnode models. Bucket names are bounded by
+# ``is_valid_bucket_name`` (``MAX_BUCKET_NAME_LENGTH``), not by a length here.
 _MAX_GROUP_LEN = 128
 _MAX_CERT_FP_LEN = 256
 _MAX_VERSION_LEN = 64

@@ -28,6 +28,7 @@ of any pattern so empty-directory synchronisation keeps working.
 from __future__ import annotations
 
 import threading
+import warnings
 from collections.abc import Iterable
 from os.path import relpath
 from pathlib import Path
@@ -121,8 +122,6 @@ class IgnoreMatcher:
         # Each pattern is compiled to a regex internally; 1000 is well
         # beyond any reasonable hand-crafted file.
         if len(patterns) > _MAX_IGNORE_PATTERNS:
-            import warnings
-
             warnings.warn(
                 f"Ignore patterns exceed {_MAX_IGNORE_PATTERNS}; "
                 f"truncating to first {_MAX_IGNORE_PATTERNS}",

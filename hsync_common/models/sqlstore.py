@@ -23,6 +23,7 @@ from __future__ import annotations
 import sqlite3
 import threading
 import time
+import uuid
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
@@ -313,8 +314,6 @@ class StateDb:
             ).fetchone()
             if row is not None:
                 return str(row["folder_id"])
-            import uuid
-
             folder_id = str(uuid.uuid4())
             self.ensure_folder(folder_id, canonical_path=f"bucket:{bucket_name}")
             self._conn.execute(

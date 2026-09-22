@@ -124,18 +124,15 @@ def to_epoch(t: str | int | float | datetime | None) -> int | None:
         if looks_like_number:
             return int(float(stripped))
 
-        # Replace Z suffix with +00:00 so fromisoformat can parse it
-        # (fromisoformat supports Z in Python ≥ 3.11 but only when timezone
-        # info is present in the rest of the string; the explicit replace is
-        # safer across all supported Python versions).
-        normalised = stripped.replace("Z", "+00:00")
-        dt = datetime.fromisoformat(normalised)
+        # ``datetime.fromisoformat`` accepts the ``Z`` suffix natively on the
+        # supported Python (>= 3.12), so no normalization is needed.
+        dt = datetime.fromisoformat(stripped)
         # If the parsed datetime is naive (no tzinfo), assume UTC.
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=UTC)
         return int(dt.timestamp())
 
-    if isinstance(t, (int, float)):
+    if isinstance(t, float):
         return int(t)
 
     raise TypeError(f"Unsupported timestamp type: {type(t).__name__}")
