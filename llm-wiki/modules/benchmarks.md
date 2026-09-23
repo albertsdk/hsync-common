@@ -139,11 +139,21 @@ anomaly needs a cost breakdown.
   `signatures`/`apply_delta` are within run-to-run noise of the A1–A5
   baseline.
 * New coverage: `resolve_within(valid)` at ~0.028 ms is ~15x the pure-lex
-  `validate_remote_relpath(valid)` (~0.0019 ms) — the confining `Path.resolve()`
+  `validate_remote_relpath(valid)` (~0.0016 ms) — the confining `Path.resolve()`
   syscall dominates the hit path; an escaping `../` path is rejected at
   ~0.0004 ms (lexical guards fire before any syscall). Store layer:
-  `SyncStateStore.record` ~0.0031 ms, `get` ~0.0010 ms, `save+load` ~0.019 ms
-  (SQLite WAL round-trip), `TombstoneStore.merge(dominant)` ~0.0046 ms.
+  `SyncStateStore.record` ~0.0032 ms, `get` ~0.0010 ms, `save+load` ~0.019 ms
+  (SQLite WAL round-trip), `TombstoneStore.merge(dominant)` ~0.0040 ms.
+* Hot-path micro-opts (`6ba2c34`, `bench_result.txt` 2026-09-23): single-pass
+  `compare_vclocks`, regex-free `is_valid_cid`, merged forbidden/control scan
+  in `validate_remote_relpath`, LRU-1 prefix cache in `_strip_prefix_components`,
+  frozenset fast path in `File.from_dict`. Measured on the committed baseline:
+  `relpath_in_bucket(in)` ~0.0008 ms, `validate_remote_relpath(valid)` ~0.0016 ms,
+  `TombstoneStore.merge(dominant)` ~0.0040 ms,
+  `decompress_data(text-100KB)`/`compress_data(text-100KB)` ~0.0155/0.0375 ms.
+  `sha256_async(1MB)` (~0.86 ms p50) and `file_round_trip` (~0.0015 ms) were
+  flagged by the A/B comparator but both sit at/below the timer-noise floor
+  on re-run — tracked as noise, not regressions.
 
 ## Running
 

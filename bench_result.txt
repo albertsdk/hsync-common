@@ -1,112 +1,112 @@
 hsync-common L1 benchmark suite — count=2000
 python 3.14.4 — linux
-generated 2026-09-16 11:00:47 by bench/run_all.py
+generated 2026-09-23 20:12:24 by bench/run_all.py
 comparative figures (this machine, warm page cache), not SLAs
 
-=== bench_hashing (exit=0, 4.2s) ===
+=== bench_hashing (exit=0, 4.3s) ===
 hashing micro-benchmark (ops=2000, warm page cache)
 operation                          ops/s   mean_ms    p50_ms    p99_ms       n
 ------------------------------------------------------------------------------
-is_sha256_hex                  2505926.7    0.0004    0.0004    0.0007    2000
-adaptive_chunk_size            5688800.8    0.0002    0.0002    0.0002    2000
-sha256(64KB)                     21093.0    0.0474    0.0468    0.0614    2000
-sha256(1MB)                       1575.3    0.6348    0.6301    0.6938    1000
-sha256(16MB)                        94.4   10.5893   10.5858   10.8433     200
-sha256_async(64KB)               12451.0    0.0803    0.0719    0.1508     500
-sha256_async(1MB)                 1399.1    0.7148    0.7018    0.8666     200
-sha256_async(16MB)                  90.4   11.0654   11.0584   11.4101      50
+is_sha256_hex                  2417571.1    0.0004    0.0004    0.0007    2000
+adaptive_chunk_size            5852205.0    0.0002    0.0002    0.0002    2000
+sha256(64KB)                     21156.5    0.0473    0.0469    0.0540    2000
+sha256(1MB)                       1564.1    0.6393    0.6361    0.6876    1000
+sha256(16MB)                        90.6   11.0397   11.0820   11.3337     200
+sha256_async(64KB)               13023.9    0.0768    0.0718    0.1809     500
+sha256_async(1MB)                 1187.6    0.8420    0.8566    1.0053     200
+sha256_async(16MB)                  89.4   11.1886   11.1743   11.4204      50
 
 === bench_compression (exit=0, 7.2s) ===
 compression micro-benchmark (ops=2000, in-memory + temp files)
 operation                          ops/s   mean_ms    p50_ms    p99_ms       n
 ------------------------------------------------------------------------------
-should_compress                1964808.4    0.0005    0.0005    0.0008    2000
-compress_data(text-100KB)        24224.5    0.0413    0.0412    0.0438    1000
-decompress_data(text-100KB)      56604.7    0.0177    0.0176    0.0196    1000
-compress_data(text-1MB)           2657.5    0.3763    0.3734    0.4158     200
-decompress_data(text-1MB)         7735.8    0.1293    0.1288    0.1340     200
-compress_data(binary-1MB)          211.3    4.7326    4.7300    4.8162     200
-decompress_data(binary-1MB)       1094.1    0.9140    0.9120    0.9646     200
-compress_data(incompressible-1MB)      6043.5    0.1655    0.1685    0.1870     200
-decompress_data(incompressible-1MB)      9978.1    0.1002    0.1002    0.1055     200
-compress_data(text-10MB)           238.9    4.1856    4.1668    4.3745      30
-decompress_data(text-10MB)         672.2    1.4877    1.4810    1.5404      30
-compress_lvl3(text-1MB)           2640.5    0.3787    0.3772    0.4228     200
-compress_lvl1(text-1MB)           3242.1    0.3084    0.3079    0.3148     200
-compress_lvl3(binary-1MB)          210.1    4.7592    4.7387    5.1564     200
-compress_lvl1(binary-1MB)         1150.3    0.8693    0.8662    0.9152     200
-compress_file_to_file(1MB)         198.2    5.0443    5.0349    5.2135     200
-compress_file_to_file(16MB)          8.7  114.3583  114.0683  116.0995      20
-decompress_stream(binary-1MB)      1097.2    0.9114    0.9104    0.9530     200
+should_compress                1925066.7    0.0005    0.0005    0.0008    2000
+compress_data(text-100KB)        26616.1    0.0376    0.0375    0.0404    1000
+decompress_data(text-100KB)      64289.8    0.0156    0.0155    0.0182    1000
+compress_data(text-1MB)           2590.1    0.3861    0.3834    0.4333     200
+decompress_data(text-1MB)         7333.9    0.1364    0.1358    0.1400     200
+compress_data(binary-1MB)          211.8    4.7220    4.7213    4.7813     200
+decompress_data(binary-1MB)       1094.5    0.9136    0.9116    0.9629     200
+compress_data(incompressible-1MB)      5948.0    0.1681    0.1688    0.1756     200
+decompress_data(incompressible-1MB)      9928.0    0.1007    0.1007    0.1121     200
+compress_data(text-10MB)           230.9    4.3304    4.2980    4.5606      30
+decompress_data(text-10MB)         635.0    1.5748    1.5720    1.6371      30
+compress_lvl3(text-1MB)           2592.3    0.3858    0.3834    0.4230     200
+compress_lvl1(text-1MB)           3250.7    0.3076    0.3071    0.3161     200
+compress_lvl3(binary-1MB)          211.6    4.7264    4.7281    4.7735     200
+compress_lvl1(binary-1MB)         1154.8    0.8659    0.8627    0.9086     200
+compress_file_to_file(1MB)         196.5    5.0883    5.0789    5.2127     200
+compress_file_to_file(16MB)          8.8  114.2843  114.1535  115.0305      20
+decompress_stream(binary-1MB)      1090.6    0.9170    0.9139    0.9853     200
   compressed size text-1MB: lvl3=13599B lvl1=15417B (113.37% of lvl3)
   compressed size binary-1MB: lvl3=540956B lvl1=524461B (96.95% of lvl3)
 
-=== bench_delta (exit=0, 31.2s) ===
+=== bench_delta (exit=0, 31.3s) ===
 delta micro-benchmark (ops=2000, base/new fixture pairs on disk)
 operation                          ops/s   mean_ms    p50_ms    p99_ms       n
 ------------------------------------------------------------------------------
-optimal_block_size             5571464.1    0.0002    0.0002    0.0002    2000
-changed_block_ratio             597603.4    0.0017    0.0017    0.0018    2000
-is_delta_worthwhile             581286.3    0.0017    0.0017    0.0019    2000
-signatures(512KB,bs=4KB)          1663.4    0.6012    0.5988    0.6471     500
-signatures(4MB,bs=16KB)            247.6    4.0387    4.0287    4.1402     100
-signatures(12MB,bs=64KB)            83.2   12.0122   11.9646   12.2771      20
-sig_for_data(4MB,bs=4KB)           219.6    4.5538    4.5518    4.5729     200
-build_index(4096 sigs)            1684.6    0.5936    0.4933    1.7915    2000
-match_file(1MB,0%,bs=16KB)         992.5    1.0076    1.0046    1.0544     200
-match_file(1MB,10%,bs=16KB)         38.6   25.9131   25.8841   26.5482     200
-match_file(1MB,50%,bs=16KB)          8.7  114.4364  114.3228  116.9829     100
-match_file(4MB,10%,bs=16KB)         10.2   98.2836   97.1792  112.1820      50
-match_file(1MB,0%+4KB,bs=16KB)       524.5    1.9067    1.9016    1.9588     200
-match_file(1MB,10%+4KB,bs=16KB)        37.2   26.8969   26.7558   30.9174     100
-apply_delta(1MB,lit=11%)          3201.0    0.3124    0.3100    0.3464     100
+optimal_block_size             5396288.4    0.0002    0.0002    0.0003    2000
+changed_block_ratio             572565.1    0.0017    0.0017    0.0019    2000
+is_delta_worthwhile             542380.8    0.0018    0.0018    0.0021    2000
+signatures(512KB,bs=4KB)          1653.2    0.6049    0.6025    0.6525     500
+signatures(4MB,bs=16KB)            243.7    4.1033    4.1050    4.1550     100
+signatures(12MB,bs=64KB)            82.8   12.0743   12.0088   12.4617      20
+sig_for_data(4MB,bs=4KB)           219.7    4.5511    4.5506    4.5690     200
+build_index(4096 sigs)            1729.9    0.5781    0.4950    1.3552    2000
+match_file(1MB,0%,bs=16KB)         994.6    1.0055    1.0044    1.0174     200
+match_file(1MB,10%,bs=16KB)         38.5   25.9787   25.9531   26.8661     200
+match_file(1MB,50%,bs=16KB)          8.7  114.7885  114.4240  123.5066     100
+match_file(4MB,10%,bs=16KB)         10.2   97.6888   97.1569  106.0925      50
+match_file(1MB,0%+4KB,bs=16KB)       523.3    1.9109    1.9076    1.9645     200
+match_file(1MB,10%+4KB,bs=16KB)        37.1   26.9219   26.8231   28.1357     100
+apply_delta(1MB,lit=11%)          3115.6    0.3210    0.3198    0.3338     100
 
-=== bench_ignore (exit=0, 15.3s) ===
+=== bench_ignore (exit=0, 15.4s) ===
 ignore-matching micro-benchmark (ops=2000, 5000 paths/bucket)
 operation                          ops/s   mean_ms    p50_ms    p99_ms       n
 ------------------------------------------------------------------------------
-matcher_ctor(extra=0)             5965.1    0.1676    0.1672    0.1749     200
-matcher_ctor(extra=300)            720.9    1.3871    1.3846    1.4350     100
-matches(single path)            111148.3    0.0090    0.0087    0.0128    2000
-should_skip(single path)        111156.0    0.0090    0.0088    0.0129    2000
-sweep(5000 paths,bucket)            22.6   44.2238   43.3395   56.4631     200
-sweep(5000 paths,defaults)          42.3   23.6645   23.5151   25.1115     200
+matcher_ctor(extra=0)             5953.5    0.1680    0.1675    0.1742     200
+matcher_ctor(extra=300)            707.2    1.4141    1.4024    1.4632     100
+matches(single path)            108983.2    0.0092    0.0089    0.0130    2000
+should_skip(single path)        108441.2    0.0092    0.0089    0.0132    2000
+sweep(5000 paths,bucket)            22.7   44.0977   44.2629   44.6303     200
+sweep(5000 paths,defaults)          41.8   23.9514   24.0318   25.0787     200
 
 === bench_models (exit=0, 0.1s) ===
 models micro-benchmark (ops=2000, pure CPU, no filesystem)
 operation                          ops/s   mean_ms    p50_ms    p99_ms       n
 ------------------------------------------------------------------------------
-file_to_dict                   2339304.6    0.0004    0.0004    0.0008    2000
-file_from_dict(strip)           514222.0    0.0019    0.0019    0.0022    2000
-file_from_dict(prepend)        1128624.2    0.0009    0.0009    0.0010    2000
-file_from_dict(rel_strip)      1167488.5    0.0009    0.0008    0.0010    2000
-file_round_trip                 782163.5    0.0013    0.0013    0.0015    2000
-dir_to_dict                    3321663.1    0.0003    0.0003    0.0003    2000
-dir_from_dict(prepend)         1861601.1    0.0005    0.0005    0.0006    2000
-symlink_to_dict                5143728.3    0.0002    0.0002    0.0002    2000
-symlink_from_dict(prepend)     1269269.1    0.0008    0.0008    0.0009    2000
-event_ctor(rename)             1284705.5    0.0008    0.0008    0.0009    2000
-event_to_dict                  1082936.1    0.0009    0.0009    0.0013    2000
-relpath_in_bucket(in)           928779.3    0.0011    0.0011    0.0012    2000
-relpath_in_bucket(out)         1106580.3    0.0009    0.0009    0.0010    2000
-is_valid_cid(mixed)            3173102.3    0.0003    0.0003    0.0004    2000
-is_partial_file(mixed)         4243356.6    0.0002    0.0002    0.0003    2000
-file_ctor                      1748039.3    0.0006    0.0006    0.0006    2000
+file_to_dict                   2324236.1    0.0004    0.0004    0.0006    2000
+file_from_dict(strip)           530917.2    0.0019    0.0019    0.0021    2000
+file_from_dict(prepend)         866617.7    0.0012    0.0011    0.0014    2000
+file_from_dict(rel_strip)       879521.4    0.0011    0.0011    0.0013    2000
+file_round_trip                 662386.0    0.0015    0.0015    0.0017    2000
+dir_to_dict                    3350659.3    0.0003    0.0003    0.0003    2000
+dir_from_dict(prepend)         1840543.4    0.0005    0.0005    0.0006    2000
+symlink_to_dict                4995848.6    0.0002    0.0002    0.0003    2000
+symlink_from_dict(prepend)     1300246.3    0.0008    0.0008    0.0008    2000
+event_ctor(rename)             1299220.1    0.0008    0.0008    0.0008    2000
+event_to_dict                  1080786.2    0.0009    0.0009    0.0013    2000
+relpath_in_bucket(in)          1232561.8    0.0008    0.0008    0.0009    2000
+relpath_in_bucket(out)         1524717.8    0.0007    0.0007    0.0007    2000
+is_valid_cid(mixed)            4426434.0    0.0002    0.0002    0.0003    2000
+is_partial_file(mixed)         4232274.6    0.0002    0.0002    0.0003    2000
+file_ctor                      1753635.0    0.0006    0.0006    0.0006    2000
 
 === bench_path_validation (exit=0, 0.1s) ===
 operation                          ops/s   mean_ms    p50_ms    p99_ms       n
 ------------------------------------------------------------------------------
-validate_remote_relpath(valid)    530708.1    0.0019    0.0019    0.0023    2000
-validate_remote_relpath(escape)   2701545.4    0.0004    0.0004    0.0004    2000
-resolve_within(valid)            36451.2    0.0274    0.0273    0.0312    2000
-resolve_within(escape)         2433146.3    0.0004    0.0004    0.0005    2000
-wire_relpaths(2-key)           5793876.6    0.0002    0.0002    0.0002    2000
+validate_remote_relpath(valid)    621561.2    0.0016    0.0016    0.0018    2000
+validate_remote_relpath(escape)   2781097.9    0.0004    0.0004    0.0004    2000
+resolve_within(valid)            36130.7    0.0277    0.0275    0.0341    2000
+resolve_within(escape)         2403107.9    0.0004    0.0004    0.0007    2000
+wire_relpaths(2-key)           5599297.8    0.0002    0.0002    0.0002    2000
 
 === bench_stores (exit=0, 0.1s) ===
 operation                          ops/s   mean_ms    p50_ms    p99_ms       n
 ------------------------------------------------------------------------------
-SyncStateStore.record           310527.5    0.0032    0.0031    0.0057    2000
-SyncStateStore.get              996329.5    0.0010    0.0010    0.0018    2000
-SyncStateStore.retain          1108278.7    0.0009    0.0009    0.0012      50
-SyncStateStore.save+load         54857.3    0.0182    0.0177    0.0272      30
-TombstoneStore.merge(dominant)    205922.9    0.0049    0.0047    0.0082    2000
+SyncStateStore.record           309518.7    0.0032    0.0032    0.0045    2000
+SyncStateStore.get             1000843.7    0.0010    0.0010    0.0011    2000
+SyncStateStore.retain          1078469.6    0.0009    0.0009    0.0012      50
+SyncStateStore.save+load         52877.4    0.0189    0.0186    0.0215      30
+TombstoneStore.merge(dominant)    246727.0    0.0041    0.0040    0.0047    2000
