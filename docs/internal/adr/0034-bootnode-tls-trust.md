@@ -2,6 +2,11 @@
 
 - **Status:** Accepted
 - **Date:** 2026-09-23
+- **Amended:** 2026-09-24 — the identity key type is **ECDSA P-256** (was
+  Ed25519). BoringSSL (used by Android's `quiche` client) disables Ed25519 in
+  its default client signature algorithms, so an Ed25519 bootnode cannot
+  complete a TLS 1.3 handshake with it; ECDSA P-256 is universally advertised.
+  RSA/Ed25519 identities remain loadable, but new identities are ECDSA P-256.
 
 ## Context
 
@@ -51,7 +56,7 @@ fingerprint domain shared with the existing `cert_fp` carried in frames.
    `verify_mode = CERT_NONE` (trust comes from the pin). The peer certificate is
    read from aioquic's private `tls._peer_certificate`, isolated in one helper.
 4. **Identity persistence is opt-in.** The bootnode stays ephemeral by default
-   (no-log invariant intact); `--identity PATH` persists an Ed25519 key+cert
+   (no-log invariant intact); `--identity PATH` persists an ECDSA P-256 key+cert
    (`0600` file / `0700` dir), and `identity rotate` regenerates it. The packaged
    service units pass `--identity`.
 5. **`--ca-cert`/`HSYNC_CA_CERT` no longer affect the bootnode path** and are

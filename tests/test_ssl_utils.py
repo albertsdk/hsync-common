@@ -4,12 +4,14 @@ import hashlib
 
 import pytest
 from cryptography import x509
-from cryptography.hazmat.primitives.asymmetric import ed25519, rsa
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import ec, ed25519, rsa
 
 from hsync_common.ssl_utils import (
     DEFAULT_KEY_SIZE,
     build_self_signed_certificate,
     compute_cert_fingerprint,
+    generate_ecdsa_private_key,
     generate_ed25519_private_key,
     generate_rsa_private_key,
     serialize_cert_pem,
@@ -192,6 +194,34 @@ class TestFingerprints:
         der = self_signed_cert.public_bytes(Encoding.DER)
         expected = hashlib.sha256(der).hexdigest().upper()
         assert verify_cert_fingerprint(der, expected) is True
+
+
+class TestEcdsa:
+    def test_generate_returns_p256_key(self):
+        key = generate_ecdsa_private_key()
+        assert isinstance(key, ec.EllipticCurvePrivateKey)
+        assert isinstance(key.curve, ec.SECP256R1)
+
+    def test_self_signed_cert_with_ecdsa(self):
+        key = generate_ecdsa_private_key()
+        cert = build_self_signed_certificate(
+            private_key=key,
+            subject_attrs=[x509.NameAttribute(x509.oid.NameOID.COMMON_NAME, "boot.hsync.local")],
+            san_list=[x509.DNSName("boot.hsync.local")],
+            validity_days=365,
+        )
+        assert isinstance(cert, x509.Certificate)
+        assert isinstance(cert.signature_hash_algorithm, hashes.SHA256)
+        assert len(compute_cert_fingerprint(cert)) == 64
+
+    def test_ecdsa_private_key_serializes_unencrypted(self):
+        from cryptography.hazmat.primitives import serialization
+
+        key = generate_ecdsa_private_key()
+        pem = serialize_private_key_unencrypted(key)
+        assert pem.startswith(b"-----BEGIN PRIVATE KEY-----")
+        loaded = serialization.load_pem_private_key(pem, password=None)
+        assert isinstance(loaded, ec.EllipticCurvePrivateKey)
 
 
 class TestEd25519:

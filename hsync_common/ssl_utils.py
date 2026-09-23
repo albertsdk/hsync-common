@@ -20,14 +20,16 @@ from datetime import UTC, datetime, timedelta
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import ed25519, rsa
+from cryptography.hazmat.primitives.asymmetric import ec, ed25519, rsa
 
 # Default RSA key size in bits (good security/performance balance).
 DEFAULT_KEY_SIZE = 2048
 
-# A self-signed identity may use RSA (legacy, still supported for pre-existing
-# files) or Ed25519 (preferred for new identities — ADR-0034).
-PrivateKey = rsa.RSAPrivateKey | ed25519.Ed25519PrivateKey
+# A self-signed identity may use ECDSA (preferred for new identities — ADR-0034),
+# or RSA / Ed25519 (still loadable for pre-existing files). ECDSA P-256 is the
+# default because every mainstream TLS client (BoringSSL, OpenSSL, rustls)
+# advertises it, whereas BoringSSL disables Ed25519 by default.
+PrivateKey = rsa.RSAPrivateKey | ec.EllipticCurvePrivateKey | ed25519.Ed25519PrivateKey
 
 
 def generate_rsa_private_key(key_size: int = DEFAULT_KEY_SIZE) -> rsa.RSAPrivateKey:
@@ -35,11 +37,24 @@ def generate_rsa_private_key(key_size: int = DEFAULT_KEY_SIZE) -> rsa.RSAPrivate
     return rsa.generate_private_key(public_exponent=65537, key_size=key_size)
 
 
+def generate_ecdsa_private_key() -> ec.EllipticCurvePrivateKey:
+    """Generate an ECDSA P-256 private key.
+
+    P-256 (secp256r1) is the preferred key type for new bootnode TLS identities
+    (ADR-0034): it is advertised by every mainstream TLS stack
+    (BoringSSL/OpenSSL/rustls), unlike Ed25519 which BoringSSL omits from the
+    default client signature algorithms. Certificates are signed with SHA-256.
+    Consumers: ``hsync-bootnode`` (ephemeral and persistent identity), tests.
+    """
+    return ec.generate_private_key(ec.SECP256R1())
+
+
 def generate_ed25519_private_key() -> ed25519.Ed25519PrivateKey:
     """Generate an Ed25519 private key for long-lived self-signed identities.
 
-    Preferred over RSA for new bootnode identities (ADR-0034): smaller keys and
-    signatures. Consumers: ``hsync-bootnode`` (persistent identity), tests.
+    No longer the bootnode default (ADR-0034 now prefers ECDSA P-256 for TLS
+    client interoperability), but still supported and loadable. Consumers:
+    tests, and callers that explicitly want an Ed25519 identity.
     """
     return ed25519.Ed25519PrivateKey.generate()
 
@@ -56,7 +71,7 @@ def build_self_signed_certificate(
     Build a self-signed X.509 certificate.
 
     Args:
-        private_key: The RSA or Ed25519 private key used to sign the certificate.
+        private_key: The RSA, ECDSA, or Ed25519 private key used to sign the certificate.
         subject_attrs: Name attributes for both subject and issuer.
         san_list: Subject Alternative Names (DNS names, IP addresses, ...).
         validity_days: Days the certificate is valid for.
@@ -118,7 +133,7 @@ def serialize_key_pem(private_key: rsa.RSAPrivateKey, password: bytes) -> bytes:
 
 
 def serialize_private_key_unencrypted(private_key: PrivateKey) -> bytes:
-    """Serialize an RSA or Ed25519 private key to *unencrypted* PKCS#8 PEM bytes.
+    """Serialize an RSA, ECDSA, or Ed25519 private key to *unencrypted* PKCS#8 PEM bytes.
 
     Intended for long-lived self-signed service identities whose confidentiality
     is enforced by filesystem permissions (``0o600`` in a ``0o700`` directory)
