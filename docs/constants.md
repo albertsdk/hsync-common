@@ -45,9 +45,9 @@ Adaptive chunk sizing for SHA-256 computation based on file size:
 
 | Constant | Value | Applies to |
 |----------|-------|------------|
-| `CHUNK_SIZE_SMALL` | 8 KB | Files < 1 MB |
-| `CHUNK_SIZE_MEDIUM` | 64 KB | Files ≥ 1 MB and < 100 MB |
-| `CHUNK_SIZE_LARGE` | 256 KB | Files ≥ 100 MB |
+| `CHUNK_SIZE_SMALL` | 256 KB | Files < 1 MB |
+| `CHUNK_SIZE_MEDIUM` | 512 KB | Files ≥ 1 MB and < 100 MB |
+| `CHUNK_SIZE_LARGE` | 1 MB | Files ≥ 100 MB |
 
 | Constant | Value | Description |
 |----------|-------|-------------|

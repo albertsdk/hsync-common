@@ -141,9 +141,9 @@ HSYNCIGNORE_FILENAME = ".hsyncignore"
 HSYNCFOLDER_FILENAME = ".hsyncfolder"
 HSYNCTOMBSTONES_FILENAME = ".hsynctombstones"  # legacy wire rejection only
 TOMBSTONE_TTL_DAYS_DEFAULT = 90
-CHUNK_SIZE_SMALL = 8192  # 8 KB
-CHUNK_SIZE_MEDIUM = 65536  # 64 KB
-CHUNK_SIZE_LARGE = 262144  # 256 KB
+CHUNK_SIZE_SMALL = 262144  # 256 KB
+CHUNK_SIZE_MEDIUM = 524288  # 512 KB
+CHUNK_SIZE_LARGE = 1048576  # 1 MB
 ```
 
 There is no single `Constants.kt` in the Android app; the constants are
