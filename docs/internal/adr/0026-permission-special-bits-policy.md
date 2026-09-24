@@ -27,12 +27,12 @@ them with `--perms`/`-a` but a non-privileged receiver cannot actually set
 setuid/setgid (and `--fake-super` explicitly clears them to `u-s,g-s,o-t` for
 safety on the real file), while **Syncthing** strips them *at read time* by
 masking to `0o777`. HSYNC's owners-and-operator threat model (self-signed LAN
-transport, TOFU pinning, LAN-key write auth) wanted a single, unconditional rule
+transport, TOFU pinning, p2p-key write auth) wants a single, unconditional rule
 that is secure regardless of privilege level on the receiving host — without
 forfeiting the ability to *detect* a chmod from a distance.
 
-This decision was previously implemented in code with only inline comments. This
-ADR formalises it so the policy cannot drift across the separate repositories.
+This ADR formalises the policy so it cannot drift across the separate
+repositories.
 
 ## Decision
 
@@ -87,7 +87,7 @@ directory owner floor) on the apply side.
 - **Consistency:** the rule is enforced through a single SSOT
   (`hsync_common.permissions`) consumed by `hsync-client` and `hsync-server` (both
   `set_permissions`/`set_permissions_on_dir`), with a mirrored contract enforced
-  on the metadata-only `PATCH …/files/permissions` REST/LAN route and unit-tested
+  on the metadata-only `PATCH …/files/permissions` REST/p2p route and unit-tested
   in `hsync-common/tests/test_permissions.py` and `hsync-client/tests/test_security_inbound.py`.
 - **Directory availability:** recipient directories always expose at least
   `0o700` for the storage owner, preventing self-lockout from peer-supplied `000`.

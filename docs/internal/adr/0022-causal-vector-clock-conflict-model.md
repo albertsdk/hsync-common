@@ -29,7 +29,7 @@ base_hash)` decides by content identity first, then causal dominance, then a
 deterministic tie-break — never by wall clock (see the source docstring for the
 6-rule matrix).
 
-### 3. Tie-break on true divergence (amended by ADR-0023)
+### 3. Tie-break on true divergence
 
 When clocks are concurrent (true divergence), the version with the higher
 **corrected modification time** (``corrected_mtime``, the local mtime shifted
@@ -38,8 +38,6 @@ When either side lacks the field or the two values tie, the deterministic
 SHA-256 fallback picks the winner. The losing content is preserved as a
 ``_conflicted_copy_`` — the only case for conflict copies (extrema ratio).
 Both sides compute the same winner from the same inputs.
-
-> **Amended by [ADR-0023](0023-corrected-mtime-tie-break.md).**
 
 ### 4. No authoritative node
 

@@ -1,6 +1,6 @@
 # ADR 0020 — p2p security model: TOFU pinning, p2p key, and strict pairing
 
-- **Status:** Accepted; unauthenticated-write policy superseded by [ADR-0029](0029-explicit-opt-in-unauthenticated-p2p-writes.md)
+- **Status:** Accepted
 - **Date:** 2026-10-15
 
 ## Context
@@ -17,10 +17,9 @@ address:
 - **Discovery trust**: mDNS/TXT records are unauthenticated — what can an
   attacker spoof?
 
-These decisions were previously documented only in
-[`docs/p2p-protocol.md`](../../p2p-protocol.md) as a technical specification.
-This ADR formalizes them as architectural decisions with explicit trade-offs
-and accepted risks.
+These decisions are specified technically in
+[`docs/p2p-protocol.md`](../../p2p-protocol.md); this ADR records them as
+architectural decisions with explicit trade-offs and accepted risks.
 
 ## Decision
 
@@ -51,17 +50,15 @@ eliminates even this window.
 
 ### 2. p2p key write authorization
 
-> **Superseded in part by [ADR-0029](0029-explicit-opt-in-unauthenticated-p2p-writes.md).**
-> Keyless peers remain read-only by default, but mutation may be enabled only by
-> an explicit dangerous opt-in on both the writing client and the master.
-> Interactivity is no longer an authorization exception.
-
 **Decision**: a shared secret (p2p key, distinct from the server's per-account
 tokens) gates write access in p2p mode. Peers that know the key can push
 changes; peers without it are read-only observers.
 
 - The key is set via `HSYNC_P2P_KEY` or `--p2p-key-fd`.
 - Write policy is enforced by `_check_p2p_write_policy` in the master.
+- A keyless peer can mutate only with an explicit dangerous opt-in on **both**
+  the writing client and the master ([ADR-0029](0029-explicit-opt-in-unauthenticated-p2p-writes.md));
+  interactivity is never an authorization exception.
 - The p2p key is **never used for encryption** (TLS handles that); it is purely
   an authorization token.
 
@@ -77,7 +74,7 @@ has its own revocable key; the p2p group remains a single shared trust domain
 
 ### 3. Strict pairing mode (optional)
 
-**Decision**: when `--lan-require-pairing` is set, TOFU is bypassed and a
+**Decision**: when `--require-pairing` is set, TOFU is bypassed and a
 manual out-of-band confirmation is required before the first connection. The
 master displays a pairing code; the slave operator must confirm it.
 
@@ -123,6 +120,6 @@ untrusted bulletin board and moves all trust decisions to the TLS+key layer.
 - [ADR-0001](0001-server-vs-p2p-modes.md) — p2p mode overview
 - [ADR-0002](0002-p2p-master-election.md) — Deterministic master election
 - [ADR-0008](0008-client-accounts.md) — Server-side account token model
-- [ADR-0029](0029-explicit-opt-in-unauthenticated-p2p-writes.md) — Explicit opt-in for unauthenticated p2p writes (supersedes only that policy)
+- [ADR-0029](0029-explicit-opt-in-unauthenticated-p2p-writes.md) — Explicit opt-in for unauthenticated p2p writes
 - [`docs/p2p-protocol.md`](../../p2p-protocol.md) — Full p2p protocol specification
 - Implementation: `hsync_client/pinning.py`, `protocol/pairing.py`, `ssl_utils.py`

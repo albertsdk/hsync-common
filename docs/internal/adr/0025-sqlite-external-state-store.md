@@ -5,16 +5,16 @@
 
 ## Context
 
-Causal version metadata (ADR-0022) and deletion markers (ADR-0003) were
-persisted as per-peer JSON side-cars inside each synced bucket
-(``.hsyncstate``, ``.hsynctombstones``). Every save rewrote the full map
-(``json.dumps`` + atomic ``tmp``/``replace``); every start loaded the full
-file into memory. That design has no WAL, no checksums, and no lock of its
-own. At scale it is O(N) per flush, crash-unsafe beyond the rename, and
-grows with peer count because each ``vclock`` can hold up to 256 entries.
+Persisting causal version metadata (ADR-0022) and deletion markers (ADR-0003) as
+per-peer JSON side-cars inside each synced bucket (``.hsyncstate``,
+``.hsynctombstones``) has no WAL, no checksums, and no lock of its own: every
+save rewrites the full map (``json.dumps`` + atomic ``tmp``/``replace``) and
+every start loads the full file into memory, so at scale it is O(N) per flush,
+crash-unsafe beyond the rename, and grows with peer count because each
+``vclock`` can hold up to 256 entries.
 
 The wire protocol is not the problem. Upload, listing, tombstone gossip,
-WS/LAN events and the ``vector_clocks`` capability already carry JSON
+WS/p2p events and the ``vector_clocks`` capability already carry JSON
 ``vclock`` / ``version`` dicts (``api/1``, ``ws/1``, ``p2p/1``). Only local
 persistence is inadequate.
 
@@ -31,7 +31,7 @@ Industry reference: Syncthing keeps a single external index and only a small
 ``.stfolder`` marker inside the folder; Dropbox/Nextcloud journals live
 outside user folders.
 
-There are no production deployments. The store is specified as if the
+There are no production deployments, so the store is specified as if the
 projects were born with it: no JSON→SQLite migration, no ``.bak`` files, no
 legacy branches. A folder without a marker is a new folder (full rescan;
 content converges by hash; conflict copies are preserved).
@@ -80,7 +80,7 @@ Android).
 
 - ``sqlite3`` with ``isolation_level=None`` (autocommit); one statement per
   logical mutation. A sync-cycle ``flush()`` wraps pending writes in
-  ``BEGIN IMMEDIATE … COMMIT``. Realtime single-row flushes (LAN delete)
+  ``BEGIN IMMEDIATE … COMMIT``. Realtime single-row flushes (p2p delete)
   are one statement + commit.
 - ``journal_mode=WAL``, ``synchronous=FULL``, ``busy_timeout=5000``,
   ``foreign_keys=ON``, ``auto_vacuum=INCREMENTAL``, ``user_version=1``. WAL
@@ -116,12 +116,12 @@ correctness never depends on it (space reclamation is purely a storage bound).
 
 ### Wire hardening
 
-``.hsyncfolder`` is added to ``INTERNAL_FILENAMES`` and must never be
-accepted from the wire. Legacy ``.hsyncstate`` / ``.hsynctombstones`` stay
-rejected so an old peer cannot write them through the sync channel. The
-wire format itself is untouched.
+``.hsyncfolder`` is in ``INTERNAL_FILENAMES`` and must never be
+accepted from the wire. ``.hsyncstate`` / ``.hsynctombstones`` are rejected so
+they can never be written through the sync channel. The wire format itself is
+untouched.
 
-### Governed code (Phase 1 in ``hsync-common``; later phases in consumers)
+### Governed code
 
 - ``hsync_common/constants.py`` — ``HSYNCFOLDER_FILENAME``,
   ``HSYNC_STATE_DIR_ENV``, ``SYNCSTATE_DB_FILENAME``
@@ -130,7 +130,7 @@ wire format itself is untouched.
 - ``hsync_common/models/version_store.py`` — ``SyncStateStore`` SQLite backend (re-exported from ``models/version.py``)
 - ``hsync_common/models/tombstone_store.py`` — ``TombstoneStore`` SQLite backend (re-exported from ``models/tombstone.py``)
 - ``hsync_common/path_validation.py`` — ``INTERNAL_FILENAMES``
-- Consumers (later): ``hsync-client`` ``sync_state.py`` / ``tombstones.py``,
+- Consumers: ``hsync-client`` ``sync_state.py`` / ``tombstones.py``,
   ``hsync-server`` ``versions.py`` / ``tombstones.py`` / ``config.py``,
   ``hsync-android`` ``SyncStateManager`` / ``Tombstones.kt``
 
@@ -138,15 +138,12 @@ wire format itself is untouched.
 
 - Crash-safety is SQLite ACID on the system filesystem; copying a bucket
   copies only user data and the marker.
-- First run after this change treats unmarked folders as new (full rescan).
-  There is no JSON side-car import.
+- An unmarked folder is treated as new (full rescan). There is no JSON side-car
+  import.
 - Public store method semantics (``record`` / ``clear`` / ``retain`` /
-  ``get`` / ``load`` / ``save`` / tombstone merge) stay the same; only
-  construction (``db_path`` + ``folder_id``) and the backing file change.
-- Client, server and Android must switch in lockstep with their own
-  wrappers; the shared wire fixtures, schemas and OpenAPI snapshots must
-  stay byte-identical.
-- Documentation describes the SQLite + ``.hsyncfolder`` model as the only
-  model. Persistence remarks in ADR-0003 / ADR-0016 / ADR-0022 are
-  superseded by this record; the causal algorithms those ADRs define are
-  unchanged.
+  ``get`` / ``load`` / ``save`` / tombstone merge) are unchanged; only
+  construction (``db_path`` + ``folder_id``) and the backing file differ.
+- Client, server and Android share the same store through their own wrappers;
+  the shared wire fixtures, schemas and OpenAPI snapshots stay byte-identical.
+- The SQLite + ``.hsyncfolder`` model is the only persistence model; the causal
+  algorithms of ADR-0003 / ADR-0016 / ADR-0022 are unchanged.

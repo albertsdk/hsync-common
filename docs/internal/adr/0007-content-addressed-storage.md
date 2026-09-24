@@ -2,7 +2,6 @@
 
 - **Status:** Accepted
 - **Date:** 2026-06-28
-- **Amended:** 2026-10-15 — removed hard-link deduplication; see rationale below.
 
 ## Context
 
@@ -39,12 +38,11 @@ upload:
   accidental re-uploads of unchanged content.
 - **No deduplication across paths**: each file path is an independent artifact
   reflecting the exact state of the client that uploaded it. Hard links and
-  content-addressed storage were explicitly rejected (see below).
+  content-addressed storage are explicitly rejected (see below).
 
 ### Why not hard-link deduplication?
 
-Content-addressed deduplication via hard links was considered and rejected
-because:
+Content-addressed deduplication via hard links is rejected because:
 
 1. **Sync fidelity over storage efficiency**: HSYNC's core guarantee is that
    every client converges to the same file tree. If two clients independently

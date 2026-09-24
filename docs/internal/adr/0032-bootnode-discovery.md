@@ -1,6 +1,6 @@
 # ADR 0032 — Bootnode discovery (`boot/1`)
 
-- **Status:** Accepted (its "never imports `hsync-common`" clause is superseded by [ADR-0033](0033-bootnode-python-reuses-hsync-common.md))
+- **Status:** Accepted
 - **Date:** 2026-10-09
 
 ## Context
@@ -13,16 +13,17 @@ peers for a bucket. The bootstrap channel is a new wire contract with its own
 lifecycle, so it needs its own version and specification.
 
 `hsync-common` is the SSOT for the data-plane protocol, but the bootnode is a
-standalone daemon (and a future Rust port) that must not depend on this
-package. At the same time the `hsync-client` needs typed access to the
-bootstrap frames to speak to the node.
+standalone daemon (and a future Rust port) whose `boot/1` wire contract must not
+depend on this package. At the same time the `hsync-client` needs typed access
+to the bootstrap frames to speak to the node.
 
 ## Decision
 
 We will introduce the `boot/1` bootstrap protocol, specified canonically in
 `hsync-bootnode/protocol-spec/boot-1.md` with canonical golden fixtures in
-`hsync-bootnode/fixtures/`. The bootnode daemon keeps its own Python model of
-the frames and never imports `hsync-common`.
+`hsync-bootnode/fixtures/`. The bootnode daemon keeps its own model of the
+`boot/1` frames and does not import the `hsync-common` protocol mirror; it may
+reuse generic `hsync-common` utilities ([ADR-0033](0033-bootnode-python-reuses-hsync-common.md)).
 
 `hsync-common` carries a **mirror** of the contract in
 `hsync_common/protocol/bootnode.py` (frame models, `PROTOCOL_VERSION_BOOT`,
@@ -54,9 +55,9 @@ The bootstrap document is advertised in `--capabilities-json` as
 
 ## Consequences
 
-- Cross-network discovery becomes possible without coupling the bootnode to
-  `hsync-common` or to a specific implementation language; the fixtures are the
-  cross-language contract.
+- Cross-network discovery is possible without coupling the bootnode's `boot/1`
+  wire contract to `hsync-common` or to a specific implementation language; the
+  fixtures are the cross-language contract.
 - The mirror adds a duplicated frame definition to `hsync-common`; the drift
   test is what keeps the duplication safe. The mirror stays dependency-free
   (`TypedDict` + hand-written strict validators that reject unknown fields, the

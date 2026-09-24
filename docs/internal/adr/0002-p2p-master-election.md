@@ -8,7 +8,7 @@
 In p2p mode ([ADR-0001](0001-server-vs-p2p-modes.md)) there is no fixed
 server, yet the bucket needs exactly **one node to host the transport hub** (the
 HTTPS/WSS server peers connect to and that relays events). Two clients
-implement the LAN: the Python client and the Android client. If they elected
+implement p2p: the Python client and the Android client. If they elected
 masters by different rules they would split-brain — each believing a different
 peer is master — corrupting the bucket. mDNS/TXT discovery is also
 unauthenticated, so election input is a hint, never proof.

@@ -6,27 +6,27 @@
 ## Context
 
 The desktop GUI (`hsync-desktop`, PySide6) does not re-implement sync; it drives
-the `hsync` client **as a subprocess**. Historically it inferred state by parsing
-human-readable log lines with regular expressions and assumed the client
-supported a fixed set of CLI flags. Both couplings are brittle: any reword of a
-log message, or a binary built without a given feature, silently broke the UI or
-exposed controls the binary could not honour.
+the `hsync` client **as a subprocess**. Inferring state by parsing
+human-readable log lines with regular expressions, or assuming the client
+supports a fixed set of CLI flags, is brittle: any reword of a log message, or a
+binary built without a given feature, silently breaks the UI or exposes controls
+the binary cannot honour.
 
 ## Decision
 
 We will define an **explicit, versioned contract** between desktop and client,
-replacing log scraping and hard-coded assumptions:
+rather than log scraping and hard-coded assumptions:
 
 - **Structured events** — the client emits versioned JSON Lines on a dedicated
   channel (`--events-json-fd`) carrying `schema_version`; the desktop consumes
   *only* these events for state (`role_changed`, `transfer`, `sync_complete`,
-  `pairing_needed`, …). The log-regex parser is removed.
+  `pairing_needed`, …).
 - **Capability discovery** — the client prints a capabilities document via
   `--capabilities-json` (assembled by `hsync_common.protocol.capabilities`):
   the supported subcommands with their per-subcommand CLI options, protocol
   versions, events schema version and feature flags. The desktop probes this at
   startup and **gates UI controls** on it, disabling and unchecking unsupported
-  toggles (e.g. LAN options) rather than emitting flags the binary rejects.
+  toggles (e.g. p2p options) rather than emitting flags the binary rejects.
 
 ## Consequences
 

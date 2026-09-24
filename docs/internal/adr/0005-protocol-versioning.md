@@ -5,12 +5,13 @@
 
 ## Context
 
-HSYNC has multiple wire channels (REST, WebSocket, LAN/TXT) shared by a server
-and three clients (Python, desktop, Android). Originally the *app* version
-doubled as the *protocol* version, so a cosmetic app bump implied a protocol
-change, and compatibility was checked with fuzzy "is this version new enough?"
-logic. With independent repos this invites silent drift and ambiguous failures.
-There is **no legacy install base** to keep working.
+HSYNC has multiple wire channels (REST, WebSocket, p2p/TXT) shared by a server
+and three clients (Python, desktop, Android). The *app* version and the
+*protocol* version are distinct concerns: a cosmetic app bump must not imply a
+protocol change, and compatibility must be checked against an explicit protocol
+version rather than fuzzy "is this version new enough?" logic — which, across
+independent repos, invites silent drift and ambiguous failures. There is **no
+legacy install base** to keep working.
 
 ## Decision
 
@@ -22,7 +23,7 @@ capabilities explicit, with a single source of truth in
   `PROTOCOL_VERSION_WS = "ws/1"`, `PROTOCOL_VERSION_P2P = "p2p/1"`, bumped only on
   a breaking change to *that* channel's wire shape.
 - A mismatched `protocol_version` is a **hard failure** (REST → 426, WS →
-  handshake closed, LAN → peer ignored), never a negotiation.
+  handshake closed, p2p → peer ignored), never a negotiation.
 - A `Capability` registry (`compression`, `tombstones`, `never_master`,
   `https`, `delta`, `vector_clocks`) carried on the handshake channels as
   **feature flags within the same protocol version** — unknown tokens are

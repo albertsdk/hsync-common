@@ -7,27 +7,27 @@
 
 A p2p slave pushes local filesystem changes (create/modify/rename/delete) to the
 elected master over HTTPS REST, including its own CID so the master can suppress
-the echo broadcast. Two defects were observed on the slave → master path, both
-rooted in the slave echoing its **own** locally-applied changes back to the
-master, and in the inability to reliably distinguish an echo from a genuine new
-event at the point where the decision must be made:
+the echo broadcast. Two failure modes motivate the design, both rooted in the
+slave echoing its **own** locally-applied changes back to the master, and in the
+difficulty of reliably distinguishing an echo from a genuine new event at the
+point where the decision must be made:
 
 1. **Duplicate uploads on file creation.** On Linux both `on_created`
    (`IN_CREATE`) and `on_closed` (`IN_CLOSE_WRITE`) fire for a single
-   `open(O_CREAT)+write+close`. The slave uploaded immediately in `on_created`
-   for any non-empty file (the fast-path for files that arrive already complete
-   with no subsequent close), and again in `on_closed` — two upload-intent /
+   `open(O_CREAT)+write+close`. Uploading immediately in `on_created` for any
+   non-empty file (the fast-path for files that arrive already complete with no
+   subsequent close) and again in `on_closed` would produce two upload-intent /
    `[UPLOAD]` pairs for one creation, with no coordination between the handlers.
-   Worse, the `on_created` fast-path used the conservative stability poll
+   Worse, the `on_created` fast-path uses the conservative stability poll
    (`from_closed=False`), which can falsely declare a *write-pause-write* file
    stable during a pause and upload **half-written content**.
 
 2. **Spurious rename 404.** A rename applied locally for an inbound master
-   event is re-sent to the master by the slave's own watchdog (the
-   `is_receiving` echo guard loses the race past the `_unmark` in the
-   dispatch `finally`). The master answers `404` (source already renamed
-   there) and the slave logged it as a `WARNING`, masking whether it was a
-   benign echo or a real divergence (source genuinely missing on master).
+   event can be re-sent to the master by the slave's own watchdog (the
+   `is_receiving` echo guard loses the race past the `_unmark` in the dispatch
+   `finally`). The master answers `404` (source already renamed there); logging
+   it as a `WARNING` masks whether it is a benign echo or a real divergence
+   (source genuinely missing on master).
 
 The deciding constraint, stated explicitly: **never lose data, even at the cost
 of redundant events.** A redundant upload is idempotent on the master (same
@@ -44,7 +44,7 @@ clients.
 
 ### 1. Defer-to-close uploads (create-upload deferral)
 
-`on_created` for a non-empty regular file **no longer uploads immediately**. It
+`on_created` for a non-empty regular file **does not upload immediately**. It
 schedules a short daemon `Timer` (`CREATE_UPLOAD_DEFER_S`, equal to
 `STABILITY_DELAY_ON_CLOSED`, ~300 ms). `on_closed` (`IN_CLOSE_WRITE`) — the
 reliable trigger, since the writer fd is closed so the content is guaranteed
@@ -113,35 +113,24 @@ has a *different* pair and is never misclassified as an echo.
 ### Follow-up obligations
 
 - Both clients must mirror the behaviour (Python `hsync_client/p2p_websocket.py`
-  `LANSlaveFileEventHandler`; Android `P2PSync.kt` + `InboundRenameEchoTracker.kt`).
+  `P2PSlaveFileEventHandler`; Android `P2PSync.kt` + `InboundRenameEchoTracker.kt`).
 - Tests must cover: echo match / wrong-pair / expiry; `404` echo vs divergence;
   create defer / cancel-on-close / fire-on-no-close; cancel on delete/moved.
-- The slave's deferred-create debug log label (then `[CLIENT NEW]`, now
-  `[LOCAL CREATE]` — see ADR 0018) changed semantics from "complete on create"
-  to "deferred to on_closed"; the log legend must reflect it if it documents
-  that label.
+- The slave's deferred-create debug log label (`[LOCAL CREATE]`, see ADR 0018)
+  means "deferred to on_closed"; the log legend documents that semantics.
 
 ## Cross-client deployment constraint
 
-The defer-to-close upload behaviour and echo-pair rename cache are **behavioural**
-changes, not wire-format changes. They are not captured by the golden fixtures of
-[ADR-0005](0005-protocol-versioning.md) and do not cause a protocol-version
-hard-fail. A mixed-version fleet (one client patched with ADR-0017, another not)
-will exhibit:
-
-- **Duplicate uploads** from the unpatched client (both `on_created` and `on_closed`
-  fire uploads).
-- **Spurious rename 404 WARNINGs** on the unpatched client.
-
-Both are benign (no data loss — the "never suppress" principle still holds for the
-unpatched client), but operators should deploy the Python and Android client
-updates in lockstep to eliminate the noise. The periodic resync remains the safety
-net for any missed events.
+The defer-to-close upload behaviour and echo-pair rename cache are
+**behavioural**, not wire-format, changes: they are not captured by the golden
+fixtures of [ADR-0005](0005-protocol-versioning.md) and do not cause a
+protocol-version hard-fail. The periodic resync remains the safety net for any
+missed events.
 
 ## References
 
 - [ADR 0022 — Causal vector-clock conflict model](0022-causal-vector-clock-conflict-model.md) (deterministic tie-break at the transport hub)
 - [ADR 0001 — Two sync modes: central server vs p2p](0001-server-vs-p2p-modes.md)
-- Implementation: `hsync-client/hsync_client/p2p_websocket.py` (`LANSlaveFileEventHandler`),
+- Implementation: `hsync-client/hsync_client/p2p_websocket.py` (`P2PSlaveFileEventHandler`),
   `hsync-android/app/src/main/java/com/hsync/android/p2p/P2PSync.kt` and
   `InboundRenameEchoTracker.kt`

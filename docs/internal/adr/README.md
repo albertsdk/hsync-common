@@ -15,8 +15,12 @@ consequences accepted. Code answers "how"; these records answer "why".
 - One decision per file, named `NNNN-kebab-title.md` (zero-padded, monotonic).
 - Use [`template.md`](template.md): **Context / Decision / Consequences** plus a
   status header.
-- ADRs are **append-only**: never rewrite an accepted decision. To change one,
-  add a new ADR and mark the old one *Superseded by* it.
+- While the ecosystem is pre-release, ADRs describe the **current design** as if
+  it had always been this way: they carry no superseded clauses, no
+  "previously / renamed / removed" history, and no references to retired options
+  or module names. Once the ecosystem is published, the records become
+  **append-only**: a changed decision is then recorded as a new ADR that marks
+  the old one *Superseded by* it.
 - Status values: `Proposed`, `Accepted`, `Superseded`.
 
 ## Index
@@ -38,20 +42,20 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0014](0014-multi-repo-strategy.md) | Multi-repository architecture | Accepted |
 | [0015](0015-mass-deletion-guard.md) | Mass-deletion safety guard | Accepted |
 | [0016](0016-delta-transfer.md) | Delta transfer (rsync-style block sync) | Accepted |
-| [0017](0017-p2p-slave-outbound-event-reliability.md) | p2p slave outbound event reliability (defer-to-close uploads, echo-pair rename caching) | Accepted (uses the origin-based log labels of [ADR-0018](0018-origin-based-log-labels.md)) |
+| [0017](0017-p2p-slave-outbound-event-reliability.md) | p2p slave outbound event reliability (defer-to-close uploads, echo-pair rename caching) | Accepted |
 | [0018](0018-origin-based-log-labels.md) | Origin-based log labels (`LOCAL ` / `REMOTE `) with unified verbs | Accepted |
-| [0020](0020-p2p-security-model.md) | p2p security model: TOFU pinning, p2p key, and strict pairing | Accepted (unauthenticated-write policy superseded by [ADR-0029](0029-explicit-opt-in-unauthenticated-p2p-writes.md)) |
-| [0022](0022-causal-vector-clock-conflict-model.md) | Causal vector-clock conflict model | Accepted (tie-break defined by [ADR-0023](0023-corrected-mtime-tie-break.md)) |
+| [0020](0020-p2p-security-model.md) | p2p security model: TOFU pinning, p2p key, and strict pairing | Accepted |
+| [0022](0022-causal-vector-clock-conflict-model.md) | Causal vector-clock conflict model | Accepted |
 | [0023](0023-corrected-mtime-tie-break.md) | Corrected-mtime chronological tie-break | Accepted |
 | [0024](0024-capability-negotiation.md) | Capability negotiation (registry, channels, intersection) | Accepted |
 | [0025](0025-sqlite-external-state-store.md) | SQLite external state store (folder UUID + ``syncstate.db``) | Accepted |
 | [0026](0026-permission-special-bits-policy.md) | Special permission bits (setuid/setgid/sticky) policy | Accepted |
 | [0027](0027-p2p-leadership-lease.md) | p2p leadership lease: bounded incumbency and immediate yield | Accepted |
-| [0028](0028-p2p-peer-assisted-download.md) | p2p peer-assisted download | Accepted (eligibility/admission superseded in part by [ADR-0030](0030-p2p-seeder-capacity-advertisement.md)) |
+| [0028](0028-p2p-peer-assisted-download.md) | p2p peer-assisted download | Accepted |
 | [0029](0029-explicit-opt-in-unauthenticated-p2p-writes.md) | Explicit opt-in for unauthenticated p2p writes | Accepted |
 | [0030](0030-p2p-seeder-capacity-advertisement.md) | p2p seeder capacity advertisement and requester admission | Accepted |
 | [0031](0031-p2p-peer-offload-lane-cost.md) | p2p peer-offload lane cost: attribution and accepted trade-off | Accepted |
-| [0032](0032-bootnode-discovery.md) | Bootnode discovery (`boot/1`) and the hsync-common mirror | Accepted (the "never imports hsync-common" clause superseded by [ADR-0033](0033-bootnode-python-reuses-hsync-common.md)) |
+| [0032](0032-bootnode-discovery.md) | Bootnode discovery (`boot/1`) and the hsync-common mirror | Accepted |
 | [0033](0033-bootnode-python-reuses-hsync-common.md) | The bootnode Python v1 reuses hsync-common utilities | Accepted |
 | [0034](0034-bootnode-tls-trust.md) | Bootnode TLS trust: fingerprint pinning and opt-in TOFU | Accepted |
 

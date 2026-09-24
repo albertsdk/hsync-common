@@ -1,18 +1,17 @@
 # ADR 0031 — p2p peer-offload lane cost: attribution and accepted trade-off
 
-- **Status:** Accepted (2026-09-21; decision: keep the lane, accept the measured
-  cost, `--no-peer-download` is the opt-out)
+- **Status:** Accepted
 - **Date:** 2026-09-21
 
 ## Context
 
-LAN synchronization moves full-file downloads through the elected master, with
+p2p synchronization moves full-file downloads through the elected master, with
 an optional peer-assisted path layered on top
 ([ADR-0028](0028-p2p-peer-assisted-download.md),
 [ADR-0030](0030-p2p-seeder-capacity-advertisement.md)). That lane is enabled by
 default and consists of three parts inside the slave process:
 
-1. a read-only HTTPS **seeder** (`LANServer` in seeder mode);
+1. a read-only HTTPS **seeder** (`P2PServer` in seeder mode);
 2. an **inventory publisher** that owns snapshot/delta state and sends
    `inventory` frames over the same WSS connection that carries sync events;
 3. a per-file **source resolver** invoked from the apply path
@@ -29,12 +28,11 @@ verified against the listing hash before atomic replacement, and seeder identity
 is TOFU-pinned — and inventory publication is a **bounded, sequenced** contract
 (gen/seq, quotas, staging TTL).
 
-## Phase 0 result (2026-09-21)
+## Measurement: lane attribution (2026-09-21)
 
-A reproducible per-thread CPU sampler was added to the LAN stress harness
-(`HSYNC_BB_STRESS_PROFILE_CPU=1`, plan §13.13) and run on the 2500-file probe,
-lane on vs `--no-peer-download`, sampling `/proc/<slave-pid>/task/*/stat` across
-the burst:
+A reproducible per-thread CPU sampler in the p2p stress harness
+(`HSYNC_BB_STRESS_PROFILE_CPU=1`) runs on the 2500-file probe, lane on vs
+`--no-peer-download`, sampling `/proc/<slave-pid>/task/*/stat` across the burst:
 
 | arm | slave CPU | ms/file | throughput | top threads |
 | --- | --- | --- | --- | --- |
@@ -52,15 +50,14 @@ hypothesis**:
   per-file/per-event work, not idle-thread GIL contention.
 
 Supporting isolated figures: the inventory observer is ~9 µs/event
-(`_normalize_entry`), the resolver POST is ~1 ms/file, and the previously
-reported batching of that POST was measured and reverted (it does not pay at the
-default concurrency). A coalesced `_notify` and a single-`lstat`
-`_normalize_entry` were implemented, A/B'd (median +4.5 %, inside the ±15 %
-host spread) and reverted.
+(`_normalize_entry`), the resolver POST is ~1 ms/file, and batching that POST
+does not pay at the default concurrency. A coalesced `_notify` and a single-`lstat`
+`_normalize_entry` were A/B'd (median +4.5 %, inside the ±15 % host spread) and
+are not adopted.
 
-## Phase 1 result (resolver) — no safe client-side reduction (2026-09-21)
+## Resolver analysis: no safe client-side reduction
 
-The resolver was re-examined against the code and the ADR-0028 boundaries:
+The resolver is examined against the code and the ADR-0028 boundaries:
 
 - The **listing-driven reconcile is already optimal**: `_execute_parallel_transfers`
   resolves candidates once for the whole download set
@@ -70,9 +67,9 @@ The resolver was re-examined against the code and the ADR-0028 boundaries:
 - The per-file POST lives only in the **realtime `update_file` path**
   (`refresh_peer_sources=source_resolver is not None`), where each event carries
   a single file: per-file peer offload then *requires* a per-file lookup. Its
-  batching (a collection window shared by the concurrent workers) was
-  implemented, measured and **reverted** — at the default concurrency the window
-  rarely gathers more than ~1.5 callers while stalling the leader.
+  batching (a collection window shared by the concurrent workers) is not adopted:
+  at the default concurrency the window rarely gathers more than ~1.5 callers
+  while stalling the leader.
 - Dropping the lookup would keep synchronization correct (the master is always
   the fallback) but would silently **disable peer offload for that file** — a
   feature regression, not a cost reduction, and the ADR-0028 decision makes
@@ -87,25 +84,24 @@ The resolver was re-examined against the code and the ADR-0028 boundaries:
 
 ## Decision
 
-We will **not** change the lane. The Phase 0 attribution shows the cost is
+The lane is kept unchanged. The measurement attribution shows the cost is
 genuine per-file/per-event work (per-file peer lookup in the apply workers plus
 inventory publication on the event loop), not idle-thread GIL contention, and
 the only per-file reduction that keeps the ADR-0028 semantics is the source
 lookup — whose batching does not pay at the default concurrency. There is no
 safe client-side win, and the protocol alternative is unsound under the
-broadcast model. The supported trade-off remains `--no-peer-download` for
+broadcast model. The supported trade-off is `--no-peer-download` for
 deployments that do not need to serve other peers.
 
-Any future attempt must be a **protocol-level** design (e.g. a per-connection
+A future reduction must be a **protocol-level** design (e.g. a per-connection
 candidate push that respects the per-requester exclusion and the strict
-endpoint bounds) recorded in its own ADR and reviewed independently; it is not
-pursued here.
+endpoint bounds) recorded in its own ADR and reviewed independently.
 
 ## Consequences
 
-- The Phase 0 harness is committed and reusable; it corrected the design before
-  any code change (seeder isolation was refuted) and then ruled out the
-  resolver reduction, which is the point of gating on measurement.
+- The measurement harness is committed and reusable; it refutes seeder isolation
+  and rules out the resolver reduction, which is the point of gating on
+  measurement.
 - No synchronization semantics, protocol, defaults, or failure modes change.
 - The measured cost of the peer-offload lane (~2.1 ms/file on this host, +41-51 %
   burst throughput when disabled) is accepted as the price of the feature; the

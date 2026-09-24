@@ -1,4 +1,4 @@
-# ADR 0027 — LAN leadership lease: bounded incumbency and immediate yield
+# ADR 0027 — p2p leadership lease: bounded incumbency and immediate yield
 
 - **Status:** Accepted
 - **Date:** 2026-09-04
@@ -8,18 +8,18 @@
 The deterministic election ([ADR-0002](0002-p2p-master-election.md)) converges
 every peer on the same master from the same candidate view, and the periodic
 staleness sweep bounds how long a hard-crashed master is kept (see
-`p2p-protocol.md`). One gap remained: when a serving master **loses** the
-election, the client stopped its HTTP/WSS servers but **left its incumbency
-advertised**: the local `server_ready` flag stayed set and the mDNS TXT record
-still carried `server_ready=true`. The node therefore remained an "incumbent"
-in its own view and in every peer's view even though it was no longer serving —
-a *zombie incumbent* that can stall or skew subsequent elections.
+`p2p-protocol.md`). A serving master can still **lose** the election: that
+happens when another peer has also become `server_ready` — which, because
+exactly one node serves per healthy partition, occurs on **network-partition
+heal**, when the two sides elected different masters and, on convergence, the
+deterministic election picks one (a `force_master` peer wins at parity) and the
+other yields.
 
-A live master only loses the election when another peer has also become
-`server_ready` — which, because exactly one node serves per healthy partition,
-happens on **network-partition heal**: the two sides elected different masters,
-and when they converge the deterministic election picks one (a `force_master`
-peer wins at parity), so the other yields.
+If a losing master only stopped its HTTP/WSS servers while still advertising
+`server_ready=true` (local flag and mDNS TXT record), it would remain an
+"incumbent" in its own view and in every peer's view although it is no longer
+serving — a *zombie incumbent* that can stall or skew subsequent elections.
+Incumbency must therefore be revoked on the wire, not just locally.
 
 ## Decision
 
@@ -34,9 +34,9 @@ that stops being the elected master **yields immediately**:
    `connected` presence count),
 3. it logs a parsable `[MASTER YIELD]` marker (mirrored in Android).
 
-The yield is driven by the existing discovery loop, which already re-checks
-`is_master()` on every wake; the change is that the yield now also revokes
-incumbency on the wire instead of only stopping the sockets.
+The yield is driven by the discovery loop, which re-checks `is_master()` on
+every wake and revokes incumbency on the wire when the node stops being the
+elected master.
 
 ## Consequences
 
@@ -44,12 +44,13 @@ incumbency on the wire instead of only stopping the sockets.
   deterministic election and converge on the correct master, closing the
   zombie-incumbent window.
 - **No quorum is introduced.** A full network partition (two sides that cannot
-  see each other) can still briefly yield two masters, exactly as before; this
-  ADR does **not** claim at-most-one-master under partition. That guarantee
-  would require a majority quorum with fixed membership, which conflicts with
-  the dynamic home-LAN topology and would cost availability (a lone survivor
-  could not serve). Divergence from such a partition is bounded by the causal
-  vector-clock reconciliation ([ADR-0022](0022-causal-vector-clock-conflict-model.md))
-  on heal.
-- The `[MASTER YIELD]` label is part of the cross-language log contract: added
-  to `ActionLabel` (SSOT) and mirrored in Android `LogAction` (parity-tested).
+  see each other) can briefly yield two masters; this ADR does **not** claim
+  at-most-one-master under partition. That guarantee would require a majority
+  quorum with fixed membership, which conflicts with the dynamic home-LAN
+  topology and would cost availability (a lone survivor could not serve).
+  Divergence from such a partition is bounded by the causal vector-clock
+  reconciliation ([ADR-0022](0022-causal-vector-clock-conflict-model.md)) on
+  heal.
+- The `[MASTER YIELD]` label is part of the cross-language log contract: it
+  lives in `ActionLabel` (SSOT) and is mirrored in the Android `LogAction`
+  (parity-tested).

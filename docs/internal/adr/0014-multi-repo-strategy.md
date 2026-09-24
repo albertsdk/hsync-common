@@ -5,7 +5,7 @@
 
 ## Context
 
-HSYNC comprises five distinct components:
+HSYNC comprises six distinct components:
 
 - `hsync-common` — shared models, constants, protocol, compression (Python
   library, mirrored in Kotlin for Android).
@@ -14,6 +14,9 @@ HSYNC comprises five distinct components:
 - `hsync-desktop` — PySide6 GUI that drives the client as a subprocess
   (Python).
 - `hsync-android` — Kotlin Android app (mirrors the client logic).
+- `hsync-bootnode` — bootstrap node for cross-network discovery (`boot/1`),
+  with a standalone daemon (Python today, Rust port planned) and its own wire
+  specification.
 
 These components have different release cadences, different audiences, and
 different language toolchains. The repository structure decision affects CI/CD
@@ -33,7 +36,7 @@ Options:
 
 ## Decision
 
-We will use a **multi-repository architecture** with five independent
+We will use a **multi-repository architecture** with six independent
 repositories, linked by `hsync-common` as the single source of truth for shared
 code:
 

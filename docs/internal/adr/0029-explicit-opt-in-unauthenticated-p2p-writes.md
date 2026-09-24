@@ -7,11 +7,11 @@
 
 TLS with a self-signed certificate protects p2p traffic in transit, and TOFU
 pins the endpoint after first use, but neither grants a peer permission to
-mutate the master's bucket. ADR-0020 established the shared p2p key as write
-authorization; the existing operational policy nevertheless allowed an
-interactive client to write without a key. Interactivity is local process state,
-not evidence the master can authenticate or authorize the remote peer, and it
-does not provide a safe server-side default.
+mutate the master's bucket. [ADR-0020](0020-p2p-security-model.md) establishes
+the shared p2p key as write authorization. Interactivity must not be treated as
+authorization: it is local process state, not evidence the master can
+authenticate or authorize the remote peer, and it does not provide a safe
+server-side default.
 
 p2p peer-assisted download adds more read-only endpoints and makes the
 read/write boundary more visible. No-key reads must continue to work on an
@@ -20,7 +20,7 @@ sides deliberately enable the dangerous mode.
 
 ## Decision
 
-We will use this LAN mutation policy:
+We will use this p2p mutation policy:
 
 1. When a p2p key is configured, every mutating request requires the matching
    Bearer key. The unauthenticated-write setting is ignored and cannot bypass a
@@ -46,9 +46,9 @@ The settings are explicit and disabled by default:
 Python and the corresponding persisted advanced setting on Android. Their UI
 and CLI presentation must label the mode as dangerous.
 
-This decision supersedes only the unauthenticated-write interpretation of
-[ADR-0020](0020-p2p-security-model.md). ADR-0020's TLS, TOFU, LAN-key,
-discovery-trust, and strict-pairing decisions remain accepted.
+The TLS, TOFU, p2p-key, discovery-trust, and strict-pairing decisions are
+defined by [ADR-0020](0020-p2p-security-model.md); this record defines the
+write-authorization policy that complements them.
 
 ## Consequences
 
@@ -56,7 +56,7 @@ discovery-trust, and strict-pairing decisions remain accepted.
 - Enabling no-key writes requires deliberate configuration on both the master
   and the writing client, reducing accidental exposure on guest/public LANs.
 - The opt-in does not authenticate CID attribution and remains unsuitable for an
-  untrusted network; operators needing authenticated writes must configure a LAN
+  untrusted network; operators needing authenticated writes must configure a p2p
   key.
 - Every mutation endpoint must apply the same matrix. A permissive client never
   weakens a restrictive master, and a configured key always wins.

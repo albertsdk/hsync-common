@@ -5,15 +5,16 @@
 
 ## Context
 
-ADR-0028 gave p2p slaves a read-only seeder and a master-mediated source lookup
-with a bounded per-seeder response-body concurrency (`HSYNC_P2P_PEER_READ_CAP`,
-default 2, range 1–32) — but no way for a requester to *learn* that bound. A
-saturated seeder answers `503` before opening the file, so the requester could only
-discover the limit by provoking refusals, and every refusal was classified
-`PeerFailureKind.busy` and priced like a health failure: an exponential exclusion
-of up to 60 s that also removed the source from ranking. A burst of small files
-therefore turned into a storm of refused attempts, after which the rest of the
-cycle fell back to the master.
+[ADR-0028](0028-p2p-peer-assisted-download.md) gives p2p slaves a read-only
+seeder and a master-mediated source lookup with a bounded per-seeder
+response-body concurrency (`HSYNC_P2P_PEER_READ_CAP`, default 2, range 1–32),
+but a requester cannot *learn* that bound. A saturated seeder answers `503`
+before opening the file, so a requester would discover the limit only by
+provoking refusals — and if every refusal were priced like a health failure (an
+exponential exclusion of up to 60 s that also drops the source from ranking), a
+burst of small files would become a storm of refused attempts and the rest of
+the cycle would fall back to the master. Capacity must therefore be advertised,
+and a full seeder must be a scheduling outcome, never a failure.
 
 The L2 loopback benchmark (`hsync-client/bench/bench_p2p_peer_transfer.py`, cycle
 scenario) quantifies it: with cap 2 and 8 warm workers, 24-file cycles produced up
@@ -28,7 +29,7 @@ We will make the seeder's capacity part of the contract instead of something the
 requester discovers by being refused:
 
 1. A serving node advertises `serve_slots` (integer, 1–32) on the authenticated
-   LAN WebSocket handshake (`P2PAuthFrame`/`P2PHelloFrame`). The field is present
+   p2p WebSocket handshake (`P2PAuthFrame`/`P2PHelloFrame`). The field is present
    exactly when the node serves peer downloads: omitting it means "not a source
    candidate". No TXT key is added.
 2. The master records the advertisement with the publisher session
@@ -52,47 +53,43 @@ requester discovers by being refused:
 5. The Android client mirrors the field, the session storage, the master echo, the
    slave advertisement and the requester admission (per-CID slot gate plus a
    `Retry-After` deferral); the golden fixtures are shared verbatim.
-6. The size threshold is deleted rather than retuned. `serve_slots` plus the
-   cost-ordered ranking is what decides whether a peer is worth using, so
-   `HSYNC_P2P_PEER_DOWNLOAD_MIN_SIZE` is removed end to end together with every
-   artifact that carried it (settings model, environment contract, man page,
-   WD OS5 installer/UI, Android `SyncConfig`, benchmark scenarios). No shim
-   reads the old variable.
+6. There is no size threshold. `serve_slots` plus the cost-ordered ranking is
+   what decides whether a peer is worth using, so no
+   `HSYNC_P2P_PEER_DOWNLOAD_MIN_SIZE` knob exists in any artifact (settings
+   model, environment contract, man page, WD OS5 installer/UI, Android
+   `SyncConfig`, benchmark scenarios).
 7. Admission waits for a slot (bounded by `P2P_PEER_SLOT_WAIT_S`) instead of
    declining immediately. Returning at once sends every worker above a seeder's
    capacity straight to the master, which is the outcome peer download exists to
    avoid: measured on the cycle scenario, non-blocking admission served 6.7 of 24
    files from the peer and 121 of 168 full downloads from the master, against
    24 of 24 and 0 of 168 while waiting.
-8. The `seed` TXT hint is removed. Whether a peer can serve is already decided by
-   its authenticated session with the master, so a discovery-time copy of that
-   fact can only ever be stale — and because candidacy *required* it, a lagging
-   record could exclude a seeder that was in fact serving. A serving slave still
-   advertises `https`/`cert_fp` (endpoint material) from the same "endpoint bound"
-   state, so no requester loses the route to a seeder.
+8. There is no `seed` TXT hint. Whether a peer can serve is decided by its
+   authenticated session with the master, so a discovery-time copy of that fact
+   can only ever be stale and could exclude a seeder that is in fact serving. A
+   serving slave still advertises `https`/`cert_fp` (endpoint material) from the
+   same "endpoint bound" state, so no requester loses the route to a seeder.
 
 ## Consequences
 
 - No `503` storm: a requester never exceeds the advertised capacity, so a wide
-  worker pool no longer degenerates into refused attempts plus a long exclusion.
+  worker pool does not degenerate into refused attempts plus a long exclusion.
 - Capacity travels end to end over authenticated channels (seeder → master →
-  requester). A stale or spoofed value can still at worst cause a failed attempt
+  requester). A stale or spoofed value can at worst cause a failed attempt
   followed by the mandatory master fallback.
-- The candidate field is **required** (no compatibility shim): a node that does not
-  advertise is not a candidate.
-- The retired size heuristic leaves no user-facing knob behind: peer assistance
-  stays enabled by default (`HSYNC_P2P_PEER_DOWNLOAD`, `--no-peer-download`) and
-  every listed file becomes eligible for a lookup. A small file now uses the peer
-  path whenever a seeder has a free slot and its predicted cost is competitive,
-  which is exactly the small-file burst the threshold used to divert to the
-  master. `HSYNC_P2P_PEER_READ_CAP` continues to bound how much a seeder gives
-  away, and it is announced on the handshake rather than guessed.
-- Deleting the knob is a breaking configuration change: an environment still
-  setting `HSYNC_P2P_PEER_DOWNLOAD_MIN_SIZE` is ignored, in line with the
-  project's no-backward-compatibility stance.
-- One fewer discovery key: `seed` leaves the TXT contract, the client's service
-  listener/snapshot model and the Android mirror, and candidacy no longer consults
-  a browser-cached hint that could contradict live state.
+- The candidate field is **required**: a node that does not advertise is not a
+  candidate.
+- No size heuristic, no user-facing knob: peer assistance is enabled by default
+  (`HSYNC_P2P_PEER_DOWNLOAD`, `--no-peer-download`) and every listed file is
+  eligible for a lookup. A small file uses the peer path whenever a seeder has a
+  free slot and its predicted cost is competitive. `HSYNC_P2P_PEER_READ_CAP`
+  bounds how much a seeder gives away, announced on the handshake rather than
+  guessed.
+- An environment that still sets `HSYNC_P2P_PEER_DOWNLOAD_MIN_SIZE` is ignored,
+  in line with the project's no-backward-compatibility stance.
+- The TXT contract carries no `seed` key: the client's service listener/snapshot
+  model and the Android mirror do not consult a browser-cached hint that could
+  contradict live state.
 - **The Android mirror implements the same admission shape, plus bounded bulk
   parallelism.** Its downloader waits up to 2 s for a seeder's advertised slot and
   then for an app-wide bound of four concurrent peer reads (per-seeder capacity is
@@ -106,10 +103,10 @@ requester discovers by being refused:
 - New obligations: strict validators, schemas and shared fixtures in
   `hsync-common`; admission/busy semantics plus the cycle acceptance scenario in
   `hsync-client`; contract parity tests in `hsync-android`.
-- **Worker-to-seeder affinity was evaluated and rejected on measurement.** The
-  follow-up idea — group a cycle's downloads per candidate seeder so each seeder
-  is served by as many workers as its slots instead of by the whole pool — does
-  not pay: driven through one long-lived pool behind a latency relay
+- **Worker-to-seeder affinity is rejected on measurement.** The follow-up idea —
+  group a cycle's downloads per candidate seeder so each seeder is served by as
+  many workers as its slots instead of by the whole pool — does not pay: driven
+  through one long-lived pool behind a latency relay
   (`bench_p2p_peer_transfer.py --latency`, 24 × 4 KiB per cycle, cap 2), a cycle
   pays handshakes only at first contact (`[2,0,…]` with 2 workers, `[8,0,…]` with
   8) and **zero** afterwards, because the HTTP session cache is per-thread and

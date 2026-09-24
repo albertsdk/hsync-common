@@ -5,15 +5,15 @@
 
 ## Context
 
-ADR-0022 established the causal vector-clock model and, for true concurrent
-divergence (clocks that neither dominates), a **content-only tie-break**: the
+The causal vector-clock model (ADR-0022) needs a tie-break for true concurrent
+divergence (clocks that neither dominates). A content-only tie-break — the
 highest SHA-256 wins the original path and the loser is preserved as a
-``_conflicted_copy_``. That tie-break is perfectly deterministic and
-convergent, but it is not *chronological*: when two users genuinely edit the
-same file at the same time on different devices, the winner is decided by an
-arbitrary hash, not by which edit is actually the most recent. A user whose
-content loses simply because its digest sorts lower finds the outcome
-opaque and surprising — the opposite of a user-friendly last-write-wins.
+``_conflicted_copy_`` — is deterministic and convergent, but not
+*chronological*: when two users genuinely edit the same file at the same time
+on different devices, an arbitrary hash decides the winner, not which edit is
+actually the most recent. A user whose content loses simply because its digest
+sorts lower finds the outcome opaque and surprising — the opposite of a
+user-friendly last-write-wins.
 
 The wall clock cannot be used directly: device clocks skew, and a far-future
 (or maliciously set) local clock would win every tie-break (conflict
@@ -81,16 +81,16 @@ The losing content keeps the existing preservation contract (ADR-0021):
 ``<stem>_conflicted_copy_<ISO8601-UTC>_<cid>.<ext>`` and the
 ``conflict_resolved`` UI event.
 
-### 4. Amendment of ADR-0022
+### 4. Relationship to ADR-0022
 
-ADR-0022 §3 ("Deterministic tie-break on true divergence") is amended: the
-hash is now the *fallback* tie-break; the corrected mtime is the primary one
-on true divergence. §3.4.5 of ADR-0022 (Sha fallback) otherwise unchanged.
+ADR-0022 §3 defines the tie-break on true divergence; the corrected mtime is
+the primary criterion and the SHA-256 hash is the fallback. §3.4.5 of ADR-0022
+(the SHA fallback) is otherwise unchanged.
 
 ## Consequences
 
-- The tie-break is now chronological and user-explainable ("the most recent
-  edit keeps the name"), while remaining deterministic and convergent.
+- The tie-break is chronological and user-explainable ("the most recent edit
+  keeps the name"), while remaining deterministic and convergent.
 - The raw wall clock still never decides: only offset-corrected values,
   produced from a shared time reference, enter the comparison.
 - Offline peers degrade to the hash fallback (offset 0 ⇒ both sides
@@ -105,7 +105,7 @@ on true divergence. §3.4.5 of ADR-0022 (Sha fallback) otherwise unchanged.
 
 - [ADR-0021](0021-server-conflicted-copy.md) — conflicted-copy preservation
 - [ADR-0022](0022-causal-vector-clock-conflict-model.md) — causal model
-  (amended at §3)
+  (tie-break defined here)
 - `hsync_common/clock.py` — HTTP/NTP offset measurement, offset store,
   clamping
 - `hsync_common/models/version.py` — `corrected_mtime` field and tie-break

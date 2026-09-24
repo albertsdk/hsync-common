@@ -5,7 +5,7 @@
 
 ## Context
 
-In HSYNC,the server (or the elected p2p master) serves the file listing that
+In HSYNC, the server (or the elected p2p master) serves the file listing that
 every connected peer reconciles its local state against on each sync cycle.
 Files present locally but absent from the master listing are deleted to converge
 toward the shared state.

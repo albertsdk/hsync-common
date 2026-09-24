@@ -55,7 +55,7 @@ Alternatives rejected:
 - **No compression**: wasteful on bandwidth, especially for text/log/config
   files that compress 5-10x.
 - **Single threshold for all contexts**: the optimal trade-off differs between
-  upload (client CPU is precious), download (server CPU is cheap), and LAN
+  upload (client CPU is precious), download (server CPU is cheap), and p2p
   (network is fast).
 
 ## Consequences

@@ -2,11 +2,6 @@
 
 - **Status:** Accepted
 - **Date:** 2026-09-23
-- **Amended:** 2026-09-24 — the identity key type is **ECDSA P-256** (was
-  Ed25519). BoringSSL (used by Android's `quiche` client) disables Ed25519 in
-  its default client signature algorithms, so an Ed25519 bootnode cannot
-  complete a TLS 1.3 handshake with it; ECDSA P-256 is universally advertised.
-  RSA/Ed25519 identities remain loadable, but new identities are ECDSA P-256.
 
 ## Context
 
@@ -26,11 +21,16 @@ The trust gap is security-relevant, not cosmetic: the `bucket_token`
 from the p2p key before the client ever verifies who it is talking to. Trust must
 therefore be established **before any frame is written**.
 
-Two design constraints shape the solution:
+Three design constraints shape the solution:
 
 - **No-log invariant.** The bootnode is a zero-log daemon whose TLS identity is
   in-memory and regenerated per process (`hsync-bootnode/AGENTS.md`,
   `llm-wiki/README.md`). A long-lived on-disk key would change that posture.
+- **Identity key type.** The identity is **ECDSA P-256**: BoringSSL (used by
+  Android's `quiche` client) disables Ed25519 in its default client signature
+  algorithms, so an Ed25519 bootnode cannot complete a TLS 1.3 handshake with it,
+  while ECDSA P-256 is universally advertised. RSA/Ed25519 identities remain
+  loadable, but new identities are ECDSA P-256.
 - **Zero backward compatibility.** No shims or legacy modes; a changed contract is
   changed everywhere atomically. There are no production deployments yet.
 
@@ -59,9 +59,9 @@ fingerprint domain shared with the existing `cert_fp` carried in frames.
    (no-log invariant intact); `--identity PATH` persists an ECDSA P-256 key+cert
    (`0600` file / `0700` dir), and `identity rotate` regenerates it. The packaged
    service units pass `--identity`.
-5. **`--ca-cert`/`HSYNC_CA_CERT` no longer affect the bootnode path** and are
+5. **`--ca-cert`/`HSYNC_CA_CERT` do not affect the bootnode path** and are
    refused in `hsync p2p` (they keep their server-mode meaning). An external-CA /
-   WebPKI tier is explicitly out of scope this phase.
+   WebPKI tier is out of scope.
 6. **Rotation uses a single stored pin**: the TOFU store keeps only `current`; the
    transition is a documented window in which the client runs with two
    `--bootnode-fingerprint` values, and the store records whichever matched.
@@ -76,8 +76,8 @@ ports share one fingerprint contract instead of each re-implementing it.
 - A bootnode is authenticated before any `register`/`query` frame is sent, closing
   the `bucket_token` exposure. A fingerprint mismatch is fatal and is not retried
   by the client lease loop.
-- The default client behaviour is unchanged in effect (an unpinned self-signed
-  bootnode is refused); operators now have an explicit, documented way to pin.
+- The default client behaviour refuses an unpinned self-signed bootnode;
+  operators have an explicit, documented way to pin.
 - The no-log invariant is preserved: the daemon writes nothing to disk unless the
   operator opts into `--identity`. `hsync-bootnode` documentation and the man page
   gain the new `identity`/`--public-host` surface.

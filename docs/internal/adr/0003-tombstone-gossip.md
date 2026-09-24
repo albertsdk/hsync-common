@@ -61,7 +61,7 @@ than *missing*. Key properties:
   keys must be valid cids, clocks capped at `VCLOCK_MAX_ENTRIES` entries,
   timestamps within the anti-poisoning skew bound.
 - **Persistence** in the installation ``syncstate.db`` (ADR-0025), with a
-  wire shape (`to_payload()`) reused by the REST endpoints, the LAN gossip
+  wire shape (`to_payload()`) reused by the REST endpoints, the p2p gossip
   channel and the Android mirror (`Tombstones.kt`).
 
 Tombstones are advertised as the `tombstones` capability
@@ -69,8 +69,8 @@ Tombstones are advertised as the `tombstones` capability
 
 ## Consequences
 
-- A file deleted anywhere stays deleted everywhere; offline peers no longer
-  resurrect it on the next full sync — and the decision is now causal, so a
+- A file deleted anywhere stays deleted everywhere; offline peers never
+  resurrect it on the next full sync — the decision is causal, so a
   clock-skewed peer cannot flip it.
 - The wall clock is **informational only** for deletions, exactly as it is for
   content edits: one trust model, no exceptions.

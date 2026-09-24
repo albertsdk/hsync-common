@@ -20,7 +20,7 @@ We will define one coherent capability-negotiation policy across every channel:
    per-channel versions, and the p2p master⇄slave handshake frames
    (`build_p2p_auth_required`, `build_p2p_auth`, `build_p2p_auth_ok`,
    `build_p2p_auth_failed`, `build_p2p_hello` with dedicated TypedDicts). A
-   p2p WSS handshake JSON Schema (`lan/wss-schema.json`) and golden fixtures
+   p2p WSS handshake JSON Schema (`p2p/wss-schema.json`) and golden fixtures
    pin these frames cross-language.
 2. **Every frame of the p2p master⇄slave WSS handshake carries
    `protocol_version` and `capabilities`.** A mismatch is a hard failure

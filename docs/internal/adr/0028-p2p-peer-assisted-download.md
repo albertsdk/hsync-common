@@ -1,12 +1,11 @@
 # ADR 0028 — p2p peer-assisted download
 
-- **Status:** Accepted; peer-download eligibility and admission superseded in part by [ADR-0030](0030-p2p-seeder-capacity-advertisement.md)
+- **Status:** Accepted
 - **Date:** 2026-09-09
 
 ## Context
 
-LAN synchronization currently moves every full-file download through the
-elected master. The master must remain the tracker, causal arbiter, event hub,
+p2p synchronization moves every full-file download through the elected master. The master must remain the tracker, causal arbiter, event hub,
 and guaranteed source, but making it relay bytes already held by another slave
 unnecessarily concentrates network and disk load. A peer-assisted path must not
 give seeders write authority, weaken checksum verification, change election or
@@ -30,9 +29,8 @@ boundaries:
    disabled explicitly (`--no-peer-download`). A requester tries at most
    `HSYNC_P2P_PEER_SOURCES_MAX` unique peer CIDs per file (default 3, valid range
    1–8). Missing support and every peer failure remain a transparent master
-   fallback. *(The size threshold this clause originally defined was removed by
-   [ADR-0030](0030-p2p-seeder-capacity-advertisement.md): eligibility is now
-   decided by live seeder capacity, not by file size.)*
+   fallback. Eligibility is decided by live seeder capacity, not by file size
+   ([ADR-0030](0030-p2p-seeder-capacity-advertisement.md)).
 3. Continuous, non-dry-run slaves may bind a read-only HTTPS seeder and publish
    an inventory to the master. One-shot clients may request peer sources but do
    not seed or publish. Inventory and serving contain regular files only. Seeder
@@ -100,7 +98,7 @@ download decision.
 
 ## Consequences
 
-- Large LAN downloads can use another exact-hash holder while preserving the
+- Large p2p downloads can use another exact-hash holder while preserving the
   master's authority and fallback availability.
 - Mixed `p2p/1` fleets remain interoperable through additive capability gates.
 - The master gains a role-local SQLite holder index and sequencing/quota
