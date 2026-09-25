@@ -10,5 +10,10 @@
   "endpoints": [
     {"proto": "tcp", "host": "198.51.100.7", "port": 443}
   ],
-  "connected": 3
+  "connected": 3,
+  "server_ready": true,
+  "force_master": false,
+  "never_master": false,
+  "startup_time": 1760000000.0,
+  "sync_direction": "bidirectional"
 }

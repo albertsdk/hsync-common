@@ -112,6 +112,123 @@ def test_unknown_field_is_rejected():
     assert validate_boot_frame(query) is None
 
 
+def _minimal_register() -> dict:
+    return {
+        "protocol_version": "boot/1",
+        "type": "register",
+        "cid": "A1b2C3d4E5f6G7h8I9j0K",
+        "bucket": "shared",
+        "cert_fp": "AA:BB",
+        "version": "1.0.0",
+    }
+
+
+def test_register_election_advert_defaults_and_bounds():
+    """The election advertisement is optional (documented defaults) and strict.
+
+    Mirrors the bootnode models: booleans default to false, ``startup_time`` to
+    ``0.0`` ("unknown") and ``sync_direction`` to ``bidirectional``. A malformed
+    value (wrong type, null, negative/non-finite/out-of-range timestamp, unknown
+    direction) makes the whole frame invalid instead of being silently coerced,
+    and the canonical vocabulary is the pairing/p2p SSOT pair.
+    """
+    validated = validate_boot_frame(_minimal_register())
+    assert validated is not None
+    assert validated["server_ready"] is False
+    assert validated["force_master"] is False
+    assert validated["never_master"] is False
+    assert validated["startup_time"] == 0.0
+    assert validated["sync_direction"] == "bidirectional"
+
+    advertised = validate_boot_frame(
+        {
+            **_minimal_register(),
+            "server_ready": True,
+            "force_master": True,
+            "startup_time": 1760000000.5,
+            "sync_direction": "download-only",
+        }
+    )
+    assert advertised is not None
+    assert advertised["server_ready"] is True
+    assert advertised["force_master"] is True
+    assert advertised["never_master"] is False
+    assert advertised["startup_time"] == 1760000000.5
+    assert advertised["sync_direction"] == "download-only"
+
+    for field, bad in (
+        ("server_ready", 1),
+        ("server_ready", None),
+        ("force_master", "true"),
+        ("never_master", None),
+        ("startup_time", -1),
+        ("startup_time", "1760000000"),
+        ("startup_time", True),
+        ("startup_time", float("inf")),
+        ("startup_time", 2**53 + 1),
+        ("sync_direction", "sideways"),
+        ("sync_direction", 3),
+    ):
+        assert validate_boot_frame({**_minimal_register(), field: bad}) is None, field
+
+
+def _response_with_peer(peer: dict) -> dict:
+    return {
+        "protocol_version": "boot/1",
+        "type": "response",
+        "peers": [peer],
+        "count": 1,
+        "ttl": 60,
+    }
+
+
+def test_response_peer_requires_the_election_advert():
+    """A relayed peer always carries the advertisement; a missing key is invalid.
+
+    The bootnode echoes every advertisement key on every peer, so the mirror
+    rejects a peer that omits one instead of defaulting it client-side: a
+    silently-defaulted ``server_ready``/``never_master`` is exactly what made a
+    seeder look like an electable serving master.
+    """
+    peer = {
+        "cid": "A1b2C3d4E5f6G7h8I9j0K",
+        "ip": "198.51.100.7",
+        "port": 443,
+        "proto": "tcp",
+        "cert_fp": "AA:BB",
+        "bucket": "shared",
+        "version": "1.0.0",
+        "capacity": 0,
+        "reachable": True,
+        "server_ready": False,
+        "force_master": False,
+        "never_master": True,
+        "startup_time": 1760000000.0,
+        "sync_direction": "bidirectional",
+    }
+    validated = validate_boot_response(_response_with_peer(peer))
+    assert validated is not None
+    relayed = validated["peers"][0]
+    assert relayed["never_master"] is True
+    assert relayed["server_ready"] is False
+    assert relayed["startup_time"] == 1760000000.0
+
+    for key in (
+        "server_ready",
+        "force_master",
+        "never_master",
+        "startup_time",
+        "sync_direction",
+    ):
+        partial = {name: value for name, value in peer.items() if name != key}
+        assert validate_boot_response(_response_with_peer(partial)) is None, key
+
+    assert (
+        validate_boot_response(_response_with_peer({**peer, "sync_direction": "sideways"})) is None
+    )
+    assert validate_boot_response(_response_with_peer({**peer, "startup_time": None})) is None
+
+
 def test_bucket_token_derivation_and_verify():
     """The bucket token is a 64-char hex HMAC; verification is uniform."""
     token = derive_bucket_token(b"secret", "shared")

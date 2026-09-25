@@ -23,6 +23,15 @@ describe the wire shape and strict ``validate_*`` helpers reject unknown or
 malformed fields without partially accepting them (the same strictness the
 bootnode's ``extra="forbid"`` models provide).
 
+Besides the advisory ``capacity`` hint, ``register`` and ``peers[]`` carry the
+**election advertisement** (``server_ready``/``force_master``/``never_master``/
+``startup_time``/``sync_direction``) — the same values the mDNS TXT record
+carries, relayed verbatim by the bootnode so both discovery plans feed the one
+shared election algorithm in :mod:`hsync_common.protocol.p2p`. The bootnode never
+interprets them and they are not authenticated (the data plane authenticates
+identity by certificate pinning); the vocabulary is the canonical sync-direction
+set from :mod:`hsync_common.protocol.pairing`.
+
 Consumers: ``hsync-client`` (bootnode register/refresh/query), shared
 fixtures/tests.
 """
@@ -31,12 +40,18 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import math
 import re
 from collections.abc import Mapping
 from typing import Literal, NotRequired, TypedDict
 
 from hsync_common.models.event import CID_PATTERN, is_valid_cid
 from hsync_common.path_validation import is_valid_bucket_name
+from hsync_common.protocol.p2p import SYNC_DIRECTION_BIDIRECTIONAL
+from hsync_common.protocol.pairing import (
+    SYNC_DIRECTION_DOWNLOAD_ONLY,
+    SYNC_DIRECTION_UPLOAD_ONLY,
+)
 
 __all__ = [
     "BOOT_ALPN",
@@ -82,6 +97,24 @@ BucketProto = Literal["tcp", "udp"]
 # relays the value in ``query`` responses but never treats it as authoritative
 # (ADR-0030) — the authoritative value stays on the authenticated WSS handshake.
 CAPACITY_MAX = 32
+
+# Canonical sync-direction vocabulary (SSOT: :mod:`hsync_common.protocol.p2p`
+# and :mod:`hsync_common.protocol.pairing`). The election advertisement on
+# ``boot/1`` reuses the same values as the mDNS TXT record, so both discovery
+# plans feed the shared election algorithm one identical vocabulary.
+_SYNC_DIRECTIONS = frozenset(
+    {
+        SYNC_DIRECTION_BIDIRECTIONAL,
+        SYNC_DIRECTION_UPLOAD_ONLY,
+        SYNC_DIRECTION_DOWNLOAD_ONLY,
+    }
+)
+
+# Bound on the advertised unix ``startup_time``: keeps the value inside the
+# exactly-representable integer range of a JSON number. A peer that does not
+# advertise one defaults to ``0.0`` ("unknown"), which the election only reads
+# as a last-resort ordering key before the CID tiebreaker.
+_MAX_STARTUP_TIME = float(2**53)
 
 _TOKEN_DOMAIN = b"boot/1"
 
@@ -152,6 +185,15 @@ class BootRegister(TypedDict):
     concurrent peer-download reads the peer declares it can serve right now
     (``0`` = not a seeder). The bootnode relays it in ``query`` responses; the
     authoritative value is the authenticated ``serve_slots`` (ADR-0030).
+
+    ``server_ready``/``force_master``/``never_master``/``startup_time``/
+    ``sync_direction`` are the **election advertisement**, the same values the
+    mDNS TXT record carries. The bootnode relays them verbatim in ``query``
+    responses so a bootnode-discovered peer ranks exactly like an mDNS one; it
+    never interprets them and never treats them as authoritative (a peer can
+    claim any value, and the data plane authenticates identity by certificate
+    pinning). A changed advertisement requires a new ``register`` — ``refresh``
+    never mutates them.
     """
 
     protocol_version: Literal["boot/1"]
@@ -165,6 +207,11 @@ class BootRegister(TypedDict):
     group: NotRequired[str]
     bucket_token: NotRequired[str]
     connected: NotRequired[int]
+    server_ready: NotRequired[bool]
+    force_master: NotRequired[bool]
+    never_master: NotRequired[bool]
+    startup_time: NotRequired[float]
+    sync_direction: NotRequired[str]
 
 
 class BootRefresh(TypedDict):
@@ -217,6 +264,13 @@ class BootPeer(TypedDict):
     ``capacity`` is the peer's advisory service-capacity hint as relayed from
     its ``register`` (``0`` = not a seeder); ``reachable`` is derived from
     ``bool(endpoints)``. Neither is authoritative (ADR-0030).
+
+    The election-advertisement fields are relayed verbatim from the peer's
+    ``register`` (defaults when it advertised none): ``server_ready`` (it is
+    currently serving as master), ``force_master``/``never_master`` (operator
+    pins), ``startup_time`` (unix seconds, ``0.0`` = unknown) and
+    ``sync_direction``. They feed the shared election algorithm exactly like
+    the mDNS TXT values; none of them is authenticated.
     """
 
     cid: str
@@ -228,6 +282,11 @@ class BootPeer(TypedDict):
     version: str
     capacity: int
     reachable: bool
+    server_ready: bool
+    force_master: bool
+    never_master: bool
+    startup_time: float
+    sync_direction: str
     group: NotRequired[str]
 
 
@@ -249,7 +308,20 @@ class BootResponse(TypedDict):
 BootFrame = BootRegister | BootRefresh | BootLeave | BootQuery
 
 _REGISTER_REQUIRED = frozenset({"protocol_version", "type", "cid", "bucket", "cert_fp", "version"})
-_REGISTER_OPTIONAL = frozenset({"group", "bucket_token", "connected", "capacity", "endpoints"})
+_REGISTER_OPTIONAL = frozenset(
+    {
+        "group",
+        "bucket_token",
+        "connected",
+        "capacity",
+        "endpoints",
+        "server_ready",
+        "force_master",
+        "never_master",
+        "startup_time",
+        "sync_direction",
+    }
+)
 _REFRESH_REQUIRED = frozenset({"protocol_version", "type", "cid", "bucket"})
 _REFRESH_OPTIONAL = frozenset({"group", "bucket_token", "connected"})
 _LEAVE_REQUIRED = frozenset({"protocol_version", "type", "cid", "bucket"})
@@ -261,7 +333,22 @@ _ACK_OPTIONAL = frozenset({"retry_after"})
 _RESPONSE_REQUIRED = frozenset({"protocol_version", "type", "peers", "count", "ttl"})
 _RESPONSE_OPTIONAL = frozenset({"error", "retry_after"})
 _PEER_REQUIRED = frozenset(
-    {"cid", "ip", "port", "proto", "cert_fp", "bucket", "version", "capacity", "reachable"}
+    {
+        "cid",
+        "ip",
+        "port",
+        "proto",
+        "cert_fp",
+        "bucket",
+        "version",
+        "capacity",
+        "reachable",
+        "server_ready",
+        "force_master",
+        "never_master",
+        "startup_time",
+        "sync_direction",
+    }
 )
 _PEER_OPTIONAL = frozenset({"group"})
 _ENDPOINT_KEYS = frozenset({"proto", "host", "port"})
@@ -324,6 +411,73 @@ def _optional_connected(value: Mapping, clean: dict) -> bool:
     return True
 
 
+def _is_startup_time(value: object) -> bool:
+    """True for a finite, non-negative unix timestamp (bools are rejected)."""
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+        and 0 <= value <= _MAX_STARTUP_TIME
+    )
+
+
+def _is_sync_direction(value: object) -> bool:
+    """True for a canonical sync-direction token (SSOT: ``protocol.pairing``)."""
+    return isinstance(value, str) and value in _SYNC_DIRECTIONS
+
+
+def _optional_flag(value: Mapping, clean: dict, key: str) -> bool:
+    """Copy an optional boolean flag; return False when it is malformed.
+
+    Explicit ``null`` is rejected, like the bootnode's pydantic models (a
+    ``bool`` field has no ``None`` variant): a client either advertises the flag
+    or omits the key, in which case the documented default applies.
+    """
+    if key not in value:
+        return True
+    item = value[key]
+    if not isinstance(item, bool):
+        return False
+    clean[key] = item
+    return True
+
+
+def _read_election_advert(value: Mapping, clean: dict, *, optional: bool) -> bool:
+    """Validate and copy the election advertisement (register / query peer).
+
+    The five keys are the same values the mDNS TXT record carries; ``optional``
+    controls the register side (absent key → documented default) versus the
+    ``peers[]`` side (every key is required, the bootnode always relays them).
+    Returns False on any malformed value so the caller rejects the whole frame.
+    """
+    for key in ("server_ready", "force_master", "never_master"):
+        if key not in value:
+            if optional:
+                clean[key] = False
+                continue
+            return False
+        if not _optional_flag(value, clean, key):
+            return False
+    if "startup_time" not in value:
+        if not optional:
+            return False
+        clean["startup_time"] = 0.0
+    else:
+        startup_time = value["startup_time"]
+        if not _is_startup_time(startup_time):
+            return False
+        clean["startup_time"] = float(startup_time)
+    if "sync_direction" not in value:
+        if not optional:
+            return False
+        clean["sync_direction"] = SYNC_DIRECTION_BIDIRECTIONAL
+    elif not _is_sync_direction(value["sync_direction"]):
+        return False
+    else:
+        clean["sync_direction"] = value["sync_direction"]
+    return True
+
+
 def _validate_endpoint(value: object) -> Endpoint | None:
     if not _is_object(value, _ENDPOINT_KEYS, frozenset()):
         return None
@@ -377,6 +531,8 @@ def _validate_peer(value: object) -> BootPeer | None:
         capacity=value["capacity"],
         reachable=value["reachable"],
     )
+    if not _read_election_advert(value, clean, optional=False):
+        return None
     if not _optional_str(value, clean, "group", _MAX_GROUP_LEN):
         return None
     return clean
@@ -390,8 +546,11 @@ def validate_boot_register(value: object) -> BootRegister | None:
         return None
     # ``capacity`` (default 0) and ``endpoints`` (default []) are optional on the
     # wire: the first STUN register has no known public endpoint yet, and a
-    # non-seeder declares no capacity. Explicit ``null`` is still rejected, like
-    # the bootnode's pydantic models.
+    # non-seeder declares no capacity. The election advertisement is optional as
+    # well (defaults: not serving, no pin, unknown startup, bidirectional) and,
+    # like capacity/endpoints, a changed value requires a new ``register``:
+    # ``refresh`` never mutates it. Explicit ``null`` is still rejected, like the
+    # bootnode's pydantic models.
     capacity = value.get("capacity", 0)
     endpoints = value.get("endpoints", [])
     if (
@@ -424,6 +583,7 @@ def validate_boot_register(value: object) -> BootRegister | None:
         _optional_str(value, clean, "group", _MAX_GROUP_LEN)
         and _optional_token(value, clean)
         and _optional_connected(value, clean)
+        and _read_election_advert(value, clean, optional=True)
     ):
         return None
     return clean

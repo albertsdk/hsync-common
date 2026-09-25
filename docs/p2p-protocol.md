@@ -61,6 +61,20 @@ advertise both `https` (`"true"`) and `cert_fp` (the lowercase SHA-256
 fingerprint clients pin). A peer that advertises a serving role without them is
 invalid and must not be contacted. Non-serving slaves need not advertise either.
 
+## Cross-network channel (`boot/1`)
+
+The same election inputs reach the election through the `boot/1` bootstrap
+channel (SSOT: `hsync-bootnode/protocol-spec/boot-1.md`): `register` carries
+`server_ready`, `force_master`, `never_master`, `startup_time` and
+`sync_direction` (optional; defaults `false`/`false`/`false`/`0.0`/
+`bidirectional`) and every `query` peer echoes them, so a bootnode-discovered
+peer ranks exactly like an mDNS-discovered one. A changed value requires a new
+`register`. They are **unauthenticated claims**, like the advisory `capacity`
+hint: the bootnode never interprets them, and the data plane authenticates
+identity by certificate pinning. The client mirror and the canonical fixtures
+live in `hsync_common.protocol.bootnode` / `hsync-bootnode/fixtures/` (the drift
+test keeps the two copies byte-identical).
+
 ## Presence counters
 
 `connected` (a stringified non-negative integer, advertised only by a serving

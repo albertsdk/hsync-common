@@ -12,7 +12,12 @@
       "group": "home",
       "version": "1.0.0",
       "capacity": 20,
-      "reachable": true
+      "reachable": true,
+      "server_ready": true,
+      "force_master": false,
+      "never_master": false,
+      "startup_time": 1760000000.0,
+      "sync_direction": "bidirectional"
     }
   ],
   "count": 1,
