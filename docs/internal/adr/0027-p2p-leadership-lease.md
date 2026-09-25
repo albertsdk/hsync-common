@@ -28,7 +28,11 @@ elected master **and** is actually serving. The lease is renewed implicitly by
 continuing to serve (the mDNS heartbeat keeps the incumbency fresh); a node
 that stops being the elected master **yields immediately**:
 
-1. it stops its HTTP and WebSocket servers,
+1. it closes the control plane's publish gate (bumping a publish epoch) and then
+   stops serving on its single HTTPS/WSS listener (live WebSocket clients are
+   closed and new requests are refused), so no event can be pushed during the
+   yield window and a handshake still in flight is not admitted — both observe
+   the publish epoch,
 2. it revokes its incumbency — clears the local `server_ready` flag *and*
    re-registers its mDNS record without `server_ready` (and without the
    `connected` presence count),

@@ -36,17 +36,41 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 
+from hsync_common.protocol.rest import REST_BUCKET_EVENTS_PATH_TEMPLATE
+
 __all__ = [
+    "P2P_FILES_SOURCES_SUFFIX",
+    "P2P_WS_EVENTS_PATH",
     "SYNC_DIRECTION_BIDIRECTIONAL",
     "ElectionCandidate",
     "elect_master",
     "election_sort_key",
+    "p2p_ws_events_path",
     "rank_election_candidates",
 ]
 
 # Canonical default/preferred sync direction; a bidirectional peer can serve
 # every other peer and is therefore favoured during election.
 SYNC_DIRECTION_BIDIRECTIONAL = "bidirectional"
+
+# Peer-download endpoint served by the master that is NOT part of the hsync
+# server REST surface (source resolution is p2p-only).
+P2P_FILES_SOURCES_SUFFIX = "/files/sources"
+
+# Canonical realtime control-plane path served by the master on its single
+# HTTPS/WSS listener. The master registers the ``{bucket}``/``{cid}`` route
+# template and the slave builds the concrete path from the same definition, so
+# the two sides (and the hsync-android mirror) cannot drift.
+P2P_WS_EVENTS_PATH = REST_BUCKET_EVENTS_PATH_TEMPLATE
+
+
+def p2p_ws_events_path(bucket: str, cid: str) -> str:
+    """Return the canonical realtime control-plane path for *bucket* / *cid*.
+
+    Consumers: ``hsync-client`` (slave WSS client) and the ``hsync-android``
+    mirror; the master registers :data:`P2P_WS_EVENTS_PATH` unchanged.
+    """
+    return P2P_WS_EVENTS_PATH.format(bucket=bucket, cid=cid)
 
 
 @dataclass(frozen=True)

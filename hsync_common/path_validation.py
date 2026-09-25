@@ -257,7 +257,7 @@ def is_safe_path_component(path: str) -> bool:
         return False
 
     # Check for absolute paths
-    if path.startswith("/") or path.startswith("\\"):
+    if path.startswith(("/", "\\")):
         return False
 
     # Check for Windows drive letters (C:, D:, etc.)

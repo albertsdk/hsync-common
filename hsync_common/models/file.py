@@ -165,7 +165,7 @@ def is_partial_file(file_path: str) -> bool:
         True if the basename ends with a partial-transfer suffix.
     """
     name = basename(file_path)
-    return name.endswith(PARTIAL_DOWNLOAD_SUFFIX) or name.endswith(_PARTIAL_DELTA_LIT_SUFFIX)
+    return name.endswith((PARTIAL_DOWNLOAD_SUFFIX, _PARTIAL_DELTA_LIT_SUFFIX))
 
 
 def is_hidden_file(file_path: str) -> bool:

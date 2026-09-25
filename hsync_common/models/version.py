@@ -43,12 +43,12 @@ from ._util import _parse_wire_timestamp, relpath_in_bucket
 from .event import is_valid_cid
 
 __all__ = [
-    "FileVersion",
     "VCLOCK_MAX_ENTRIES",
-    "VClockOrder",
-    "VersionInfo",
+    "FileVersion",
     "SyncDecision",
     "SyncStateStore",
+    "VClockOrder",
+    "VersionInfo",
     "compare_vclocks",
     "merge_vclocks",
     "new_version_id",
@@ -356,4 +356,4 @@ def resolve_three_way(
 # (``from hsync_common.models.version import SyncStateStore``). Imported last:
 # ``version_store`` imports the pure helpers above, so this module must be fully
 # defined before the line below runs.
-from .version_store import SyncStateStore  # noqa: E402,F401
+from .version_store import SyncStateStore

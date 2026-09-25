@@ -62,7 +62,7 @@ from .peer_download import (
     build_p2p_sources_response,
 )
 
-__all__ = ["FIXTURE_TOKEN", "FIXTURE_APP_VERSION", "build_fixtures"]
+__all__ = ["FIXTURE_APP_VERSION", "FIXTURE_TOKEN", "build_fixtures"]
 
 # Deterministic placeholders used across every fixture so the committed bytes
 # stay stable. The token is an obvious non-secret sample, never a real value.

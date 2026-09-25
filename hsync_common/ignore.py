@@ -152,9 +152,7 @@ class IgnoreMatcher:
         root = self.bucket_root
         # Str-level absolute-path test: cheaper than constructing a Path
         # object per scanned entry (called once per file during every scan).
-        if (
-            path.startswith("/") or path.startswith("\\") or (len(path) > 2 and path[1] == ":")
-        ) and root:
+        if (path.startswith(("/", "\\")) or (len(path) > 2 and path[1] == ":")) and root:
             # Fast path: absolute path directly under the bucket root -
             # avoids the ~1.3us os.path.relpath() call on the hot path.
             # The ``root + "/"`` prefix is cached at construction time.

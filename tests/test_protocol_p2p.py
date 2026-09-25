@@ -14,10 +14,12 @@ the cross-language parity test consumes a known-correct contract.
 
 from hsync_common.protocol.fixtures import build_fixtures
 from hsync_common.protocol.p2p import (
+    P2P_WS_EVENTS_PATH,
     SYNC_DIRECTION_BIDIRECTIONAL,
     ElectionCandidate,
     elect_master,
     election_sort_key,
+    p2p_ws_events_path,
     rank_election_candidates,
 )
 
@@ -152,3 +154,16 @@ class TestElectionScenarioFixture:
         for scenario in scenarios:
             candidates = [ElectionCandidate(**c) for c in scenario["candidates"]]
             assert scenario["expected_master"] == elect_master(candidates), scenario["name"]
+
+
+class TestWsEventsPath:
+    """The canonical realtime path is defined once and formats concretely."""
+
+    def test_route_template_is_canonical(self):
+        assert P2P_WS_EVENTS_PATH == "/api/v1/buckets/{bucket}/events/{cid}"
+
+    def test_formats_the_concrete_path(self):
+        assert (
+            p2p_ws_events_path("bucket-1", "TestClientX1234567890")
+            == "/api/v1/buckets/bucket-1/events/TestClientX1234567890"
+        )

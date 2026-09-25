@@ -28,6 +28,8 @@ from hsync_common.constants import DELTA_MAX_OPS, DELTA_MAX_SIGNATURES
 from hsync_common.hashing import is_sha256_hex
 
 __all__ = [
+    "OP_TYPE_COPY",
+    "OP_TYPE_DATA",
     "BlockSignature",
     "BlockSignatureDict",
     "DeltaApplyMetadata",
@@ -36,8 +38,6 @@ __all__ = [
     "DeltaInstructionsDict",
     "DeltaOp",
     "DeltaOpDict",
-    "OP_TYPE_COPY",
-    "OP_TYPE_DATA",
     "sanitize_block_signature",
     "sanitize_delta_op",
 ]

@@ -71,8 +71,7 @@ def format_duration(
     if seconds is None:
         return ""
 
-    if seconds < 0:
-        seconds = 0
+    seconds = max(seconds, 0.0)
 
     if subsecond and style == "compact" and seconds < 60:
         if seconds < 1:

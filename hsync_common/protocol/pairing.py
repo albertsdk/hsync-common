@@ -45,8 +45,8 @@ __all__ = [
     "evaluate_pin",
     "fingerprint_matches",
     "is_write_direction",
-    "p2p_write_requires_key",
     "normalize_fingerprint",
+    "p2p_write_requires_key",
     "parse_fingerprint",
     "requires_pairing_confirmation",
 ]

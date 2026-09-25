@@ -81,6 +81,12 @@ render one shared "connected/total" value across both transports.
 
 ## Master ⇄ slave WebSocket handshake
 
+The master serves the REST data plane and this WebSocket control plane on the
+**same single TLS port** (single HTTPS/WSS listener); the realtime endpoint is
+`wss://<master>:<port>/api/v1/buckets/{bucket}/events/{cid}`, defined once as
+`hsync_common.protocol.p2p.P2P_WS_EVENTS_PATH` (with
+`p2p_ws_events_path(bucket, cid)` for the concrete slave path).
+
 The connecting slave and the master exchange the **capability registry on the
 WSS connection itself** (ADR-0024), on both the authenticated and the
 unauthenticated path. The frames are built by

@@ -87,16 +87,16 @@ def dump_openapi(schema: dict[str, Any]) -> str:
 # the dump side (`dump_openapi`); committed snapshots can be read generically
 # via ``load_contract``.
 __all__ = [
+    "ANDROID_FIXTURES_DIR",
+    "BOOTNODE_FIXTURES_DIR",
+    "FIXTURES_DIR",
+    "P2P_SOURCES_SCHEMA_PATH",
+    "P2P_TXT_SCHEMA_PATH",
+    "P2P_WSS_SCHEMA_PATH",
     "PROTOCOL_DIR",
     "REST_OPENAPI_PATH",
     "WS_SCHEMA_PATH",
-    "P2P_TXT_SCHEMA_PATH",
-    "P2P_WSS_SCHEMA_PATH",
-    "P2P_SOURCES_SCHEMA_PATH",
-    "FIXTURES_DIR",
-    "ANDROID_FIXTURES_DIR",
-    "BOOTNODE_FIXTURES_DIR",
     "dump_contract",
-    "load_contract",
     "dump_openapi",
+    "load_contract",
 ]

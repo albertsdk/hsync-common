@@ -189,4 +189,4 @@ def tombstone_merge_decision(existing: TombstoneEntry | None, incoming: Tombston
 # (``from hsync_common.models.tombstone import TombstoneStore``). Imported last:
 # ``tombstone_store`` imports the helpers above, so this module must be fully
 # defined before the line below runs.
-from .tombstone_store import TombstoneStore  # noqa: E402,F401
+from .tombstone_store import TombstoneStore

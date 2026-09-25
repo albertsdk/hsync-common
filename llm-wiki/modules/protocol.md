@@ -46,11 +46,21 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
 
 ## capabilities.py — `--capabilities-json` document
 
-- `CAPABILITIES_SCHEMA_VERSION = 3` (`capabilities.py:54`); the desktop rejects
+- `CAPABILITIES_SCHEMA_VERSION = 3` (`capabilities.py:56`); the desktop rejects
   any other version outright.
-- `ProtocolVersions` (`capabilities.py:58`) carries `rest`, `ws`, `p2p`, `boot`.
-- `build_capabilities` (`:78`) assembles the doc; `parse_capabilities` (`:121`)
-  validates it strictly (`_field_types_valid` checks all four channels).
+- `ProtocolVersions` (`capabilities.py:59`) carries `rest`, `ws`, `p2p`, `boot`;
+  `CapabilitiesDoc` (`:68`) is the document TypedDict.
+- `build_capabilities` (`:80`) aggregates the supported subcommands, the
+  per-subcommand CLI option flags, the protocol versions and the events schema
+  version.
+- `parse_capabilities` (`:124`) rejects unknown schema versions, missing keys
+  **and** wrong field types (`_field_types_valid` `:151`; the document crosses a
+  process boundary, so a malformed `subcommands`/`cli_options`/`capabilities`
+  must be refused, not mis-parsed).
+- `supports_cli_option` (`:187`, scoped to one subcommand or on the union of
+  all) and `supports_subcommand` (`:207`) back the desktop gating. Emitted by
+  the client `--capabilities-json` global flag, consumed by desktop to
+  enable/disable controls.
 
 ## events.py — UI/telemetry event stream
 
@@ -68,17 +78,39 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   successful verified peer-served full download; build/serialize/parse:
   `build_event` (`:119`), `serialize_event` (`:141`), `parse_event_line` (`:146`).
 
-## p2p.py — master election SSOT
+## p2p.py — LAN wire SSOT (master election + p2p-only paths)
 
-- `ElectionCandidate` dataclass (`p2p.py:52`).
-- Ordering key `election_sort_key` (`p2p.py:67`); SSOT ranking
-  `rank_election_candidates` (`p2p.py:83`) returns the full ranked list
-  (never_master filtered out); `elect_master` (`p2p.py:97`) is its
-  winner-only projection; `SYNC_DIRECTION_BIDIRECTIONAL` (`p2p.py:48`).
+- Realtime control-plane path: `P2P_WS_EVENTS_PATH` (`p2p.py:64`) template and
+  `p2p_ws_events_path(bucket, cid)` (`p2p.py:67`); the master registers the
+  template, the client builds the concrete path, and the Android mirror
+  (`PeerDownloadContracts.kt`) matches it. The bucket prefix comes from
+  `protocol.rest`.
+- p2p-only endpoint `P2P_FILES_SOURCES_SUFFIX` (`p2p.py:58`): source resolution
+  has no hsync-server counterpart; its concrete path is built with
+  `rest_bucket_path`.
+- `ElectionCandidate` dataclass (`p2p.py:77`).
+- Ordering key `election_sort_key` (`p2p.py:92`); SSOT ranking
+  `rank_election_candidates` (`p2p.py:107`) returns the full ranked list
+  (never_master filtered out); `elect_master` (`p2p.py:121`) is its
+  winner-only projection; `SYNC_DIRECTION_BIDIRECTIONAL` (`p2p.py:54`).
 - The client `hsync_client/p2p.py` consumes `rank_election_candidates` for
   master, successor and the force_master conflict subset; android
   `Election.kt` mirrors the ordering; parity is pinned by the
   `p2p-election-scenarios` fixture.
+
+## rest.py — REST surface SSOT (paths shared with hsync-server)
+
+- `REST_API_PREFIX` (`rest.py:61`), service paths (`REST_HEALTH_PATH` `:64`,
+  `REST_METRICS_PATH`, `REST_TIME_PATH`) and the admin surface.
+- `REST_BUCKETS_PREFIX` (`rest.py:78`) plus the `REST_*_SUFFIX` constants
+  (`:79-94`), with `rest_bucket_base` (`:96`), `rest_bucket_path` (`:101`),
+  `rest_bucket_template` (`:106`) and `rest_delta_data_path` (`:111`).
+- `REST_PATH_TEMPLATES` (`rest.py:119`) is the whole named surface, compared
+  **byte-for-byte** with the committed OpenAPI snapshot (`__init__.py:30`) by
+  `tests/test_protocol_rest.py`; a server route change fails that test until
+  this module is updated, so clients cannot drift.
+- Consumers: `hsync-client` (server API requests, peer-download mirror) and the
+  Android mirror (`PeerDownloadContracts.kt`).
 
 ## pairing.py — TOFU pin + p2p-key policy
 
@@ -108,20 +140,6 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   builders enforce mode-specific entries, non-boolean signed-64-bit counters,
   duplicate-path rejection, terminal empty snapshots, strict ACK reasons, and
   the shared 2 MiB/500-entry bounds (`peer_download.py:374`–`:507`).
-
-## capabilities.py — capabilities document (desktop UI gating)
-
-- `CAPABILITIES_SCHEMA_VERSION = 2` (`capabilities.py:54`); `CapabilitiesDoc`
-  TypedDict (`:65`).
-- `build_capabilities` (`capabilities.py:77`) aggregates the supported
-  subcommands, the per-subcommand CLI option flags, protocol versions and
-  events schema version; `parse_capabilities` (`:120`) rejects unknown schema
-  versions, missing keys **and** wrong field types (the document crosses a
-  process boundary, so a malformed `subcommands`/`cli_options`/`capabilities`
-  must be refused, not mis-parsed); `supports_cli_option` (`:185`, scoped to
-  one subcommand or on the union of all) and `supports_subcommand` (`:205`).
-  Emitted by the client `--capabilities-json` global flag, consumed by desktop
-  to enable/disable controls.
 
 ## schemas.py — JSON-Schema builders (draft 2020-12)
 
