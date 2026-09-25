@@ -4,6 +4,8 @@ from hsync_common.path_validation import (
     FORBIDDEN_FILENAME_CHARS,
     FORBIDDEN_PATH_CHARS,
     INTERNAL_FILENAMES,
+    MAX_PATH_COMPONENT_BYTES,
+    MAX_REMOTE_RELPATH_BYTES,
     has_control_chars,
     has_dotdot_component,
     has_forbidden_chars,
@@ -349,6 +351,70 @@ class TestValidateRemoteRelpath:
         assert validate_remote_relpath(".hsyncfolder") is None
         assert validate_remote_relpath("sub/.hsyncfolder") is None
         assert validate_remote_relpath("file.txt.part") is None
+
+
+class TestValidateRemoteRelpathByteLimits:
+    """Exact byte-length boundaries: 255 bytes per component, 4096 per path.
+
+    Both limits are documented on :func:`validate_remote_relpath`; an
+    off-by-one here either drops legal names or lets ENAMETOOLONG through to
+    the receiving peer. The boundary values are asserted exactly (at-limit
+    accepted, one byte more rejected), including multibyte UTF-8 input.
+    """
+
+    @staticmethod
+    def _relpath_of_exact_bytes(total: int, part: int = 200) -> str:
+        """Build a ``/``-joined relative path of exactly *total* UTF-8 bytes."""
+        assert total >= 1
+        segments: list[str] = []
+        remaining = total
+        while True:
+            take = min(part, remaining)
+            segments.append("a" * take)
+            if take == remaining:
+                break
+            remaining -= take + 1  # the separator byte
+        rel = "/".join(segments)
+        assert len(rel.encode("utf-8")) == total
+        return rel
+
+    def test_component_at_limit_accepted(self):
+        name = "a" * MAX_PATH_COMPONENT_BYTES
+        assert validate_remote_relpath(name) == name
+
+    def test_component_over_limit_rejected(self):
+        assert validate_remote_relpath("a" * (MAX_PATH_COMPONENT_BYTES + 1)) is None
+
+    def test_multibyte_component_boundary(self):
+        # 'é' is two UTF-8 bytes: 127 of them plus one ASCII byte is exactly
+        # 255 bytes (accepted); 128 of them are 256 bytes (rejected).
+        at_limit = "é" * 127 + "a"
+        assert len(at_limit.encode("utf-8")) == MAX_PATH_COMPONENT_BYTES
+        assert validate_remote_relpath(at_limit) == at_limit
+        over_limit = "é" * 128
+        assert len(over_limit.encode("utf-8")) == MAX_PATH_COMPONENT_BYTES + 1
+        assert validate_remote_relpath(over_limit) is None
+
+    def test_total_path_at_limit_accepted(self):
+        rel = self._relpath_of_exact_bytes(MAX_REMOTE_RELPATH_BYTES)
+        assert validate_remote_relpath(rel) == rel
+
+    def test_total_path_over_limit_rejected(self):
+        rel = self._relpath_of_exact_bytes(MAX_REMOTE_RELPATH_BYTES + 1)
+        assert validate_remote_relpath(rel) is None
+
+    def test_long_component_inside_long_path_rejected(self):
+        # Total length is legal, but a single component crosses 255 bytes.
+        rel = "dir/" + "a" * (MAX_PATH_COMPONENT_BYTES + 1)
+        assert len(rel.encode("utf-8")) < MAX_REMOTE_RELPATH_BYTES
+        assert validate_remote_relpath(rel) is None
+
+    def test_many_legal_components_still_accepted(self):
+        # 20 components of 200 bytes (4019 bytes total): long but within both
+        # limits, so it must survive validation.
+        rel = "/".join(["a" * 200] * 20)
+        assert len(rel.encode("utf-8")) == 4019
+        assert validate_remote_relpath(rel) == rel
 
 
 class TestResolveWithin:
