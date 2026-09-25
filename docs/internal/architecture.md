@@ -119,7 +119,7 @@ hsync-common/
         ├── fixtures/             # Committed test scenarios (JSON)
         ├── rest/                # Generated OpenAPI snapshot (REST contract)
         ├── ws/                  # Generated WS JSON-Schema snapshot
-        └── lan/                 # Generated p2p TXT, WSS, and source JSON-Schemas
+        └── p2p/                 # Generated p2p TXT, WSS, and source JSON-Schemas
 ```
 
 ## Models

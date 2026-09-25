@@ -76,8 +76,14 @@ The mirror follows a **contract-first** approach:
 ```
 hsync-common/
 └── hsync_common/protocol/fixtures/
-    ├── p2p-election-scenarios.json   # Master election test vectors
-    └── p2p-pairing-scenarios.json    # Pairing/pinning test vectors
+    ├── p2p-election-scenarios.json    # Master election test vectors
+    ├── p2p-pairing-scenarios.json     # Pairing/pinning test vectors
+    ├── p2p-wss-*.json                 # LAN WS auth / hello / inventory frames
+    ├── p2p-txt-*.json, p2p-sources-*.json  # mDNS TXT + source-lookup frames
+    ├── bootnode-*.json                # boot/1 register / query / response / ack
+    ├── delta-*.json                   # delta signatures / instructions / apply
+    ├── causal-*.json                  # conflict-resolution / tombstone scenarios
+    └── ws-*.json                      # server-mode WS auth / event / ping / presence
 
 # Python tests use: tests/test_protocol_fixtures.py
 # Kotlin tests use: app/src/test/java/.../P2PElectionParityTest.kt, P2PPairingParityTest.kt
