@@ -16,7 +16,7 @@ from hsync_common.models.sqlstore import (
 
 class TestOpenStateDb:
     def test_creates_schema_and_wal(self, tmp_path):
-        conn = open_state_db(tmp_path / "syncstate.db")
+        conn = open_state_db(tmp_path / "state DB")
         try:
             tables = {
                 row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
@@ -54,7 +54,7 @@ class TestOpenStateDb:
             return _Conn(real_connect(path, **kwargs))
 
         monkeypatch.setattr(sqlite3, "connect", _connect)
-        conn = open_state_db(tmp_path / "syncstate.db")
+        conn = open_state_db(tmp_path / "state DB")
         try:
             mode = conn.execute("PRAGMA journal_mode").fetchone()[0]
             assert str(mode).lower() == "delete"
@@ -64,7 +64,7 @@ class TestOpenStateDb:
 
 class TestStateDb:
     def test_ensure_folder_and_bucket(self, tmp_path):
-        db = StateDb(tmp_path / "syncstate.db")
+        db = StateDb(tmp_path / "state DB")
         db.ensure_folder("11111111-1111-4111-8111-111111111111", "/bucket")
         assert db.folder_canonical_path("11111111-1111-4111-8111-111111111111") == "/bucket"
         assert db.find_folder_by_path("/bucket") == "11111111-1111-4111-8111-111111111111"
@@ -74,7 +74,7 @@ class TestStateDb:
         assert db.folder_canonical_path(first) == "bucket:photos"
 
     def test_delete_versions_chunked(self, tmp_path):
-        db = StateDb(tmp_path / "syncstate.db")
+        db = StateDb(tmp_path / "state DB")
         folder_id = "11111111-1111-4111-8111-111111111111"
         db.ensure_folder(folder_id, "/b")
         for i in range(1200):
@@ -94,7 +94,7 @@ class TestStateDb:
         assert db.count_versions(folder_id) == 100
 
     def test_get_state_db_caches_file_not_memory(self, tmp_path):
-        path = tmp_path / "syncstate.db"
+        path = tmp_path / "state DB"
         a = get_state_db(path)
         b = get_state_db(path)
         assert a is b
@@ -122,14 +122,14 @@ class TestStateDbMaintenance:
         db.delete_versions(folder_id, [f"k{i}" for i in range(100, n)])
 
     def test_fresh_db_is_incremental_auto_vacuum(self, tmp_path):
-        conn = open_state_db(tmp_path / "syncstate.db")
+        conn = open_state_db(tmp_path / "state DB")
         try:
             assert conn.execute("PRAGMA auto_vacuum").fetchone()[0] == 2
         finally:
             conn.close()
 
     def test_incremental_vacuum_reclaims_freelist(self, tmp_path):
-        db = StateDb(tmp_path / "syncstate.db")
+        db = StateDb(tmp_path / "state DB")
         folder_id = "11111111-1111-4111-8111-111111111111"
         self._fill_and_prune(db, folder_id)
         freelist_before = db.conn.execute("PRAGMA freelist_count").fetchone()[0]
@@ -140,7 +140,7 @@ class TestStateDbMaintenance:
         assert freelist_after < freelist_before
 
     def test_vacuum_clears_freelist(self, tmp_path):
-        db = StateDb(tmp_path / "syncstate.db")
+        db = StateDb(tmp_path / "state DB")
         folder_id = "11111111-1111-4111-8111-111111111111"
         self._fill_and_prune(db, folder_id)
         assert db.conn.execute("PRAGMA freelist_count").fetchone()[0] > 0
@@ -148,13 +148,13 @@ class TestStateDbMaintenance:
         assert db.conn.execute("PRAGMA freelist_count").fetchone()[0] == 0
 
     def test_module_helpers_skip_missing_file(self, tmp_path):
-        missing = tmp_path / "nested" / "syncstate.db"
+        missing = tmp_path / "nested" / "state DB"
         assert incremental_vacuum_state_db(missing) == 0
         vacuum_state_db(missing)  # no-op, no exception
         assert not missing.exists()
 
     def test_module_helpers_operate_on_existing_file(self, tmp_path):
-        db = StateDb(tmp_path / "syncstate.db")
+        db = StateDb(tmp_path / "state DB")
         folder_id = "11111111-1111-4111-8111-111111111111"
         self._fill_and_prune(db, folder_id)
         freed = incremental_vacuum_state_db(db.db_path, pages=1000)
@@ -164,7 +164,7 @@ class TestStateDbMaintenance:
         reset_state_db_cache()
 
     def test_incremental_vacuum_nonpositive_is_noop(self, tmp_path):
-        db = StateDb(tmp_path / "syncstate.db")
+        db = StateDb(tmp_path / "state DB")
         folder_id = "11111111-1111-4111-8111-111111111111"
         self._fill_and_prune(db, folder_id)
         freelist = db.freelist_count()
@@ -174,4 +174,4 @@ class TestStateDbMaintenance:
         assert db.freelist_count() == freelist
 
     def test_state_db_freelist_count_guard_missing_file(self, tmp_path):
-        assert state_db_freelist_count(tmp_path / "missing" / "syncstate.db") == 0
+        assert state_db_freelist_count(tmp_path / "missing" / "state DB") == 0

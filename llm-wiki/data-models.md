@@ -14,7 +14,7 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
 | `SyncAction` | `models/sync_action.py:31` | — | decision; `SyncActionName` enum `models/sync_action.py:14` |
 | `TombstoneStore` | `models/tombstone_store.py:62` | `TombstoneEntry` (`models/tombstone.py:71`) | causal deletion markers (vclock merge); SQLite-backed; re-exported from `models/tombstone.py`; inherits `CausalStoreBase` (`models/_store_base.py:29`) |
 | `SyncStateStore` / `FileVersion` | `models/version_store.py:77` / `models/version.py:71` | `FileVersion` TypedDict | 3-way merge state; SQLite-backed; `SyncStateStore` re-exported from `models/version.py`; inherits `CausalStoreBase` |
-| `StateDb` | `models/sqlstore.py` | — | installation `syncstate.db` (ADR-0025); `auto_vacuum=INCREMENTAL`; `vacuum()` / `incremental_vacuum(pages)` + `vacuum_state_db` / `incremental_vacuum_state_db` maintenance helpers |
+| `StateDb` | `models/sqlstore.py` | — | per-folder SQLite DB (ADR-0025); `auto_vacuum=INCREMENTAL`; `vacuum()` / `incremental_vacuum(pages)` + `vacuum_state_db` / `incremental_vacuum_state_db` maintenance helpers |
 | folder marker | `models/folder.py` | — | `.hsyncfolder` UUIDv4 + `default_state_dir` |
 
 ## File
@@ -106,8 +106,8 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
 - Cross-language parity: `protocol/fixtures.py` builds
   `causal-tombstone-scenarios` from `tombstone_merge_decision` (never
   hand-written); the committed JSON is replayed by the Android parity test.
-- Persisted in the installation `syncstate.db` (`models/sqlstore.py`), keyed
-  by folder UUID from `.hsyncfolder` (`models/folder.py`, ADR-0025). The wire
+- Persisted in the per-folder SQLite DB (`models/sqlstore.py`, ADR-0025), keyed
+  by folder UUID from `.hsyncfolder` (`models/folder.py`). The wire
   payload (`to_payload`) is unchanged.   The store class lives in
   `models/tombstone_store.py:62` (re-exported from `models/tombstone.py`);
   shared persistence plumbing is `CausalStoreBase` (`models/_store_base.py:29`).
@@ -136,8 +136,8 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
   `conflict_download` (tie-break loser preserved as a conflicted copy).
 - Version-id minting: `new_version_id` (`_VERSION_ID_BYTES = 16`).
 - `SyncStateStore` persists per-file versions for the next reconciliation in
-  the installation `syncstate.db` (`models/sqlstore.py`), keyed by folder UUID
-  (`models/folder.py`, ADR-0025). Constructor is `db_path=` + `folder_id=`;
+  the per-folder SQLite DB (`models/sqlstore.py`, ADR-0025), keyed by folder UUID
+  (`models/folder.py`). Constructor is `db_path=` + `folder_id=`;
   method semantics (`record`/`clear`/`retain`/`get`/`load`/`save`) are
   unchanged. The model is strictly causal: `load()` drops rows without a
   structurally valid `vclock` (no fabricated empty clocks) — a corrupted row

@@ -7,7 +7,7 @@
 """L1 — causal SQLite store micro-benchmark (pure, no sync sockets).
 
 Measures the SQLite-backed sync state stores (see :mod:`hsync_common.models`
-— ADR-0025 ``syncstate.db``):
+— ADR-0025 ``state DB``):
 
 * ``SyncStateStore`` — the path&rarr;file-version map used by client (per-dir)
   and server (per-bucket); exercises ``record``, ``get`` (dict hit), ``retain``,
@@ -20,7 +20,7 @@ The measured ops **assert correctness** inside the timed region (round-trip row
 count, dominant clock wins on merge, retain drops the right suffix) so a
 short-circuiting or incorrectly-typed store cannot be reported as fast.
 
-Store lifecycle: one ``TemporaryDirectory`` per run, a fresh ``syncstate.db``
+Store lifecycle: one ``TemporaryDirectory`` per run, a fresh ``state DB``
 opened in WAL, ``folder_id`` constant for isolation; cleanup is via the temp
 dir finaliser (clean exit), matching the delta benchmark methodology.
 
@@ -79,7 +79,7 @@ def main() -> None:
     results: list[BenchResult] = []
 
     with tempfile.TemporaryDirectory(prefix="hsync_stores_") as tmp:
-        db = str(Path(tmp, "syncstate.db"))
+        db = str(Path(tmp, "state DB"))
         folder_id = "folder_00000000"
         n = args.count
 

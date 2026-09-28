@@ -76,13 +76,13 @@ Key features:
   That window is a storage bound only; correctness does not depend on it.
 - **Untrusted-payload validation** — well-formedness checks prevent hostile peers
   from planting permanent or unbounded deletion markers.
-- **SQLite persistence** — `save()`/`load()` against the installation
-  `syncstate.db`, keyed by folder UUID (`.hsyncfolder`).
+- **SQLite persistence** — `save()`/`load()` against the per-folder SQLite DB
+  (`<device_dir>/syncstate/<uuid>.db`), keyed by folder UUID (`.hsyncfolder`).
 
 ## SyncStateStore / FileVersion
 
 Backs the causal three-way merge (vector-clock) conflict model. `SyncStateStore`
-persists per-file versions in the installation `syncstate.db` (keyed by the
+persists per-file versions in the per-folder SQLite DB (keyed by the
 `.hsyncfolder` UUID); each `FileVersion`
 records the base content hash, the causal `vclock`, and a `corrected_mtime`
 (the local modification time corrected by the clock offset measured against

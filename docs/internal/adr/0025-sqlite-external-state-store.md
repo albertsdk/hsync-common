@@ -38,23 +38,32 @@ content converges by hash; conflict copies are preserved).
 
 ## Decision
 
-We will persist causal versions and tombstones in a **single
-installation-level SQLite database stored outside the synced bucket**,
-keyed by a **folder UUID** recorded in a small marker file inside the
-bucket.
+We will persist causal versions and tombstones in **per-folder SQLite
+databases stored outside the synced bucket**, keyed by a **folder UUID**
+recorded in a small marker file inside the bucket. The client keeps one DB per
+folder under its device directory plus a small per-device index; the server
+keeps one DB per bucket plus a global auth DB. A process-wide
+``HSYNC_STATE_DB`` override collapses this to a single DB for that process
+(used by tests and manual isolation).
 
 ### Storage locations
 
 | Platform | DB location | Marker in bucket |
 |---|---|---|
-| Client / p2p master (Python) | ``$XDG_STATE_HOME/hsync/syncstate.db`` (fallback ``~/.local/state/hsync/syncstate.db``; env ``HSYNC_STATE_DIR``) | ``.hsyncfolder`` (UUIDv4 text + newline) |
-| Server (Python) | ``{state_dir}/syncstate.db`` (``get_state_dir()``; env ``HSYNC_STATE_DIR``) | none; ``buckets`` table maps bucket name → UUID |
-| Android | ``<filesDir>/syncstate.db`` | same ``.hsyncfolder`` marker (SAF/path) |
+| Client / p2p master (Python) | ``<device_dir>/syncstate/<folder_uuid>.db`` (``<device_dir>`` = ``$HSYNC_DEVICE_DIR`` or ``$XDG_STATE_HOME/hsync/device``); ``<device_dir>/syncstate/index.db`` maps ``canonical_path`` → UUID for re-anchoring | ``.hsyncfolder`` (UUIDv4 text + newline) |
+| Server (Python) | ``{state_dir}/server/<bucket>.db`` (``get_state_dir()``; env ``HSYNC_STATE_DIR``); ``{state_dir}/server/auth.db`` (global auth) | none; the file is named by the (validated) bucket name |
+| Android | ``<filesDir>/syncstate/<uuid>.db`` | same ``.hsyncfolder`` marker (SAF/path) |
+
+``HSYNC_STATE_DB``, when set, is the whole DB path for that process (client or
+server): the per-folder / per-bucket / index files are not opened. This keeps a
+single-file mode available for tests and manual isolation without re-deriving
+the layout.
 
 ### Schema
 
-Tables ``folders``, ``buckets`` (server-only mapping), ``versions`` and
-``tombstones``, all keyed by ``folder_id``. ``vclock`` remains a JSON
+Each per-folder / per-bucket DB uses the same tables as before — ``folders``
+(the client index DB holds only this mapping), ``buckets`` (server-only), and
+``versions`` / ``tombstones`` keyed by ``folder_id``. ``vclock`` remains a JSON
 string validated by the existing parsers (``parse_version_info`` /
 ``parse_vclock`` in Python; ``parseStoredVclock`` on Android).
 ``ts`` and ``corrected_mtime`` are ``REAL`` so int|float JSON parity is
@@ -65,16 +74,19 @@ Android).
 ### Folder ID lifecycle
 
 1. First run: no marker → generate UUIDv4, write atomically (tmp+rename),
-   insert ``folders`` row with ``canonical_path``.
-2. Normal run: read marker → all state is keyed by that UUID (re-anchors
-   across rename/move because the marker travels with the folder).
+   create ``<device_dir>/syncstate/<uuid>.db`` and record the
+   ``canonical_path`` in the per-device index.
+2. Normal run: read marker → open ``<device_dir>/syncstate/<uuid>.db`` (state
+   re-anchors across rename/move because the marker travels with the folder).
 3. Copied directory (duplicated marker, both paths still exist): treat the
-   copy as a new folder (new UUID, full rescan). Content identity is
+   copy as a new folder (new UUID, new DB, full rescan). Content identity is
    preserved by hashes and ``_conflicted_copy_``.
-4. Marker missing, DB row exists: lookup by ``canonical_path``; if the
-   path is gone, re-anchor or treat as new. Do not guess by similarity.
-5. Server: UUID generated at first bucket access, stored in ``buckets``;
-   never written into served bucket dirs.
+4. Marker missing, index has the path: adopt the recorded UUID (re-anchor). If
+   the path is unknown, treat as new. A corrupt index fails closed (a new UUID
+   is minted); do not guess by similarity.
+5. Server: one DB per bucket named by the bucket; the UUID is minted at first
+   bucket access and stored in that file's ``buckets`` table; never written
+   into served bucket dirs.
 
 ### Transactions and PRAGMA
 

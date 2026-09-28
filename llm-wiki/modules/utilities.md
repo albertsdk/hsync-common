@@ -15,9 +15,10 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
   (`constants.py:66`) — media types shared by the Python client/server and the
   Kotlin mirrors.
 - Sentinel / engine filenames: `.hsynckeep` (`:43`), `.hsyncignore` (`:48`),
-  `.hsyncfolder` (`:106`), `syncstate.db` (`:111`), `HSYNC_STATE_DIR` (`:115`);
-  leftover `.hsynctombstones` / `.hsyncstate` (`:120`/`:121`) stay rejected
-  on the wire (ADR-0025).
+  `.hsyncfolder` (`:106`), plus the state-layout names `HSYNC_STATE_DIR` /
+  `HSYNC_STATE_DB` and the `syncstate`/`server` subdir + `index.db`/`auth.db`
+  filenames; leftover `.hsynctombstones` / `.hsyncstate` (`:120`/`:121`) stay
+  rejected on the wire (ADR-0025).
 - Adaptive chunk tiers: `CHUNK_SIZE_SMALL/MEDIUM/LARGE` (`:178`–`:180`) gated by
   `FILE_SIZE_SMALL/MEDIUM` (`:183`/`:184`). The sub-1MB tier is 256 KiB so a
   typical burst file is read in a single iteration; measured on the HTTPS apply

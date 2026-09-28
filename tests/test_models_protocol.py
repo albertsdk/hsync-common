@@ -463,7 +463,7 @@ class TestTombstoneStore:
     def test_save_and_load(self, tmp_path):
         now = int(time.time())
         folder_id = "22222222-2222-4222-8222-222222222222"
-        db_path = str(tmp_path / "syncstate.db")
+        db_path = str(tmp_path / "state DB")
         store = TombstoneStore(db_path=db_path, folder_id=folder_id, ttl_days=90)
         store.record("a/b.txt", sha256sum="f" * 64, origin_cid=_CID_A, timestamp=now)
         store.save()
@@ -481,7 +481,7 @@ class TestTombstoneStore:
 
         now = int(time.time())
         folder_id = "22222222-2222-4222-8222-222222222222"
-        db_path = str(tmp_path / "syncstate.db")
+        db_path = str(tmp_path / "state DB")
         store = TombstoneStore(db_path=db_path, folder_id=folder_id)
         store.load()
         db = get_state_db(db_path)

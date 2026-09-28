@@ -24,7 +24,7 @@ contract is mechanically tied to the in-code types.
 | Path | Responsibility | Wiki |
 | ---- | -------------- | ---- |
 | `hsync_common/constants.py:24` | `HSYNC_VERSION`, wire/checksum header names + client-name validator, content types, sentinel filenames, chunk-size tiers, `.part` suffix | [utilities](modules/utilities.md) |
-| `hsync_common/models/` | Canonical sync data types; `folder.py` (`.hsyncfolder` + state dir), `sqlstore.py` (`syncstate.db`) | [data-models](data-models.md) |
+| `hsync_common/models/` | Canonical sync data types; `folder.py` (`.hsyncfolder` + state-dir helpers), `sqlstore.py` (per-folder state DB) | [data-models](data-models.md) |
 | `hsync_common/protocol/` | Versioned wire protocol + contract artifacts | [protocol](modules/protocol.md) |
 | `hsync_common/{hashing,compression,permissions,path_validation,ignore,ssl_utils,logger,env,text,clock,format,exceptions}.py` | Cross-cutting helpers | [utilities](modules/utilities.md) |
 
@@ -49,7 +49,7 @@ these constants:
   (private, persisted), `VersionInfo` (wire form), `compare/tick/merge_vclocks`,
   `resolve_three_way` (the §3.2 decision matrix); the SQLite-backed
   `SyncStateStore` lives in `models/version_store.py` (re-exported from
-  `models/version.py`; installation ``syncstate.db`` keyed by ``.hsyncfolder``
+  `models/version.py`; per-folder SQLite DB keyed by ``.hsyncfolder``
   UUID, ADR-0025).
   No node is authoritative: the server and the
   elected p2p master arbitrate uploads causally against their stored version

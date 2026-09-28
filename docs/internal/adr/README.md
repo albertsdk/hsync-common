@@ -48,7 +48,7 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0022](0022-causal-vector-clock-conflict-model.md) | Causal vector-clock conflict model | Accepted |
 | [0023](0023-corrected-mtime-tie-break.md) | Corrected-mtime chronological tie-break | Accepted |
 | [0024](0024-capability-negotiation.md) | Capability negotiation (registry, channels, intersection) | Accepted |
-| [0025](0025-sqlite-external-state-store.md) | SQLite external state store (folder UUID + ``syncstate.db``) | Accepted |
+| [0025](0025-sqlite-external-state-store.md) | SQLite external state store (folder UUID, per-folder / per-bucket DBs) | Accepted |
 | [0026](0026-permission-special-bits-policy.md) | Special permission bits (setuid/setgid/sticky) policy | Accepted |
 | [0027](0027-p2p-leadership-lease.md) | p2p leadership lease: bounded incumbency and immediate yield | Accepted |
 | [0028](0028-p2p-peer-assisted-download.md) | p2p peer-assisted download | Accepted |

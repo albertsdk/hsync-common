@@ -26,18 +26,27 @@ import uuid
 from pathlib import Path
 
 from hsync_common.constants import (
+    AUTH_DB_FILENAME,
+    HSYNC_STATE_DB_ENV,
     HSYNC_STATE_DIR_ENV,
     HSYNCFOLDER_FILENAME,
     PARTIAL_DOWNLOAD_SUFFIX,
-    SYNCSTATE_DB_FILENAME,
+    SERVER_STATE_SUBDIR,
+    STATE_INDEX_DB_FILENAME,
+    SYNCSTATE_DIRNAME,
 )
 
 __all__ = [
+    "client_state_db_dir",
+    "client_state_db_path",
+    "client_state_index_db_path",
     "default_state_dir",
-    "default_syncstate_db_path",
     "ensure_folder_marker",
     "is_folder_id",
     "read_folder_marker",
+    "server_auth_db_path",
+    "server_state_db_path",
+    "state_db_override",
     "write_folder_marker",
 ]
 
@@ -63,7 +72,7 @@ def default_state_dir() -> Path:
 
     Resolution order: ``HSYNC_STATE_DIR``, then ``$XDG_STATE_HOME/hsync``,
     then ``~/.local/state/hsync``. Consumers: ``hsync-client`` and
-    ``hsync-server`` (shared DB path); tests override via the env var.
+    ``hsync-server``; tests override via the env var.
     """
     override = os.environ.get(HSYNC_STATE_DIR_ENV)
     if override:
@@ -72,12 +81,67 @@ def default_state_dir() -> Path:
     return Path(base) / "hsync"
 
 
-def default_syncstate_db_path() -> Path:
-    """Return the default ``syncstate.db`` path under :func:`default_state_dir`.
+def state_db_override() -> Path | None:
+    """Return the explicit ``HSYNC_STATE_DB`` path, or ``None``.
 
-    Consumers: ``hsync-client`` / ``hsync-server`` store wrappers.
+    When set, both the client and the server open this single DB instead of the
+    per-folder / per-bucket layout. Consumers: ``hsync-client``
+    (``state_backend.resolve_bucket_folder``), ``hsync-server`` (``config``),
+    tests.
     """
-    return default_state_dir() / SYNCSTATE_DB_FILENAME
+    value = os.environ.get(HSYNC_STATE_DB_ENV)
+    return Path(value) if value else None
+
+
+def client_state_db_dir(device_dir: Path) -> Path:
+    """Return the per-device sync-state subdir ``<device_dir>/syncstate``.
+
+    The ``device_dir`` (``$HSYNC_DEVICE_DIR`` or the OS default) is resolved by
+    the caller (``hsync_client.identity.default_device_dir``) and passed in, so
+    this module stays free of identity/env logic. Consumers: ``hsync-client``
+    (``state_backend``), tests.
+    """
+    return device_dir / SYNCSTATE_DIRNAME
+
+
+def client_state_db_path(folder_uuid: str, device_dir: Path) -> Path:
+    """Return the per-folder DB path ``<device_dir>/syncstate/<uuid>.db``.
+
+    Named by the ``.hsyncfolder`` UUID so a move/copy of the folder re-opens the
+    same state. Consumers: ``hsync-client`` (``state_backend``), tests.
+    """
+    return client_state_db_dir(device_dir) / f"{folder_uuid}.db"
+
+
+def client_state_index_db_path(device_dir: Path) -> Path:
+    """Return the per-device ``canonical_path -> folder uuid`` index DB.
+
+    Consulted only when a folder's ``.hsyncfolder`` is missing (re-anchoring).
+    Consumers: ``hsync-client`` (``state_backend``), tests.
+    """
+    return client_state_db_dir(device_dir) / STATE_INDEX_DB_FILENAME
+
+
+def server_state_db_path(bucket: str, state_dir: Path) -> Path:
+    """Return the per-bucket server DB ``<state_dir>/server/<bucket>.db``.
+
+    The filename is the bucket name itself, which is validated
+    (``^[A-Za-z0-9]([A-Za-z0-9_-]*[A-Za-z0-9])?$``) so no separators, leading
+    dot or ``..`` are possible. ``state_dir`` is resolved by the caller
+    (``hsync_server.config.get_state_dir``). Consumers: ``hsync-server``
+    (``config``), tests.
+    """
+    return state_dir / SERVER_STATE_SUBDIR / f"{bucket}.db"
+
+
+def server_auth_db_path(state_dir: Path) -> Path:
+    """Return the global server auth DB ``<state_dir>/server/auth.db``.
+
+    Auth (API keys) is installation-global, not per bucket, so it never uses the
+    per-bucket file. ``state_dir`` is resolved by the caller. Consumers:
+    ``hsync-server`` (``auth_store``), tests.
+    """
+    return state_dir / SERVER_STATE_SUBDIR / AUTH_DB_FILENAME
 
 
 def read_folder_marker(bucket_dir: str | Path) -> str | None:

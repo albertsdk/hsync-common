@@ -24,7 +24,7 @@ The store is reused on both sides:
 - the server (and a LAN master) persists tombstones and serves them to clients;
 - a client/slave merges them causally (dominance, then deterministic tie-break).
 
-Persistence is the installation SQLite database (``syncstate.db``, ADR-0025),
+Persistence is the installation SQLite database (``state DB``, ADR-0025),
 keyed by folder UUID. The wire shape (``to_payload()``) is unchanged.
 
 Path helpers (``tombstone_key`` / ``relpath_in_bucket``) and the wire-timestamp

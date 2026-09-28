@@ -27,8 +27,12 @@ transfer thresholds.
 | `HSYNCKEEP_FILENAME` | `".hsynckeep"` | Sentinel file placed in empty directories to force sync of the directory structure (like `.gitkeep`). Always preserved regardless of ignore rules. |
 | `HSYNCIGNORE_FILENAME` | `".hsyncignore"` | Per-bucket gitignore-style ignore file. |
 | `HSYNCFOLDER_FILENAME` | `".hsyncfolder"` | Folder-identity marker (UUIDv4) at the bucket root. |
-| `SYNCSTATE_DB_FILENAME` | `"syncstate.db"` | Installation-level causal-state database (outside the bucket). |
-| `HSYNC_STATE_DIR_ENV` | `"HSYNC_STATE_DIR"` | Environment override for the state directory that holds `syncstate.db`. |
+| `HSYNC_STATE_DIR_ENV` | `"HSYNC_STATE_DIR"` | Environment override for the installation state directory. |
+| `HSYNC_STATE_DB_ENV` | `"HSYNC_STATE_DB"` | Environment override for a single, process-wide sync-state DB (client and server). |
+| `SYNCSTATE_DIRNAME` | `"syncstate"` | Per-device subdir holding the client's per-folder DBs and index. |
+| `SERVER_STATE_SUBDIR` | `"server"` | Server state subdir holding per-bucket DBs and `auth.db`. |
+| `STATE_INDEX_DB_FILENAME` | `"index.db"` | Per-device `canonical_path → folder UUID` index DB. |
+| `AUTH_DB_FILENAME` | `"auth.db"` | Global server auth DB filename. |
 | `HSYNCTOMBSTONES_FILENAME` | `".hsynctombstones"` | Legacy name; rejected on the wire, no longer written. |
 | `HSYNCSTATE_FILENAME` | `".hsyncstate"` | Legacy name; rejected on the wire, no longer written. |
 

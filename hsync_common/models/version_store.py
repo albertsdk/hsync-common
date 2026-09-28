@@ -10,7 +10,7 @@ SQLite-backed persistence for per-file version metadata (:class:`SyncStateStore`
 The causal model itself (vector clocks, :func:`~.version.resolve_three_way`)
 lives in :mod:`.version`; this module owns only the storage layer: an in-memory
 path→version map persisted in the installation SQLite database
-(``syncstate.db``, ADR-0025), keyed by a folder UUID. It is private to each
+(``state DB``, ADR-0025), keyed by a folder UUID. It is private to each
 peer and never exchanged; the wire form is :class:`~.version.VersionInfo`.
 
 The stored clock is validated as untrusted on load (structurally malformed

@@ -425,7 +425,7 @@ _FOLDER = "11111111-1111-4111-8111-111111111111"
 
 def _version_store(tmp_path, folder_id=_FOLDER):
     return SyncStateStore(
-        db_path=str(tmp_path / "syncstate.db"),
+        db_path=str(tmp_path / "state DB"),
         folder_id=folder_id,
         canonical_path=str(tmp_path / "bucket"),
     )
@@ -470,7 +470,7 @@ class TestSyncStateStorePersistence:
 
         store = _version_store(tmp_path)
         store.load()
-        db = get_state_db(str(tmp_path / "syncstate.db"))
+        db = get_state_db(str(tmp_path / "state DB"))
         db.conn.execute(
             """
             INSERT INTO versions
@@ -499,7 +499,7 @@ class TestSyncStateStorePersistence:
 
         store = _version_store(tmp_path)
         store.load()
-        db = get_state_db(str(tmp_path / "syncstate.db"))
+        db = get_state_db(str(tmp_path / "state DB"))
         db.conn.execute(
             """
             INSERT INTO versions
@@ -524,7 +524,7 @@ class TestSyncStateStorePersistence:
 
         store = _version_store(tmp_path)
         store.load()
-        db = get_state_db(str(tmp_path / "syncstate.db"))
+        db = get_state_db(str(tmp_path / "state DB"))
         db.conn.execute(
             """
             INSERT INTO versions
@@ -549,7 +549,7 @@ class TestSyncStateStorePersistence:
 
         store = _version_store(tmp_path)
         store.load()
-        db = get_state_db(str(tmp_path / "syncstate.db"))
+        db = get_state_db(str(tmp_path / "state DB"))
         db.conn.execute(
             """
             INSERT INTO versions
@@ -635,7 +635,7 @@ class TestSyncStateStorePersistence:
         store.record("a.txt", base_hash="h")
         store.save()
 
-        db = get_state_db(str(tmp_path / "syncstate.db"))
+        db = get_state_db(str(tmp_path / "state DB"))
         with db.transaction():
             store.record("b.txt", base_hash="h")
             store.save()

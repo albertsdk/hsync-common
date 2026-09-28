@@ -60,7 +60,7 @@ than *missing*. Key properties:
   fabricated empty clock). Counters must be non-negative ints (bool rejected),
   keys must be valid cids, clocks capped at `VCLOCK_MAX_ENTRIES` entries,
   timestamps within the anti-poisoning skew bound.
-- **Persistence** in the installation ``syncstate.db`` (ADR-0025), with a
+- **Persistence** in the per-folder state DB (ADR-0025), with a
   wire shape (`to_payload()`) reused by the REST endpoints, the p2p gossip
   channel and the Android mirror (`Tombstones.kt`).
 

@@ -1,6 +1,6 @@
 """Concurrency stress for the SQLite-backed causal stores (ADR-0025).
 
-A process owns one installation-level ``syncstate.db`` shared by every folder,
+A process owns one installation-level ``state DB`` shared by every folder,
 so the store layer must tolerate several writers persisting into the same file
 at once (``hsync-server`` keeps one version/tombstone store per bucket;
 ``hsync-client`` flushes its stores from the transfer paths).
@@ -69,7 +69,7 @@ def _integrity_check(db_path: Path) -> None:
 
 class TestConcurrentFirstWriters:
     def test_parallel_writers_bootstrap_and_persist(self, tmp_path: Path):
-        db_path = tmp_path / "syncstate.db"
+        db_path = tmp_path / "state DB"
         folders = _folders()
         relpaths = _paths("shared")
 
@@ -102,7 +102,7 @@ class TestConcurrentFirstWriters:
 
 class TestInterleavedWriters:
     def test_interleaved_save_cycles_keep_final_rows(self, tmp_path: Path):
-        db_path = tmp_path / "syncstate.db"
+        db_path = tmp_path / "state DB"
         folders = _folders()
         relpaths = _paths("cycle")
         rounds = 3
@@ -140,7 +140,7 @@ class TestInterleavedWriters:
 
 class TestConcurrentTombstoneLifecycle:
     def test_parallel_merge_then_prune(self, tmp_path: Path):
-        db_path = tmp_path / "syncstate.db"
+        db_path = tmp_path / "state DB"
         relpaths = _paths("gone")
 
         source = TombstoneStore(db_path=db_path, folder_id=str(uuid.uuid4()))

@@ -17,7 +17,7 @@ multi-tenant SaaS. The authentication mechanism must be:
 - **Cross-platform**: the Python CLI, desktop GUI, and Android app must all
   support it with minimal code changes (the wire format stays `Bearer <token>`).
 - **Self-contained**: no external database or identity provider — all auth state
-  lives in the installation `syncstate.db`.
+  lives in the server's global auth DB (`<state_dir>/server/auth.db`).
 
 Options considered:
 
@@ -41,8 +41,8 @@ bucket access via **explicit membership**:
   is opaque, server-minted, and immutable. The secret is `secrets.token_hex(32)`.
   The token is presented as `Authorization: Bearer <token>` (REST) and as the
   `token` field of the WS `auth` frame — the wire envelope is unchanged.
-- **Account store**: `clients` table on `syncstate.db` (server-only schema, not
-  in the common `sqlstore`). Fields: id, name (UNIQUE, immutable), role
+- **Account store**: `clients` table on the global auth DB (server-only schema,
+  not in the common `sqlstore`). Fields: id, name (UNIQUE, immutable), role
   (`admin` | `client`), status (`active` | `disabled`), PHC-style scrypt hash,
   key prefix (8 hex for logs), key generation, expiry, prior-key (grace), timestamps.
 - **Membership**: `bucket_members` table `(bucket, client_id, role)` with exactly

@@ -121,8 +121,8 @@ failures do not consume retry attempts.
 
 ### Base hash tracking
 
-Delta transfer requires a **recorded base hash** in the installation
-`syncstate.db` (ADR-0025). The base hash is recorded after every successful
+Delta transfer requires a **recorded base hash** in the per-folder state DB
+(ADR-0025). The base hash is recorded after every successful
 sync (download or upload) and is used to determine whether delta transfer is
 applicable:
 

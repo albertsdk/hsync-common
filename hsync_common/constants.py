@@ -139,14 +139,23 @@ DEFAULT_IGNORE_PATTERNS: tuple[str, ...] = (
 # buckets table), hsync-android (SAF/path mirror).
 HSYNCFOLDER_FILENAME = ".hsyncfolder"
 
-# Installation-level causal-state database filename (lives in the state dir,
-# never inside a synced bucket). Consumers: hsync-client, hsync-server,
-# hsync-android (filesDir mirror).
-SYNCSTATE_DB_FILENAME = "syncstate.db"
-
-# Environment override for the installation state directory that holds
-# ``syncstate.db``. Consumers: hsync-client, hsync-server, tests.
+# Environment override for the installation state directory (ADR-0025). It
+# holds the server's per-bucket state subdir and, by default, is the parent of
+# the client device dir. Consumers: hsync-client, hsync-server, tests.
 HSYNC_STATE_DIR_ENV = "HSYNC_STATE_DIR"
+
+# Explicit, process-wide sync-state database path override. When set, the
+# client and the server open this single DB instead of the per-folder /
+# per-bucket layout. Consumers: hsync-client (state_backend), hsync-server
+# (config), tests.
+HSYNC_STATE_DB_ENV = "HSYNC_STATE_DB"
+
+# Per-device / per-server sync-state layout names (ADR-0025). Consumers:
+# hsync-client (state_backend), hsync-server (config), tests.
+SYNCSTATE_DIRNAME = "syncstate"
+SERVER_STATE_SUBDIR = "server"
+STATE_INDEX_DB_FILENAME = "index.db"
+AUTH_DB_FILENAME = "auth.db"
 
 # Legacy engine-owned basenames. Causal state no longer lives in these files
 # (ADR-0025) but they stay rejected on the wire and by the ignore matcher so

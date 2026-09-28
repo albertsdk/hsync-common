@@ -194,16 +194,17 @@ Key features:
   the store is capped at 100 000 entries. An entry without a valid clock is
   dropped — never loaded with a fabricated empty clock. A hostile peer cannot
   plant permanent or unbounded deletion markers through the gossip channel.
-- **SQLite persistence** — `save()`/`load()` against the installation
-  `syncstate.db` (ADR-0025), keyed by folder UUID. The wire shape
+- **SQLite persistence** — `save()`/`load()` against the per-folder SQLite DB
+  (ADR-0025), keyed by folder UUID. The wire shape
   (`to_payload()`) is reused by the REST endpoints, the LAN gossip channel
   and the Android mirror (`Tombstones.kt`).
 
 ### SyncStateStore / FileVersion
 
 Backs the three-way merge conflict model. `SyncStateStore` persists per-file
-base versions (the hash known to both peers) in the installation
-`syncstate.db`, keyed by the `.hsyncfolder` UUID (ADR-0025), so that
+base versions (the hash known to both peers) in the per-folder SQLite DB
+(`<device_dir>/syncstate/<uuid>.db`), keyed by the `.hsyncfolder` UUID
+(ADR-0025), so that
 conflicts are detected on the next reconciliation rather than by timestamp
 alone. `FileVersion` is the private record; `VersionInfo` is the wire shape;
 `resolve_three_way()` compares hashes and vector clocks.
@@ -335,8 +336,12 @@ Engine-owned artifacts (`.hsyncignore`, `.hsyncfolder`, leftover
 | `HSYNCKEEP_FILENAME`         | `".hsynckeep"`       | Sentinel file for empty-directory sync   |
 | `HSYNCIGNORE_FILENAME`       | `".hsyncignore"`     | Per-bucket gitignore-style ignore file   |
 | `HSYNCFOLDER_FILENAME`       | `".hsyncfolder"`     | Folder-identity marker (UUIDv4)          |
-| `SYNCSTATE_DB_FILENAME`      | `"syncstate.db"`     | Installation causal-state database       |
 | `HSYNC_STATE_DIR_ENV`        | `"HSYNC_STATE_DIR"`  | Override for the state directory         |
+| `HSYNC_STATE_DB_ENV`         | `"HSYNC_STATE_DB"`   | Single process-wide sync-state DB        |
+| `SYNCSTATE_DIRNAME`          | `"syncstate"`        | Per-device subdir for per-folder DBs     |
+| `SERVER_STATE_SUBDIR`        | `"server"`           | Server subdir (per-bucket DBs + auth)    |
+| `STATE_INDEX_DB_FILENAME`    | `"index.db"`         | Per-device `path → folder UUID` index    |
+| `AUTH_DB_FILENAME`           | `"auth.db"`          | Global server auth DB                    |
 | `HSYNCTOMBSTONES_FILENAME`   | `".hsynctombstones"` | Legacy name; rejected on the wire        |
 | `HSYNCSTATE_FILENAME`        | `".hsyncstate"`      | Legacy name; rejected on the wire        |
 | `PARTIAL_DOWNLOAD_SUFFIX`    | `".part"`            | Suffix for in-progress downloads         |

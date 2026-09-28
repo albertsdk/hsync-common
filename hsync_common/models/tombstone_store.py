@@ -10,7 +10,7 @@ SQLite-backed persistence for causal deletion markers (:class:`TombstoneStore`).
 The causal merge logic itself (:func:`~.tombstone.tombstone_merge_decision` and
 the strict payload validation) lives in :mod:`.tombstone`; this module owns only
 the storage layer: an in-memory tombstone map persisted in the installation
-SQLite database (``syncstate.db``, ADR-0025), keyed by a folder UUID.
+SQLite database (``state DB``, ADR-0025), keyed by a folder UUID.
 
 Consumers: ``hsync-server`` / ``hsync-client`` (``tombstones.py`` wrappers and
 gossip endpoints), ``hsync-android`` (``Tombstones.kt`` mirror). Re-exported

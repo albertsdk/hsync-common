@@ -7,7 +7,7 @@
 """
 Shared SQLite backend for causal version and tombstone persistence.
 
-One installation-level database (``syncstate.db``) holds every folder's
+One SQLite database per folder (client) or per bucket (server) holds the
 versions and tombstones, keyed by ``folder_id`` (ADR-0025). Connections use
 autocommit; callers wrap a sync-cycle flush in :meth:`StateDb.begin_immediate`
 / :meth:`StateDb.commit`. WAL is preferred; filesystems that reject it fall
@@ -198,7 +198,7 @@ def state_db_freelist_count(db_path: str | Path) -> int:
 
 
 class StateDb:
-    """Thin wrapper around a shared ``syncstate.db`` connection.
+    """Thin wrapper around a shared ``state DB`` connection.
 
     One instance is typically cached per ``db_path``. Folder rows are
     ensured on first use. Access to the underlying connection is

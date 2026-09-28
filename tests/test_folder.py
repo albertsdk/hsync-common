@@ -6,16 +6,21 @@ import uuid
 import pytest
 
 from hsync_common.constants import (
+    HSYNC_STATE_DB_ENV,
     HSYNC_STATE_DIR_ENV,
     HSYNCFOLDER_FILENAME,
-    SYNCSTATE_DB_FILENAME,
 )
 from hsync_common.models.folder import (
+    client_state_db_dir,
+    client_state_db_path,
+    client_state_index_db_path,
     default_state_dir,
-    default_syncstate_db_path,
     ensure_folder_marker,
     is_folder_id,
     read_folder_marker,
+    server_auth_db_path,
+    server_state_db_path,
+    state_db_override,
     write_folder_marker,
 )
 
@@ -65,7 +70,22 @@ class TestStateDir:
     def test_env_override(self, tmp_path, monkeypatch):
         monkeypatch.setenv(HSYNC_STATE_DIR_ENV, str(tmp_path / "state"))
         assert default_state_dir() == tmp_path / "state"
-        assert default_syncstate_db_path() == tmp_path / "state" / SYNCSTATE_DB_FILENAME
+        state_dir = tmp_path / "state"
+        assert server_state_db_path("photos", state_dir) == state_dir / "server" / "photos.db"
+        assert server_auth_db_path(state_dir) == state_dir / "server" / "auth.db"
+
+    def test_state_db_override(self, tmp_path, monkeypatch):
+        monkeypatch.setenv(HSYNC_STATE_DB_ENV, str(tmp_path / "one.db"))
+        assert state_db_override() == tmp_path / "one.db"
+        monkeypatch.delenv(HSYNC_STATE_DB_ENV, raising=False)
+        assert state_db_override() is None
+
+    def test_client_state_paths(self, tmp_path):
+        device = tmp_path / "device"
+        folder_id = str(uuid.uuid4())
+        assert client_state_db_dir(device) == device / "syncstate"
+        assert client_state_db_path(folder_id, device) == device / "syncstate" / f"{folder_id}.db"
+        assert client_state_index_db_path(device) == device / "syncstate" / "index.db"
 
     def test_xdg_fallback(self, tmp_path, monkeypatch):
         monkeypatch.delenv(HSYNC_STATE_DIR_ENV, raising=False)
