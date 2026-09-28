@@ -12,7 +12,7 @@ parent process (the Desktop GUI) can drive its UI from the *binary's* declared
 capabilities instead of coupling to a specific CLI/Semver contract. The document
 bundles, in one versioned payload:
 
-* the supported CLI subcommands (``p2p``, ``server``),
+* the supported CLI subcommands (``p2p``, ``server``, ``trust``),
 * the per-subcommand supported CLI option flags (introspected by the client
   from its own commands, so the lists can never drift from the real interface),
 * the per-channel ``protocol_version`` (REST/WS/p2p/boot) from the handshake SSOT,
@@ -88,7 +88,7 @@ def build_capabilities(
 
     Args:
         app_version: The binary's semantic version (distinct from the protocol).
-        subcommands: The supported CLI subcommands (e.g. ``["p2p", "server"]``).
+        subcommands: The supported CLI subcommands (e.g. ``["p2p", "server", "trust"]``).
             Listed explicitly (not derived from ``cli_options_by_subcommand``
             keys) so a subcommand exposing no options stays discoverable.
         cli_options_by_subcommand: The supported CLI option flags per
