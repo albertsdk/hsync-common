@@ -78,7 +78,7 @@ hsync-common/
 └── hsync_common/protocol/fixtures/
     ├── p2p-election-scenarios.json    # Master election test vectors
     ├── p2p-pairing-scenarios.json     # Pairing/pinning test vectors
-    ├── p2p-wss-*.json                 # LAN WS auth / hello / inventory frames
+    ├── p2p-wss-*.json                 # p2p WS auth / hello / inventory frames
     ├── p2p-txt-*.json, p2p-sources-*.json  # mDNS TXT + source-lookup frames
     ├── bootnode-*.json                # boot/1 register / query / response / ack
     ├── delta-*.json                   # delta signatures / instructions / apply

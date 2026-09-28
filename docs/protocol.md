@@ -32,7 +32,7 @@ Peers advertise capabilities during the handshake:
 - `compression` — zstd transfer support
 - `delta` — rsync-style block sync support
 - `vector_clocks` and `tombstones` — causal synchronization metadata
-- `https` and `never_master` — LAN transport/election behavior
+- `https` and `never_master` — p2p transport/election behavior
 - `peer_download` — p2p inventory, batch source lookup, and read-only seeder
   semantics
 
@@ -53,9 +53,9 @@ closes the connection with a specific error code on failure.
 
 ## p2p election & Pairing
 
-LAN-specific protocol details (master election, TOFU pinning, strict pairing,
-LAN-key write policy) are documented in the authoritative
-[LAN Protocol specification](p2p-protocol.md).
+p2p-specific protocol details (master election, TOFU pinning, strict pairing,
+p2p-key write policy) are documented in the authoritative
+[p2p Protocol specification](p2p-protocol.md).
 
 The canonical implementations live in:
 - `hsync_common.protocol.p2p` — election algorithm
@@ -71,7 +71,7 @@ fixtures:
 | REST | `protocol/rest/openapi.json` |
 | WebSocket | `protocol/ws/ws-schema.json` |
 | p2p TXT | `protocol/p2p/txt-schema.json` |
-| LAN WebSocket | `protocol/p2p/wss-schema.json` |
+| p2p WebSocket | `protocol/p2p/wss-schema.json` |
 | p2p peer-source request/response | `protocol/p2p/sources-schema.json` |
 
 Cross-language parity tests (Python + Kotlin) require both implementations to
@@ -79,7 +79,7 @@ produce identical results before an ecosystem protocol change is complete.
 
 ## See also
 
-- [LAN Protocol specification](p2p-protocol.md) — detailed p2p discovery, election,
+- [p2p Protocol specification](p2p-protocol.md) — detailed p2p discovery, election,
   pairing, and security specification.
 - [Models guide](models.md) — data models used in protocol messages.
 - [Internal architecture](internal/architecture.md) — detailed protocol package

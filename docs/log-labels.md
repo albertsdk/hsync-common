@@ -58,7 +58,7 @@ and the node is now applying peer events.
 | delete | red | destructive operations |
 | permission | magenta | permission changes |
 | in_sync | dim | no-op (already in sync, skipped) |
-| warning | yellow | guards, conflicts, ignored deletions, LAN trust warnings |
+| warning | yellow | guards, conflicts, ignored deletions, p2p trust warnings |
 | security | red | rejected unsafe paths / hard security refusals |
 | infrastructure | magenta | transport-level (WebSocket, echo suppression) |
 | phase | white (bold) | lifecycle phase markers (initial sync started) |

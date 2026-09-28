@@ -12,7 +12,7 @@ Zstandard (zstd) compression with level 3:
 | `decompress_data` | Decompress zstd-compressed bytes (optional hard cap on output size for untrusted payloads) |
 | `decompress_stream` | Stream-decompress a zstd byte stream with a hard cap on total output (anti decompression-bomb) |
 | `compress_file` | Read and compress a file from disk |
-| `should_compress` | Decide if compression is beneficial (10 KB download / 32 KB upload / 100 KB LAN gate) |
+| `should_compress` | Decide if compression is beneficial (10 KB download / 32 KB upload / 100 KB p2p gate) |
 
 The module also exports `PRECOMPRESSED_EXTENSIONS` — a frozen set of 95 file
 extensions that are already compressed (archives, images, audio, video, etc.).

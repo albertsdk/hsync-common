@@ -41,7 +41,7 @@ these constants:
 | `UiEventName` + `build_event` | `protocol/events.py:44` | client emits, desktop/android parse; transfer payload may carry peer `source_cid` |
 | `elect_master` / `election_sort_key` | `protocol/p2p.py:67` | client `p2p.py`, android `Election.kt` |
 | `evaluate_pin` / `p2p_write_requires_key` | `protocol/pairing.py:124` | client `pinning.py`, android `Pairing.kt` |
-| LAN source/inventory builders + validators | `protocol/peer_download.py:91` | client master/seeder/source resolver, Android mirror, generated contracts |
+| p2p source/inventory builders + validators | `protocol/peer_download.py:91` | client master/seeder/source resolver, Android mirror, generated contracts |
 
 ## Causal conflict model (ADR-0022)
 
@@ -72,7 +72,7 @@ these constants:
 | WS JSON Schema | `build_ws_schema` (`protocol/schemas.py:464`) | `protocol/__init__.py:34` (`WS_SCHEMA_PATH`) |
 | p2p TXT JSON Schema | `build_p2p_txt_schema` (`protocol/schemas.py:742`) | `protocol/__init__.py:35` (`P2P_TXT_SCHEMA_PATH`) |
 | p2p WSS JSON Schema | `build_p2p_wss_schema` (`protocol/schemas.py:669`) | `protocol/__init__.py:36` (`P2P_WSS_SCHEMA_PATH`) |
-| LAN source JSON Schema | `build_p2p_sources_schema` (`protocol/schemas.py:180`) | `protocol/__init__.py:38` (`P2P_SOURCES_SCHEMA_PATH`) |
+| p2p source JSON Schema | `build_p2p_sources_schema` (`protocol/schemas.py:180`) | `protocol/__init__.py:38` (`P2P_SOURCES_SCHEMA_PATH`) |
 | Cross-language fixtures | `build_fixtures` (`protocol/fixtures.py:647`) | `protocol/__init__.py:42` (`FIXTURES_DIR`) |
 
 Regeneration: `scripts/export_protocol_schemas.py` and `scripts/export_openapi.py`.

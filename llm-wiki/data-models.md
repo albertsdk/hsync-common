@@ -99,7 +99,7 @@ wire shape. Re-exported from `hsync_common/models/__init__.py:1`.
   `VCLOCK_MAX_ENTRIES` entries, non-negative int counters with `bool`
   rejected, valid cids only) — an entry without a valid clock is dropped,
   never loaded with a fabricated empty clock. Store capped at
-  `TOMBSTONE_MAX_ENTRIES` (100 000) — anti-poisoning for LAN gossip payloads.
+  `TOMBSTONE_MAX_ENTRIES` (100 000) — anti-poisoning for p2p gossip payloads.
   Raw `ts` is also type-hardened: `bool` rejected outright, `int()` guarded
   against `OverflowError` from non-finite floats (JSON `Infinity`/`NaN` are
   accepted by `json.loads`).

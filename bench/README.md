@@ -7,7 +7,7 @@ split does not map onto it:
 | Tier | Status here | Why |
 |---|---|---|
 | L1 — in-process micro-benchmark | **implemented** (this directory) | Measures the hot library calls every consumer runs per file/per event |
-| L2/L3 — transport load + soak | n/a | Nothing to spawn: the transport belongs to the client/server/LAN layers, not to this package |
+| L2/L3 — transport load + soak | n/a | Nothing to spawn: the transport belongs to the client/server/p2p layers, not to this package |
 | L4 — profiling diagnostic | n/a (yet) | Added only when a specific anomaly needs a cost breakdown; use `--json-out` + a profiler meanwhile |
 | L5 — CPU-saturation sweep | n/a | Single-process, single-threaded pure-Python calls: saturation belongs to the consuming process |
 

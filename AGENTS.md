@@ -61,7 +61,7 @@ documentation-engineering rules:
   * *Tutorial / Chooser* — a short landing page that picks the path and links
     to what to do next; it never embeds full procedures.
   * *How-To* — a task procedure with concrete, copy-paste commands for **one
-    environment only** (no mixed Docker/native or server/LAN blocks in the same
+    environment only** (no mixed Docker/native or server/p2p blocks in the same
     code fence).
   * *Reference* — command/option/API/table listings; the single source of truth
     for syntax and defaults.
@@ -73,7 +73,7 @@ documentation-engineering rules:
   documented exactly once. Quick-start procedures live only in the dedicated
   getting-started pages; concept/usage pages link to them instead of repeating
   them. Index/splitter pages (`foo.md` linking to `foo-server.md` /
-  `foo-lan.md`, `faq.md`, `examples.md`, `sync-flow.md`, `sync-modes.md`) are
+  `foo-p2p.md`, `faq.md`, `examples.md`, `sync-flow.md`, `sync-modes.md`) are
   links only — no content that can drift from the page they point to.
 * **Task-based / outcomes-first**: organise content by user goal ("Install",
   "First sync", "Backup", "Schedule", "Migrate"), and structure the docs
@@ -93,7 +93,7 @@ documentation-engineering rules:
 
 ## ⚠️ Domain-Critical Rules
 
-* **LAN Discovery & Master Election**
+* **P2P Discovery & Master Election**
   Before modifying any logic related to these mechanisms, you **MUST** read and follow the specifications outlined in `hsync-common/docs/p2p-protocol.md`.
 
 * **Packaging WD My Cloud OS5**

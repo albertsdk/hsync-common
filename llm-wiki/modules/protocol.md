@@ -78,7 +78,7 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   successful verified peer-served full download; build/serialize/parse:
   `build_event` (`:119`), `serialize_event` (`:141`), `parse_event_line` (`:146`).
 
-## p2p.py — LAN wire SSOT (master election + p2p-only paths)
+## p2p.py — p2p wire SSOT (master election + p2p-only paths)
 
 - Realtime control-plane path: `P2P_WS_EVENTS_PATH` (`p2p.py:64`) template and
   `p2p_ws_events_path(bucket, cid)` (`p2p.py:67`); the master registers the

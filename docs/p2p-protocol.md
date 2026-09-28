@@ -1,7 +1,7 @@
-# LAN Discovery & Master Election
+# P2P Discovery & Master Election
 
 This document is the human-readable companion to the machine-checked sources of
-truth for the p2p channel. It exists so the Python client (`hsync_client.lan`,
+truth for the p2p channel. It exists so the Python client (`hsync_client`,
 `PeerManager`) and the Android client (`com.hsync.android.p2p`, `P2PManager`)
 cannot drift: both consume the same canonical algorithm and are validated against
 the same golden fixtures.
@@ -479,7 +479,7 @@ This is a bounded-incumbency lease, **not** a quorum: a full network partition
 can still briefly yield two masters, and the divergence is reconciled causally
 on heal ([ADR-0022](internal/adr/0022-causal-vector-clock-conflict-model.md)).
 Guaranteeing at-most-one master under partition would require a majority quorum
-with fixed membership, which conflicts with the dynamic home-LAN topology.
+with fixed membership, which conflicts with the dynamic home/office topology.
 
 ## Cross-language parity
 
@@ -504,7 +504,7 @@ then copy the regenerated `protocol/fixtures/*.json` into
 
 ## Causal tombstones (deletion gossip)
 
-Deletion markers exchanged over the LAN gossip channel (`/tombstones` on the
+Deletion markers exchanged over the p2p gossip channel (`/tombstones` on the
 master, see `hsync-client/p2p_server.py`) are **causal** ([ADR-0003](../docs/internal/adr/0003-tombstone-gossip.md)):
 each entry carries `sha256`, `version_id`, `origin_cid`, the informational `ts`
 and a `vclock` — the stored version clock for the path, merged and ticked by
@@ -614,13 +614,14 @@ trust decisions are the single source of truth in
 
 ### Threat model
 
-The p2p channel is designed for a **trusted LAN** (a home/office network the
-operator controls) and degrades safely on an **untrusted LAN** (shared/public
-Wi-Fi):
+The p2p channel is designed for a **trusted network** — a home/office LAN, or a
+group reached through a `boot/1` bootnode — and degrades safely on an
+**untrusted network** (shared/public Wi-Fi):
 
-- mDNS/TXT discovery is **unauthenticated**: any host can advertise any `cid`,
-  `bucket` or flag. Discovery data is therefore a hint, never proof.
-- The LAN transport is **HTTPS/WSS only**: there is no plain-HTTP path. A master
+- Discovery (mDNS/TXT on a LAN, or the bootnode relay) is **unauthenticated**:
+  any host can advertise any `cid`, `bucket` or flag. Discovery data is
+  therefore a hint, never proof.
+- The p2p transport is **HTTPS/WSS only**: there is no plain-HTTP path. A master
   serves over TLS and advertises its certificate fingerprint in `cert_fp`. TLS
   gives **confidentiality and integrity** against passive eavesdroppers, but the
   self-signed certificate **does not prove identity** — on its own it cannot
@@ -683,7 +684,7 @@ carries the data, with no separate probe (which would leave a TOCTOU window):
   `verify_peer_cert_fingerprint` checks the live connection's peer certificate
   (`getpeercert(binary_form=True)`) against the pin before any data is exchanged.
 
-### LAN mutation authorization (ADR-0029)
+### P2P mutation authorization (ADR-0029)
 
 Because a self-signed transport does not authorize mutation, p2p writes fail
 closed independently of whether the invocation is interactive:
@@ -711,7 +712,7 @@ tombstone mutation all use this same matrix.
 ### Explicit pairing (strict mode)
 
 TOFU trusts a peer's *first* certificate automatically, which is convenient on a
-trusted LAN but assumes no attacker was already present at first sighting. Strict
+trusted network but assumes no attacker was already present at first sighting. Strict
 pairing (`HSYNC_P2P_REQUIRE_PAIRING` / client `P2P_REQUIRE_PAIRING` or the
 `--require-pairing` CLI flag, Desktop *Require pairing* toggle, Android
 `SyncConfig.p2pRequirePairing`) closes that window by disabling the auto-pin
