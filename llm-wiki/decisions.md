@@ -35,6 +35,7 @@ each ADR to the code it governs.
 | [0029 explicit-opt-in-unauthenticated-p2p-writes](../docs/internal/adr/0029-explicit-opt-in-unauthenticated-p2p-writes.md) | `protocol/pairing.py` (`p2p_write_requires_key`: explicit opt-in, interactivity is non-authoritative); p2p mutation endpoint policy in consumers |
 | [0030 p2p-seeder-capacity-advertisement](../docs/internal/adr/0030-p2p-seeder-capacity-advertisement.md) | `protocol/peer_download.py` (`P2P_SERVE_SLOTS_MIN`/`_MAX`, `is_valid_serve_slots`, required `serve_slots` in `P2PSourceCandidate`); `protocol/handshake.py` (`build_p2p_auth`/`build_p2p_hello` advertisement); `protocol/schemas.py` (candidate + p2p WSS schemas); golden fixtures |
 | [0034 bootnode-tls-trust](../docs/internal/adr/0034-bootnode-tls-trust.md) | `protocol/pairing.py` (`parse_fingerprint`, `fingerprint_matches`, `FingerprintMismatch`); `ssl_utils.py` (ECDSA P-256 identity by default; RSA/Ed25519 loadable); `hsync-bootnode` (opt-in `--identity` persistence) + `hsync-client` (`bootnode_trust.py` pin/TOFU) |
+| [0036 server-tls-trust-unification](../docs/internal/adr/0036-server-tls-trust-unification.md) | `protocol/tls_trust.py` (`TrustPolicy.chain`, `evaluate_tls_trust`); client `server_trust.py`/`known_hosts.py` + `hsync trust` namespace; desktop `TrustedKeysDialog` servers tab; Android `BootnodeTrust` mirror |
 
 p2p transport/security specifics (TOFU pinning, p2p-key policy, threat model)
 live in [`../docs/p2p-protocol.md`](../docs/p2p-protocol.md) and map to

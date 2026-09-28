@@ -31,7 +31,6 @@ from hsync_common.models.file import File
 from hsync_common.models.tombstone import TombstoneEntry, tombstone_merge_decision
 from hsync_common.models.version import VersionInfo, resolve_three_way
 
-from .bootnode_trust import TrustPolicy, evaluate_bootnode_trust
 from .handshake import (
     PROTOCOL_VERSION_P2P,
     Capability,
@@ -62,6 +61,7 @@ from .peer_download import (
     build_p2p_sources_request,
     build_p2p_sources_response,
 )
+from .tls_trust import TrustPolicy, evaluate_tls_trust
 
 __all__ = ["FIXTURE_APP_VERSION", "FIXTURE_TOKEN", "build_fixtures"]
 
@@ -354,12 +354,13 @@ def _pairing_scenarios() -> dict[str, Any]:
     }
 
 
-# Cross-language bootnode trust policy scenarios. Each lists the policy, the
+# Cross-language TLS trust policy scenarios. Each lists the policy, the
 # stored and the observed fingerprint; the expected action is *computed* from the
-# shared ``evaluate_bootnode_trust`` so Python, the desktop subprocess contract
-# and the Android mirror agree on when an unknown node is prompted/pinned and
-# when a changed one is refused. Fingerprints are full SHA-256 digests (the
-# policy validates them, so short samples would never match).
+# shared ``evaluate_tls_trust`` so Python, the desktop subprocess contract and the
+# Android mirror agree on when an unknown host is prompted/pinned, when a changed
+# one is refused, and when ``chain`` (standard CA validation, no pinning) proceeds.
+# Fingerprints are full SHA-256 digests (the policy validates them, so short
+# samples would never match).
 _BOOTNODE_FP_A = "a" * 64
 _BOOTNODE_FP_A_COLON = ":".join(["AA"] * 32)
 _BOOTNODE_FP_B = "b" * 64
@@ -376,11 +377,17 @@ _BOOTNODE_TRUST_SCENARIOS: tuple[tuple[str, TrustPolicy, str | None, str | None]
     ("none-unknown-proceeds", TrustPolicy.none, None, _BOOTNODE_FP_A),
     ("none-changed-proceeds", TrustPolicy.none, _BOOTNODE_FP_A, _BOOTNODE_FP_B),
     ("ask-missing-observed-refused", TrustPolicy.ask, _BOOTNODE_FP_A, None),
+    ("chain-unknown-proceeds", TrustPolicy.chain, None, _BOOTNODE_FP_A),
+    ("chain-changed-proceeds", TrustPolicy.chain, _BOOTNODE_FP_A, _BOOTNODE_FP_B),
+    ("chain-missing-observed-proceeds", TrustPolicy.chain, _BOOTNODE_FP_A, None),
+    # A malformed observed value is never trusted (matches the Android mirror).
+    ("accept-new-invalid-observed-refused", TrustPolicy.accept_new, None, "not-a-fingerprint"),
+    ("strict-short-observed-refused", TrustPolicy.strict, None, "abcdef"),
 )
 
 
 def _bootnode_trust_scenarios() -> dict[str, Any]:
-    """Serialized bootnode trust scenarios with expectations from the source."""
+    """Serialized TLS trust scenarios with expectations from the source."""
     return {
         "trust_scenarios": [
             {
@@ -388,7 +395,7 @@ def _bootnode_trust_scenarios() -> dict[str, Any]:
                 "policy": policy,
                 "stored": stored,
                 "observed": observed,
-                "expected_action": evaluate_bootnode_trust(policy, stored, observed),
+                "expected_action": evaluate_tls_trust(policy, stored, observed),
             }
             for name, policy, stored, observed in _BOOTNODE_TRUST_SCENARIOS
         ]

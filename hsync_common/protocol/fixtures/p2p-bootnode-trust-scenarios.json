@@ -83,6 +83,41 @@
       "observed": null,
       "policy": "ask",
       "stored": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "expected_action": "proceed",
+      "name": "chain-unknown-proceeds",
+      "observed": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "policy": "chain",
+      "stored": null
+    },
+    {
+      "expected_action": "proceed",
+      "name": "chain-changed-proceeds",
+      "observed": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "policy": "chain",
+      "stored": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "expected_action": "proceed",
+      "name": "chain-missing-observed-proceeds",
+      "observed": null,
+      "policy": "chain",
+      "stored": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "expected_action": "refuse",
+      "name": "accept-new-invalid-observed-refused",
+      "observed": "not-a-fingerprint",
+      "policy": "accept-new",
+      "stored": null
+    },
+    {
+      "expected_action": "refuse",
+      "name": "strict-short-observed-refused",
+      "observed": "abcdef",
+      "policy": "strict",
+      "stored": null
     }
   ]
 }

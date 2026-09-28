@@ -24,9 +24,10 @@ Two constraints shape the design:
 ## Decision
 
 1. **A single trust-policy SSOT** lives in
-   `hsync_common/protocol/bootnode_trust.py`: `TrustPolicy`
-   (`ask | accept_new | strict | none`) and the pure
-   `evaluate_bootnode_trust(policy, stored, observed) -> TrustAction`
+   `hsync_common/protocol/tls_trust.py`: `TrustPolicy`
+   (`ask | accept_new | strict | none`, later extended with `chain` for the sync
+   server — see ADR-0036) and the pure
+   `evaluate_tls_trust(policy, stored, observed) -> TrustAction`
    (`proceed | pin_and_proceed | prompt | refuse`). `none` always proceeds; a
    changed or missing fingerprint is always refused.
 2. **`ask` is the default.** An unknown node prompts and is pinned on
@@ -42,7 +43,7 @@ Two constraints shape the design:
    each `host:port` record carries `current`, `updated_at`, `first_seen` and
    `source` (`prompt | tofu | flag | cli`). The `0600`/`0700` JSON store and the
    `HSYNC_BOOTNODE_TRUST_FILE` override are unchanged.
-5. **The user manages the store with `hsync bootnode trust`**:
+5. **The user manages the store with `hsync trust bootnode`**:
    `list`/`show`, `add HOST[:PORT] FINGERPRINT`, `remove HOST[:PORT]`
    (like `ssh-keygen -R`) and `fingerprint HOST[:PORT]` (read the node's
    fingerprint without trusting it, like `ssh-keyscan`).
@@ -57,7 +58,7 @@ Two constraints shape the design:
   silent; automation uses `--bootnode-tofu`/`--bootnode-fingerprint` (or
   `--bootnode-trust accept-new`).
 - The desktop uses a pre-flight: it reads the fingerprint with
-  `hsync bootnode trust fingerprint`, shows a dialog, and starts the client with
+  `hsync trust bootnode fingerprint`, shows a dialog, and starts the client with
   an explicit pin or `trust add`. Android mirrors `TrustPolicy` and persists to
   the same `bootnode_known_hosts.json` name.
 - New CLI/env surface obliges the man page, `docs/`, the WD OS5 packaging and

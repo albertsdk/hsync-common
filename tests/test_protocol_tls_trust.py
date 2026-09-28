@@ -4,26 +4,26 @@
 #
 # Copyright (C) 2025 Alberto Basso
 
-"""Tests for the bootnode trust policy SSOT (``hsync_common.protocol.bootnode_trust``).
+"""Tests for the TLS trust policy SSOT (``hsync_common.protocol.tls_trust``).
 
 The decision is pure so the Python client, the desktop subprocess contract and
 the Android mirror share one provably consistent rule set (validated against the
-shared ``bootnode-trust-scenarios`` fixture).
+shared ``p2p-bootnode-trust-scenarios`` fixture).
 """
 
 import pytest
 
-from hsync_common.protocol.bootnode_trust import (
+from hsync_common.protocol.tls_trust import (
     TrustAction,
     TrustPolicy,
-    evaluate_bootnode_trust,
+    evaluate_tls_trust,
 )
 
 _FP_A = "a" * 64
 _FP_B = "b" * 64
 
 
-class TestEvaluateBootnodeTrust:
+class TestEvaluateTlsTrust:
     @pytest.mark.parametrize(
         ("policy", "stored", "observed", "expected"),
         [
@@ -43,22 +43,34 @@ class TestEvaluateBootnodeTrust:
             (TrustPolicy.none, None, _FP_A, TrustAction.proceed),
             (TrustPolicy.none, _FP_A, _FP_B, TrustAction.proceed),
             (TrustPolicy.none, _FP_A, None, TrustAction.proceed),
+            # chain: standard CA validation, no pinning — always proceed
+            (TrustPolicy.chain, None, _FP_A, TrustAction.proceed),
+            (TrustPolicy.chain, _FP_A, _FP_B, TrustAction.proceed),
+            (TrustPolicy.chain, _FP_A, None, TrustAction.proceed),
         ],
     )
     def test_policy_matrix(self, policy, stored, observed, expected):
-        assert evaluate_bootnode_trust(policy, stored, observed) is expected
+        assert evaluate_tls_trust(policy, stored, observed) is expected
 
     def test_fingerprint_formats_are_normalised(self):
         # Colon/space-separated and bare hex compare equal on both sides.
         colon_separated = ":".join(["AA"] * 32)
-        assert evaluate_bootnode_trust(TrustPolicy.ask, _FP_A, colon_separated) is (
-            TrustAction.proceed
-        )
+        assert evaluate_tls_trust(TrustPolicy.ask, _FP_A, colon_separated) is (TrustAction.proceed)
 
     @pytest.mark.parametrize(
         "policy",
         [TrustPolicy.ask, TrustPolicy.accept_new, TrustPolicy.strict],
     )
     def test_missing_observed_is_never_trusted(self, policy):
-        assert evaluate_bootnode_trust(policy, None, None) is TrustAction.refuse
-        assert evaluate_bootnode_trust(policy, _FP_A, "") is TrustAction.refuse
+        assert evaluate_tls_trust(policy, None, None) is TrustAction.refuse
+        assert evaluate_tls_trust(policy, _FP_A, "") is TrustAction.refuse
+
+    @pytest.mark.parametrize(
+        "policy",
+        [TrustPolicy.ask, TrustPolicy.accept_new, TrustPolicy.strict],
+    )
+    def test_malformed_observed_is_never_trusted(self, policy):
+        # A non-64-hex value is not a fingerprint: refuse (matches the mirror).
+        for malformed in ("not-a-fingerprint", "abcdef", "sha256:zz", "a" * 63):
+            assert evaluate_tls_trust(policy, None, malformed) is TrustAction.refuse
+            assert evaluate_tls_trust(policy, _FP_A, malformed) is TrustAction.refuse

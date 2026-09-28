@@ -152,11 +152,23 @@ def serialize_private_key_unencrypted(private_key: PrivateKey) -> bytes:
 
 def compute_cert_fingerprint(cert: x509.Certificate) -> str:
     """Return the SHA-256 fingerprint (hex) of a certificate's DER encoding."""
-    der = cert.public_bytes(serialization.Encoding.DER)
-    return hashlib.sha256(der).hexdigest()
+    return fingerprint_from_der(cert.public_bytes(serialization.Encoding.DER))
+
+
+def fingerprint_from_der(cert_der: bytes) -> str:
+    """Return the SHA-256 fingerprint (hex) of a DER-encoded certificate.
+
+    Used where only the raw DER bytes are available (a stdlib TLS handshake's
+    ``getpeercert(binary_form=True)`` or a PEM converted with
+    ``ssl.PEM_cert_to_DER_cert``): the client's server TLS probe and WSS pin, and
+    the server's ``admin tls fingerprint`` command.
+
+    Consumers: ``hsync-client`` (``server_trust.fetch_server_fingerprint``,
+    ``remote_websocket``), ``hsync-server`` (``admin tls fingerprint``), tests.
+    """
+    return hashlib.sha256(cert_der).hexdigest()
 
 
 def verify_cert_fingerprint(cert_der: bytes, expected_fingerprint: str) -> bool:
     """Compare a DER-encoded certificate's SHA-256 fingerprint to the expected one."""
-    actual = hashlib.sha256(cert_der).hexdigest()
-    return actual.lower() == expected_fingerprint.lower()
+    return fingerprint_from_der(cert_der).lower() == expected_fingerprint.lower()

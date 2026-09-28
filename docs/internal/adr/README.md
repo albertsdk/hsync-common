@@ -59,6 +59,7 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0033](0033-bootnode-python-reuses-hsync-common.md) | The bootnode Python v1 reuses hsync-common utilities | Accepted |
 | [0034](0034-bootnode-tls-trust.md) | Bootnode TLS trust: fingerprint pinning and opt-in TOFU | Accepted |
 | [0035](0035-bootnode-trust-policy.md) | Bootnode trust policy: SSH-like `ask` and `known_hosts` | Accepted |
+| [0036](0036-server-tls-trust-unification.md) | Unified SSH-style TLS trust for the sync server (`chain`, `hsync trust`) | Accepted |
 
 ## Related documents
 
