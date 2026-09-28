@@ -9,13 +9,13 @@ from cryptography.hazmat.primitives.asymmetric import ec, ed25519, rsa
 
 from hsync_common.ssl_utils import (
     DEFAULT_KEY_SIZE,
+    SERVICE_CERT_VALIDITY_DAYS,
     build_self_signed_certificate,
     compute_cert_fingerprint,
     generate_ecdsa_private_key,
     generate_ed25519_private_key,
     generate_rsa_private_key,
     serialize_cert_pem,
-    serialize_key_pem,
     serialize_private_key_unencrypted,
     verify_cert_fingerprint,
 )
@@ -82,7 +82,8 @@ class TestBuildSelfSignedCertificate:
         not_before = self_signed_cert.not_valid_before_utc
         not_after = self_signed_cert.not_valid_after_utc
         diff = not_after - not_before
-        assert diff == timedelta(days=1)
+        # The span is validity_days (from now) plus the 1-day NotBefore backdate.
+        assert diff == timedelta(days=2)
 
     def test_ca_flag_false_by_default(self, self_signed_cert):
         try:
@@ -102,6 +103,23 @@ class TestBuildSelfSignedCertificate:
         bc = cert.extensions.get_extension_for_class(x509.BasicConstraints)
         assert bc.value.ca is True
 
+    def test_not_before_is_backdated_for_clock_skew(self, private_key):
+        from datetime import UTC, datetime, timedelta
+
+        cert = build_self_signed_certificate(
+            private_key=private_key,
+            subject_attrs=[x509.NameAttribute(x509.oid.NameOID.COMMON_NAME, "skew.local")],
+            san_list=[x509.DNSName("skew.local")],
+            validity_days=1,
+        )
+        # NotBefore must be strictly in the past (backdated ~1 day), never "now".
+        assert cert.not_valid_before_utc < datetime.now(UTC)
+        assert cert.not_valid_before_utc >= datetime.now(UTC) - timedelta(days=2)
+
+    def test_service_validity_constant_is_twenty_years(self):
+        # SSOT: 20 years, shared by the bootnode and the server (ADR-0037).
+        assert SERVICE_CERT_VALIDITY_DAYS == 7305
+
 
 # ---------------------------------------------------------------------------
 # Serialization
@@ -116,33 +134,6 @@ class TestSerialization:
     def test_serialize_cert_pem_starts_with_header(self, self_signed_cert):
         pem = serialize_cert_pem(self_signed_cert)
         assert pem.startswith(b"-----BEGIN CERTIFICATE-----")
-
-    def test_serialize_key_pem_returns_bytes(self, private_key):
-        pem = serialize_key_pem(private_key, password=b"test-password")
-        assert isinstance(pem, bytes)
-
-    def test_serialize_key_pem_starts_with_encrypted_header(self, private_key):
-        pem = serialize_key_pem(private_key, password=b"test-password")
-        assert pem.startswith(b"-----BEGIN ENCRYPTED PRIVATE KEY-----")
-
-    def test_serialize_key_pem_round_trip_with_password(self, private_key):
-        from cryptography.hazmat.primitives import serialization
-
-        password = b"another-password"
-        pem = serialize_key_pem(private_key, password=password)
-        loaded = serialization.load_pem_private_key(pem, password=password)
-        assert loaded is not None
-
-    def test_serialize_key_pem_wrong_password_fails(self, private_key):
-        from cryptography.hazmat.primitives import serialization
-
-        pem = serialize_key_pem(private_key, password=b"correct")
-        with pytest.raises(ValueError):
-            serialization.load_pem_private_key(pem, password=b"wrong")
-
-    def test_serialize_key_pem_empty_password_rejected(self, private_key):
-        with pytest.raises(ValueError, match="password is required"):
-            serialize_key_pem(private_key, password=b"")
 
     def test_serialize_private_key_unencrypted_returns_bytes(self, private_key):
         pem = serialize_private_key_unencrypted(private_key)

@@ -60,6 +60,7 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0034](0034-bootnode-tls-trust.md) | Bootnode TLS trust: fingerprint pinning and opt-in TOFU | Accepted |
 | [0035](0035-bootnode-trust-policy.md) | Bootnode trust policy: SSH-like `ask` and `known_hosts` | Accepted |
 | [0036](0036-server-tls-trust-unification.md) | Unified SSH-style TLS trust for the sync server (`chain`, `hsync trust`) | Accepted |
+| [0037](0037-shared-service-identity-model.md) | Shared self-signed service identity model (ECDSA, unencrypted key, 20-year validity) | Accepted |
 
 ## Related documents
 
