@@ -49,7 +49,7 @@ byte-for-byte with the canonical ones.
 | `leave` | client → server | `cid`, `bucket`, `bucket_token?` (no response frame) |
 | `query` | client → server | `bucket`, `group?`, `bucket_token?`, `limit?` (1–50, default 20) |
 | `ack` | server → client | `observed_endpoint{proto,ip,port}`, `ttl`, `server_time`, `retry_after?` |
-| `response` | server → client | `peers[{cid, ip, port, proto, cert_fp, bucket, group?, version, capacity, reachable}]`, `count`, `ttl`, `error?`, `retry_after?` |
+| `response` | server → client | `peers[{cid, endpoints[{proto,host,port}], cert_fp, bucket, group?, version, capacity, reachable}]`, `count`, `ttl`, `error?`, `retry_after?` |
 
 Every frame carries `protocol_version` (`boot/1`) and a `type` discriminator;
 unknown fields make the frame invalid (`extra="forbid"` in the daemon,
@@ -60,9 +60,10 @@ strict validators in the mirror).
 The first `register` cannot publish a public endpoint (the client does not know
 its own address yet). The `ack` carries the **observed endpoint** (the
 STUN-equivalent echo of the source address). Once the data-plane endpoint is
-ready, the client sends a **second `register`** that publishes `endpoints[]`:
+ready, the client sends a **second `register`** that publishes `endpoints[]`
+(the full candidate list):
 
-- `host` is the observed public IP;
+- `host` is the observed public IP and/or the local/LAN address;
 - `port` is the master's **TCP** listen port (`--listen-port` /
   `HSYNC_P2P_LISTEN_PORT`) — never the QUIC/UDP source port;
 - `proto` is `tcp`.
@@ -70,7 +71,7 @@ ready, the client sends a **second `register`** that publishes `endpoints[]`:
 `refresh` renews the TTL and the `connected` count only: it never carries
 `endpoints` and never mutates other record fields.
 
-## Two advisory fields
+## Advisory fields
 
 - **`capacity`** (`0..32`, default `0`; `0` = not a peer-download seeder) is the
   peer's declared service-capacity hint, relayed to querying peers. It is **not
@@ -80,6 +81,11 @@ ready, the client sends a **second `register`** that publishes `endpoints[]`:
   it.
 - **`reachable`** is derived from `bool(endpoints)` at register time: only a peer
   that published a listen endpoint is advertised as a data-plane master.
+- **`endpoints`** is the peer's full candidate list, relayed verbatim and in
+  order (a single-element observed-source fallback when the peer advertised
+  none). Try the candidates host/LAN-first and fall back to the next, so two
+  peers behind the same NAT connect over the local path even when the public
+  endpoint has no hairpin route ([ADR-0038](internal/adr/0038-bootnode-endpoint-candidate-list.md)).
 
 ## Bucket tokens
 

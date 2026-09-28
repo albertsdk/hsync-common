@@ -75,6 +75,14 @@ identity by certificate pinning. The client mirror and the canonical fixtures
 live in `hsync_common.protocol.bootnode` / `hsync-bootnode/fixtures/` (the drift
 test keeps the two copies byte-identical).
 
+The registering peer's `endpoints[]` are relayed in full as each `query` peer's
+candidate list (`BootPeer.endpoints`), so the requester can prefer a host/LAN
+candidate over the NATed public one and fall back to the next (ICE-lite). This is
+what lets two peers behind the same NAT — where the public endpoint has no
+hairpin route on most home routers — still connect over the local path. The
+relayed order is the peer's external-reachability preference; the requester's
+own-network priority is a client-side policy and never an authority.
+
 ## Presence counters
 
 `connected` (a stringified non-negative integer, advertised only by a serving

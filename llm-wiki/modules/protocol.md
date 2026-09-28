@@ -37,7 +37,10 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   `BootQuery` (client→server) and `BootAck` / `BootResponse` / `BootPeer`
   (server→client); `validate_boot_frame` dispatches on `type`.
 - `CAPACITY_MAX = 32` bounds the advisory service-capacity hint (`0` = not a
-  seeder); `reachable` is derived from `bool(endpoints)`.
+  seeder); `reachable` is derived from `bool(endpoints)`. `BootPeer.endpoints`
+  mirrors the peer's full advertised candidate list (relayed verbatim by the
+  node, or a single-element observed-source fallback), so the client can prefer
+  a host/LAN candidate over the NATed public one.
 - Token helpers: `derive_bucket_token` (`HMAC-SHA256(key, "boot/1"||bucket)`),
   `is_valid_bucket_token`, `constant_time_equals`, `verify_bucket_token`.
 - Fixture mirror `protocol/fixtures/bootnode-*.json` is byte-checked against the

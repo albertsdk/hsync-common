@@ -4,9 +4,13 @@
   "peers": [
     {
       "cid": "A1b2C3d4E5f6G7h8I9j0K",
-      "ip": "198.51.100.7",
-      "port": 443,
-      "proto": "tcp",
+      "endpoints": [
+        {
+          "proto": "tcp",
+          "host": "198.51.100.7",
+          "port": 443
+        }
+      ],
       "cert_fp": "AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99",
       "bucket": "shared",
       "group": "home",

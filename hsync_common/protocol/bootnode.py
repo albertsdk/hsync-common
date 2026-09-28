@@ -261,6 +261,12 @@ class BootAck(TypedDict):
 class BootPeer(TypedDict):
     """A single advertised peer in a BootResponse.
 
+    ``endpoints`` is the peer's full advertised candidate list, relayed verbatim
+    and in order (or a single-element list with the observed source endpoint
+    when the peer advertised none). A requester tries the candidates, preferring
+    a host/LAN one reachable from its own network, so peers behind the same NAT
+    — where the public endpoint has no hairpin route — still connect locally.
+
     ``capacity`` is the peer's advisory service-capacity hint as relayed from
     its ``register`` (``0`` = not a seeder); ``reachable`` is derived from
     ``bool(endpoints)``. Neither is authoritative (ADR-0030).
@@ -274,9 +280,7 @@ class BootPeer(TypedDict):
     """
 
     cid: str
-    ip: str
-    port: int
-    proto: BucketProto
+    endpoints: list[Endpoint]
     cert_fp: str
     bucket: str
     version: str
@@ -335,9 +339,7 @@ _RESPONSE_OPTIONAL = frozenset({"error", "retry_after"})
 _PEER_REQUIRED = frozenset(
     {
         "cid",
-        "ip",
-        "port",
-        "proto",
+        "endpoints",
         "cert_fp",
         "bucket",
         "version",
@@ -504,15 +506,14 @@ def _validate_peer(value: object) -> BootPeer | None:
     if not _is_object(value, _PEER_REQUIRED, _PEER_OPTIONAL):
         return None
     cid = value["cid"]
-    proto = value["proto"]
+    endpoints = value["endpoints"]
     cert_fp = value["cert_fp"]
     bucket = value["bucket"]
     version = value["version"]
     if (
         not is_valid_cid(cid)
-        or not isinstance(value["ip"], str)
-        or not _is_port(value["port"])
-        or proto not in ("tcp", "udp")
+        or not isinstance(endpoints, list)
+        or not 1 <= len(endpoints) <= _MAX_ENDPOINTS
         or not _is_str(cert_fp, max_len=_MAX_CERT_FP_LEN)
         or not is_valid_bucket_name(bucket)
         or not _is_str(version, max_len=_MAX_VERSION_LEN)
@@ -520,11 +521,15 @@ def _validate_peer(value: object) -> BootPeer | None:
         or not isinstance(value["reachable"], bool)
     ):
         return None
+    clean_endpoints: list[Endpoint] = []
+    for item in endpoints:
+        clean_endpoint = _validate_endpoint(item)
+        if clean_endpoint is None:
+            return None
+        clean_endpoints.append(clean_endpoint)
     clean = BootPeer(
         cid=cid,
-        ip=value["ip"],
-        port=value["port"],
-        proto=proto,
+        endpoints=clean_endpoints,
         cert_fp=cert_fp,
         bucket=bucket,
         version=version,

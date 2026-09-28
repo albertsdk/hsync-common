@@ -192,9 +192,7 @@ def test_response_peer_requires_the_election_advert():
     """
     peer = {
         "cid": "A1b2C3d4E5f6G7h8I9j0K",
-        "ip": "198.51.100.7",
-        "port": 443,
-        "proto": "tcp",
+        "endpoints": [{"proto": "tcp", "host": "198.51.100.7", "port": 443}],
         "cert_fp": "AA:BB",
         "bucket": "shared",
         "version": "1.0.0",
@@ -227,6 +225,36 @@ def test_response_peer_requires_the_election_advert():
         validate_boot_response(_response_with_peer({**peer, "sync_direction": "sideways"})) is None
     )
     assert validate_boot_response(_response_with_peer({**peer, "startup_time": None})) is None
+
+
+def test_response_peer_requires_a_non_empty_endpoints_list():
+    """A relayed peer always carries at least one endpoint candidate.
+
+    The node relays the peer's full advertised list, or a single-element list
+    with the observed source endpoint when the peer advertised none, so an
+    empty or missing list is malformed and rejected by the mirror.
+    """
+    peer = {
+        "cid": "A1b2C3d4E5f6G7h8I9j0K",
+        "endpoints": [{"proto": "tcp", "host": "198.51.100.7", "port": 443}],
+        "cert_fp": "AA:BB",
+        "bucket": "shared",
+        "version": "1.0.0",
+        "capacity": 0,
+        "reachable": True,
+        "server_ready": False,
+        "force_master": False,
+        "never_master": True,
+        "startup_time": 1760000000.0,
+        "sync_direction": "bidirectional",
+    }
+    assert validate_boot_response(_response_with_peer(peer)) is not None
+    assert validate_boot_response(_response_with_peer({**peer, "endpoints": []})) is None
+    assert validate_boot_response(_response_with_peer({**peer, "endpoints": None})) is None
+    too_many = [{"proto": "tcp", "host": "198.51.100.7", "port": 443}] * 17
+    assert validate_boot_response(_response_with_peer({**peer, "endpoints": too_many})) is None
+    bad_port = [{"proto": "tcp", "host": "198.51.100.7", "port": 0}]
+    assert validate_boot_response(_response_with_peer({**peer, "endpoints": bad_port})) is None
 
 
 def test_bucket_token_derivation_and_verify():

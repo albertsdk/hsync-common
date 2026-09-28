@@ -61,6 +61,7 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0035](0035-bootnode-trust-policy.md) | Bootnode trust policy: SSH-like `ask` and `known_hosts` | Accepted |
 | [0036](0036-server-tls-trust-unification.md) | Unified SSH-style TLS trust for the sync server (`chain`, `hsync trust`) | Accepted |
 | [0037](0037-shared-service-identity-model.md) | Shared self-signed service identity model (ECDSA, unencrypted key, 20-year validity) | Accepted |
+| [0038](0038-bootnode-endpoint-candidate-list.md) | Bootnode relays the full endpoint candidate list | Accepted |
 
 ## Related documents
 
