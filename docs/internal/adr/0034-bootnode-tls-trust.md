@@ -80,7 +80,10 @@ ports share one fingerprint contract instead of each re-implementing it.
   the `bucket_token` exposure. A fingerprint mismatch is fatal and is not retried
   by the client lease loop.
 - The default client behaviour refuses an unpinned self-signed bootnode;
-  operators have an explicit, documented way to pin.
+  operators have an explicit, documented way to pin. *(Superseded by
+  [ADR-0035](0035-bootnode-trust-policy.md): the default is now the SSH-like
+  `ask` policy, which confirms an unknown fingerprint at a terminal prompt and
+  fails closed without one; `strict` keeps the behaviour described here.)*
 - The no-log invariant is preserved: the daemon writes nothing to disk unless the
   operator opts into `--identity`. `hsync-bootnode` documentation and the man page
   gain the new `identity`/`--public-host` surface.
