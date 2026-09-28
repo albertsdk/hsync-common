@@ -47,6 +47,15 @@ CLIENT_NAME_PATTERN = r"^[a-z][a-z0-9-]*[a-z0-9]$"
 
 _CLIENT_NAME_RE = re.compile(CLIENT_NAME_PATTERN)
 
+# Bare hostname / IPv4 charset for ``HOST[:PORT]`` endpoints. A host is
+# alphanumeric, optionally dotted/hyphenated, but never starts or ends with
+# ``-``/``.``. Anchors are left out so callers can embed it (bare ``^...$`` or
+# inside a full URL pattern). IPv6 literals are bracketed separately by the
+# consumers. Consumers: hsync_common.endpoint (the shared parser), hsync-client
+# (CLI host parsing and the ``HSYNC_SERVER`` URL validator), hsync-bootnode and
+# hsync-server (bind ``--host``).
+HOSTNAME_PATTERN = r"[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?"
+
 
 def is_valid_client_name(value: str) -> bool:
     """Return True when *value* is a well-formed client-name slug.

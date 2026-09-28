@@ -27,6 +27,22 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
   transfer itself dominates). `hsync-common/tests/test_hashing.py` guards the
   intent.
 - `PARTIAL_DOWNLOAD_SUFFIX = ".part"` (`:194`).
+- `HOSTNAME_PATTERN` (`:57`) — bare hostname/IPv4 charset SSOT, consumed by
+  `endpoint.py` and re-exported by `hsync_client.constants`.
+
+## endpoint.py (shared `HOST[:PORT]` parser)
+
+- `parse_host_port(raw) -> HostPort` (`endpoint.py:74`) — the single parser for
+  the combined host/port form accepted by every `hsync*` CLI. Grammar: `host`,
+  `IPv4`, `host:port`, `IPv4:port`, `[IPv6]`, `[IPv6]:port`; a bare IPv6 literal
+  (more than one `:`) is host-only. Port must be 1–65535; URL-like input and
+  empty hosts are rejected with `ValueError`.
+- `HostPort` (`endpoint.py:46`) frozen dataclass: `host` (unbracketed) +
+  `port: int | None`; `authority` brackets an IPv6 host for URLs/display.
+- Consumers: `hsync-client` `cli.py` (bootnode/server/trust host args),
+  `hsync-bootnode` `cli.py` (`run --host HOST[:PORT]`), `hsync-server`
+  `__main__.py` (`--host HOST[:PORT]`). Env vars stay host-only/URL
+  (`HSYNC_BOOTNODE`, `HSYNC_SERVER`).
 
 ## hashing.py
 

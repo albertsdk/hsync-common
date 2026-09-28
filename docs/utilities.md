@@ -106,6 +106,13 @@ Human-readable bytes/duration formatting helpers.
 
 Environment-file loading helpers (`load_env_file`).
 
+## Endpoint (`hsync_common.endpoint`)
+
+Shared `HOST[:PORT]` parser for every `hsync*` CLI (`hsync`, `hsync-bootnode`,
+`hsync-server`). `parse_host_port` returns a `HostPort(host, port)`; IPv6 literals
+are bracketed in the combined form (`[::1]:443`), and `HostPort.authority`
+brackets a bare IPv6 host for URLs/display.
+
 ## Runtime (`hsync_common.runtime`)
 
 Runtime environment detection shared across HSYNC projects:
