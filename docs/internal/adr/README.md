@@ -58,6 +58,7 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0032](0032-bootnode-discovery.md) | Bootnode discovery (`boot/1`) and the hsync-common mirror | Accepted |
 | [0033](0033-bootnode-python-reuses-hsync-common.md) | The bootnode Python v1 reuses hsync-common utilities | Accepted |
 | [0034](0034-bootnode-tls-trust.md) | Bootnode TLS trust: fingerprint pinning and opt-in TOFU | Accepted |
+| [0035](0035-bootnode-trust-policy.md) | Bootnode trust policy: SSH-like `ask` and `known_hosts` | Accepted |
 
 ## Related documents
 

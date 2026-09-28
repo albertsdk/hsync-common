@@ -1,0 +1,57 @@
+{
+  "description": "Bootnode TLS trust fingerprint contract (ADR-0034): SHA-256 of the leaf certificate DER, lowercase hex, canonical form 'sha256:<hex>'. The scenario vectors below are replayed by a language-neutral parity test; every implementation must normalize and match these inputs identically.",
+  "hex": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "canonical": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "parse_scenarios": [
+    {
+      "input": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "normalized": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    },
+    {
+      "input": "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF",
+      "normalized": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    },
+    {
+      "input": "01:23:45:67:89:ab:cd:ef:01:23:45:67:89:ab:cd:ef:01:23:45:67:89:ab:cd:ef:01:23:45:67:89:ab:cd:ef",
+      "normalized": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    },
+    {
+      "input": "SHA256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "normalized": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    },
+    {
+      "input": "short",
+      "normalized": null
+    },
+    {
+      "input": "",
+      "normalized": null
+    },
+    {
+      "input": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdeg",
+      "normalized": null
+    }
+  ],
+  "match_scenarios": [
+    {
+      "observed": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "pins": ["0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"],
+      "matches": true
+    },
+    {
+      "observed": "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF",
+      "pins": ["sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"],
+      "matches": true
+    },
+    {
+      "observed": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "pins": ["fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"],
+      "matches": false
+    },
+    {
+      "observed": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "pins": [],
+      "matches": false
+    }
+  ]
+}

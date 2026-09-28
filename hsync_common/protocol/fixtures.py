@@ -31,6 +31,7 @@ from hsync_common.models.file import File
 from hsync_common.models.tombstone import TombstoneEntry, tombstone_merge_decision
 from hsync_common.models.version import VersionInfo, resolve_three_way
 
+from .bootnode_trust import TrustPolicy, evaluate_bootnode_trust
 from .handshake import (
     PROTOCOL_VERSION_P2P,
     Capability,
@@ -350,6 +351,47 @@ def _pairing_scenarios() -> dict[str, Any]:
             }
             for name, stored, observed, require_pairing in _PAIRING_SCENARIOS
         ],
+    }
+
+
+# Cross-language bootnode trust policy scenarios. Each lists the policy, the
+# stored and the observed fingerprint; the expected action is *computed* from the
+# shared ``evaluate_bootnode_trust`` so Python, the desktop subprocess contract
+# and the Android mirror agree on when an unknown node is prompted/pinned and
+# when a changed one is refused. Fingerprints are full SHA-256 digests (the
+# policy validates them, so short samples would never match).
+_BOOTNODE_FP_A = "a" * 64
+_BOOTNODE_FP_A_COLON = ":".join(["AA"] * 32)
+_BOOTNODE_FP_B = "b" * 64
+_BOOTNODE_TRUST_SCENARIOS: tuple[tuple[str, TrustPolicy, str | None, str | None], ...] = (
+    ("ask-unknown-prompts", TrustPolicy.ask, None, _BOOTNODE_FP_A),
+    ("ask-matched-proceeds", TrustPolicy.ask, _BOOTNODE_FP_A, _BOOTNODE_FP_A_COLON),
+    ("ask-changed-refused", TrustPolicy.ask, _BOOTNODE_FP_A, _BOOTNODE_FP_B),
+    ("accept-new-unknown-pins", TrustPolicy.accept_new, None, _BOOTNODE_FP_A),
+    ("accept-new-matched-proceeds", TrustPolicy.accept_new, _BOOTNODE_FP_A, _BOOTNODE_FP_A_COLON),
+    ("accept-new-changed-refused", TrustPolicy.accept_new, _BOOTNODE_FP_A, _BOOTNODE_FP_B),
+    ("strict-unknown-refused", TrustPolicy.strict, None, _BOOTNODE_FP_A),
+    ("strict-matched-proceeds", TrustPolicy.strict, _BOOTNODE_FP_A, _BOOTNODE_FP_A_COLON),
+    ("strict-changed-refused", TrustPolicy.strict, _BOOTNODE_FP_A, _BOOTNODE_FP_B),
+    ("none-unknown-proceeds", TrustPolicy.none, None, _BOOTNODE_FP_A),
+    ("none-changed-proceeds", TrustPolicy.none, _BOOTNODE_FP_A, _BOOTNODE_FP_B),
+    ("ask-missing-observed-refused", TrustPolicy.ask, _BOOTNODE_FP_A, None),
+)
+
+
+def _bootnode_trust_scenarios() -> dict[str, Any]:
+    """Serialized bootnode trust scenarios with expectations from the source."""
+    return {
+        "trust_scenarios": [
+            {
+                "name": name,
+                "policy": policy,
+                "stored": stored,
+                "observed": observed,
+                "expected_action": evaluate_bootnode_trust(policy, stored, observed),
+            }
+            for name, policy, stored, observed in _BOOTNODE_TRUST_SCENARIOS
+        ]
     }
 
 
@@ -693,6 +735,7 @@ def build_fixtures() -> dict[str, dict[str, Any]]:
         ),
         "p2p-election-scenarios": _election_scenarios(),
         "p2p-pairing-scenarios": _pairing_scenarios(),
+        "p2p-bootnode-trust-scenarios": _bootnode_trust_scenarios(),
         "causal-resolution-scenarios": _causal_resolution_scenarios(),
         "causal-tombstone-scenarios": _causal_tombstone_scenarios(),
         "delta-signatures": _delta_signatures(),

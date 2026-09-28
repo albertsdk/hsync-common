@@ -11,9 +11,10 @@ with a self-signed certificate that is regenerated in memory on every start
 (`hsync-client/hsync_client/boot_client.py`) therefore cannot authenticate the
 node: aioquic verifies hostname + chain + dates against the dialed host, but the
 bootnode's SAN is a fixed `hsync-bootnode` DNS name (or the bind IP) and its cert
-is not in any trust store. In practice the only working client mode today is
-`--insecure`, and `--ca-cert` cannot work either (the node never exports its PEM,
-and a fixed-SAN self-signed cert does not match a dialed hostname).
+is not in any trust store, so the client authenticates the node by pinning the
+certificate fingerprint (ADR-0035) rather than through WebPKI; `--ca-cert` cannot
+work (the node never exports its PEM, and a fixed-SAN self-signed cert does not
+match a dialed hostname).
 
 The trust gap is security-relevant, not cosmetic: the `bucket_token`
 (`HMAC-SHA256(HSYNC_P2P_KEY, "boot/1" || bucket)`) travels inside `register` and
@@ -49,8 +50,10 @@ fingerprint domain shared with the existing `cert_fp` carried in frames.
      DNS-based loopback detection is unreliable);
    - explicit pin `--bootnode-fingerprint` (repeatable, up to two for rotation);
    - opt-in TOFU `--bootnode-tofu` (dedicated store, hard refusal on mismatch);
-   - default **fail-closed**: `verify_mode=CERT_REQUIRED` + system CA store +
-     `server_name = host`, which refuses an unpinned self-signed bootnode.
+   - default policy **`ask`** (ADR-0035): prompt on an unknown node, pin on
+     acceptance; a non-interactive caller fails closed. The certificate is
+     verified against the pinned fingerprint with `verify_mode=CERT_NONE` (the pin
+     is the trust anchor), not against the system CA store.
 3. **The check runs post-handshake and before `create_stream()`**, so a mismatch
    closes the connection with zero application bytes sent. In pin/TOFU modes
    `verify_mode = CERT_NONE` (trust comes from the pin). The peer certificate is
