@@ -645,7 +645,7 @@ overridable via `HSYNC_DEVICE_DIR`). The device ID is advertised as the mDNS
 anchors the TOFU pin (`(cid, bucket)`), so a restarted master is recognised by
 its peers instead of being silently re-pinned, and a rotated keypair (deleted
 `*.pem` files with the device ID kept) triggers `[FINGERPRINT CHANGED]` as
-intended. The certificate is RSA, self-signed, and valid for ~10 years —
+intended. The certificate is ECDSA P-256, self-signed, and valid for 20 years —
 validity is an operational convenience only, since trust comes from the pinned
 fingerprint rather than chain/date validation.
 

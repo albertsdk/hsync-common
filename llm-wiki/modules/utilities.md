@@ -159,16 +159,19 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
 
 ## ssl_utils.py (TLS identity)
 
-- `generate_rsa_private_key` (`:35`, `DEFAULT_KEY_SIZE = 2048` `:26`),
-  `generate_ecdsa_private_key` (`:40`, P-256 by default; **preferred for new
-  bootnode identities**, ADR-0034), `generate_ed25519_private_key` (`:54`, no
-  longer the default), `build_self_signed_certificate` (`:64`) — accepts RSA,
-  ECDSA or Ed25519 (`PrivateKey` type alias `:32`; Ed25519 signs with no hash
-  parameter).
+- `SERVICE_CERT_VALIDITY_DAYS` (7305) — the shared 20-year validity for
+  self-signed service identities (ADR-0037); `build_self_signed_certificate`
+  (`:64`) backdates `NotBefore` by one day for clock skew.
+- `generate_ecdsa_private_key` (`:40`, P-256) — the key type of every HSYNC
+  service identity (ADR-0037); `generate_rsa_private_key` (`:35`,
+  `DEFAULT_KEY_SIZE = 2048`) and `generate_ed25519_private_key` (`:54`) are
+  alternate generators that `build_self_signed_certificate` (`:64`) also accepts
+  (RSA/ECDSA/Ed25519, `PrivateKey` type alias; Ed25519 signs with no hash
+  parameter), used by tests.
 - Serialization: PEM cert/key, unencrypted PKCS#8
   `serialize_private_key_unencrypted` (`:137`; RSA, ECDSA or Ed25519).
 - Fingerprints: `compute_cert_fingerprint`, `verify_cert_fingerprint` — the DER
-  SHA-256 domain shared with the bootnode trust contract (ADR-0034).
+  SHA-256 domain shared with the service trust contract (ADR-0034/ADR-0037).
 
 ## logger.py
 

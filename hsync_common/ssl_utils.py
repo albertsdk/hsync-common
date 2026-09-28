@@ -45,11 +45,9 @@ SERVICE_CERT_VALIDITY_DAYS = 7305
 # valid on a peer whose clock lags behind the issuer's (small clock skew).
 _CERT_NOT_BEFORE_BACKDATE = timedelta(days=1)
 
-# The certificate builder accepts any of these key types: HSYNC *service*
-# identities are ECDSA P-256 (ADR-0037), while the client's P2P certificate uses
-# RSA and tests exercise Ed25519. ECDSA P-256 is the service-identity default
-# because every mainstream TLS client (BoringSSL, OpenSSL, rustls) advertises it,
-# whereas BoringSSL disables Ed25519 by default.
+# The certificate builder accepts any of these key types. HSYNC *service*
+# identities are always ECDSA P-256 (ADR-0037); RSA and Ed25519 generators exist
+# only for the builder's tests.
 PrivateKey = rsa.RSAPrivateKey | ec.EllipticCurvePrivateKey | ed25519.Ed25519PrivateKey
 
 
