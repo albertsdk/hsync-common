@@ -99,6 +99,13 @@ To report a vulnerability, please use GitHub's **Private Vulnerability Reporting
 See our [Security Policy](SECURITY.md) for supported versions and hardening
 recommendations.
 
+## A note from the maintainer
+
+HSYNC is a passion project started by Alberto Basso. It is built in spare time,
+with love. Please remember this when you interact with the project: everyone
+involved is doing our best to build something great together, but it is not a
+paid, full-time job for any of us.
+
 ## Disclaimer
 
 > [!WARNING]
