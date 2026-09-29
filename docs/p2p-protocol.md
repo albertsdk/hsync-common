@@ -75,6 +75,12 @@ identity by certificate pinning. The client mirror and the canonical fixtures
 live in `hsync_common.protocol.bootnode` / `hsync-bootnode/fixtures/` (the drift
 test keeps the two copies byte-identical).
 
+The mDNS record and the `boot/1` channel are complementary, not exclusive: a
+client always advertises and browses mDNS, and adds the bootnode channel when one
+is configured. Both feed **one** peer state, so a peer seen through both updates a
+single entry (the election sees one candidate set) and the local network needs no
+round trip through the node.
+
 The registering peer's `endpoints[]` are relayed in full as each `query` peer's
 candidate list (`BootPeer.endpoints`), so the requester can prefer a host/LAN
 candidate over the NATed public one and fall back to the next (ICE-lite). This is
