@@ -183,10 +183,17 @@ Python uses the `zstandard` package; Kotlin uses `zstd-jni` via JNI bindings.
 | Upload threshold | `MIN_SIZE_FOR_UPLOAD` = 32 KB | `MIN_SIZE_FOR_UPLOAD` = 32 KB |
 | LAN threshold | `MIN_SIZE_FOR_LAN` = 100 KB | `MIN_SIZE_FOR_LAN` = 100 KB |
 | Download threshold | `MIN_SIZE_FOR_COMPRESSION` = 10 KB | — (not exposed in `CompressionManager`) |
+| LAN master compressed-download cap | `LAN_COMPRESSION_MAX_FILE_BYTES` = 256 MB (`hsync-client/lan_server.py`) | `LAN_COMPRESSION_MAX_FILE_BYTES` = 256 MiB (`LanServer.kt`) |
 
 Both implementations must produce byte-identical compressed output for the
 same input. The cross-language test fixtures include compression round-trip
 vectors to verify this.
+
+The LAN masters cap the compressed download branch at 256 MB because it
+buffers the whole file in RAM to build the zstd frame: larger compressible
+files are served UNCOMPRESSED instead. The Kotlin master additionally
+refuses to buffer downloads above 512 MiB outright (phone memory) — a
+deliberate divergence from the Python master, which streams any size.
 
 ---
 

@@ -12,6 +12,7 @@ from hsync_common.compression import (
     PRECOMPRESSED_EXTENSIONS,
     compress_data,
     compress_file,
+    compress_file_to_file,
     decompress_data,
     decompress_stream,
     should_compress,
@@ -230,3 +231,63 @@ class TestShouldCompressContextual:
 
     def test_precompressed_extension_skipped_in_lan(self):
         assert should_compress("photo.jpg", MIN_SIZE_FOR_LAN * 10, is_lan=True) is False
+
+
+class TestCompressFileToFile:
+    """Tests for the streaming file compressor (upload path)."""
+
+    def test_roundtrip(self, tmp_path):
+        """The compressed output decompresses to the exact source content."""
+        src = tmp_path / "data.bin"
+        original = b"hello hsync " * 100_000
+        src.write_bytes(original)
+        dst = tmp_path / "data.bin.zst"
+
+        size = compress_file_to_file(str(src), str(dst))
+
+        assert size == dst.stat().st_size
+        assert decompress_data(dst.read_bytes()) == original
+
+    def test_output_smaller_than_input_for_compressible_content(self, tmp_path):
+        src = tmp_path / "data.txt"
+        src.write_bytes(b"a" * 1_000_000)
+        dst = tmp_path / "data.txt.zst"
+
+        size = compress_file_to_file(str(src), str(dst))
+
+        assert 0 < size < src.stat().st_size
+
+    def test_overwrites_existing_output(self, tmp_path):
+        src = tmp_path / "data.bin"
+        original = b"new content " * 50_000
+        src.write_bytes(original)
+        dst = tmp_path / "out.zst"
+        dst.write_bytes(b"stale previous frame content" * 1000)
+
+        compress_file_to_file(str(src), str(dst))
+
+        assert decompress_data(dst.read_bytes()) == original
+
+    def test_empty_source_produces_valid_empty_frame(self, tmp_path):
+        src = tmp_path / "empty.bin"
+        src.write_bytes(b"")
+        dst = tmp_path / "empty.zst"
+
+        size = compress_file_to_file(str(src), str(dst))
+
+        assert size > 0  # a valid zstd frame still carries framing bytes
+        assert decompress_data(dst.read_bytes()) == b""
+
+    def test_read_size_does_not_change_output_content(self, tmp_path):
+        """Any read chunk size yields a frame decompressing to the source."""
+        src = tmp_path / "data.bin"
+        original = b"chunked read " * 20_000
+        src.write_bytes(original)
+
+        out_a = tmp_path / "a.zst"
+        out_b = tmp_path / "b.zst"
+        compress_file_to_file(str(src), str(out_a), read_size=64 * 1024)
+        compress_file_to_file(str(src), str(out_b), read_size=1024 * 1024)
+
+        assert decompress_data(out_a.read_bytes()) == original
+        assert decompress_data(out_b.read_bytes()) == original
