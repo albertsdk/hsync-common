@@ -214,8 +214,12 @@ class File:
         self.permissions = permissions
         self.version = version
         try:
-            self.ctime = self._parse_time(ctime)
-            self.mtime = self._parse_time(mtime)
+            # int is the dominant wire shape (ctime/mtime arrive as epoch
+            # seconds): skip the _parse_time/to_epoch call pair and return it
+            # verbatim. ``type(...) is int`` keeps bool on the TypeError path
+            # (bool is an int subclass) and any other int subclass unchanged.
+            self.ctime = ctime if type(ctime) is int else self._parse_time(ctime)
+            self.mtime = mtime if type(mtime) is int else self._parse_time(mtime)
         except (OverflowError, ValueError) as e:
             raise ValueError(f"Invalid timestamp: {e}") from e
 

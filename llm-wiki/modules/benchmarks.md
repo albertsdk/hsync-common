@@ -155,6 +155,21 @@ anomaly needs a cost breakdown.
   flagged by the A/B comparator but both sit at/below the timer-noise floor
   on re-run — tracked as noise, not regressions.
 
+* Model-decode fast paths (`perf` pass, `models/file.py` + `path_validation.py`):
+  `File.__init__` returns a plain-`int` `ctime`/`mtime` verbatim instead of
+  routing it through `_parse_time` → `to_epoch` (the wire shape is epoch
+  seconds), and `validate_remote_relpath` measures the path with `len()` when it
+  is ASCII instead of allocating its UTF-8 bytes (`path_validation.py:547`).
+  Measured A/B on this machine (`--count 5000`, stash/restore):
+  `file_from_dict(prepend)` 1.2→1.0 µs (+14.8 %),
+  `file_from_dict(rel_strip)` 1.1→1.0 µs (+14.3 %), `file_ctor` 0.6→0.5 µs
+  (+10.3 %), `file_round_trip` 1.5→1.4 µs (+7.8 %),
+  `validate_remote_relpath(valid)` 1.6→1.5 µs (+4.6 %).
+  `Dir`/`Symlink` decode (no timestamp parse) and the hashing, compression,
+  delta, ignore and store scenarios are unchanged within run-to-run noise. No
+  signature or wire/semantic change: consumers and the Kotlin mirrors are
+  unaffected.
+
 ## Running
 
 ```bash

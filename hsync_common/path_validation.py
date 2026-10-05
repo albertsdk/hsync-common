@@ -544,7 +544,9 @@ def validate_remote_relpath(rel: str) -> str | None:
         return None
 
     # Total path length bound (byte-aware for cross-platform safety).
-    total_bytes = len(rel.encode("utf-8"))
+    # ``isascii()`` lets the common ASCII path use len() directly instead of
+    # allocating the UTF-8 bytes just to measure them.
+    total_bytes = len(rel) if rel.isascii() else len(rel.encode("utf-8"))
     if total_bytes > MAX_REMOTE_RELPATH_BYTES:
         return None
     # A component can never exceed 255 bytes when the whole path already fits
