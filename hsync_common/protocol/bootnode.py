@@ -365,6 +365,20 @@ def _is_object(value: object, required: frozenset[str], optional: frozenset[str]
     return keys <= (required | optional) and required <= keys
 
 
+def _envelope_ok(
+    value: object, frame_type: str, required: frozenset[str], optional: frozenset[str]
+) -> bool:
+    """Validate the common frame envelope shared by every validator.
+
+    Combines the exact-key check (:func:`_is_object`) with the mandatory
+    ``protocol_version``/``type`` match, so each ``validate_boot_*`` only states
+    its window of required/optional keys instead of repeating the prologue.
+    """
+    if not isinstance(value, Mapping) or not _is_object(value, required, optional):
+        return False
+    return value["protocol_version"] == PROTOCOL_VERSION_BOOT and value["type"] == frame_type
+
+
 def _is_str(value: object, *, max_len: int, min_len: int = 1) -> bool:
     return isinstance(value, str) and min_len <= len(value) <= max_len
 
@@ -394,6 +408,18 @@ def _optional_str(value: Mapping, clean: dict, key: str, max_len: int) -> bool:
     return True
 
 
+def _optional_int(
+    value: Mapping, clean: dict, key: str, *, minimum: int = 0, maximum: int | None = None
+) -> bool:
+    """Copy an optional bounded integer field; return False when it is malformed."""
+    if key not in value or value[key] is None:
+        return True
+    if not _is_int(value[key], minimum=minimum, maximum=maximum):
+        return False
+    clean[key] = value[key]
+    return True
+
+
 def _optional_token(value: Mapping, clean: dict) -> bool:
     if "bucket_token" not in value or value["bucket_token"] is None:
         return True
@@ -405,12 +431,8 @@ def _optional_token(value: Mapping, clean: dict) -> bool:
 
 
 def _optional_connected(value: Mapping, clean: dict) -> bool:
-    if "connected" not in value or value["connected"] is None:
-        return True
-    if not _is_int(value["connected"]):
-        return False
-    clean["connected"] = value["connected"]
-    return True
+    """Copy the optional advisory ``connected`` count (see :func:`_optional_int`)."""
+    return _optional_int(value, clean, "connected")
 
 
 def _is_startup_time(value: object) -> bool:
@@ -545,9 +567,7 @@ def _validate_peer(value: object) -> BootPeer | None:
 
 def validate_boot_register(value: object) -> BootRegister | None:
     """Strictly validate a ``register`` frame."""
-    if not _is_object(value, _REGISTER_REQUIRED, _REGISTER_OPTIONAL):
-        return None
-    if value["protocol_version"] != PROTOCOL_VERSION_BOOT or value["type"] != "register":
+    if not _envelope_ok(value, "register", _REGISTER_REQUIRED, _REGISTER_OPTIONAL):
         return None
     # ``capacity`` (default 0) and ``endpoints`` (default []) are optional on the
     # wire: the first STUN register has no known public endpoint yet, and a
@@ -596,9 +616,7 @@ def validate_boot_register(value: object) -> BootRegister | None:
 
 def validate_boot_refresh(value: object) -> BootRefresh | None:
     """Strictly validate a ``refresh`` frame."""
-    if not _is_object(value, _REFRESH_REQUIRED, _REFRESH_OPTIONAL):
-        return None
-    if value["protocol_version"] != PROTOCOL_VERSION_BOOT or value["type"] != "refresh":
+    if not _envelope_ok(value, "refresh", _REFRESH_REQUIRED, _REFRESH_OPTIONAL):
         return None
     if not is_valid_cid(value["cid"]) or not is_valid_bucket_name(value["bucket"]):
         return None
@@ -619,9 +637,7 @@ def validate_boot_refresh(value: object) -> BootRefresh | None:
 
 def validate_boot_leave(value: object) -> BootLeave | None:
     """Strictly validate a ``leave`` frame."""
-    if not _is_object(value, _LEAVE_REQUIRED, _LEAVE_OPTIONAL):
-        return None
-    if value["protocol_version"] != PROTOCOL_VERSION_BOOT or value["type"] != "leave":
+    if not _envelope_ok(value, "leave", _LEAVE_REQUIRED, _LEAVE_OPTIONAL):
         return None
     if not is_valid_cid(value["cid"]) or not is_valid_bucket_name(value["bucket"]):
         return None
@@ -638,9 +654,7 @@ def validate_boot_leave(value: object) -> BootLeave | None:
 
 def validate_boot_query(value: object) -> BootQuery | None:
     """Strictly validate a ``query`` frame."""
-    if not _is_object(value, _QUERY_REQUIRED, _QUERY_OPTIONAL):
-        return None
-    if value["protocol_version"] != PROTOCOL_VERSION_BOOT or value["type"] != "query":
+    if not _envelope_ok(value, "query", _QUERY_REQUIRED, _QUERY_OPTIONAL):
         return None
     if not is_valid_bucket_name(value["bucket"]):
         return None
@@ -651,18 +665,14 @@ def validate_boot_query(value: object) -> BootQuery | None:
     )
     if not (_optional_str(value, clean, "group", _MAX_GROUP_LEN) and _optional_token(value, clean)):
         return None
-    if "limit" in value and value["limit"] is not None:
-        if not _is_int(value["limit"], minimum=_MIN_QUERY_LIMIT, maximum=_MAX_QUERY_LIMIT):
-            return None
-        clean["limit"] = value["limit"]
+    if not _optional_int(value, clean, "limit", minimum=_MIN_QUERY_LIMIT, maximum=_MAX_QUERY_LIMIT):
+        return None
     return clean
 
 
 def validate_boot_ack(value: object) -> BootAck | None:
     """Strictly validate an ``ack`` frame (server→client)."""
-    if not _is_object(value, _ACK_REQUIRED, _ACK_OPTIONAL):
-        return None
-    if value["protocol_version"] != PROTOCOL_VERSION_BOOT or value["type"] != "ack":
+    if not _envelope_ok(value, "ack", _ACK_REQUIRED, _ACK_OPTIONAL):
         return None
     observed = _validate_observed(value["observed_endpoint"])
     if (
@@ -678,18 +688,14 @@ def validate_boot_ack(value: object) -> BootAck | None:
         ttl=value["ttl"],
         server_time=value["server_time"],
     )
-    if "retry_after" in value and value["retry_after"] is not None:
-        if not _is_int(value["retry_after"], minimum=1):
-            return None
-        clean["retry_after"] = value["retry_after"]
+    if not _optional_int(value, clean, "retry_after", minimum=1):
+        return None
     return clean
 
 
 def validate_boot_response(value: object) -> BootResponse | None:
     """Strictly validate a ``response`` frame (server→client)."""
-    if not _is_object(value, _RESPONSE_REQUIRED, _RESPONSE_OPTIONAL):
-        return None
-    if value["protocol_version"] != PROTOCOL_VERSION_BOOT or value["type"] != "response":
+    if not _envelope_ok(value, "response", _RESPONSE_REQUIRED, _RESPONSE_OPTIONAL):
         return None
     peers = value["peers"]
     if (
@@ -718,10 +724,8 @@ def validate_boot_response(value: object) -> BootResponse | None:
     )
     if error is not None:
         clean["error"] = error
-    if "retry_after" in value and value["retry_after"] is not None:
-        if not _is_int(value["retry_after"], minimum=1):
-            return None
-        clean["retry_after"] = value["retry_after"]
+    if not _optional_int(value, clean, "retry_after", minimum=1):
+        return None
     return clean
 
 

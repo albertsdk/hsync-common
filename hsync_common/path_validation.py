@@ -315,11 +315,7 @@ def sanitize_filename(filename: str) -> str:
         # character: decode with errors="ignore" drops any partial trailing
         # sequence.
         name_truncated = name.encode("utf-8")[:max_name_bytes].decode("utf-8", errors="ignore")
-        filename = (
-            f"{name_truncated}.{ext}"
-            if ext
-            else name.encode("utf-8")[:255].decode("utf-8", errors="ignore")
-        )
+        filename = f"{name_truncated}.{ext}" if ext else name_truncated
 
     # Handle empty or reserved names. ``is_reserved_name`` correctly handles
     # names with extensions (e.g. "NUL.txt" is reserved), unlike a plain
@@ -612,6 +608,29 @@ def resolve_within(base_dir: str, rel: str, *, resolve_final: bool = True) -> st
     return str(target)
 
 
+def _resolve_target_in_bucket(symlink_path: str, target: str, bucket_dir: str) -> Path | None:
+    """Resolve a symlink *target* and return it when it stays inside *bucket_dir*.
+
+    Absolute targets are resolved as-is; relative targets are resolved from the
+    link's parent directory. ``None`` signals an unresolvable input (e.g. an
+    embedded NUL byte or an over-long component) or a target that escapes the
+    bucket. Single source of truth for the confinement check shared by
+    :func:`wire_symlink_target` and :func:`is_safe_symlink_target`.
+    """
+    if not target:
+        return None
+    try:
+        bucket_path = Path(bucket_dir).resolve()
+        if Path(target).is_absolute():
+            resolved = Path(target).resolve()
+        else:
+            resolved = (Path(symlink_path).parent / target).resolve()
+        resolved.relative_to(bucket_path)
+    except (OSError, ValueError):
+        return None
+    return resolved
+
+
 def wire_symlink_target(symlink_path: str, target: str, bucket_dir: str) -> str | None:
     """Normalize a symlink target for wire replication (rsync munge semantics).
 
@@ -634,13 +653,14 @@ def wire_symlink_target(symlink_path: str, target: str, bucket_dir: str) -> str 
     """
     if not target:
         return None
+    if not Path(target).is_absolute():
+        return target
+    resolved = _resolve_target_in_bucket(symlink_path, target, bucket_dir)
+    if resolved is None:
+        return None
     try:
-        if not Path(target).is_absolute():
-            return target
-        target_resolved = Path(target).resolve()
-        target_resolved.relative_to(Path(bucket_dir).resolve())
         link_parent = Path(symlink_path).resolve().parent
-        return os.path.relpath(target_resolved, link_parent)
+        return os.path.relpath(resolved, link_parent)
     except (OSError, ValueError):
         return None
 
@@ -659,18 +679,4 @@ def is_safe_symlink_target(symlink_path: str, target: str, bucket_dir: str) -> b
     Returns:
         True if the resolved target is within the bucket, False otherwise.
     """
-    if not target:
-        return False
-
-    try:
-        bucket_path = Path(bucket_dir).resolve()
-        if Path(target).is_absolute():
-            target_resolved = Path(target).resolve()
-        else:
-            target_resolved = (Path(symlink_path).parent / target).resolve()
-        target_resolved.relative_to(bucket_path)
-        return True
-    except (OSError, ValueError):
-        # Unresolvable input (e.g. embedded NUL byte, over-long component) or
-        # the target escapes the bucket — either way it is not safe.
-        return False
+    return _resolve_target_in_bucket(symlink_path, target, bucket_dir) is not None
