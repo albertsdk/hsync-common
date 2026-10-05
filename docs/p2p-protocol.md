@@ -466,6 +466,16 @@ immediately, but only demotes a master whose record is already stale: a
 transient local-link blip leaves the incumbent in place, so the surviving peers
 do not split-brain.
 
+**Cross-network liveness floor.** A bootnode-discovered peer is only re-seen
+when its CID is drawn in the node's random sample, and samples arrive at the
+bootnode lease cadence (`HSYNC_BOOTNODE_REFRESH_INTERVAL`, default 30 s). The
+shared liveness window must therefore span at least two bootnode query cycles
+whenever a bootnode is configured: the client raises the effective
+`HSYNC_PEER_TIMEOUT` to at least `2 ×` the bootnode refresh interval (default
+60 s), mirroring the mDNS `≥ 2 × heartbeat` rule, while preserving an explicitly
+larger value. Without this floor the mDNS-derived window (default 15 s) would
+expire live cross-network peers between two samples and churn the election.
+
 ### Leadership lease and yield (ADR-0027)
 
 Serving is a **lease**: a node holds the right to serve only while it is the
