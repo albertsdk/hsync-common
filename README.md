@@ -9,6 +9,12 @@ upon — data formats, compression, file exclusion rules, and security utilities
 You don't install or run it directly; it's a library used by the client, server and
 desktop application.
 
+It is also the **single source of truth for the open, versioned wire protocol**:
+the shared models, JSON-Schema builders and committed fixtures live here
+(`hsync_common.protocol`, `docs/protocol.md`, `docs/p2p-protocol.md`), so every
+implementation speaks the same contract. The library sends no telemetry or
+analytics anywhere.
+
 > 👉 **Operational Advisory:** As with any data-management software, integrators are strongly advised to validate the library's behavior against their own data and to maintain validated, independent backups in the applications built on top of it.
 
 ---
@@ -75,6 +81,7 @@ shared helpers and the measurement methodology.
 | [Internal Architecture](docs/internal/architecture.md) | Shared models, utilities, and how they fit the HSYNC ecosystem |
 | [Architecture Decision Records](docs/internal/adr/README.md) | Why the stable, cross-project decisions were made |
 | [Contributing](CONTRIBUTING.md) | Development setup and contribution guidelines |
+| [Report an issue](https://github.com/albertsdk/hsync-common/issues) | Open development and bug tracking |
 | [Security Policy](SECURITY.md) | Supported versions and how to report vulnerabilities |
 
 ## Associated Ecosystem Components
