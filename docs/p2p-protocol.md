@@ -260,7 +260,7 @@ builders and validators live in `hsync_common.protocol.peer_download`.
 
 The exact seeder request is:
 
-```http
+```text
 GET {download_url}?filename=<percent-encoded-normalized-path>&sha256=<lowercase-hex>&cid=<requester-cid>
 ```
 
@@ -519,12 +519,13 @@ A divergence on either side fails the parity test instead of becoming a
 split-brain in the field. Regenerate after any change with:
 
 ```bash
-poetry run python scripts/export_protocol_schemas.py
+cd hsync-common
+.venv/bin/python scripts/export_protocol_schemas.py
 ```
 
-then copy the regenerated `protocol/fixtures/*.json` into
-`hsync-android/app/src/test/resources/protocol/fixtures/` (the
-`TestAndroidFixtureParity` test enforces byte-for-byte equality).
+To regenerate **and** copy the fixtures into `hsync-android` in one step, run
+`scripts/sync_android_fixtures.py` (`--check` verifies only); the
+`TestAndroidFixtureParity` test enforces byte-for-byte equality.
 
 ## Causal tombstones (deletion gossip)
 

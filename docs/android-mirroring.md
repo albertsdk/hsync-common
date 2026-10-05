@@ -73,7 +73,7 @@ The mirror follows a **contract-first** approach:
 
 ### Fixture-driven contract testing
 
-```
+```text
 hsync-common/
 └── hsync_common/protocol/fixtures/
     ├── p2p-election-scenarios.json    # Master election test vectors
@@ -249,7 +249,7 @@ cd hsync-common
 
 ```bash
 cd hsync-android
-./gradlew test
+./gradlew :app:testDebugUnitTest
 ```
 
 ### CI integration

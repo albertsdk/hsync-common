@@ -3,7 +3,7 @@
 Place a `.hsyncignore` file in the root of a bucket to control which files are
 excluded from sync.  The syntax is identical to `.gitignore`:
 
-```
+```text
 # Ignore build artefacts
 /dist/
 *.pyc

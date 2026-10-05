@@ -66,7 +66,7 @@ can advertise any CID. See the table in [CID propagation](#cid-propagation).
 Every HSYNC peer is identified by a **CID** — a strictly alphanumeric
 string. The canonical pattern is enforced by `hsync_common.models.event.is_valid_cid`:
 
-```
+```text
 ^[A-Za-z0-9]{21}$
 ```
 
@@ -91,14 +91,14 @@ connection (there is no separate auth channel). The message envelope is:
 
 ```json
 {
-  "type": "<message-type>",
-  "status": "<ok|failed>",
-  "token": "<account-token>",
-  "cid": "<client-id>",
-  "app_version": "<semver>",
-  "protocol_version": "<protocol-version>",
+  "type": "MESSAGE_TYPE",
+  "status": "OK_OR_FAILED",
+  "token": "ACCOUNT_TOKEN",
+  "cid": "CLIENT_ID",
+  "app_version": "SEMVER",
+  "protocol_version": "PROTOCOL_VERSION",
   "capabilities": ["compression", "delta", ...],
-  "reason": "<error-detail>"
+  "reason": "ERROR_DETAIL"
 }
 ```
 
@@ -165,7 +165,7 @@ Each account has a stable id, a revocable secret, a role, and bucket memberships
 
 ### Token format
 
-```
+```text
 hs_<account_id 21 alnum>_<secret 64 hex>
 ```
 

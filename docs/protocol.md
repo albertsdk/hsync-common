@@ -45,7 +45,13 @@ additive within a protocol version and are used only by intersection.
 The first frame on a WebSocket connection must be an `auth` message:
 
 ```json
-{"type": "auth", "token": "<account_token>", "protocol_version": "ws/1", "app_version": "1.0.0", "capabilities": []}
+{
+  "type": "auth",
+  "token": "ACCOUNT_TOKEN",
+  "protocol_version": "ws/1",
+  "app_version": "1.0.0",
+  "capabilities": []
+}
 ```
 
 The server replies with `{"type": "auth", "status": "ok", ...}` on success, or
