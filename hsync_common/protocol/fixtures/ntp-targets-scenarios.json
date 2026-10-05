@@ -1,0 +1,69 @@
+{
+  "scenarios": [
+    {
+      "expected": [
+        [
+          "a.example",
+          123
+        ]
+      ],
+      "input": "a.example",
+      "name": "plain"
+    },
+    {
+      "expected": [
+        [
+          "b.example",
+          9000
+        ]
+      ],
+      "input": "b.example:9000",
+      "name": "host-port"
+    },
+    {
+      "expected": [
+        [
+          "2001:db8::1",
+          123
+        ]
+      ],
+      "input": "[2001:db8::1]:123",
+      "name": "ipv6-bracketed"
+    },
+    {
+      "expected": [
+        [
+          "::1",
+          8123
+        ]
+      ],
+      "input": "[::1]:8123",
+      "name": "ipv6-port"
+    },
+    {
+      "expected": [
+        [
+          "::1",
+          123
+        ]
+      ],
+      "input": "::1",
+      "name": "bare-ipv6"
+    },
+    {
+      "expected": [
+        [
+          "ok.example",
+          123
+        ]
+      ],
+      "input": "ok.example,bad:notaport",
+      "name": "malformed-port-mixed"
+    },
+    {
+      "expected": "DEFAULTS",
+      "input": "bad:notaport",
+      "name": "all-bad-defaults"
+    }
+  ]
+}

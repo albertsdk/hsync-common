@@ -215,6 +215,21 @@ class TestParseNtpTargets:
     def test_invalid_port_drops_entry(self):
         assert parse_ntp_targets("bad:notaport") == parse_ntp_targets("")
 
+    def test_ipv6_bracketed_with_port(self):
+        assert parse_ntp_targets("[::1]:8123") == (("::1", 8123),)
+
+    def test_ipv6_bracketed_default_port(self):
+        assert parse_ntp_targets("[2001:db8::1]") == (("2001:db8::1", 123),)
+
+    def test_bare_ipv6_uses_default_port(self):
+        assert parse_ntp_targets("::1") == (("::1", 123),)
+
+    def test_invalid_host_dropped(self):
+        assert parse_ntp_targets("my_host") == parse_ntp_targets("")
+
+    def test_trailing_dot_host_dropped(self):
+        assert parse_ntp_targets("pool.ntp.org.") == parse_ntp_targets("")
+
 
 class TestNtp64RoundTrip:
     def test_unix_to_ntp_and_back(self):

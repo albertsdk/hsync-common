@@ -24,6 +24,7 @@ from dataclasses import asdict
 from hashlib import sha256
 from typing import Any
 
+from hsync_common.clock import parse_ntp_targets
 from hsync_common.delta import find_matches, signatures_for_data
 from hsync_common.models.delta import DeltaApplyMetadata, DeltaInstructions
 from hsync_common.models.event import Event, EventName
@@ -687,6 +688,34 @@ def _causal_tombstone_scenarios() -> dict[str, Any]:
     }
 
 
+# Cross-language ``HSYNC_NTP_HOSTS`` parse scenarios. ``expected`` is computed
+# from the shared ``parse_ntp_targets`` (never hand-written); the fallback case
+# (every entry malformed) uses the ``"DEFAULTS"`` marker so the Kotlin parity
+# test asserts the fallback against its own default-host list instead of a
+# hard-coded copy.
+_NTP_SCENARIOS: tuple[tuple[str, str, bool], ...] = (
+    ("plain", "a.example", False),
+    ("host-port", "b.example:9000", False),
+    ("ipv6-bracketed", "[2001:db8::1]:123", False),
+    ("ipv6-port", "[::1]:8123", False),
+    ("bare-ipv6", "::1", False),
+    ("malformed-port-mixed", "ok.example,bad:notaport", False),
+    ("all-bad-defaults", "bad:notaport", True),
+)
+
+
+def _ntp_targets_scenarios() -> dict[str, Any]:
+    """Serialized NTP-target scenarios with expectations computed from the source."""
+    scenarios: list[dict[str, Any]] = []
+    for name, raw, defaults_marker in _NTP_SCENARIOS:
+        if defaults_marker:
+            expected: Any = "DEFAULTS"
+        else:
+            expected = [[host, port] for host, port in parse_ntp_targets(raw)]
+        scenarios.append({"name": name, "input": raw, "expected": expected})
+    return {"scenarios": scenarios}
+
+
 def build_fixtures() -> dict[str, dict[str, Any]]:
     """Build every golden fixture, keyed by its snapshot file stem.
 
@@ -745,6 +774,7 @@ def build_fixtures() -> dict[str, dict[str, Any]]:
         "p2p-bootnode-trust-scenarios": _bootnode_trust_scenarios(),
         "causal-resolution-scenarios": _causal_resolution_scenarios(),
         "causal-tombstone-scenarios": _causal_tombstone_scenarios(),
+        "ntp-targets-scenarios": _ntp_targets_scenarios(),
         "delta-signatures": _delta_signatures(),
         "delta-instructions": _delta_instructions(),
         "delta-apply-metadata": _delta_apply_metadata(),

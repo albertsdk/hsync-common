@@ -51,6 +51,7 @@ from .constants import (
     NTP_PROBES_PER_HOST,
     NTP_TIMEOUT_SECONDS,
 )
+from .endpoint import parse_host_port
 
 # Seconds between NTP epoch (1900-01-01) and Unix epoch (1970-01-01).
 _NTP_EPOCH_DELTA = 2_208_988_800
@@ -173,10 +174,13 @@ def measure_clock_offset(
 
 
 def parse_ntp_hosts(value: str | None) -> tuple[str, ...]:
-    """Parse the ``HSYNC_NTP_HOSTS`` CSV value into a non-empty host tuple.
+    """Parse the ``HSYNC_NTP_HOSTS`` CSV value into a non-empty raw-entry tuple.
 
-    Empty/blank entries are skipped; ``None`` or an all-blank value returns
-    the defaults from :data:`hsync_common.constants.NTP_DEFAULT_HOSTS`.
+    Entries are returned **verbatim** (``host``, ``host:port``, ``[IPv6]``,
+    ``[IPv6]:port`` — no validation here): the canonical, validated form is
+    :func:`parse_ntp_targets`. Empty/blank entries are skipped; ``None`` or an
+    all-blank value returns the defaults from
+    :data:`hsync_common.constants.NTP_DEFAULT_HOSTS`.
     Consumers: ``hsync-client`` (config layer), ``hsync-android`` mirror.
     """
     if value is None:
@@ -188,30 +192,24 @@ def parse_ntp_hosts(value: str | None) -> tuple[str, ...]:
 def parse_ntp_targets(value: str | None) -> tuple[tuple[str, int], ...]:
     """Parse ``HSYNC_NTP_HOSTS`` into ``(host, port)`` targets.
 
-    Each CSV entry is ``host`` (default SNTP port) or ``host:port`` (port
-    override — useful for operating behind a gateway or in test harnesses).
-    Malformed ports are dropped with their host; ``None``/blank falls back to
-    the default hosts on the standard port.
+    Each CSV entry is a ``HOST[:PORT]`` endpoint parsed by the shared
+    :func:`hsync_common.endpoint.parse_host_port` SSOT: ``host`` (default SNTP
+    port), ``host:port``, ``[IPv6]`` or ``[IPv6]:port``. Malformed entries
+    (invalid port, invalid host, URL-like input) are dropped with their host;
+    ``None``/blank falls back to the default hosts on the standard port.
 
     Consumers: ``hsync-client`` (``timesync`` probe), ``hsync-android``
     (``TimeSync.ntpTargets`` mirror) and the shared fixtures.
     """
     targets: list[tuple[str, int]] = []
     for entry in parse_ntp_hosts(value):
-        host, _, port_raw = entry.partition(":")
-        if not host:
+        try:
+            endpoint = parse_host_port(entry)
+        except ValueError:
             continue
-        port = NTP_PORT
-        if port_raw:
-            try:
-                parsed_port = int(port_raw)
-            except ValueError:
-                continue
-            if 1 <= parsed_port <= 65535:
-                port = parsed_port
-        targets.append((host, port))
+        targets.append((endpoint.host, endpoint.port or NTP_PORT))
     if not targets:
-        # Every entry carried a malformed port: fall back to the defaults on
+        # Every entry carried a malformed endpoint: fall back to the defaults on
         # the standard port — the same never-empty contract as parse_ntp_hosts.
         return tuple((h, NTP_PORT) for h in NTP_DEFAULT_HOSTS)
     return tuple(targets)

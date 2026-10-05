@@ -39,10 +39,20 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
   empty hosts are rejected with `ValueError`.
 - `HostPort` (`endpoint.py:46`) frozen dataclass: `host` (unbracketed) +
   `port: int | None`; `authority` brackets an IPv6 host for URLs/display.
+- `build_https_url(hp, default_port)` (`endpoint.py`) — canonical HTTPS URL for
+  a parsed endpoint (port always explicit); used by `hsync-client` CLI and env.
+- `parse_https_url(raw)` (`endpoint.py`) — validates an explicit `https://` URL
+  (optional port/path, IPv6-bracketed) and returns it unchanged; path is allowed
+  only in this form.
+- `build_url(scheme, host, port, path)` + `format_authority(host, port)`
+  (`endpoint.py`) — the only host+port composites/URL builders: bracket IPv6 and
+  normalize a pre-bracketed host (no double bracket). Used by `hsync-client`
+  p2p, `hsync-desktop`, and the Android parity mirror.
 - Consumers: `hsync-client` `cli.py` (bootnode/server/trust host args),
   `hsync-bootnode` `cli.py` (`run --host HOST[:PORT]`), `hsync-server`
-  `__main__.py` (`--host HOST[:PORT]`). Env vars stay host-only/URL
-  (`HSYNC_BOOTNODE`, `HSYNC_SERVER`).
+  `__main__.py` (`--host HOST[:PORT]`). The same grammar applies to the
+  environment: `HSYNC_SERVER` (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`,
+  or a full `https://…[/path]`) and `HSYNC_BOOTNODE` (same, no scheme/path).
 
 ## hashing.py
 

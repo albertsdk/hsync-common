@@ -83,7 +83,8 @@ across devices:
 |----------|-------------|
 | `measure_clock_offset` | NTP-like HTTP round-trip against the server/master `/api/v1/time` endpoint (client-server mode) — the server is the time authority |
 | `measure_clock_offset_ntp_multi` | UDP SNTP probe (RFC 4330) against a list of public NTP servers, tried in order until one answers (p2p / no-server startup); the offset is the median of several round-trips |
-| `parse_ntp_hosts` | Parses the `HSYNC_NTP_HOSTS` comma-separated host list (defaults: `pool.ntp.org`, `time.cloudflare.com`, `time.google.com`) |
+| `parse_ntp_hosts` | Parses the `HSYNC_NTP_HOSTS` comma-separated host list into raw entries (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`; no validation here) — defaults: `pool.ntp.org`, `time.cloudflare.com`, `time.google.com` |
+| `parse_ntp_targets` | Validates each entry through the shared endpoint grammar and returns `(host, port)` targets; malformed entries are dropped and an all-malformed list falls back to the defaults |
 | `correct_mtime` | Applies the measured offset to a local modification time (`corrected_mtime = mtime + offset`) |
 | `clamp_wire_corrected_mtime` | Clamps a peer-supplied far-future corrected time so no device can win every tie-break |
 
@@ -108,10 +109,17 @@ Environment-file loading helpers (`load_env_file`).
 
 ## Endpoint (`hsync_common.endpoint`)
 
-Shared `HOST[:PORT]` parser for every `hsync*` CLI (`hsync`, `hsync-bootnode`,
-`hsync-server`). `parse_host_port` returns a `HostPort(host, port)`; IPv6 literals
+Shared `HOST[:PORT]` grammar for every `hsync*` component (`hsync`,
+`hsync-bootnode`, `hsync-server`, the desktop GUI and the `HSYNC_*`
+environment). `parse_host_port` returns a `HostPort(host, port)`; IPv6 literals
 are bracketed in the combined form (`[::1]:443`), and `HostPort.authority`
 brackets a bare IPv6 host for URLs/display.
+
+Accepted forms (single source of truth): `host`, `IPv4`, `host:port`,
+`IPv4:port`, `[IPv6]`, `[IPv6]:port`; a bare IPv6 literal is a host with no
+port. Helpers: `build_https_url`, `parse_https_url`, `build_url` and
+`format_authority` produce the canonical HTTPS URL, validate an explicit
+`https://…[/path]` URL, and build/bracket `scheme://host:port` composites.
 
 ## Runtime (`hsync_common.runtime`)
 
