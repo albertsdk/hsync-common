@@ -326,3 +326,30 @@ reconciliation, transfers, previews and server lines.
   `log_exception` (`:75`).
 
 > Human-facing summaries of compression/constants: `../docs/architecture.md`.
+
+## upnp.py (SSDP/SOAP IGD client, SSRF-hardened)
+
+- `discover_igd(timeout=2.0, local_ip=None)` (`upnp.py`) — M-SEARCH over SSDP,
+  then a reply gate that refuses an off-LAN source, a non-http(s)/non-private-IP
+  `LOCATION`, and a `LOCATION` host different from the reply source
+  (`_location_host_matches_source`). `_first_igd_location` takes an optional
+  `fetch` seam (tests/fuzz).
+- Validators: `is_lan_unicast_address` (RFC1918 + ULA `fc00::/7`; no link-local,
+  loopback or public), `is_private_http_location` (http(s) IP-literal only; no
+  hostname/userinfo), `_control_url_on_base` (relative only; no host escape),
+  `no_redirect_urlopen` / `_NoRedirect` (a 3xx is never followed).
+- SOAP: `build_add_mapping_soap` / `build_delete_mapping_soap`,
+  `add_port_mapping` / `delete_port_mapping`, `parse_soap_error`; `_soap_post`
+  accepts an `http_post` transport seam.
+- Consumers: `hsync-client` `upnp.py` (`UpnpMapper`, TCP), `hsync-bootnode/python`
+  `upnp.py` (`UpnpManager`, UDP; re-exports the core for its tests/fuzz).
+
+## ratelimit.py (shared token bucket)
+
+- `TokenBucketLimiter(capacity, refill, window, max_keys=...)` (`ratelimit.py`) —
+  RAM-only, monotonic, lazy refill; `allow`/`has_tokens`/`retry_after`/
+  `evict_stale`; `max_keys` evicts the LRU key so IP/bucket churn cannot grow the
+  map unbounded (peeks never refresh recency, only a real `allow` does).
+- Consumers: `hsync-client` `p2p_server` (per-IP new-request admission;
+  `P2P_REQ_RATE_*`), `hsync-bootnode/python` `ratelimit.py` (facade over the
+  shared class for its admission/query/register limits).

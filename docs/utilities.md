@@ -142,6 +142,26 @@ Text utilities (e.g. `escape_loguru_braces`).
 
 Shared exception base types (`HSyncError`).
 
+## UPnP-IGD (`hsync_common.upnp`)
+
+Shared, dependency-free SSDP + SOAP client to map a port on the LAN's Internet
+Gateway Device. SSRF-hardened because an SSDP reply is unauthenticated data: only
+a private LAN source may answer, the `LOCATION` URL must be an `http(s)://`
+private IP **literal equal to the reply source**, redirects are refused, and a
+`controlURL` cannot change host. Every failure degrades to "no UPnP" (`None` or
+`UpnpError`). `discover_igd`, `add_port_mapping`/`delete_port_mapping`,
+`build_add_mapping_soap`/`build_delete_mapping_soap`, `parse_soap_error`.
+Consumers: `hsync-client` (`UpnpMapper`) and `hsync-bootnode/python`
+(`UpnpManager`).
+
+## Rate limiting (`hsync_common.ratelimit`)
+
+`TokenBucketLimiter` — a per-key in-memory token bucket (`capacity` burst,
+`refill`/`window` sustained rate, optional `max_keys` LRU ceiling), using a
+monotonic clock and never persisting state. `allow`, `has_tokens`, `retry_after`,
+`evict_stale`. Consumers: `hsync-client` (P2P listener new-request admission) and
+`hsync-bootnode/python` (admission/query/register limits).
+
 ## See also
 
 - [Models guide](models.md) — data models reference.
