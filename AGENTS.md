@@ -202,6 +202,21 @@ For protocol/API contracts, authentication, secrets, destructive sync, persisten
 
 ---
 
+## ✂️ Comment Policy
+
+* **Verify usefulness before writing**: whenever you add or edit a code comment,
+  first check that it conveys information a reader **cannot deduce from the code
+  itself** — rationale, invariants, protocol/format constraints, external
+  references, non-obvious gotchas. Delete comments that merely restate what the
+  code plainly does, paraphrase the next line, or duplicate a name.
+* **Simplify without losing meaning**: prefer the shortest wording that preserves
+  the non-derivable information; never drop a real constraint just to shorten the
+  comment. A comment is justified only when its removal would lose meaning.
+* **Keep the code compact**: comments must not add narration, redundant history
+  or speculation; keep them focused and the surrounding code lean.
+
+---
+
 ## 💬 Language Policy
 
 * **English-only**: commit messages (subject and body), the internal agent wiki
