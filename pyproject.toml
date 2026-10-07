@@ -3,7 +3,7 @@ name = "hsync-common"
 version = "1.0.0"
 description = "HSYNC Common - shared models, constants, and compression utilities"
 authors = [{name = "Alberto Basso", email = "17047798+albertsdk@users.noreply.github.com"}]
-license = "MPL-2.0"
+license = "BSD-3-Clause"
 readme = "README.md"
 requires-python = ">=3.12,<3.15"
 dependencies = [

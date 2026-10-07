@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
-# This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at https://mozilla.org/MPL/2.0/.
-#
-# Copyright (C) 2025 Alberto Basso
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2025 Alberto Basso
 
 """
 Export the WebSocket/p2p JSON Schemas and golden fixtures to the protocol contract.
