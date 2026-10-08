@@ -20,7 +20,7 @@ repos:
 
   # Ruff linter and formatter
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.0
+    rev: v0.16.10
     hooks:
       # Run ruff linter
       - id: ruff
