@@ -104,12 +104,13 @@ To report a vulnerability, please use GitHub's **Private Vulnerability Reporting
 See our [Security Policy](SECURITY.md) for supported versions and hardening
 recommendations.
 
-## A note from the maintainer
+## 🙋‍♂️ A note from the maintainer
 
-HSYNC is a passion project started by Alberto Basso. It is built in spare time,
-with love. Please remember this when you interact with the project: everyone
-involved is doing our best to build something great together, but it is not a
-paid, full-time job for any of us.
+This project was born out of the need for a system capable of replicating the contents of a folder from a PC or Android device to a NAS, primarily for backup purposes. There were already several solutions available for this purpose, but I could not find one that met all the requirements I ultimately needed. This led to the somewhat questionable idea of developing one from scratch and, in the process, gaining a deeper understanding of various programming languages, algorithms, frameworks, and so on.
+
+Originally conceived as a hobby project, although it has been under constant development ever since, I believe I can now say that it has evolved to the point where its capabilities are comparable to those of commercial products, while also offering some distinctive features. As such, it could potentially be deployed in a variety of production environments as well.
+
+HSYNC is a passion project developed in my spare time, currently primarily led by me. Please remember this when you interact with the project: everyone involved is doing our best to build something great together, but it is not a paid, full-time job for any of us.
 
 ## Disclaimer
 
