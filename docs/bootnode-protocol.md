@@ -37,8 +37,10 @@ byte-for-byte with the canonical ones.
   [`hsync-client` — Sync across networks](https://github.com/albertsdk/hsync-client/blob/main/docs/p2p-bootnode.md).
 - One bidirectional stream per request; frames are **newline-terminated JSON**
   (NDJSON).
-- A refusal is a uniform `response` with `error` (`token_required` /
-  `rate_limited`); malformed or unknown frames are **silently dropped**.
+- A refusal is a uniform `response` with `error` — `token_required`
+  (authorization), `rate_limited` (per-source limit; `retry_after` = limiter
+  refill) or `overloaded` (node capacity backpressure; `retry_after` advisory);
+  malformed or unknown frames are **silently dropped**.
 
 ## Frames
 

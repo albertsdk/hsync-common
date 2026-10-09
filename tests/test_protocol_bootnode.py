@@ -254,6 +254,38 @@ def test_response_peer_requires_a_non_empty_endpoints_list():
     assert validate_boot_response(_response_with_peer({**peer, "endpoints": bad_port})) is None
 
 
+def test_response_refusal_error_domain():
+    """Every refusal code in the spec is accepted; an unknown one is rejected.
+
+    ``overloaded`` (node capacity) must validate like ``rate_limited`` and
+    ``token_required`` so a capacity answer is not mistaken for a malformed frame.
+    """
+    for code in ("token_required", "rate_limited", "overloaded"):
+        frame = {
+            "protocol_version": "boot/1",
+            "type": "response",
+            "peers": [],
+            "count": 0,
+            "ttl": 60,
+            "error": code,
+            "retry_after": 5,
+        }
+        validated = validate_boot_response(frame)
+        assert validated is not None, code
+        assert validated["error"] == code
+        assert validated["retry_after"] == 5
+
+    unknown = {
+        "protocol_version": "boot/1",
+        "type": "response",
+        "peers": [],
+        "count": 0,
+        "ttl": 60,
+        "error": "throttled",
+    }
+    assert validate_boot_response(unknown) is None
+
+
 def test_bucket_token_derivation_and_verify():
     """The bucket token is a 64-char hex HMAC; verification is uniform."""
     token = derive_bucket_token(b"secret", "shared")

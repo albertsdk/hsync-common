@@ -57,6 +57,7 @@ __all__ = [
     "CID_PATTERN",
     "PROTOCOL_VERSION_BOOT",
     "BootAck",
+    "BootError",
     "BootFrame",
     "BootLeave",
     "BootPeer",
@@ -88,6 +89,14 @@ BUCKET_TOKEN_LEN = 64
 _BUCKET_TOKEN_RE = re.compile(rf"^[0-9a-f]{{{BUCKET_TOKEN_LEN}}}$")
 
 BucketProto = Literal["tcp", "udp"]
+
+# Uniform refusal codes on a ``response`` frame: ``token_required`` (authorization,
+# no bucket-existence oracle), ``rate_limited`` (per-source/per-(IP,bucket) limit;
+# ``retry_after`` = limiter refill) and ``overloaded`` (the node is at its
+# host-derived routing-table ceiling; ``retry_after`` is advisory backpressure,
+# not a client abuse signal). Mirrors ``hsync_bootnode.protocol.BootError``.
+BootError = Literal["token_required", "rate_limited", "overloaded"]
+_BOOT_ERRORS = ("token_required", "rate_limited", "overloaded")
 
 # Advisory service-capacity hint domain (``0..32``; ``0`` = not a peer-download
 # seeder). Mirrors the authenticated ``serve_slots`` range (1..32); the bootnode
@@ -299,7 +308,7 @@ class BootResponse(TypedDict):
     peers: list[BootPeer]
     count: int
     ttl: int
-    error: NotRequired[Literal["token_required", "rate_limited"]]
+    error: NotRequired[BootError]
     retry_after: NotRequired[int]
 
 
@@ -710,7 +719,7 @@ def validate_boot_response(value: object) -> BootResponse | None:
     if value["count"] != len(clean_peers):
         return None
     error = value.get("error")
-    if error is not None and error not in ("token_required", "rate_limited"):
+    if error is not None and error not in _BOOT_ERRORS:
         return None
     clean = BootResponse(
         protocol_version=PROTOCOL_VERSION_BOOT,
