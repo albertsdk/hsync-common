@@ -788,7 +788,7 @@
     },
     "/api/v1/buckets": {
       "post": {
-        "description": "Create a new bucket. The creator becomes the owner.\n\nReturns 409 if the bucket name is already taken (directory exists).",
+        "description": "Create a new bucket. The creator becomes the owner.\n\nReturns 409 if the bucket name is already taken (directory exists).\nReturns 403 if the caller already owns ``max_buckets_per_account`` buckets\n(finding F-04: per-account bucket quota).",
         "operationId": "create_bucket_api_v1_buckets_post",
         "parameters": [
           {
@@ -1638,7 +1638,7 @@
         ]
       },
       "post": {
-        "description": "Grant membership to an account (owner/admin only).",
+        "description": "Grant membership to an account (owner/admin only).\n\nThe response is uniform whether or not the target account exists\n(finding F-03): a missing account does not create a membership but returns\nthe same 201 body, so the endpoint is not an account-existence oracle. The\nowner can confirm the result via the member listing.",
         "operationId": "grant_member_api_v1_buckets__bucket__members_post",
         "parameters": [
           {
@@ -2079,8 +2079,8 @@
     },
     "/metrics": {
       "get": {
-        "description": "Endpoint that serves Prometheus metrics.",
-        "operationId": "metrics_metrics_get",
+        "description": "Prometheus metrics endpoint.\n\nAuthenticated (finding F-02): the endpoint was previously exposed publicly\nby the instrumentator; it now requires a valid account token.",
+        "operationId": "Monitoring___Prometheus_metrics_metrics_get",
         "responses": {
           "200": {
             "content": {
@@ -2091,9 +2091,14 @@
             "description": "Successful Response"
           }
         },
-        "summary": "Metrics",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Monitoring - Prometheus Metrics",
         "tags": [
-          "Public"
+          "Authenticated"
         ]
       }
     }
