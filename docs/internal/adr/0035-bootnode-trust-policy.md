@@ -38,7 +38,8 @@ Two constraints shape the design:
 3. **The existing options keep their meaning as policy aliases:**
    `--bootnode-tofu` = `accept-new`; `--bootnode-fingerprint` (<=2) = `strict`;
    `--insecure` = `none`. New: `--bootnode-trust {ask,accept-new,strict}` and
-   `HSYNC_BOOTNODE_TRUST`. `--yes` answers the prompt **only on a terminal**.
+   `HSYNC_BOOTNODE_TRUST`. `ask` prompts **only on a terminal**; non-interactive
+   acceptance is expressed with `accept-new`.
 4. **The store is `bootnode_known_hosts.json`**, managed like `known_hosts`:
    each `host:port` record carries `current`, `updated_at`, `first_seen` and
    `source` (`prompt | tofu | flag | cli`). The `0600`/`0700` JSON store and the
