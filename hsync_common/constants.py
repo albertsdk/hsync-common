@@ -289,6 +289,14 @@ NTP_PORT = 123
 # hsync-client bare-host default, so the two can never drift.
 BOOT_DEFAULT_PORT = 443
 
+# Recommended ordered UDP port set for the boot/1 listener (opt-in multi-port;
+# the default remains the single BOOT_DEFAULT_PORT). First = canonical QUIC/HTTP3
+# (443, usually allowed); second = DNS (53, the most permissive UDP port, but
+# often hijacked by a local resolver). ADVISORY: neither side applies it by
+# default — the operator enables it explicitly with hsync-bootnode `--ports`
+# and the hsync-client `HSYNC_BOOTNODE_PORTS`; both sides must agree on the set.
+BOOT_PORT_SET = (BOOT_DEFAULT_PORT, 53)
+
 # Seconds to wait for a single SNTP probe before moving to the next host.
 NTP_TIMEOUT_SECONDS = 3.0
 

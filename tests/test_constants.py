@@ -2,6 +2,7 @@
 
 from hsync_common.constants import (
     BOOT_DEFAULT_PORT,
+    BOOT_PORT_SET,
     CHUNK_SIZE_LARGE,
     CHUNK_SIZE_MEDIUM,
     CHUNK_SIZE_SMALL,
@@ -127,3 +128,10 @@ class TestBootDefaultPort:
     def test_pins_the_spec_value(self):
         """The boot/1 default UDP port matches boot-1.md §Transport."""
         assert BOOT_DEFAULT_PORT == 443
+
+
+class TestBootPortSet:
+    def test_recommended_set_and_order(self):
+        """Ordered recommended set: canonical QUIC (443) then DNS (53)."""
+        assert BOOT_PORT_SET == (443, 53)
+        assert BOOT_PORT_SET[0] == BOOT_DEFAULT_PORT

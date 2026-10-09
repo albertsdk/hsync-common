@@ -9,6 +9,7 @@ from hsync_common.endpoint import (
     format_authority,
     parse_host_port,
     parse_https_url,
+    parse_port_list,
 )
 
 
@@ -150,3 +151,30 @@ def test_parse_https_url_valid(raw: str) -> None:
 def test_parse_https_url_invalid(raw: str) -> None:
     with pytest.raises(ValueError):
         parse_https_url(raw)
+
+
+class TestParsePortList:
+    """The shared multi-port SSOT (strict CLI vs lenient env policy)."""
+
+    def test_lenient_keeps_order_and_drops_invalid_and_duplicates(self):
+        assert parse_port_list("53, 8443, 53, nope, 0, 70000") == (53, 8443)
+
+    def test_lenient_empty_and_whitespace_yield_empty(self):
+        assert parse_port_list("") == ()
+        assert parse_port_list("  ,  , ") == ()
+
+    def test_strict_preserves_order(self):
+        assert parse_port_list("443,53", strict=True) == (443, 53)
+        assert parse_port_list(" 53 , 443 ", strict=True) == (53, 443)
+
+    @pytest.mark.parametrize(
+        "raw",
+        ["443,notaport", "0", "70000", "65536", "443,443", "1.5", "+53", "1_0", "５３"],
+    )
+    def test_strict_raises_on_invalid_token(self, raw: str):
+        with pytest.raises(ValueError):
+            parse_port_list(raw, strict=True)
+
+    def test_strict_empty_yields_empty_tuple(self):
+        # The caller enforces its own minimum (the CLI requires at least one).
+        assert parse_port_list("", strict=True) == ()

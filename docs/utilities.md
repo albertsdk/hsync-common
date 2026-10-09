@@ -121,6 +121,11 @@ port. Helpers: `build_https_url`, `parse_https_url`, `build_url` and
 `format_authority` produce the canonical HTTPS URL, validate an explicit
 `https://…[/path]` URL, and build/bracket `scheme://host:port` composites.
 
+`parse_port_list` parses a comma-separated UDP port list (order preserved,
+`1–65535`); it raises on an invalid or duplicate entry in strict mode (the
+bootnode's `run --ports`) and silently drops them in lenient mode (the client's
+`HSYNC_BOOTNODE_PORTS` multi-port dial fallback).
+
 ## Runtime (`hsync_common.runtime`)
 
 Runtime environment detection shared across HSYNC projects:

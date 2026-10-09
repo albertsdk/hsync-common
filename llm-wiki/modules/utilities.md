@@ -53,6 +53,13 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
   (`endpoint.py::build_url`) — the only host+port composites/URL builders: bracket IPv6 and
   normalize a pre-bracketed host (no double bracket). Used by `hsync-client`
   p2p, `hsync-desktop`, and the Android parity mirror.
+- `parse_port_list(raw, *, strict=False) -> tuple[int, ...]`
+  (`endpoint.py::parse_port_list`) — the single parser for a comma-separated UDP
+  port list (order preserved, tokens `1..65535`, ASCII digits only).
+  `strict=True` raises `ValueError` on the first invalid token or duplicate
+  (consumed by `hsync-bootnode` `run --ports`); `strict=False` drops
+  invalid/duplicate tokens (consumed by `hsync-client` `HSYNC_BOOTNODE_PORTS`).
+  Empty input yields `()`; each caller enforces its own minimum.
 - Consumers: `hsync-client` `cli.py` (bootnode/server/trust host args),
   `hsync-bootnode` `cli.py` (`run --host HOST[:PORT]`), `hsync-server`
   `__main__.py` (`--host HOST[:PORT]`). The same grammar applies to the

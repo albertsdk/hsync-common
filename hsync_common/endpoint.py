@@ -35,6 +35,7 @@ __all__ = [
     "format_authority",
     "parse_host_port",
     "parse_https_url",
+    "parse_port_list",
 ]
 
 # Bare hostname / IPv4 (SSOT: HOSTNAME_PATTERN in hsync_common.constants).
@@ -74,6 +75,53 @@ def _parse_port(port_raw: str) -> int:
     if not 1 <= port <= 65535:
         raise ValueError(f"port must be between 1 and 65535, got {port}")
     return port
+
+
+def parse_port_list(raw: str, *, strict: bool = False) -> tuple[int, ...]:
+    """Parse a comma-separated UDP port list (order preserved, ``1..65535``).
+
+    Single source of truth for the ordered multi-port set shared by the two
+    consumers, which apply different error policies:
+
+    * ``hsync-bootnode`` — ``run --ports`` calls with ``strict=True`` and turns
+      the :class:`ValueError` into a user-facing CLI error;
+    * ``hsync-client`` — ``HSYNC_BOOTNODE_PORTS`` calls with ``strict=False`` and
+      silently drops invalid/duplicate entries (env getters are lenient).
+
+    Empty tokens are ignored on both policies. With ``strict=True`` the first
+    invalid token or duplicate raises :class:`ValueError`; with
+    ``strict=False`` they are dropped. An empty input (or one with no valid
+    entry) yields ``()``; each caller enforces its own minimum (the CLI requires
+    at least one port, the client treats ``()`` as single-port dialing).
+    """
+    ports: list[int] = []
+    for token in raw.split(","):
+        token = token.strip()
+        if not token:
+            continue
+        # ASCII digits only: ``str.isdigit`` also accepts non-ASCII digits that
+        # ``int`` would silently coerce (e.g. full-width "５"), which is not a
+        # valid port token.
+        if not (token.isascii() and token.isdigit()):
+            if strict:
+                raise ValueError(f"must be comma-separated integers, got {token!r}")
+            continue
+        try:
+            value = int(token)
+        except ValueError:  # a >4300-digit token exceeds int()'s string limit
+            if strict:
+                raise ValueError(f"must be comma-separated integers, got {token!r}") from None
+            continue
+        if not 1 <= value <= 65535:
+            if strict:
+                raise ValueError(f"entries must be between 1 and 65535, got {value}")
+            continue
+        if value in ports:
+            if strict:
+                raise ValueError(f"has a duplicate port {value}")
+            continue
+        ports.append(value)
+    return tuple(ports)
 
 
 def parse_host_port(raw: str) -> HostPort:
