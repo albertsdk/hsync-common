@@ -8,11 +8,11 @@ each ADR to the code it governs.
 | ADR | Governs (code) |
 | --- | -------------- |
 | [0001 server-vs-p2p-modes](../docs/internal/adr/0001-server-vs-p2p-modes.md) | client run modes; p2p stack vs REST stack |
-| [0002 p2p-master-election](../docs/internal/adr/0002-p2p-master-election.md) | `protocol/p2p.py:67` (`election_sort_key`, `elect_master`) |
+| [0002 p2p-master-election](../docs/internal/adr/0002-p2p-master-election.md) | `protocol/p2p.py::election_sort_key` (`election_sort_key`, `elect_master`) |
 | [0003 tombstone-gossip](../docs/internal/adr/0003-tombstone-gossip.md) | `models/tombstone.py` (`tombstone_merge_decision`, hashed keys, TTL 90 storage GC) + `models/tombstone_store.py` (`TombstoneStore` causal merge) |
 | [0004 desktop-subprocess-contract](../docs/internal/adr/0004-desktop-subprocess-contract.md) | `protocol/events.py` event stream; `protocol/capabilities.py` |
-| [0005 protocol-versioning](../docs/internal/adr/0005-protocol-versioning.md) | `protocol/handshake.py:44` (versions + hard-fail handshake) |
-| [0007 integrity-verification](../docs/internal/adr/0007-content-addressed-storage.md) | `hsync_server/hashes.py` (`FILE_HASHES`: `SHA256(filepath)→SHA256(content)`, idempotent upload detection); `models/file.py` (content hash model) |
+| [0005 protocol-versioning](../docs/internal/adr/0005-protocol-versioning.md) | `protocol/handshake.py::PROTOCOL_VERSION_REST` (versions + hard-fail handshake) |
+| [0007 content-addressed-storage](../docs/internal/adr/0007-content-addressed-storage.md) | `hsync_server/hashes.py` (`FILE_HASHES`: `SHA256(filepath)→SHA256(content)`, idempotent upload detection); `models/file.py` (content hash model) |
 | [0008 client-accounts](../docs/internal/adr/0008-client-accounts.md) | `hsync_server/auth.py` + `auth_store.py` (account tokens, roles, bucket membership); server-only, common defines no auth code |
 | [0009 rest-websocket-transport](../docs/internal/adr/0009-rest-websocket-transport.md) | `protocol/schemas.py` (REST schema SSOT); `protocol/ws/ws-schema.json` (WS schema); `hsync_server` implements endpoints |
 | [0010 zstandard-compression](../docs/internal/adr/0010-zstandard-compression.md) | `compression.py` (adaptive thresholds, precompressed extension list) |

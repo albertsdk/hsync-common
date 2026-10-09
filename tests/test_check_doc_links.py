@@ -152,3 +152,170 @@ class TestMain:
         rc = cdl.main([str(root_a), str(root_b)])
 
         assert rc == 1
+
+
+class TestFindBrokenAnchors:
+    def _make_wiki(self, root: Path, name: str = "hsync-common"):
+        project = root / name
+        wiki = project / "llm-wiki"
+        wiki.mkdir(parents=True)
+        (project / "hsync_common").mkdir(parents=True, exist_ok=True)
+        return project, wiki
+
+    def test_valid_anchor_passes(self, tmp_path: Path):
+        project, wiki = self._make_wiki(tmp_path)
+        (project / "hsync_common" / "constants.py").write_text("HSYNC_VERSION = '1.0.0'\n")
+        (wiki / "README.md").write_text("v `hsync_common/constants.py::HSYNC_VERSION`")
+
+        errors, warnings, checked = cdl.find_broken_anchors(tmp_path)
+
+        assert errors == []
+        assert warnings == []
+        assert checked == 1
+
+    def test_missing_symbol_fails(self, tmp_path: Path):
+        project, wiki = self._make_wiki(tmp_path)
+        (project / "hsync_common" / "constants.py").write_text("OTHER = 1\n")
+        (wiki / "README.md").write_text("v `hsync_common/constants.py::GONE`")
+
+        errors, warnings, checked = cdl.find_broken_anchors(tmp_path)
+
+        assert len(errors) == 1
+        assert "GONE" in errors[0][1]
+
+    def test_missing_file_fails(self, tmp_path: Path):
+        _, wiki = self._make_wiki(tmp_path)
+        (wiki / "README.md").write_text("v `hsync_common/nope.py::Nope`")
+
+        errors, _, _ = cdl.find_broken_anchors(tmp_path)
+
+        assert len(errors) == 1
+
+    def test_package_relative_anchor_resolves(self, tmp_path: Path):
+        # Anchors written relative to the package dir (no hsync_common/ prefix).
+        project, wiki = self._make_wiki(tmp_path)
+        proto_dir = project / "hsync_common" / "protocol"
+        proto_dir.mkdir(parents=True, exist_ok=True)
+        (proto_dir / "handshake.py").write_text("PROTOCOL_VERSION_REST = 'api/1'\n")
+        (wiki / "modules").mkdir(parents=True, exist_ok=True)
+        (wiki / "modules" / "protocol.md").write_text(
+            "v `protocol/handshake.py::PROTOCOL_VERSION_REST`"
+        )
+
+        errors, warnings, checked = cdl.find_broken_anchors(tmp_path)
+
+        assert errors == []
+        assert warnings == []
+        assert checked == 1
+
+    def test_sibling_anchor_skipped(self, tmp_path: Path):
+        _, wiki = self._make_wiki(tmp_path)
+        (wiki / "README.md").write_text("v `hsync_client/constants.py::ActionLabel`")
+
+        errors, warnings, checked = cdl.find_broken_anchors(tmp_path)
+
+        assert errors == []
+        assert warnings == []
+        assert checked == 0
+
+    def test_legacy_line_anchor_is_fatal_in_hsync_common(self, tmp_path: Path):
+        _, wiki = self._make_wiki(tmp_path)
+        (wiki / "README.md").write_text("v `hsync_common/constants.py:24`")
+
+        errors, warnings, _ = cdl.find_broken_anchors(tmp_path)
+
+        assert len(errors) == 1
+        assert warnings == []
+
+    def test_legacy_line_anchor_is_warning_in_sibling(self, tmp_path: Path):
+        # A sibling project wiki still on line anchors: warning, not fatal.
+        sibling = tmp_path / "hsync-client"
+        wiki = sibling / "llm-wiki"
+        wiki.mkdir(parents=True)
+        (wiki / "README.md").write_text("v `constants.py:24`")
+
+        errors, warnings, _ = cdl.find_broken_anchors(tmp_path)
+
+        assert errors == []
+        assert len(warnings) == 1
+
+    def test_sibling_symbol_anchor_not_validated(self, tmp_path: Path):
+        # Symbol anchors in sibling wikis are not enforced here (migrated later).
+        sibling = tmp_path / "hsync-client"
+        wiki = sibling / "llm-wiki"
+        wiki.mkdir(parents=True)
+        (wiki / "README.md").write_text("v `constants.py::GONE`")
+
+        errors, warnings, checked = cdl.find_broken_anchors(tmp_path)
+
+        assert errors == []
+        assert warnings == []
+        assert checked == 0
+
+    def _make_py_wiki(self, root: Path, project: str, package: str):
+        proj = root / project
+        wiki = proj / "llm-wiki"
+        wiki.mkdir(parents=True)
+        pkg = proj / package
+        pkg.mkdir(parents=True, exist_ok=True)
+        return proj, wiki, pkg
+
+    def test_hsync_server_is_enforced(self, tmp_path: Path):
+        _, wiki, pkg = self._make_py_wiki(tmp_path, "hsync-server", "hsync_server")
+        (pkg / "config.py").write_text("def get_port() -> int:\n    return 1\n")
+        (wiki / "README.md").write_text("v `config.py::get_port`")
+
+        errors, warnings, checked = cdl.find_broken_anchors(tmp_path)
+
+        assert errors == []
+        assert warnings == []
+        assert checked == 1
+
+    def test_hsync_server_broken_symbol_fails(self, tmp_path: Path):
+        _, wiki, pkg = self._make_py_wiki(tmp_path, "hsync-server", "hsync_server")
+        (pkg / "config.py").write_text("def get_port() -> int:\n    return 1\n")
+        (wiki / "README.md").write_text("v `config.py::GONE`")
+
+        errors, _, _ = cdl.find_broken_anchors(tmp_path)
+
+        assert len(errors) == 1
+
+    def test_hsync_server_legacy_line_is_fatal(self, tmp_path: Path):
+        _, wiki, _ = self._make_py_wiki(tmp_path, "hsync-server", "hsync_server")
+        (wiki / "README.md").write_text("v `config.py:10`")
+
+        errors, warnings, _ = cdl.find_broken_anchors(tmp_path)
+
+        assert len(errors) == 1
+        assert warnings == []
+
+    def test_cross_project_anchor_in_enforced_wiki_skipped(self, tmp_path: Path):
+        # An hsync-server wiki anchor pointing at hsync-client is not validated.
+        _, wiki, _ = self._make_py_wiki(tmp_path, "hsync-server", "hsync_server")
+        (wiki / "README.md").write_text("v `hsync_client/constants.py::ActionLabel`")
+
+        errors, warnings, checked = cdl.find_broken_anchors(tmp_path)
+
+        assert errors == []
+        assert warnings == []
+        assert checked == 0
+
+    def test_non_wiki_md_not_checked(self, tmp_path: Path):
+        (tmp_path / "docs").mkdir()
+        (tmp_path / "docs" / "README.md").write_text("v `hsync_common/constants.py::GONE`")
+
+        errors, warnings, checked = cdl.find_broken_anchors(tmp_path)
+
+        assert errors == []
+        assert warnings == []
+        assert checked == 0
+
+    def test_definition_shape_required(self, tmp_path: Path):
+        # A symbol only mentioned in a docstring does not count as defined.
+        project, wiki = self._make_wiki(tmp_path)
+        (project / "hsync_common" / "constants.py").write_text('"""mentions GONE"""\nX = 1\n')
+        (wiki / "README.md").write_text("v `hsync_common/constants.py::GONE`")
+
+        errors, _, _ = cdl.find_broken_anchors(tmp_path)
+
+        assert len(errors) == 1

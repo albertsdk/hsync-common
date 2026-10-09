@@ -61,7 +61,21 @@ _HSYNC_PROJECTS = {
     "hsync-server",
     "hsync-desktop",
     "hsync-android",
+    "hsync-bootnode",
 }
+
+# Projects whose wiki symbol anchors are enforced (migrated to ``file.py::symbol``).
+# The remaining wikis are migrated later; their legacy line anchors are warnings.
+_ENFORCED_PROJECTS = {
+    "hsync-common",
+    "hsync-server",
+}
+
+# Wiki symbol anchors: ``path/to/file.py::symbol`` and the legacy
+# ``path/to/file.py:123`` line form we are retiring.
+_ANCHOR_SPAN_RE = re.compile(r"`([^`\n]+)`")
+_ANCHOR_PATTERN = re.compile(r"^([A-Za-z0-9_./-]+\.(?:py|kt|rs))::([A-Za-z_][A-Za-z0-9_.]*)$")
+_LEGACY_LINE_PATTERN = re.compile(r"^([A-Za-z0-9_./-]+\.(?:py|kt|rs)):\d+$")
 
 
 def _is_cross_project_link(target: str) -> bool:
@@ -154,24 +168,190 @@ def find_broken_links(root: Path) -> tuple[list[tuple[Path, str]], int]:
     return broken, checked
 
 
+def _is_wiki_file(md_file: Path, root: Path) -> bool:
+    """Return True when *md_file* lives under an ``llm-wiki/`` tree."""
+    try:
+        return "llm-wiki" in md_file.relative_to(root).parts
+    except ValueError:
+        return False
+
+
+def _project_base(md_file: Path) -> Path | None:
+    """Return the project directory that owns *md_file* (the ``llm-wiki/`` parent).
+
+    When the checker scans the monorepo root, a wiki file lives at
+    ``<root>/<project>/llm-wiki/...`` and its anchors are written relative to
+    ``<root>/<project>``; when it scans a single repo, the base is the root
+    itself. Walking up to the ``llm-wiki`` ancestor handles both cases.
+    """
+    for parent in md_file.parents:
+        if parent.name == "llm-wiki":
+            return parent.parent
+    return None
+
+
+def _project_name(md_file: Path, root: Path) -> str:
+    """Return the hyphenated project dir name that owns *md_file*."""
+    project = _project_base(md_file)
+    return project.name if project is not None else root.name
+
+
+def _is_enforced_file(md_file: Path, root: Path) -> bool:
+    """Return True when *md_file*'s project has symbol-anchor enforcement.
+
+    Enforced for migrated wikis (``_ENFORCED_PROJECTS``); the remaining projects
+    are migrated later, so their legacy line anchors are non-fatal warnings.
+    """
+    return _project_name(md_file, root) in _ENFORCED_PROJECTS
+
+
+def _anchor_project(rel: str) -> str | None:
+    """Return the hyphenated project named by *rel*'s first component, if any.
+
+    ``hsync_server/api/x.py`` -> ``hsync-server``; package-relative paths like
+    ``api/x.py`` return ``None``.
+    """
+    normalized = rel.split("/", 1)[0].replace("_", "-")
+    return normalized if normalized in _HSYNC_PROJECTS else None
+
+
+def _resolve_anchor_file(project: Path, rel: str) -> Path | None:
+    """Resolve a wiki anchor file path to an existing file under *project*.
+
+    Wiki anchor paths are written relative to either the project root
+    (``hsync_server/api/x.py``) or the package directory (``api/x.py``,
+    ``constants.py``, ``models/...``), so both bases are tried.
+    """
+    package_dir = project.name.replace("-", "_")
+    candidates = [project / rel]
+    if not rel.startswith(package_dir + "/"):
+        candidates.append(project / package_dir / rel)
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _symbol_present(path: Path, symbol: str) -> bool:
+    """Return True when *symbol* is defined in *path*.
+
+    Only the final dotted component is matched (``File.get`` -> ``get``), and a
+    definition-shaped occurrence is required (``def``/``class`` or an assignment)
+    so a mention in a comment/docstring does not count as the definition.
+    """
+    if path.suffix != ".py":
+        return True
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return False
+    token = symbol.split(".")[-1]
+    if not token:
+        return False
+    def_re = re.compile(
+        rf"(?:^|\n)\s*(?:(?:async\s+)?def\s+{re.escape(token)}\b|class\s+{re.escape(token)}\b)"
+    )
+    assign_re = re.compile(rf"(?:^|\n)\s*{re.escape(token)}\s*(?::[^=\n]+)?=")
+    return bool(def_re.search(text) or assign_re.search(text))
+
+
+def find_broken_anchors(
+    root: Path,
+) -> tuple[list[tuple[Path, str]], list[tuple[Path, str]], int]:
+    """Return ``(errors, warnings, checked)`` for wiki symbol anchors under *root*.
+
+    ``errors`` are anchors whose file is missing or whose symbol is not defined
+    (or a legacy line anchor in hsync-common) — fatal. ``warnings`` are legacy
+    line anchors in the not-yet-migrated sibling wikis — non-fatal.
+    """
+    errors: list[tuple[Path, str]] = []
+    warnings: list[tuple[Path, str]] = []
+    checked = 0
+
+    for md_file in iter_markdown_files(root):
+        if not _is_wiki_file(md_file, root):
+            continue
+        enforced = _is_enforced_file(md_file, root)
+        project = _project_base(md_file)
+        if project is None:
+            continue
+        current_project = project.name
+        try:
+            text = md_file.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):  # pragma: no cover - I/O guard
+            continue
+
+        for raw in _ANCHOR_SPAN_RE.findall(text):
+            span = raw.strip()
+            if _LEGACY_LINE_PATTERN.match(span):
+                if enforced:
+                    errors.append((md_file, span))
+                else:
+                    warnings.append((md_file, span))
+                continue
+
+            # Symbol anchors are only enforced for migrated projects.
+            if not enforced:
+                continue
+
+            match = _ANCHOR_PATTERN.match(span)
+            if not match:
+                continue
+            rel, symbol = match.group(1), match.group(2)
+            anchor_project = _anchor_project(rel)
+            if anchor_project is not None and anchor_project != current_project:
+                # Cross-project anchor: not validated in this repo's scan.
+                continue
+            anchor_file = _resolve_anchor_file(project, rel)
+            if anchor_file is None:
+                errors.append((md_file, span))
+                continue
+            checked += 1
+            if not _symbol_present(anchor_file, symbol):
+                errors.append((md_file, span))
+
+    return errors, warnings, checked
+
+
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
     roots = [Path(a).resolve() for a in args] if args else [REPO_ROOT]
 
     broken: list[tuple[Path, str]] = []
     checked = 0
+    anchor_errors: list[tuple[Path, str]] = []
+    anchor_warnings: list[tuple[Path, str]] = []
+    anchor_checked = 0
     for root in roots:
         root_broken, root_checked = find_broken_links(root)
         broken.extend(root_broken)
         checked += root_checked
+        errs, warns, achecked = find_broken_anchors(root)
+        anchor_errors.extend(errs)
+        anchor_warnings.extend(warns)
+        anchor_checked += achecked
 
-    if broken:
-        print(f"Broken relative links: {len(broken)} (checked {checked})\n")
-        for md_file, target in broken:
-            print(f"  {md_file} -> {target}")
+    if anchor_warnings:
+        print(f"Wiki anchor warnings (legacy line anchors, migrate later): {len(anchor_warnings)}")
+        for md_file, anchor in anchor_warnings:
+            print(f"  {md_file} -> {anchor}")
+        print()
+
+    if broken or anchor_errors:
+        if broken:
+            print(f"Broken relative links: {len(broken)} (checked {checked})\n")
+            for md_file, target in broken:
+                print(f"  {md_file} -> {target}")
+            print()
+        if anchor_errors:
+            print(f"Broken wiki anchors: {len(anchor_errors)} (checked {anchor_checked})\n")
+            for md_file, anchor in anchor_errors:
+                print(f"  {md_file} -> {anchor}")
         return 1
 
-    print(f"docs-link-check OK: {checked} relative links valid.")
+    print(
+        f"docs-link-check OK: {checked} relative links valid, {anchor_checked} wiki anchors valid."
+    )
     return 0
 
 

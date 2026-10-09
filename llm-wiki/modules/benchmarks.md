@@ -7,7 +7,7 @@ user-facing behaviour.
 ## Why only one tier
 
 `hsync-common` is a dependency-light library imported by the runtime projects
-and mirrored in Kotlin (`llm-wiki/architecture.md:3`): it has no process, no
+and mirrored in Kotlin (`llm-wiki/architecture.md`): it has no process, no
 socket and no transport of its own. The bootnode tier split therefore does not
 map onto it — L2/L3 (spawn a binary over the wire) and L5 (node-process CPU
 saturation) have no subject here. L4 (profiling) is added only when a concrete
@@ -19,6 +19,7 @@ anomaly needs a cost breakdown.
 | --- | --- |
 | `bench/README.md` | Tier table, per-script scope, run commands, methodology |
 | `bench/common.py` | Stdlib-only measurement core + deterministic fixture builders; never imports `hsync_common` |
+| `bench/run_all.py` | Runs every `bench_*.py` scenario in one pass |
 | `bench/bench_hashing.py` | `hsync_common/hashing.py` scenarios |
 | `bench/bench_compression.py` | `hsync_common/compression.py` scenarios |
 | `bench/bench_delta.py` | `hsync_common/delta/` scenarios |
@@ -31,31 +32,31 @@ anomaly needs a cost breakdown.
 
 | Scenario | Public API measured |
 | --- | --- |
-| `sha256(64KB/1MB/16MB)`, `sha256_async(...)` | `hashing.compute_sha256` (`hsync_common/hashing.py:82`), `compute_sha256_async` (`:99`) |
-| `is_sha256_hex`, `adaptive_chunk_size` | `hsync_common/hashing.py:37`, `:61` |
-| `should_compress` | `hsync_common/compression.py:172` (threshold + `PRECOMPRESSED_EXTENSIONS` gate) |
-| `compress_data` / `decompress_data` | `hsync_common/compression.py:219`, `:224` (capped streaming read) |
-| `compress_file_to_file` | `hsync_common/compression.py:312` (streaming upload path) |
-| `decompress_stream` | `hsync_common/compression.py:253` (anti decompression-bomb cap) |
-| `signatures(...)`, `sig_for_data(...)` | `delta/rolling_checksum.py:123`, `:144` |
-| `build_index(4096 sigs)` | `delta/rolling_checksum.py:180` |
-| `match_file(size,chg%,bs)` | `delta/rolling_checksum.py:277` → `find_matches` (`:202`) |
-| `apply_delta(1MB,lit=N%)` | `delta/rolling_checksum.py:301` |
-| `optimal_block_size`, `changed_block_ratio`, `is_delta_worthwhile` | `delta/decision.py:38`, `:53`, `:71` |
-| `matcher_ctor(extra=N)` | `ignore.IgnoreMatcher.__init__` / `reload` (`hsync_common/ignore.py:65`, `:80`) |
-| `matches(single path)` | `hsync_common/ignore.py:150` |
-| `should_skip(...)` | `hsync_common/ignore.py:217` (active matcher → fallback) |
+| `sha256(64KB/1MB/16MB)`, `sha256_async(...)` | `hashing.compute_sha256` (`hsync_common/hashing.py::compute_sha256`), `compute_sha256_async` (`hsync_common/hashing.py::compute_sha256_async`) |
+| `is_sha256_hex`, `adaptive_chunk_size` | `hsync_common/hashing.py::is_sha256_hex`, `hsync_common/hashing.py::adaptive_chunk_size` |
+| `should_compress` | `hsync_common/compression.py::should_compress` (threshold + `PRECOMPRESSED_EXTENSIONS` gate) |
+| `compress_data` / `decompress_data` | `hsync_common/compression.py::compress_data`, `hsync_common/compression.py::decompress_data` (capped streaming read) |
+| `compress_file_to_file` | `hsync_common/compression.py::compress_file_to_file` (streaming upload path) |
+| `decompress_stream` | `hsync_common/compression.py::decompress_stream` (anti decompression-bomb cap) |
+| `signatures(...)`, `sig_for_data(...)` | `delta/rolling_checksum.py::compute_signatures`, `delta/rolling_checksum.py::signatures_for_data` |
+| `build_index(4096 sigs)` | `delta/rolling_checksum.py::build_signature_index` |
+| `match_file(size,chg%,bs)` | `delta/rolling_checksum.py::find_matches_file` → `find_matches` (`delta/rolling_checksum.py::find_matches`) |
+| `apply_delta(1MB,lit=N%)` | `delta/rolling_checksum.py::apply_delta` |
+| `optimal_block_size`, `changed_block_ratio`, `is_delta_worthwhile` | `delta/decision.py::optimal_block_size`, `delta/decision.py::changed_block_ratio`, `delta/decision.py::is_delta_worthwhile` |
+| `matcher_ctor(extra=N)` | `ignore.IgnoreMatcher.__init__` / `reload` (`hsync_common/ignore.py::IgnoreMatcher.__init__`, `hsync_common/ignore.py::IgnoreMatcher.reload`) |
+| `matches(single path)` | `hsync_common/ignore.py::IgnoreMatcher.matches` |
+| `should_skip(...)` | `hsync_common/ignore.py::should_skip` (active matcher → fallback) |
 | `sweep(N paths,bucket\|defaults)` | full-scan cost with bucket rules vs. default-only fallback |
-| `file_to_dict` / `file_from_dict(strip\|prepend\|rel_strip)` | `models/file.py:234`, `:289` via `models/_util.py:56` |
-| `dir_*`, `symlink_*` | `models/dir.py:64`/`:79`, `models/symlink.py:96`/`:108` |
-| `event_ctor(rename)`, `event_to_dict` | `models/event.py:108`, `:139` |
-| `is_valid_cid`, `is_partial_file` | `models/event.py:30`, `models/file.py:131` |
-| `validate_remote_relpath(valid\|escape)` | `path_validation.validate_remote_relpath` (`hsync_common/path_validation.py:481`) |
-| `resolve_within(valid\|escape)` | `path_validation.resolve_within` (`hsync_common/path_validation.py:542`) |
-| `wire_relpaths(2-key)` | `path_validation.wire_relpaths` (`hsync_common/path_validation.py:456`) |
-| `SyncStateStore.record` / `get` / `retain` | `models/version_store.py:77`, `models/_store_base.py:55`, `models/version_store.py:99` |
-| `SyncStateStore.save+load` | `models/_store_base.py` persistence skeleton (SQLite WAL) |
-| `TombstoneStore.merge(dominant)` | `models/tombstone_store.py:152` (untrusted-payload sanitize + causal adopt) |
+| `file_to_dict` / `file_from_dict(strip\|prepend\|rel_strip)` | `models/file.py::File.to_dict`, `models/file.py::File.from_dict` via `models/_util.py::_resolve_prefixed_path` |
+| `dir_*`, `symlink_*` | `models/dir.py::Dir.to_dict`/`models/dir.py::Dir.from_dict`, `models/symlink.py::Symlink.to_dict`/`models/symlink.py::Symlink.from_dict` |
+| `event_ctor(rename)`, `event_to_dict` | `models/event.py::Event.__init__`, `models/event.py::Event.to_dict` |
+| `is_valid_cid`, `is_partial_file` | `models/event.py::is_valid_cid`, `models/file.py::is_partial_file` |
+| `validate_remote_relpath(valid\|escape)` | `path_validation.validate_remote_relpath` (`hsync_common/path_validation.py::validate_remote_relpath`) |
+| `resolve_within(valid\|escape)` | `path_validation.resolve_within` (`hsync_common/path_validation.py::resolve_within`) |
+| `wire_relpaths(2-key)` | `path_validation.wire_relpaths` (`hsync_common/path_validation.py::wire_relpaths`) |
+| `SyncStateStore.record` / `get` / `retain` | `models/version_store.py::SyncStateStore`, `models/_store_base.py::CausalStoreBase`, `models/version_store.py::SyncStateStore` |
+| `SyncStateStore.save+load` | `models/_store_base.py::CausalStoreBase` persistence skeleton (SQLite WAL) |
+| `TombstoneStore.merge(dominant)` | `models/tombstone_store.py::TombstoneStore` (untrusted-payload sanitize + causal adopt) |
 
 ## Methodology (must-read before trusting a number)
 
@@ -71,7 +72,7 @@ anomaly needs a cost breakdown.
    `finally`. A benchmark must not leak state into the next scenario.
 5. `bench_compression.py` silences loguru's sink (`logger.remove()`) so
    `should_compress` is measured at the production log level (INFO) without
-   sink I/O — `hsync_common/compression.py:206` logs once per skipped file.
+   sink I/O — `hsync_common/compression.py::should_compress` logs once per skipped file.
 6. Payload generation is seeded (`common.make_payload`): text (highly
    compressible), binary (low-nibble entropy, semi-compressible),
    incompressible (raw PRNG bytes).
@@ -89,11 +90,11 @@ anomaly needs a cost breakdown.
 * Compression gate: `should_compress` at ~0.0005 ms (~1.9M ops/s) — the
   skip-path `log.debug` calls switched to lazy loguru args (the f-string was
   formatted even at INFO level), a ~9 % win on the per-file gate
-  (`hsync_common/compression.py:224`).
+  (`hsync_common/compression.py::should_compress`).
 * Delta `find_matches` (A2 + B1): identical-file 1 MB at ~1.01 ms; 10 %
   changed at ~25.90 ms (was ~27.53 ms, −5.9 %: B1 replaced the two per-byte
   `%` divisions with conditional corrections + a 256-entry `(n*byte)%MOD`
-  table, `delta/rolling_checksum.py:66`); 50 % changed at ~114.29 ms
+  table, `delta/rolling_checksum.py::_block_byte_penalty`); 50 % changed at ~114.29 ms
   (was ~122.62 ms, −6.8 %); 4 MB 10 % at ~97.52 ms (was ~102.07 ms, −4.5 %);
   the front-insertion case (`10%+4KB`, ~27.12 ms) costs no more than plain
   10 % because the window re-synchronises after the shift.
@@ -107,7 +108,7 @@ anomaly needs a cost breakdown.
 * Path prepend: `file_from_dict(prepend)` at ~1.0 µs (was ~4.0 µs, **~4x**),
   `dir_from_dict(prepend)` at ~0.6 µs (was ~3.1 µs, **~5x**),
   `symlink_from_dict` at ~0.8 µs (was ~3.3 µs, **~4x**) —
-  `_resolve_prefixed_path` (`models/_util.py:124`)
+  `_resolve_prefixed_path` (`models/_util.py::_resolve_prefixed_path`)
   now uses string concat instead of `Path(prefix) / rel` on the prepend
   branch (pinned by `test_prepend_matches_pathlib_join` in
   `tests/test_models_file.py`). `file_from_dict(strip)` unchanged at ~2.1 µs
@@ -121,12 +122,12 @@ anomaly needs a cost breakdown.
 * Steady-state reconcide micro-opts: a `hsync-client` cProfile of the
   in-sync reconcile showed the per-file cost spread flatly across the shared
   model/validation layer, so four behavior-preserving fast paths were added
-  here — `to_epoch` returns an int verbatim (`time_utils.py:101`),
-  `File.get` uses `os.stat` instead of `Path(...).stat()` (`models/file.py:259`,
+  here — `to_epoch` returns an int verbatim (`time_utils.py::to_epoch`),
+  `File.get` uses `os.stat` instead of `Path(...).stat()` (`models/file.py::File.get`,
   test switched to patch `os.stat`), `_resolve_prefixed_path` returns an
   already-relative path verbatim when the prefix is absolute
-  (`models/_util.py:118`), and `validate_remote_relpath` guards the NFC
-  normalize with `is_normalized` (`path_validation.py:509`). Measured effect:
+  (`models/_util.py::_resolve_prefixed_path`), and `validate_remote_relpath` guards the NFC
+  normalize with `is_normalized` (`path_validation.py::validate_remote_relpath`). Measured effect:
   `file_round_trip` ~2.1→1.3 µs, `file_from_dict(strip)` ~2.1→1.9 µs,
   `file_ctor` ~0.7→0.6 µs; the production decode shape (relative listing path +
   strip) is now a dedicated `file_from_dict(rel_strip)` scenario at ~0.9 µs,
@@ -159,7 +160,7 @@ anomaly needs a cost breakdown.
   `File.__init__` returns a plain-`int` `ctime`/`mtime` verbatim instead of
   routing it through `_parse_time` → `to_epoch` (the wire shape is epoch
   seconds), and `validate_remote_relpath` measures the path with `len()` when it
-  is ASCII instead of allocating its UTF-8 bytes (`path_validation.py:547`).
+  is ASCII instead of allocating its UTF-8 bytes (`path_validation.py::validate_remote_relpath`).
   Measured A/B on this machine (`--count 5000`, stash/restore):
   `file_from_dict(prepend)` 1.2→1.0 µs (+14.8 %),
   `file_from_dict(rel_strip)` 1.1→1.0 µs (+14.3 %), `file_ctor` 0.6→0.5 µs

@@ -8,11 +8,12 @@ runtime projects and re-implemented (by mirroring) in Kotlin for Android.
 ```
 constants / format / text / env / clock        (leaf utilities, no internal deps)
         │
-hashing / compression / permissions / path_validation / ignore / ssl_utils / logger
+hashing / compression / permissions / path_validation / ignore / ssl_utils / logger / labels
         │
 models/  (File, Dir, Symlink, Event, SyncAction, Tombstone, Version)
         │
-protocol/  (versions, capabilities, handshake, events, lan, pairing, schemas, fixtures)
+protocol/  (versions, capabilities, handshake, events, p2p, pairing, peer_download,
+            bootnode, rest, tls_trust, schemas, fixtures)
 ```
 
 Higher layers may import lower ones; the reverse never happens. `protocol/`
@@ -23,10 +24,10 @@ contract is mechanically tied to the in-code types.
 
 | Path | Responsibility | Wiki |
 | ---- | -------------- | ---- |
-| `hsync_common/constants.py:24` | `HSYNC_VERSION`, wire/checksum header names + client-name validator, content types, sentinel filenames, chunk-size tiers, `.part` suffix | [utilities](modules/utilities.md) |
+| `hsync_common/constants.py::HSYNC_VERSION` | `HSYNC_VERSION`, wire/checksum header names + client-name validator, content types, sentinel filenames, chunk-size tiers, `.part` suffix | [utilities](modules/utilities.md) |
 | `hsync_common/models/` | Canonical sync data types; `folder.py` (`.hsyncfolder` + state-dir helpers), `sqlstore.py` (per-folder state DB) | [data-models](data-models.md) |
 | `hsync_common/protocol/` | Versioned wire protocol + contract artifacts | [protocol](modules/protocol.md) |
-| `hsync_common/{hashing,compression,permissions,path_validation,ignore,ssl_utils,logger,env,text,clock,format,exceptions}.py` | Cross-cutting helpers | [utilities](modules/utilities.md) |
+| `hsync_common/{hashing,compression,permissions,path_validation,ignore,ssl_utils,logger,labels,env,text,clock,format,time_utils,endpoint,runtime,ratelimit,upnp,exceptions}.py`, `hsync_common/delta/` | Cross-cutting helpers | [utilities](modules/utilities.md) |
 
 ## Protocol SSOT → consumers
 
@@ -35,13 +36,13 @@ these constants:
 
 | SSOT symbol | Location | Consumed by |
 | ----------- | -------- | ----------- |
-| `PROTOCOL_VERSION_REST/WS/LAN` | `protocol/handshake.py:60` | server middleware, client REST/WS, android `Protocol.kt` |
-| `Capability` enum + `encode/decode_capabilities` | `protocol/handshake.py:65` | WS handshake on all peers; includes additive `peer_download` |
-| `build_ws_auth_request/ok/error` | `protocol/handshake.py:136` | client/android WS auth, server `events.py` |
-| `UiEventName` + `build_event` | `protocol/events.py:44` | client emits, desktop/android parse; transfer payload may carry peer `source_cid` |
-| `elect_master` / `election_sort_key` | `protocol/p2p.py:67` | client `p2p.py`, android `Election.kt` |
-| `evaluate_pin` / `p2p_write_requires_key` | `protocol/pairing.py:124` | client `pinning.py`, android `Pairing.kt` |
-| p2p source/inventory builders + validators | `protocol/peer_download.py:91` | client master/seeder/source resolver, Android mirror, generated contracts |
+| `PROTOCOL_VERSION_REST/WS/P2P` | `protocol/handshake.py::PROTOCOL_VERSION_REST` | server middleware, client REST/WS, android `Protocol.kt` |
+| `Capability` enum + `encode/decode_capabilities` | `protocol/handshake.py::Capability` | WS handshake on all peers; includes additive `peer_download` |
+| `build_ws_auth_request/ok/error` + presence frame | `protocol/handshake.py::build_ws_auth_request` | client/android WS auth, server `events.py` |
+| `UiEventName` + `build_event` | `protocol/events.py::UiEventName` | client emits, desktop/android parse; transfer payload may carry peer `source_cid` |
+| `elect_master` / `election_sort_key` | `protocol/p2p.py::elect_master` | client `p2p.py`, android `Election.kt` |
+| `evaluate_pin` / `p2p_write_requires_key` | `protocol/pairing.py::evaluate_pin` | client `pinning.py`, android `Pairing.kt` |
+| p2p source/inventory builders + validators | `protocol/peer_download.py::validate_p2p_sources_request` | client master/seeder/source resolver, Android mirror, generated contracts |
 
 ## Causal conflict model (ADR-0022)
 
@@ -68,17 +69,19 @@ these constants:
 
 | Artifact | Builder | Path constant |
 | -------- | ------- | ------------- |
-| OpenAPI (REST) | server app → `dump_openapi` | `protocol/__init__.py:30` (`REST_OPENAPI_PATH`) |
-| WS JSON Schema | `build_ws_schema` (`protocol/schemas.py:464`) | `protocol/__init__.py:34` (`WS_SCHEMA_PATH`) |
-| p2p TXT JSON Schema | `build_p2p_txt_schema` (`protocol/schemas.py:742`) | `protocol/__init__.py:35` (`P2P_TXT_SCHEMA_PATH`) |
-| p2p WSS JSON Schema | `build_p2p_wss_schema` (`protocol/schemas.py:669`) | `protocol/__init__.py:36` (`P2P_WSS_SCHEMA_PATH`) |
-| p2p source JSON Schema | `build_p2p_sources_schema` (`protocol/schemas.py:180`) | `protocol/__init__.py:38` (`P2P_SOURCES_SCHEMA_PATH`) |
-| Cross-language fixtures | `build_fixtures` (`protocol/fixtures.py:647`) | `protocol/__init__.py:42` (`FIXTURES_DIR`) |
+| OpenAPI (REST) | server app → `dump_openapi` | `protocol/__init__.py::REST_OPENAPI_PATH` |
+| WS JSON Schema | `build_ws_schema` (`protocol/schemas.py::build_ws_schema`) | `protocol/__init__.py::WS_SCHEMA_PATH` |
+| p2p TXT JSON Schema | `build_p2p_txt_schema` (`protocol/schemas.py::build_p2p_txt_schema`) | `protocol/__init__.py::P2P_TXT_SCHEMA_PATH` |
+| p2p WSS JSON Schema | `build_p2p_wss_schema` (`protocol/schemas.py::build_p2p_wss_schema`) | `protocol/__init__.py::P2P_WSS_SCHEMA_PATH` |
+| p2p source JSON Schema | `build_p2p_sources_schema` (`protocol/schemas.py::build_p2p_sources_schema`) | `protocol/__init__.py::P2P_SOURCES_SCHEMA_PATH` |
+| Cross-language fixtures | `build_fixtures` (`protocol/fixtures.py::build_fixtures`) | `protocol/__init__.py::FIXTURES_DIR` |
 
 Regeneration: `scripts/export_protocol_schemas.py` and `scripts/export_openapi.py`.
 Drift is enforced by `tests/test_protocol_schemas.py` (rebuild must equal the
-committed snapshot). `ANDROID_FIXTURES_DIR` (`protocol/__init__.py:45`) lets the
-common suite optionally assert byte-equality with the Android resources.
+committed snapshot). `ANDROID_FIXTURES_DIR` (`protocol/__init__.py::ANDROID_FIXTURES_DIR`)
+lets the common suite optionally assert byte-equality with the Android resources;
+`BOOTNODE_FIXTURES_DIR` (`protocol/__init__.py::BOOTNODE_FIXTURES_DIR`) points at
+the canonical `hsync-bootnode` fixtures mirrored under `protocol/fixtures/`.
 
 ## Consumer contract
 
@@ -89,5 +92,5 @@ common suite optionally assert byte-equality with the Android resources.
 - Android does not import Python; it mirrors the SSOT in Kotlin and the shared
   fixtures pin both languages to identical behavior.
 
-> Human-oriented overview, model attribute tables and rationale: `../docs/architecture.md`.
-> Decision rationale: [decisions.md](decisions.md) → `../docs/adr/`.
+> Human-oriented overview, model attribute tables and rationale: `../docs/internal/architecture.md`.
+> Decision rationale: [decisions.md](decisions.md) → `../docs/internal/adr/`.
