@@ -69,6 +69,8 @@ _HSYNC_PROJECTS = {
 _ENFORCED_PROJECTS = {
     "hsync-common",
     "hsync-server",
+    "hsync-bootnode",
+    "hsync-client",
 }
 
 # Wiki symbol anchors: ``path/to/file.py::symbol`` and the legacy

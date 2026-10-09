@@ -228,8 +228,8 @@ class TestFindBrokenAnchors:
         assert warnings == []
 
     def test_legacy_line_anchor_is_warning_in_sibling(self, tmp_path: Path):
-        # A sibling project wiki still on line anchors: warning, not fatal.
-        sibling = tmp_path / "hsync-client"
+        # A not-yet-migrated sibling wiki on line anchors: warning, not fatal.
+        sibling = tmp_path / "hsync-desktop"
         wiki = sibling / "llm-wiki"
         wiki.mkdir(parents=True)
         (wiki / "README.md").write_text("v `constants.py:24`")
@@ -240,8 +240,8 @@ class TestFindBrokenAnchors:
         assert len(warnings) == 1
 
     def test_sibling_symbol_anchor_not_validated(self, tmp_path: Path):
-        # Symbol anchors in sibling wikis are not enforced here (migrated later).
-        sibling = tmp_path / "hsync-client"
+        # Symbol anchors in not-yet-migrated sibling wikis are not enforced.
+        sibling = tmp_path / "hsync-desktop"
         wiki = sibling / "llm-wiki"
         wiki.mkdir(parents=True)
         (wiki / "README.md").write_text("v `constants.py::GONE`")
@@ -299,6 +299,52 @@ class TestFindBrokenAnchors:
         assert errors == []
         assert warnings == []
         assert checked == 0
+
+    def test_hsync_bootnode_legacy_line_is_fatal(self, tmp_path: Path):
+        proj = tmp_path / "hsync-bootnode"
+        wiki = proj / "llm-wiki"
+        wiki.mkdir(parents=True)
+        (wiki / "README.md").write_text("v `python/src/hsync_bootnode/protocol.py:10`")
+
+        errors, warnings, _ = cdl.find_broken_anchors(tmp_path)
+
+        assert len(errors) == 1
+        assert warnings == []
+
+    def test_hsync_bootnode_full_path_anchor_resolves(self, tmp_path: Path):
+        proj = tmp_path / "hsync-bootnode"
+        wiki = proj / "llm-wiki"
+        wiki.mkdir(parents=True)
+        pkg = proj / "python" / "src" / "hsync_bootnode"
+        pkg.mkdir(parents=True)
+        (pkg / "protocol.py").write_text("class BootRegister:\n    pass\n")
+        (wiki / "README.md").write_text("v `python/src/hsync_bootnode/protocol.py::BootRegister`")
+
+        errors, warnings, checked = cdl.find_broken_anchors(tmp_path)
+
+        assert errors == []
+        assert warnings == []
+        assert checked == 1
+
+    def test_hsync_client_is_enforced(self, tmp_path: Path):
+        _, wiki, pkg = self._make_py_wiki(tmp_path, "hsync-client", "hsync_client")
+        (pkg / "sync.py").write_text("def sync() -> None:\n    pass\n")
+        (wiki / "README.md").write_text("v `sync.py::sync`")
+
+        errors, warnings, checked = cdl.find_broken_anchors(tmp_path)
+
+        assert errors == []
+        assert warnings == []
+        assert checked == 1
+
+    def test_hsync_client_broken_symbol_fails(self, tmp_path: Path):
+        _, wiki, pkg = self._make_py_wiki(tmp_path, "hsync-client", "hsync_client")
+        (pkg / "sync.py").write_text("def sync() -> None:\n    pass\n")
+        (wiki / "README.md").write_text("v `sync.py::GONE`")
+
+        errors, _, _ = cdl.find_broken_anchors(tmp_path)
+
+        assert len(errors) == 1
 
     def test_non_wiki_md_not_checked(self, tmp_path: Path):
         (tmp_path / "docs").mkdir()
