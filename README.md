@@ -9,6 +9,8 @@ upon — data formats, compression, file exclusion rules, and security utilities
 You don't install or run it directly; it's a library used by the client, server and
 desktop application.
 
+> New to HSYNC? Start with the [HSYNC Ecosystem](https://github.com/albertsdk/hsync/blob/main/README.md) for an overview of the platform before using the library.
+
 It is also the **single source of truth for the open, versioned wire protocol**:
 the shared models, JSON-Schema builders and committed fixtures live here
 (`hsync_common.protocol`, `docs/protocol.md`, `docs/p2p-protocol.md`), so every
