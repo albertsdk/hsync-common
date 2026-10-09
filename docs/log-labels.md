@@ -149,6 +149,7 @@ notification in desktop/Android.
 | `[PAIRING NEEDED]` | warning | Strict pairing: master cert is unpinned; out-of-band confirmation required | ✓ | | ✓ | ✓ |
 | `[FINGERPRINT CHANGED]` | warning | Master cert no longer matches the pinned fingerprint (possible MITM); refused | ✓ | | ✓ | ✓ |
 | `[AUTH REQUIRED]` | warning | Non-interactive LAN write lacks `HSYNC_LAN_KEY`; set it or run interactively | ✓ | | ✓ | ✓ |
+| `[WATCHER ERROR]` | warning | Local file watcher could not start: the kernel inotify limits are exhausted (Errno 24 instances / Errno 28 watches); raise `fs.inotify.max_user_instances` or `max_user_watches` (see the client troubleshooting guide) | ✓ | | | |
 
 ## Infrastructure (transport-level)
 
