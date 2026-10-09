@@ -228,8 +228,8 @@ class TestFindBrokenAnchors:
         assert warnings == []
 
     def test_legacy_line_anchor_is_warning_in_sibling(self, tmp_path: Path):
-        # A not-yet-migrated sibling wiki on line anchors: warning, not fatal.
-        sibling = tmp_path / "hsync-desktop"
+        # A not-yet-migrated wiki on line anchors: warning, not fatal.
+        sibling = tmp_path / "hsync-legacy"
         wiki = sibling / "llm-wiki"
         wiki.mkdir(parents=True)
         (wiki / "README.md").write_text("v `constants.py:24`")
@@ -240,8 +240,8 @@ class TestFindBrokenAnchors:
         assert len(warnings) == 1
 
     def test_sibling_symbol_anchor_not_validated(self, tmp_path: Path):
-        # Symbol anchors in not-yet-migrated sibling wikis are not enforced.
-        sibling = tmp_path / "hsync-desktop"
+        # Symbol anchors in not-yet-migrated wikis are not enforced.
+        sibling = tmp_path / "hsync-legacy"
         wiki = sibling / "llm-wiki"
         wiki.mkdir(parents=True)
         (wiki / "README.md").write_text("v `constants.py::GONE`")
@@ -345,6 +345,46 @@ class TestFindBrokenAnchors:
         errors, _, _ = cdl.find_broken_anchors(tmp_path)
 
         assert len(errors) == 1
+
+    def test_hsync_desktop_is_enforced(self, tmp_path: Path):
+        _, wiki, pkg = self._make_py_wiki(tmp_path, "hsync-desktop", "hsync_desktop")
+        (pkg / "engine.py").write_text("class HsyncEngine:\n    pass\n")
+        (wiki / "README.md").write_text("v `engine.py::HsyncEngine`")
+
+        errors, warnings, checked = cdl.find_broken_anchors(tmp_path)
+
+        assert errors == []
+        assert warnings == []
+        assert checked == 1
+
+    def test_hsync_desktop_broken_symbol_fails(self, tmp_path: Path):
+        _, wiki, pkg = self._make_py_wiki(tmp_path, "hsync-desktop", "hsync_desktop")
+        (pkg / "engine.py").write_text("class HsyncEngine:\n    pass\n")
+        (wiki / "README.md").write_text("v `engine.py::GONE`")
+
+        errors, _, _ = cdl.find_broken_anchors(tmp_path)
+
+        assert len(errors) == 1
+
+    def test_suffix_resolution_prefers_main_over_test(self, tmp_path: Path):
+        # Android sources live under app/src/main/java/<package>/; a
+        # package-relative anchor resolves there, preferring main over test.
+        proj = tmp_path / "hsync-android"
+        wiki = proj / "llm-wiki"
+        wiki.mkdir(parents=True)
+        main = proj / "app" / "src" / "main" / "java" / "com" / "hsync" / "android" / "p2p"
+        test = proj / "app" / "src" / "test" / "java" / "com" / "hsync" / "android" / "p2p"
+        main.mkdir(parents=True)
+        test.mkdir(parents=True)
+        (main / "Election.kt").write_text("class Election\n")
+        (test / "Election.kt").write_text("class Election\n")
+        (wiki / "README.md").write_text("v `p2p/Election.kt::Election`")
+
+        errors, warnings, checked = cdl.find_broken_anchors(tmp_path)
+
+        assert errors == []
+        assert warnings == []
+        assert checked == 1
 
     def test_non_wiki_md_not_checked(self, tmp_path: Path):
         (tmp_path / "docs").mkdir()

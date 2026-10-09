@@ -24,6 +24,7 @@ The root ``Makefile`` passes the workspace root (``.``) to scan every project.
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -64,13 +65,15 @@ _HSYNC_PROJECTS = {
     "hsync-bootnode",
 }
 
-# Projects whose wiki symbol anchors are enforced (migrated to ``file.py::symbol``).
-# The remaining wikis are migrated later; their legacy line anchors are warnings.
+# Projects whose wiki symbol anchors are enforced (all migrated to
+# ``file.py::symbol``). The warning path below remains for any project not listed.
 _ENFORCED_PROJECTS = {
     "hsync-common",
     "hsync-server",
     "hsync-bootnode",
     "hsync-client",
+    "hsync-desktop",
+    "hsync-android",
 }
 
 # Wiki symbol anchors: ``path/to/file.py::symbol`` and the legacy
@@ -78,6 +81,22 @@ _ENFORCED_PROJECTS = {
 _ANCHOR_SPAN_RE = re.compile(r"`([^`\n]+)`")
 _ANCHOR_PATTERN = re.compile(r"^([A-Za-z0-9_./-]+\.(?:py|kt|rs))::([A-Za-z_][A-Za-z0-9_.]*)$")
 _LEGACY_LINE_PATTERN = re.compile(r"^([A-Za-z0-9_./-]+\.(?:py|kt|rs)):\d+$")
+
+# Directories pruned when resolving an anchor by path suffix (last resort for
+# projects whose sources live under a non-package root, e.g. Android's
+# ``app/src/main/java/<package>/``).
+_ANCHOR_SKIP_DIRS = {
+    ".git",
+    ".gradle",
+    ".kilo",
+    "build",
+    "dist",
+    "node_modules",
+    "__pycache__",
+    ".venv",
+}
+_ANCHOR_TEST_MARKERS = ("/test/", "/androidtest/")
+_SUFFIX_INDEX_CACHE: dict[Path, dict[str, list[Path]]] = {}
 
 
 def _is_cross_project_link(target: str) -> bool:
@@ -217,12 +236,28 @@ def _anchor_project(rel: str) -> str | None:
     return normalized if normalized in _HSYNC_PROJECTS else None
 
 
+def _suffix_index(project: Path) -> dict[str, list[Path]]:
+    """Index *project* files by basename for suffix-based anchor resolution."""
+    cached = _SUFFIX_INDEX_CACHE.get(project)
+    if cached is not None:
+        return cached
+    index: dict[str, list[Path]] = {}
+    for dirpath, dirnames, filenames in os.walk(project):
+        dirnames[:] = [d for d in dirnames if d not in _ANCHOR_SKIP_DIRS]
+        for name in filenames:
+            index.setdefault(name, []).append(Path(dirpath) / name)
+    _SUFFIX_INDEX_CACHE[project] = index
+    return index
+
+
 def _resolve_anchor_file(project: Path, rel: str) -> Path | None:
     """Resolve a wiki anchor file path to an existing file under *project*.
 
-    Wiki anchor paths are written relative to either the project root
-    (``hsync_server/api/x.py``) or the package directory (``api/x.py``,
-    ``constants.py``, ``models/...``), so both bases are tried.
+    Anchor paths are written relative to the project root
+    (``hsync_server/api/x.py``), the package directory (``api/x.py``,
+    ``constants.py``), or a source tree outside the package (Android's
+    ``p2p/Election.kt`` under ``app/src/main/java/...``). The first two are
+    exact; the last is a unique suffix match preferring non-test sources.
     """
     package_dir = project.name.replace("-", "_")
     candidates = [project / rel]
@@ -231,7 +266,23 @@ def _resolve_anchor_file(project: Path, rel: str) -> Path | None:
     for candidate in candidates:
         if candidate.is_file():
             return candidate
-    return None
+    matches = [
+        path
+        for path in _suffix_index(project).get(rel.rsplit("/", 1)[-1], [])
+        if path.relative_to(project).as_posix().endswith(rel)
+    ]
+    if not matches:
+        return None
+    production = [
+        path
+        for path in matches
+        if not any(
+            marker in f"/{path.relative_to(project).as_posix().lower()}/"
+            for marker in _ANCHOR_TEST_MARKERS
+        )
+    ]
+    pool = production or matches
+    return min(pool, key=lambda p: len(p.relative_to(project).as_posix()))
 
 
 def _symbol_present(path: Path, symbol: str) -> bool:
