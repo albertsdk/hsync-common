@@ -25,10 +25,10 @@ classifiers = [
 ]
 dependencies = [
     "aiofiles>=25.1.0,<26.0.0",
-    "cryptography>=50.0.1,<51.0.0",
+    "cryptography>=50.0.2,<51.0.0",
     "loguru>=0.7.3,<0.8.0",
     "pathspec>=1.1.1,<2.0",
-    "python-dotenv>=1.2.3,<2.0.0",
+    "python-dotenv>=1.2.4,<2.0.0",
     "zstandard>=0.25.0,<0.26.0",
 ]
 
