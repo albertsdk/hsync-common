@@ -24,6 +24,7 @@ analytics anywhere.
 [![License: BSD 3-Clause](https://img.shields.io/badge/License-BSD_3--Clause-brightgreen.svg)](LICENSE)
 [![CI](https://github.com/albertsdk/hsync-common/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/albertsdk/hsync-common/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/albertsdk/hsync-common)](https://github.com/albertsdk/hsync-common/releases/latest)
+[![PyPI](https://img.shields.io/pypi/v/hsync-common)](https://pypi.org/project/hsync-common/)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/)
 
 **Quick navigation:**

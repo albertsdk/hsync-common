@@ -6,6 +6,23 @@ authors = [{name = "Alberto Basso", email = "17047798+albertsdk@users.noreply.gi
 license = "BSD-3-Clause"
 readme = "README.md"
 requires-python = ">=3.12,<3.15"
+keywords = [
+    "hsync",
+    "synchronization",
+    "delta-transfer",
+    "peer-to-peer",
+    "protocol",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: System :: Networking",
+]
 dependencies = [
     "aiofiles>=25.1.0,<26.0.0",
     "cryptography>=50.0.1,<51.0.0",
@@ -14,6 +31,12 @@ dependencies = [
     "python-dotenv>=1.2.3,<2.0.0",
     "zstandard>=0.25.0,<0.26.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/albertsdk/hsync-common"
+Repository = "https://github.com/albertsdk/hsync-common"
+Issues = "https://github.com/albertsdk/hsync-common/issues"
+Documentation = "https://github.com/albertsdk/hsync-common/blob/main/docs/README.md"
 
 [tool.poetry]
 packages = [{include = "hsync_common"}]

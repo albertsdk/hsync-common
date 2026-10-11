@@ -108,3 +108,30 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
   a contract intentionally changes, update all affected consumers atomically
   (client, server, desktop, Android mirrors, fixtures, schemas, and docs).
 - Ensure `ruff` and `pytest` pass locally before opening a PR.
+
+## Releasing
+
+`hsync-common` is published to [PyPI](https://pypi.org/project/hsync-common/) by
+the `Release` workflow (`.github/workflows/release.yml`) using
+[Trusted Publishing](https://docs.pypi.org/trusted-publishers/) — no API token is
+stored in the repository.
+
+One-time setup, on PyPI **and** TestPyPI, add a *pending publisher* for the
+project with these exact values (they must match the workflow):
+
+- Owner: `albertsdk`, Repository: `hsync-common`, Workflow: `release.yml`
+- Environment: `pypi` (TestPyPI: `testpypi`)
+
+To release:
+
+```bash
+scripts/dev/bump-python-version.sh 1.0.0   # bumps every Python project + Android
+git commit -am "chore: release 1.0.0"
+git tag v1.0.0
+git push origin main v1.0.0
+```
+
+The workflow refuses to publish when the tag does not match the `version` in
+`pyproject.toml`, then builds the sdist + wheel and uploads them. The manual
+*Run workflow* trigger supports `target: testpypi` (dry run) and
+`target: build-only` (artifacts only).
