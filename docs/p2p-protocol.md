@@ -425,7 +425,7 @@ than the winner (successor, conflict reports) use the same ranked list:
 
 1. **`server_ready`** — an already-serving incumbent wins, so a newcomer never
    triggers a needless takeover/split-brain for the same bucket.
-2. **`prefer_master`** — an operator-pinned master wins over ordinary peers.
+2. **`prefer_master`** — an operator-preferred master wins over ordinary peers.
 3. **bidirectional `sync_direction`** — a fully bidirectional peer is preferred
    over an upload-/download-only one (it can serve every other peer).
 4. **earliest `startup_time`** — the node that started first wins.
@@ -440,7 +440,7 @@ cannot proceed.
 
 - **Incumbency vs prefer_master.** A serving incumbent (`server_ready=true`) beats
   a newcomer even if the newcomer sets `prefer_master`, because `server_ready`
-  ranks above `prefer_master`. The pin still wins once both are at parity on
+  ranks above `prefer_master`. The preference still wins once both are at parity on
   readiness (scenario `incumbent-server-ready-wins-over-prefer-master`).
 - **prefer_master conflict.** When more than one eligible candidate sets
   `prefer_master`, the best-ranked one wins and the others are logged as

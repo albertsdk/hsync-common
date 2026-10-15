@@ -14,7 +14,7 @@ Ordering (highest priority first):
 
 1. ``server_ready`` — an already-serving incumbent wins, so a newcomer never
    triggers a takeover/split-brain for the same bucket.
-2. ``prefer_master`` — an operator-pinned master wins over ordinary peers.
+2. ``prefer_master`` — an operator-preferred master wins over ordinary peers.
 3. bidirectional ``sync_direction`` — a fully bidirectional peer is preferred
    over an upload-only/download-only one (it can serve every other peer).
 4. earliest ``startup_time`` — the node that started first wins.
