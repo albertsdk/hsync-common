@@ -43,7 +43,7 @@ packages = [{include = "hsync_common"}]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.1.1"
-ruff = "0.16.10"
+ruff = "0.17.0"
 pre-commit = "^4.6.2"
 pytest-cov = "^7.1.0"
 
