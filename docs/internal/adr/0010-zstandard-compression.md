@@ -42,8 +42,12 @@ thresholds** that vary by context:
 - **Precompressed extension list** (`PRECOMPRESSED_EXTENSIONS`): a hardcoded set
   of 30+ file extensions (`.zip`, `.gz`, `.jpg`, `.png`, `.mp4`, `.apk`, etc.)
   that are never compressed because their formats are already compressed.
-- **Content-Encoding header**: `zstd` is advertised via `Content-Encoding: zstd`
-  and negotiated per-request.
+- **Content-Encoding header**: a compressed **download** advertises
+  `Content-Encoding: zstd` on the response; a compressed **upload** signals the
+  coding with the `compressed=true` multipart form field instead. Only the
+  upload's *file part* is compressed, so a request-level
+  `Content-Encoding: zstd` would make an HTTP server that honours it (aiohttp on
+  the p2p master) decode the whole multipart envelope and fail (400).
 - The capability `compression` is advertised via the protocol handshake
   ([ADR-0005](0005-protocol-versioning.md)) so peers can detect support.
 
