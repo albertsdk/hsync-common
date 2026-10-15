@@ -114,6 +114,9 @@ class UiEventDict(TypedDict):
     conflict_copy: NotRequired[str]  # path of the preserved local copy (conflict_resolved)
     winner: NotRequired[str]  # which side won: "remote" (master) or "local"
     source_cid: NotRequired[str]  # verified peer source for a successful full-file transfer
+    reason: NotRequired[str]  # sync_paused: human-readable guard reason
+    deletes: NotRequired[int]  # sync_paused: deletions blocked this cycle
+    local: NotRequired[int]  # sync_paused: local files considered by the guard
     plan: NotRequired[str]  # discovery event: "mdns" | "mdns+bootnode"
     bootnode: NotRequired[str]  # discovery event: bootnode host (empty without one)
 
