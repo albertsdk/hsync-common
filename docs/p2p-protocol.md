@@ -35,7 +35,7 @@ lives in `P2P_TXT_KEYS`; do not introduce keys outside it.
 | `sync_direction` | string | `bidirectional` (preferred), `upload-only`, `download-only`. |
 
 **Optional keys** (present only when meaningful/true): `group`, `https`,
-`cert_fp`, `compression`, `delta`, `server_ready`, `force_master`,
+`cert_fp`, `compression`, `delta`, `server_ready`, `prefer_master`,
 `never_master`, `connected`, `heartbeat`, `peer_download`.
 
 `compression` and `delta` are advertised only when the feature is enabled on
@@ -65,7 +65,7 @@ invalid and must not be contacted. Non-serving slaves need not advertise either.
 
 The same election inputs reach the election through the `boot/1` bootstrap
 channel (SSOT: `hsync-bootnode/protocol-spec/boot-1.md`): `register` carries
-`server_ready`, `force_master`, `never_master`, `startup_time` and
+`server_ready`, `prefer_master`, `never_master`, `startup_time` and
 `sync_direction` (optional; defaults `false`/`false`/`false`/`0.0`/
 `bidirectional`) and every `query` peer echoes them, so a bootnode-discovered
 peer ranks exactly like an mDNS-discovered one. A changed value requires a new
@@ -425,7 +425,7 @@ than the winner (successor, conflict reports) use the same ranked list:
 
 1. **`server_ready`** — an already-serving incumbent wins, so a newcomer never
    triggers a needless takeover/split-brain for the same bucket.
-2. **`force_master`** — an operator-pinned master wins over ordinary peers.
+2. **`prefer_master`** — an operator-pinned master wins over ordinary peers.
 3. **bidirectional `sync_direction`** — a fully bidirectional peer is preferred
    over an upload-/download-only one (it can serve every other peer).
 4. **earliest `startup_time`** — the node that started first wins.
@@ -438,15 +438,15 @@ cannot proceed.
 
 ### Edge cases
 
-- **Incumbency vs force_master.** A serving incumbent (`server_ready=true`) beats
-  a newcomer even if the newcomer sets `force_master`, because `server_ready`
-  ranks above `force_master`. The pin still wins once both are at parity on
-  readiness (scenario `incumbent-server-ready-wins-over-force-master`).
-- **force_master conflict.** When more than one eligible candidate sets
-  `force_master`, the best-ranked one wins and the others are logged as
+- **Incumbency vs prefer_master.** A serving incumbent (`server_ready=true`) beats
+  a newcomer even if the newcomer sets `prefer_master`, because `server_ready`
+  ranks above `prefer_master`. The pin still wins once both are at parity on
+  readiness (scenario `incumbent-server-ready-wins-over-prefer-master`).
+- **prefer_master conflict.** When more than one eligible candidate sets
+  `prefer_master`, the best-ranked one wins and the others are logged as
   `[MASTER CONFLICT]` (`conflict_won` / `conflict_lost`).
-- **force_master takeover.** A remote `force_master` peer overriding the local
-  non-`force_master` incumbent is logged as `[MASTER TAKEOVER]`.
+- **prefer_master takeover.** A remote `prefer_master` peer overriding the local
+  non-`prefer_master` incumbent is logged as `[MASTER TAKEOVER]`.
 - **never_master.** Such nodes never serve. If they are the only candidates the
   result is `NO_MASTER` (scenario `all-never-master-no-master`).
 
@@ -482,7 +482,7 @@ Serving is a **lease**: a node holds the right to serve only while it is the
 elected master *and* actually serving. When a live master **loses** the
 election — which, because exactly one node serves per healthy partition, only
 happens on **network-partition heal** (the two sides elected different masters,
-and a `force_master` peer wins at parity when they converge) — it **yields
+and a `prefer_master` peer wins at parity when they converge) — it **yields
 immediately**: it stops its HTTP/WSS servers, revokes its incumbency by
 clearing the local `server_ready` flag and updating its mDNS record in place
 without `server_ready`/`connected`, and logs `[MASTER YIELD]`. A yielded node is

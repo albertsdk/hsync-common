@@ -143,8 +143,8 @@ notification in desktop/Android.
 |-------|----------|-------------|---|---|---|---|
 | `[SECURITY]` | security | Rejected an unsafe remote path (traversal, absolute, internal name) | ✓ | ✓ | ✓ | ✓ |
 | `[NO MASTER]` | warning | No master elected after the grace period (all peers are `--never-master`) | ✓ | | ✓ | ✓ |
-| `[MASTER CONFLICT]` | warning | Two `force_master` peers conflict; one wins by earlier start time | ✓ | | ✓ | ✓ |
-| `[MASTER TAKEOVER]` | warning | A remote `force_master` peer takes over a non-force_master master | ✓ | | ✓ | ✓ |
+| `[MASTER CONFLICT]` | warning | Two `prefer_master` peers conflict; one wins by earlier start time | ✓ | | ✓ | ✓ |
+| `[MASTER TAKEOVER]` | warning | A remote `prefer_master` peer takes over a non-prefer_master master | ✓ | | ✓ | ✓ |
 | `[INSECURE MASTER]` | warning | Master does not advertise HTTPS + a cert fingerprint; connection refused | ✓ | | ✓ | ✓ |
 | `[PAIRING NEEDED]` | warning | Strict pairing: master cert is unpinned; out-of-band confirmation required | ✓ | | ✓ | ✓ |
 | `[FINGERPRINT CHANGED]` | warning | Master cert no longer matches the pinned fingerprint (possible MITM); refused | ✓ | | ✓ | ✓ |

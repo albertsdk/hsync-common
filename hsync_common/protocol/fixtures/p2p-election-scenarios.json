@@ -4,60 +4,60 @@
       "candidates": [
         {
           "cid": "local",
-          "force_master": true,
           "never_master": false,
+          "prefer_master": true,
           "server_ready": false,
           "startup_time": 10.0,
           "sync_direction": "bidirectional"
         },
         {
           "cid": "incumbent",
-          "force_master": false,
           "never_master": false,
+          "prefer_master": false,
           "server_ready": true,
           "startup_time": 200.0,
           "sync_direction": "bidirectional"
         }
       ],
       "expected_master": "incumbent",
-      "name": "incumbent-server-ready-wins-over-force-master"
+      "name": "incumbent-server-ready-wins-over-prefer-master"
     },
     {
       "candidates": [
         {
           "cid": "plain",
-          "force_master": false,
           "never_master": false,
+          "prefer_master": false,
           "server_ready": false,
           "startup_time": 50.0,
           "sync_direction": "bidirectional"
         },
         {
           "cid": "forced",
-          "force_master": true,
           "never_master": false,
+          "prefer_master": true,
           "server_ready": false,
           "startup_time": 300.0,
           "sync_direction": "bidirectional"
         }
       ],
       "expected_master": "forced",
-      "name": "force-master-wins-over-plain-peer"
+      "name": "prefer-master-wins-over-plain-peer"
     },
     {
       "candidates": [
         {
           "cid": "aaa",
-          "force_master": false,
           "never_master": false,
+          "prefer_master": false,
           "server_ready": false,
           "startup_time": 100.0,
           "sync_direction": "upload-only"
         },
         {
           "cid": "bbb",
-          "force_master": false,
           "never_master": false,
+          "prefer_master": false,
           "server_ready": false,
           "startup_time": 100.0,
           "sync_direction": "bidirectional"
@@ -70,16 +70,16 @@
       "candidates": [
         {
           "cid": "late",
-          "force_master": false,
           "never_master": false,
+          "prefer_master": false,
           "server_ready": false,
           "startup_time": 200.0,
           "sync_direction": "bidirectional"
         },
         {
           "cid": "early",
-          "force_master": false,
           "never_master": false,
+          "prefer_master": false,
           "server_ready": false,
           "startup_time": 100.0,
           "sync_direction": "bidirectional"
@@ -92,16 +92,16 @@
       "candidates": [
         {
           "cid": "zzz",
-          "force_master": false,
           "never_master": false,
+          "prefer_master": false,
           "server_ready": false,
           "startup_time": 100.0,
           "sync_direction": "bidirectional"
         },
         {
           "cid": "aaa",
-          "force_master": false,
           "never_master": false,
+          "prefer_master": false,
           "server_ready": false,
           "startup_time": 100.0,
           "sync_direction": "bidirectional"
@@ -114,16 +114,16 @@
       "candidates": [
         {
           "cid": "early",
-          "force_master": false,
           "never_master": false,
+          "prefer_master": false,
           "server_ready": false,
           "startup_time": 100.0,
           "sync_direction": "bidirectional"
         },
         {
           "cid": "later",
-          "force_master": false,
           "never_master": false,
+          "prefer_master": false,
           "server_ready": false,
           "startup_time": 200.0,
           "sync_direction": "bidirectional"
@@ -136,16 +136,16 @@
       "candidates": [
         {
           "cid": "never",
-          "force_master": false,
           "never_master": true,
+          "prefer_master": false,
           "server_ready": false,
           "startup_time": 100.0,
           "sync_direction": "bidirectional"
         },
         {
           "cid": "eligible",
-          "force_master": false,
           "never_master": false,
+          "prefer_master": false,
           "server_ready": false,
           "startup_time": 200.0,
           "sync_direction": "bidirectional"
@@ -158,16 +158,16 @@
       "candidates": [
         {
           "cid": "a",
-          "force_master": false,
           "never_master": true,
+          "prefer_master": false,
           "server_ready": false,
           "startup_time": 100.0,
           "sync_direction": "bidirectional"
         },
         {
           "cid": "b",
-          "force_master": false,
           "never_master": true,
+          "prefer_master": false,
           "server_ready": false,
           "startup_time": 200.0,
           "sync_direction": "bidirectional"

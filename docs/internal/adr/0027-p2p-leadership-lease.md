@@ -12,7 +12,7 @@ staleness sweep bounds how long a hard-crashed master is kept (see
 happens when another peer has also become `server_ready` — which, because
 exactly one node serves per healthy partition, occurs on **network-partition
 heal**, when the two sides elected different masters and, on convergence, the
-deterministic election picks one (a `force_master` peer wins at parity) and the
+deterministic election picks one (a `prefer_master` peer wins at parity) and the
 other yields.
 
 If a losing master only stopped its HTTP/WSS servers while still advertising

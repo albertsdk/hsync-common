@@ -14,7 +14,7 @@ Ordering (highest priority first):
 
 1. ``server_ready`` — an already-serving incumbent wins, so a newcomer never
    triggers a takeover/split-brain for the same bucket.
-2. ``force_master`` — an operator-pinned master wins over ordinary peers.
+2. ``prefer_master`` — an operator-pinned master wins over ordinary peers.
 3. bidirectional ``sync_direction`` — a fully bidirectional peer is preferred
    over an upload-only/download-only one (it can serve every other peer).
 4. earliest ``startup_time`` — the node that started first wins.
@@ -79,7 +79,7 @@ class ElectionCandidate:
     """
 
     cid: str
-    force_master: bool = False
+    prefer_master: bool = False
     startup_time: float = 0.0
     sync_direction: str = SYNC_DIRECTION_BIDIRECTIONAL
     server_ready: bool = False
@@ -94,7 +94,7 @@ def election_sort_key(candidate: ElectionCandidate) -> tuple[bool, bool, bool, f
     """
     return (
         not candidate.server_ready,
-        not candidate.force_master,
+        not candidate.prefer_master,
         candidate.sync_direction != SYNC_DIRECTION_BIDIRECTIONAL,
         candidate.startup_time,
         candidate.cid,
@@ -108,7 +108,7 @@ def rank_election_candidates(
 
     ``never_master`` nodes are filtered out first. Callers that need more than
     the winner (e.g. the client's pre-computed successor, or the ranked
-    ``force_master`` subset for conflict reporting) must use this function so
+    ``prefer_master`` subset for conflict reporting) must use this function so
     the ranking itself lives only here; :func:`elect_master` is its
     winner-only projection.
     """

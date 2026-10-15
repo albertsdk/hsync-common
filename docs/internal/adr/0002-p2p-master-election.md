@@ -21,7 +21,7 @@ byte-for-byte by Android (`com.hsync.android.p2p.Election`). The winner is the
 eligible candidate with the smallest sort key, prioritised:
 
 1. `server_ready` (an already-serving incumbent — avoids needless takeover),
-2. `force_master` (operator-pinned),
+2. `prefer_master` (operator-pinned),
 3. bidirectional `sync_direction` over upload/download-only,
 4. earliest `startup_time`,
 5. lowest `cid` lexicographically (final deterministic tiebreaker).

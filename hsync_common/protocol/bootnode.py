@@ -21,7 +21,7 @@ malformed fields without partially accepting them (the same strictness the
 bootnode's ``extra="forbid"`` models provide).
 
 Besides the advisory ``capacity`` hint, ``register`` and ``peers[]`` carry the
-**election advertisement** (``server_ready``/``force_master``/``never_master``/
+**election advertisement** (``server_ready``/``prefer_master``/``never_master``/
 ``startup_time``/``sync_direction``) — the same values the mDNS TXT record
 carries, relayed verbatim by the bootnode so both discovery plans feed the one
 shared election algorithm in :mod:`hsync_common.protocol.p2p`. The bootnode never
@@ -192,7 +192,7 @@ class BootRegister(TypedDict):
     (``0`` = not a seeder). The bootnode relays it in ``query`` responses; the
     authoritative value is the authenticated ``serve_slots`` (ADR-0030).
 
-    ``server_ready``/``force_master``/``never_master``/``startup_time``/
+    ``server_ready``/``prefer_master``/``never_master``/``startup_time``/
     ``sync_direction`` are the **election advertisement**, the same values the
     mDNS TXT record carries. The bootnode relays them verbatim in ``query``
     responses so a bootnode-discovered peer ranks exactly like an mDNS one; it
@@ -214,7 +214,7 @@ class BootRegister(TypedDict):
     bucket_token: NotRequired[str]
     connected: NotRequired[int]
     server_ready: NotRequired[bool]
-    force_master: NotRequired[bool]
+    prefer_master: NotRequired[bool]
     never_master: NotRequired[bool]
     startup_time: NotRequired[float]
     sync_direction: NotRequired[str]
@@ -279,7 +279,7 @@ class BootPeer(TypedDict):
 
     The election-advertisement fields are relayed verbatim from the peer's
     ``register`` (defaults when it advertised none): ``server_ready`` (it is
-    currently serving as master), ``force_master``/``never_master`` (operator
+    currently serving as master), ``prefer_master``/``never_master`` (operator
     pins), ``startup_time`` (unix seconds, ``0.0`` = unknown) and
     ``sync_direction``. They feed the shared election algorithm exactly like
     the mDNS TXT values; none of them is authenticated.
@@ -293,7 +293,7 @@ class BootPeer(TypedDict):
     capacity: int
     reachable: bool
     server_ready: bool
-    force_master: bool
+    prefer_master: bool
     never_master: bool
     startup_time: float
     sync_direction: str
@@ -326,7 +326,7 @@ _REGISTER_OPTIONAL = frozenset(
         "capacity",
         "endpoints",
         "server_ready",
-        "force_master",
+        "prefer_master",
         "never_master",
         "startup_time",
         "sync_direction",
@@ -352,7 +352,7 @@ _PEER_REQUIRED = frozenset(
         "capacity",
         "reachable",
         "server_ready",
-        "force_master",
+        "prefer_master",
         "never_master",
         "startup_time",
         "sync_direction",
@@ -480,7 +480,7 @@ def _read_election_advert(value: Mapping, clean: dict, *, optional: bool) -> boo
     ``peers[]`` side (every key is required, the bootnode always relays them).
     Returns False on any malformed value so the caller rejects the whole frame.
     """
-    for key in ("server_ready", "force_master", "never_master"):
+    for key in ("server_ready", "prefer_master", "never_master"):
         if key not in value:
             if optional:
                 clean[key] = False

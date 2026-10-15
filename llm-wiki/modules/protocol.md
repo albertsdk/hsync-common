@@ -99,7 +99,7 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   (never_master filtered out); `elect_master` (`protocol/p2p.py::elect_master`) is its
   winner-only projection; `SYNC_DIRECTION_BIDIRECTIONAL` (`protocol/p2p.py::SYNC_DIRECTION_BIDIRECTIONAL`).
 - The client `hsync_client/p2p.py` consumes `rank_election_candidates` for
-  master, successor and the force_master conflict subset; android
+  master, successor and the prefer_master conflict subset; android
   `Election.kt` mirrors the ordering; parity is pinned by the
   `p2p-election-scenarios` fixture.
 

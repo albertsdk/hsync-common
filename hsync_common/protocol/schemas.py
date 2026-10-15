@@ -74,7 +74,7 @@ P2P_TXT_OPTIONAL_KEYS: tuple[str, ...] = (
     "compression",
     "delta",
     "server_ready",
-    "force_master",
+    "prefer_master",
     "never_master",
     "connected",
     "heartbeat",
@@ -770,7 +770,7 @@ def build_p2p_txt_schema() -> dict[str, Any]:
         "compression": _TXT_BOOL_FLAG,
         "delta": _TXT_BOOL_FLAG,
         "server_ready": _TXT_BOOL_FLAG,
-        "force_master": _TXT_BOOL_FLAG,
+        "prefer_master": _TXT_BOOL_FLAG,
         "never_master": _TXT_BOOL_FLAG,
         "peer_download": {
             **_TXT_BOOL_FLAG,

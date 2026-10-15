@@ -18,7 +18,7 @@
       "capacity": 20,
       "reachable": true,
       "server_ready": true,
-      "force_master": false,
+      "prefer_master": false,
       "never_master": false,
       "startup_time": 1760000000.0,
       "sync_direction": "bidirectional"

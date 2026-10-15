@@ -31,12 +31,6 @@
       ],
       "type": "string"
     },
-    "force_master": {
-      "enum": [
-        "true"
-      ],
-      "type": "string"
-    },
     "group": {
       "type": "string"
     },
@@ -59,6 +53,12 @@
     },
     "peer_download": {
       "description": "This node implements LAN inventory, batch source lookup and read-only seeder semantics (ADR-0028).",
+      "enum": [
+        "true"
+      ],
+      "type": "string"
+    },
+    "prefer_master": {
       "enum": [
         "true"
       ],

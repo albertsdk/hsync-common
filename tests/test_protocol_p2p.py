@@ -24,17 +24,17 @@ from hsync_common.protocol.p2p import (
 class TestElectionOrdering:
     """The sort key encodes the documented priority order."""
 
-    def test_server_ready_incumbent_wins_over_force_master(self):
+    def test_server_ready_incumbent_wins_over_prefer_master(self):
         candidates = [
-            ElectionCandidate(cid="local", force_master=True, startup_time=10.0),
+            ElectionCandidate(cid="local", prefer_master=True, startup_time=10.0),
             ElectionCandidate(cid="incumbent", startup_time=200.0, server_ready=True),
         ]
         assert elect_master(candidates) == "incumbent"
 
-    def test_force_master_wins_over_plain_peer(self):
+    def test_prefer_master_wins_over_plain_peer(self):
         candidates = [
             ElectionCandidate(cid="plain", startup_time=50.0),
-            ElectionCandidate(cid="forced", force_master=True, startup_time=300.0),
+            ElectionCandidate(cid="forced", prefer_master=True, startup_time=300.0),
         ]
         assert elect_master(candidates) == "forced"
 
@@ -88,10 +88,10 @@ class TestRankElectionCandidates:
     """``rank_election_candidates`` is the SSOT ranking every consumer shares."""
 
     def test_full_ranking_order(self):
-        # server_ready > force_master > bidirectional > earliest startup > cid
+        # server_ready > prefer_master > bidirectional > earliest startup > cid
         candidates = [
             ElectionCandidate(cid="plain-late", startup_time=500.0),
-            ElectionCandidate(cid="forced", force_master=True, startup_time=300.0),
+            ElectionCandidate(cid="forced", prefer_master=True, startup_time=300.0),
             ElectionCandidate(cid="incumbent", startup_time=200.0, server_ready=True),
             ElectionCandidate(cid="plain-early", startup_time=100.0),
         ]

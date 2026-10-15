@@ -14,7 +14,7 @@ This model is correct when the master listing is correct, but a transient
 failure or misconfiguration can cause the master to expose an **empty or
 nearly-empty bucket**. Examples of how this can happen:
 
-- A p2p slave is mistakenly set to `--force-master` while its synced directory is
+- A p2p slave is mistakenly set to `--prefer-master` while its synced directory is
   empty (e.g. after a factory reset or a failed migration).
 - The server's backing storage (S3/MinIO) is temporarily unavailable and returns
   an empty object list.

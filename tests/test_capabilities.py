@@ -28,7 +28,7 @@ def _doc(**overrides):
         app_version="1.0.0",
         subcommands=["p2p", "server"],
         cli_options_by_subcommand={
-            "p2p": ["--force-master", "--never-master"],
+            "p2p": ["--never-master", "--prefer-master"],
             "server": ["--ca-cert", "--insecure"],
         },
     )
@@ -83,11 +83,11 @@ class TestBuildCapabilities:
             subcommands=["p2p", "server"],
             cli_options_by_subcommand={
                 "server": ["--insecure", "--ca-cert", "--insecure"],
-                "p2p": ["--never-master", "--force-master"],
+                "p2p": ["--never-master", "--prefer-master"],
             },
         )
         assert doc["cli_options"] == {
-            "p2p": ["--force-master", "--never-master"],
+            "p2p": ["--never-master", "--prefer-master"],
             "server": ["--ca-cert", "--insecure"],
         }
 
@@ -176,27 +176,27 @@ class TestParseCapabilities:
 class TestSupportsCliOption:
     def test_present_flag_in_subcommand(self):
         doc = _doc()
-        assert supports_cli_option(doc, "--force-master", subcommand="p2p") is True
+        assert supports_cli_option(doc, "--prefer-master", subcommand="p2p") is True
         assert supports_cli_option(doc, "--ca-cert", subcommand="server") is True
 
     def test_absent_flag_in_subcommand(self):
         doc = _doc()
         assert supports_cli_option(doc, "--ca-cert", subcommand="p2p") is False
-        assert supports_cli_option(doc, "--force-master", subcommand="server") is False
+        assert supports_cli_option(doc, "--prefer-master", subcommand="server") is False
 
     def test_unknown_subcommand_is_absent(self):
         doc = _doc()
-        assert supports_cli_option(doc, "--force-master", subcommand="unknown") is False
+        assert supports_cli_option(doc, "--prefer-master", subcommand="unknown") is False
 
     def test_no_subcommand_checks_the_union(self):
         doc = _doc()
-        assert supports_cli_option(doc, "--force-master") is True
+        assert supports_cli_option(doc, "--prefer-master") is True
         assert supports_cli_option(doc, "--ca-cert") is True
         assert supports_cli_option(doc, "--absent") is False
 
     def test_none_document_is_conservatively_supported(self):
-        assert supports_cli_option(None, "--force-master") is True
-        assert supports_cli_option(None, "--force-master", subcommand="p2p") is True
+        assert supports_cli_option(None, "--prefer-master") is True
+        assert supports_cli_option(None, "--prefer-master", subcommand="p2p") is True
 
 
 class TestSupportsSubcommand:

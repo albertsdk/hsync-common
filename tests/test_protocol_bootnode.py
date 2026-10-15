@@ -132,7 +132,7 @@ def test_register_election_advert_defaults_and_bounds():
     validated = validate_boot_frame(_minimal_register())
     assert validated is not None
     assert validated["server_ready"] is False
-    assert validated["force_master"] is False
+    assert validated["prefer_master"] is False
     assert validated["never_master"] is False
     assert validated["startup_time"] == 0.0
     assert validated["sync_direction"] == "bidirectional"
@@ -141,14 +141,14 @@ def test_register_election_advert_defaults_and_bounds():
         {
             **_minimal_register(),
             "server_ready": True,
-            "force_master": True,
+            "prefer_master": True,
             "startup_time": 1760000000.5,
             "sync_direction": "download-only",
         }
     )
     assert advertised is not None
     assert advertised["server_ready"] is True
-    assert advertised["force_master"] is True
+    assert advertised["prefer_master"] is True
     assert advertised["never_master"] is False
     assert advertised["startup_time"] == 1760000000.5
     assert advertised["sync_direction"] == "download-only"
@@ -156,7 +156,7 @@ def test_register_election_advert_defaults_and_bounds():
     for field, bad in (
         ("server_ready", 1),
         ("server_ready", None),
-        ("force_master", "true"),
+        ("prefer_master", "true"),
         ("never_master", None),
         ("startup_time", -1),
         ("startup_time", "1760000000"),
@@ -196,7 +196,7 @@ def test_response_peer_requires_the_election_advert():
         "capacity": 0,
         "reachable": True,
         "server_ready": False,
-        "force_master": False,
+        "prefer_master": False,
         "never_master": True,
         "startup_time": 1760000000.0,
         "sync_direction": "bidirectional",
@@ -210,7 +210,7 @@ def test_response_peer_requires_the_election_advert():
 
     for key in (
         "server_ready",
-        "force_master",
+        "prefer_master",
         "never_master",
         "startup_time",
         "sync_direction",
@@ -240,7 +240,7 @@ def test_response_peer_requires_a_non_empty_endpoints_list():
         "capacity": 0,
         "reachable": True,
         "server_ready": False,
-        "force_master": False,
+        "prefer_master": False,
         "never_master": True,
         "startup_time": 1760000000.0,
         "sync_direction": "bidirectional",

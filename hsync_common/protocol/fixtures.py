@@ -206,17 +206,17 @@ def _p2p_inventory_delta_delete() -> dict[str, Any]:
 # Android parity test replay these exact inputs and must reach the same outcome.
 _ELECTION_SCENARIOS: tuple[tuple[str, tuple[ElectionCandidate, ...]], ...] = (
     (
-        "incumbent-server-ready-wins-over-force-master",
+        "incumbent-server-ready-wins-over-prefer-master",
         (
-            ElectionCandidate(cid="local", force_master=True, startup_time=10.0),
+            ElectionCandidate(cid="local", prefer_master=True, startup_time=10.0),
             ElectionCandidate(cid="incumbent", startup_time=200.0, server_ready=True),
         ),
     ),
     (
-        "force-master-wins-over-plain-peer",
+        "prefer-master-wins-over-plain-peer",
         (
             ElectionCandidate(cid="plain", startup_time=50.0),
-            ElectionCandidate(cid="forced", force_master=True, startup_time=300.0),
+            ElectionCandidate(cid="forced", prefer_master=True, startup_time=300.0),
         ),
     ),
     (
