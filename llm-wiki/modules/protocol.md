@@ -72,7 +72,10 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
 - `UiEventName` StrEnum (`protocol/events.py::UiEventName`) — the structured events emitted by the
   client and consumed by desktop/android (incl. `sync_paused`,
   `transfer_failed`, `fingerprint_changed`, `auth_required`, `pairing_needed`,
-  `duplicate_identity`, `security_rejected`, `discovery`).
+  `duplicate_identity`, `security_rejected`, `discovery`, `no_master`, `no_peers`).
+- `no_peers` is emitted by the client when a p2p one-shot aborts because no peer
+  was discovered (`P2P_NO_PEER`); it is additive like `discovery`, so
+  `EVENTS_SCHEMA_VERSION` stays 2.
 - `discovery` carries `plan` (`mdns` | `mdns+bootnode`) and, with the bootnode plan,
   the `bootnode` host: the client emits it once at `hsync p2p` startup so a GUI
   can surface the active discovery plan instead of silently degrading to mDNS.

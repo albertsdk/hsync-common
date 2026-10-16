@@ -59,6 +59,7 @@ class UiEventName(StrEnum):
     path_not_found = "path_not_found"  # shared path does not exist
     master_conflict = "master_conflict"  # master conflict / takeover
     no_master = "no_master"  # no master elected (all peers never-master)
+    no_peers = "no_peers"  # a p2p one-shot aborted: no peer discovered
     preview_start = "preview_start"  # dry-run preview scan started
     preview_end = "preview_end"  # dry-run preview scan ended
     file_status = "file_status"  # preview per-file status (synced/to_*)

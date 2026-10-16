@@ -139,6 +139,7 @@ class TestEventNameCoverage:
             "path_not_found",
             "master_conflict",
             "no_master",
+            "no_peers",
             "preview_start",
             "preview_end",
             "file_status",
