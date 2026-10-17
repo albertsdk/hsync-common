@@ -50,6 +50,14 @@ class TestBuildEvent:
         mdns = build_event(UiEventName.discovery, plan="mdns")
         assert "bootnode" not in mdns
 
+    def test_folder_size_event_carries_aggregate_bytes(self):
+        ev = build_event(UiEventName.folder_size, local_bytes=1024, total_bytes=4096)
+        assert ev["event"] == "folder_size"
+        assert ev["local_bytes"] == 1024  # type: ignore[reportTypedDictNotRequiredAccess]
+        assert ev["total_bytes"] == 4096  # type: ignore[reportTypedDictNotRequiredAccess]
+        # Additive event: the schema version does not change.
+        assert ev["schema_version"] == 2
+
     def test_transfer_accepts_optional_source_cid(self):
         ev = build_event(
             UiEventName.transfer,
@@ -152,5 +160,6 @@ class TestEventNameCoverage:
             "sync_paused",
             "conflict_resolved",
             "security_rejected",
+            "folder_size",
         }
         assert expected == names

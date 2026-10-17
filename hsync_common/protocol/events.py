@@ -54,6 +54,7 @@ class UiEventName(StrEnum):
     dir_created = "dir_created"  # a directory was created
     progress = "progress"  # in-flight transfer progress
     sync_complete = "sync_complete"  # a full sync cycle finished
+    folder_size = "folder_size"  # local bytes + sync-set total (aggregate, per cycle)
     error = "error"  # generic error
     auth_error = "auth_error"  # authentication error (invalid/missing API key)
     path_not_found = "path_not_found"  # shared path does not exist
@@ -118,6 +119,8 @@ class UiEventDict(TypedDict):
     reason: NotRequired[str]  # sync_paused: human-readable guard reason
     deletes: NotRequired[int]  # sync_paused: deletions blocked this cycle
     local: NotRequired[int]  # sync_paused: local files considered by the guard
+    local_bytes: NotRequired[int]  # folder_size: files present on this device
+    total_bytes: NotRequired[int]  # folder_size: remote listing + local-only files
     plan: NotRequired[str]  # discovery event: "mdns" | "mdns+bootnode"
     bootnode: NotRequired[str]  # discovery event: bootnode host (empty without one)
 
