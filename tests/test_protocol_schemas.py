@@ -152,7 +152,7 @@ class TestP2PWssSchemaSource:
         assert self._defs()["authFailed"]["properties"]["status"]["const"] == "failed"
         assert "reason" in self._defs()["authFailed"]["required"]
 
-    def test_inventory_extends_p2p_one_additively(self):
+    def test_inventory_extends_p2p_one(self):
         schema = build_p2p_wss_schema()
         assert {"$ref": "#/$defs/inventory"} in schema["slaveToMaster"]["oneOf"]
         assert {"$ref": "#/$defs/inventoryAck"} in schema["masterToSlave"]["oneOf"]

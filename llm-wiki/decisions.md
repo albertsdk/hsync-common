@@ -31,7 +31,7 @@ each ADR to the code it governs.
 | [0025 sqlite-external-state-store](../docs/internal/adr/0025-sqlite-external-state-store.md) | `models/folder.py` (`.hsyncfolder` marker, `default_state_dir`); `models/sqlstore.py` (`StateDb`, WAL+FULL, `auto_vacuum=INCREMENTAL`, `vacuum()`/`incremental_vacuum()` + `vacuum_state_db`/`incremental_vacuum_state_db` maintenance); `models/version_store.py` / `models/tombstone_store.py` (SQLite-backed stores); `path_validation.INTERNAL_FILENAMES` (`.hsyncfolder` + legacy rejection); consumers `hsync_server/state_maintenance.py` + `hsync_client/state_maintenance.py` |
 | [0026 permission-special-bits-policy](../docs/internal/adr/0026-permission-special-bits-policy.md) | `permissions.py` (`PERMISSION_MASK=0o7777` read/serialize, `REMOTE_PERMISSION_MASK=0o777` + `OWNER_DIRECTORY_ACCESS=0o700` apply); client `utils.py` `set_permissions`/`set_permissions_on_dir`; server `api/utils.py` `set_permissions`/`set_directory_permissions`; tests `test_permissions.py`, `test_security_inbound.py` |
 | [0027 p2p-leadership-lease](../docs/internal/adr/0027-p2p-leadership-lease.md) | `labels.py` (`ActionLabel.MASTER_YIELD`); client discovery plan `update_server_not_ready` (`p2p_discovery*.py`) + `p2p_handler.py` yield path (revoke incumbency on yield) |
-| [0028 p2p-peer-assisted-download](../docs/internal/adr/0028-p2p-peer-assisted-download.md) | `protocol/peer_download.py` (strict source/inventory wire models); `protocol/schemas.py` (sources + additive p2p WSS schemas); `Capability.peer_download`; TXT `peer_download`; `constants.HEADER_CHECKSUM_SHA256`; optional UI-event `source_cid` |
+| [0028 p2p-peer-assisted-download](../docs/internal/adr/0028-p2p-peer-assisted-download.md) | `protocol/peer_download.py` (strict source/inventory wire models); `protocol/schemas.py` (sources + p2p WSS schemas); `Capability.peer_download`; TXT `peer_download`; `constants.HEADER_CHECKSUM_SHA256`; optional UI-event `source_cid` |
 | [0029 explicit-opt-in-unauthenticated-p2p-writes](../docs/internal/adr/0029-explicit-opt-in-unauthenticated-p2p-writes.md) | `protocol/pairing.py` (`p2p_write_requires_key`: explicit opt-in, interactivity is non-authoritative); p2p mutation endpoint policy in consumers |
 | [0030 p2p-seeder-capacity-advertisement](../docs/internal/adr/0030-p2p-seeder-capacity-advertisement.md) | `protocol/peer_download.py` (`P2P_SERVE_SLOTS_MIN`/`_MAX`, `is_valid_serve_slots`, required `serve_slots` in `P2PSourceCandidate`); `protocol/handshake.py` (`build_p2p_auth`/`build_p2p_hello` advertisement); `protocol/schemas.py` (candidate + p2p WSS schemas); golden fixtures |
 | [0034 bootnode-tls-trust](../docs/internal/adr/0034-bootnode-tls-trust.md) | `protocol/pairing.py` (`parse_fingerprint`, `fingerprint_matches`, `FingerprintMismatch`); `ssl_utils.py` (self-signed service identity); `hsync-bootnode` (persistent `--identity` by default, `--ephemeral` opt-out) + `hsync-client` (`bootnode_trust.py` pin/TOFU) |
@@ -76,9 +76,9 @@ live in [`../docs/p2p-protocol.md`](../docs/p2p-protocol.md) and map to
   `docs/p2p-protocol.md`, `P2P*` protocol classes and `P2P_*` bounds. `LAN`
   survives only as a technology name (mDNS/Zeroconf/local area network) and in
   prose.
-- **Capabilities v3**: `CAPABILITIES_SCHEMA_VERSION = 3`; `ProtocolVersions`
-  gains `boot`; `parse_capabilities` requires all four channels. The desktop
-  rejects any other schema version outright, so this is an atomic boundary.
+- **Capabilities**: `CAPABILITIES_SCHEMA_VERSION = 1`; `ProtocolVersions`
+  includes `boot`; `parse_capabilities` requires all four channels. The desktop
+  accepts only this schema version, so the boundary is strict.
 - **`boot/1` mirror**: canonical spec/fixtures stay in `hsync-bootnode`;
   `hsync_common/protocol/bootnode.py` mirrors the frames (TypedDicts + strict
   `validate_*` helpers, dependency-free like the rest of the package) and the

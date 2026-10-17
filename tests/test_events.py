@@ -55,8 +55,7 @@ class TestBuildEvent:
         assert ev["event"] == "folder_size"
         assert ev["local_bytes"] == 1024  # type: ignore[reportTypedDictNotRequiredAccess]
         assert ev["total_bytes"] == 4096  # type: ignore[reportTypedDictNotRequiredAccess]
-        # Additive event: the schema version does not change.
-        assert ev["schema_version"] == 2
+        assert ev["schema_version"] == EVENTS_SCHEMA_VERSION
 
     def test_transfer_accepts_optional_source_cid(self):
         ev = build_event(

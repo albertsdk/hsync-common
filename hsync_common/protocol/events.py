@@ -32,10 +32,9 @@ __all__ = [
     "serialize_event",
 ]
 
-# Bump only on a breaking change to the event payload shape. The Desktop hard
-# fails on an unknown version rather than silently mis-parsing (there is no
-# legacy channel to fall back to).
-EVENTS_SCHEMA_VERSION = 2
+# The only accepted event schema version. A mismatching value is rejected
+# outright instead of being interpreted.
+EVENTS_SCHEMA_VERSION = 1
 
 
 class UiEventName(StrEnum):

@@ -284,7 +284,7 @@ an interrupted body, never a completed hash/range/size failure.
 
 ### Inventory frames
 
-Inventory extends `p2p/1` additively. Slave to master snapshot:
+Inventory extends `p2p/1`. Slave to master snapshot:
 
 ```json
 {

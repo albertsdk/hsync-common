@@ -8,7 +8,7 @@ constants in consumers.
 | Symbol | Location | Purpose |
 | ------ | -------- | ------- |
 | `PROTOCOL_VERSION_REST/WS/P2P` | `protocol/handshake.py::PROTOCOL_VERSION_REST` | `api/1`, `ws/1`, `p2p/1` |
-| `Capability` (StrEnum) | `protocol/handshake.py::Capability` | feature tokens; `ALL_CAPABILITIES` `protocol/handshake.py::ALL_CAPABILITIES`; includes `delta`, `vector_clocks`, and additive p2p `peer_download` (ADR-0028) |
+| `Capability` (StrEnum) | `protocol/handshake.py::Capability` | feature tokens; `ALL_CAPABILITIES` `protocol/handshake.py::ALL_CAPABILITIES`; includes `delta`, `vector_clocks`, and p2p `peer_download` (ADR-0028) |
 | `encode_capabilities` / `decode_capabilities` | `protocol/handshake.py::encode_capabilities` | tokens ⇄ enum set |
 | `WsAuthRequest` / `WsAuthResponse` TypedDicts | `protocol/handshake.py::WsAuthRequest` | WS auth frames |
 | `WsPresenceFrame` / `build_ws_presence` | `protocol/handshake.py::WsPresenceFrame` | server → client presence frame (connected/total) |
@@ -50,14 +50,14 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
 
 ## capabilities.py — `--capabilities-json` document
 
-- `CAPABILITIES_SCHEMA_VERSION = 3` (`protocol/capabilities.py::CAPABILITIES_SCHEMA_VERSION`); the desktop rejects
-  any other version outright.
+- `CAPABILITIES_SCHEMA_VERSION = 1` (`protocol/capabilities.py::CAPABILITIES_SCHEMA_VERSION`); the desktop accepts
+  only this version.
 - `ProtocolVersions` (`protocol/capabilities.py::ProtocolVersions`) carries `rest`, `ws`, `p2p`, `boot`;
   `CapabilitiesDoc` (`protocol/capabilities.py::CapabilitiesDoc`) is the document TypedDict.
 - `build_capabilities` (`protocol/capabilities.py::build_capabilities`) aggregates the supported subcommands, the
   per-subcommand CLI option flags, the protocol versions and the events schema
   version.
-- `parse_capabilities` (`protocol/capabilities.py::parse_capabilities`) rejects unknown schema versions, missing keys
+- `parse_capabilities` (`protocol/capabilities.py::parse_capabilities`) accepts only the current schema version and rejects missing keys
   **and** wrong field types (`_field_types_valid` `protocol/capabilities.py::_field_types_valid`; the document crosses a
   process boundary, so a malformed `subcommands`/`cli_options`/`capabilities`
   must be refused, not mis-parsed).
@@ -68,25 +68,24 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
 
 ## events.py — UI/telemetry event stream
 
-- `EVENTS_SCHEMA_VERSION = 2` (`protocol/events.py::EVENTS_SCHEMA_VERSION`).
+- `EVENTS_SCHEMA_VERSION = 1` (`protocol/events.py::EVENTS_SCHEMA_VERSION`).
 - `UiEventName` StrEnum (`protocol/events.py::UiEventName`) — the structured events emitted by the
   client and consumed by desktop/android (incl. `sync_paused`,
   `transfer_failed`, `fingerprint_changed`, `auth_required`, `pairing_needed`,
   `duplicate_identity`, `security_rejected`, `discovery`, `no_master`, `no_peers`,
   `folder_size`).
 - `no_peers` is emitted by the client when a p2p one-shot aborts because no peer
-  was discovered (`P2P_NO_PEER`); it is additive like `discovery`, so
-  `EVENTS_SCHEMA_VERSION` stays 2.
+  was discovered (`P2P_NO_PEER`).
 - `folder_size` carries `local_bytes` (files present on this device) and
   `total_bytes` (remote/master listing sizes plus local-only files pending
   upload). The client emits it once per distinct pair after fetching its
   listings; full-share runs only (scoped runs skip it), so a GUI can show the
-  shared folder's size without a second disk walk. Additive: the schema stays 2.
+  shared folder's size without a second disk walk.
 - `discovery` carries `plan` (`mdns` | `mdns+bootnode`) and, with the bootnode plan,
   the `bootnode` host: the client emits it once at `hsync p2p` startup so a GUI
   can surface the active discovery plan instead of silently degrading to mDNS.
-  Adding it is additive (the payload stays a flat optional-field object and
-  `parse_event_line` ignores unknown names), so `EVENTS_SCHEMA_VERSION` stays 2.
+  The payload is a flat optional-field object; `parse_event_line` ignores
+  unknown event names.
 - `UiEventDict` (`protocol/events.py::UiEventDict`) includes optional `source_cid` only for a
   successful verified peer-served full download; build/serialize/parse:
   `build_event` (`protocol/events.py::build_event`), `serialize_event` (`protocol/events.py::serialize_event`),
@@ -165,7 +164,7 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   optional `peer_download` implementation flag. Live seeder capacity is not a TXT
   fact: it travels on the authenticated handshake (ADR-0030).
 - `build_ws_schema` (`protocol/schemas.py::build_ws_schema`), `build_p2p_wss_schema` (`protocol/schemas.py::build_p2p_wss_schema`; pins
-  auth/hello plus additive inventory/ACK frames, ADR-0024/0028),
+  auth/hello plus inventory/ACK frames, ADR-0024/0028),
   `build_p2p_sources_schema` (`protocol/schemas.py::build_p2p_sources_schema`), and `build_p2p_txt_schema`
   (`protocol/schemas.py::build_p2p_txt_schema`) derive
   enums/objects and bounds from `handshake`, `peer_download`, `events`, and the

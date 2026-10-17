@@ -17,8 +17,8 @@ bundles, in one versioned payload:
 * the feature-flag ``capabilities`` registry (the same wire tokens used in the
   handshake).
 
-The Desktop hard-fails (ignores the document) on an unknown ``schema_version``
-rather than mis-reading it: there is no legacy channel to fall back to.
+The Desktop accepts only the current document schema and ignores any other
+rather than mis-reading it.
 """
 
 from __future__ import annotations
@@ -48,9 +48,9 @@ __all__ = [
     "supports_subcommand",
 ]
 
-# Bump only on a breaking change to the document shape below. The consumer
-# rejects any other version outright (see ``parse_capabilities``).
-CAPABILITIES_SCHEMA_VERSION = 3
+# The only accepted document schema version; ``parse_capabilities`` rejects any
+# other value.
+CAPABILITIES_SCHEMA_VERSION = 1
 
 
 class ProtocolVersions(TypedDict):

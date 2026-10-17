@@ -38,7 +38,7 @@ Peers advertise capabilities during the handshake:
 
 The registry is `hsync_common.protocol.handshake.Capability`; the desktop-facing
 capability document is in `hsync_common.protocol.capabilities`. Capabilities are
-additive within a protocol version and are used only by intersection.
+optional within a protocol version and are used only by intersection.
 
 ## WebSocket authentication
 

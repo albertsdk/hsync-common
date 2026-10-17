@@ -679,12 +679,12 @@ def _p2p_inventory_ack(status: str) -> dict[str, Any]:
 
 
 def build_p2p_wss_schema() -> dict[str, Any]:
-    """Build the additive LAN WebSocket JSON Schema from the Python SSOT.
+    """Build the LAN WebSocket JSON Schema from the Python SSOT.
 
     Codifies the master⇄slave handshake frames (ADR-0024): they exchange the
     capability registry over the authenticated channel, so the mDNS/TXT record
     is not the only capability source on the LAN. Inventory publication and its
-    acknowledgements extend ``p2p/1`` additively under ADR-0028.
+    acknowledgements extend ``p2p/1`` under ADR-0028.
     """
     return {
         "$schema": JSON_SCHEMA_DIALECT,
