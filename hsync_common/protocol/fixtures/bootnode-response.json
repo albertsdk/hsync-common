@@ -16,6 +16,7 @@
       "group": "home",
       "version": "1.0.0",
       "capacity": 20,
+      "connected": 2,
       "reachable": true,
       "server_ready": true,
       "prefer_master": false,

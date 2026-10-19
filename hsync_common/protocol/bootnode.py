@@ -291,6 +291,7 @@ class BootPeer(TypedDict):
     bucket: str
     version: str
     capacity: int
+    connected: NotRequired[int]
     reachable: bool
     server_ready: bool
     prefer_master: bool
@@ -358,7 +359,7 @@ _PEER_REQUIRED = frozenset(
         "sync_direction",
     }
 )
-_PEER_OPTIONAL = frozenset({"group"})
+_PEER_OPTIONAL = frozenset({"group", "connected"})
 _ENDPOINT_KEYS = frozenset({"proto", "host", "port"})
 _OBSERVED_KEYS = frozenset({"proto", "ip", "port"})
 
@@ -567,6 +568,8 @@ def _validate_peer(value: object) -> BootPeer | None:
     if not _read_election_advert(value, clean, optional=False):
         return None
     if not _optional_str(value, clean, "group", _MAX_GROUP_LEN):
+        return None
+    if not _optional_connected(value, clean):
         return None
     return clean
 
