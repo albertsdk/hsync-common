@@ -643,7 +643,7 @@ The p2p channel is designed for a **trusted network** — a home/office LAN, or 
 group reached through a `boot/1` bootnode — and degrades safely on an
 **untrusted network** (shared/public Wi-Fi):
 
-- Discovery (mDNS/TXT on a LAN, or the bootnode relay) is **unauthenticated**:
+- Discovery (mDNS/TXT on a LAN, or the bootnode) is **unauthenticated**:
   any host can advertise any `cid`, `bucket` or flag. Discovery data is
   therefore a hint, never proof.
 - The p2p transport is **HTTPS/WSS only**: there is no plain-HTTP path. A master
