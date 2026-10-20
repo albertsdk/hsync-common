@@ -453,6 +453,30 @@ class StateDb:
         with self._lock:
             return self._delete_keys("tombstones", folder_id, keys)
 
+    def reset_folder(self, folder_id: str) -> tuple[int, int]:
+        """Forget one folder's sync history: drop its versions and tombstones.
+
+        The ``folders``/``buckets`` rows survive, so the folder UUID, its
+        canonical path and the bucket binding stay valid and the next sync
+        re-opens the same DB. Only the merge bases and the deletion markers are
+        discarded, which is what makes the next cycle reconcile from scratch.
+        Both deletes share one transaction: an interruption never leaves a
+        half-reset folder.
+
+        Returns:
+            ``(versions_deleted, tombstones_deleted)``.
+
+        Consumers: ``hsync-client`` (``hsync state reset``).
+        """
+        with self.transaction():
+            versions = self._conn.execute(
+                "DELETE FROM versions WHERE folder_id = ?", (folder_id,)
+            ).rowcount
+            tombstones = self._conn.execute(
+                "DELETE FROM tombstones WHERE folder_id = ?", (folder_id,)
+            ).rowcount
+        return versions, tombstones
+
     def _delete_keys(self, table: str, folder_id: str, keys: Sequence[str]) -> int:
         """Delete rows for *keys* in bounded chunks; return the deleted count.
 

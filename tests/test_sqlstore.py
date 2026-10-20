@@ -93,6 +93,65 @@ class TestStateDb:
         assert deleted == 1100
         assert db.count_versions(folder_id) == 100
 
+    def test_reset_folder_drops_versions_and_tombstones(self, tmp_path):
+        db = StateDb(tmp_path / "state DB")
+        kept = "11111111-1111-4111-8111-111111111111"
+        reset = "22222222-2222-4222-8222-222222222222"
+        for folder_id in (kept, reset):
+            db.ensure_folder(folder_id, f"/{folder_id}")
+            db.upsert_version(
+                folder_id,
+                "k",
+                base_hash="h",
+                version_id="v",
+                origin_cid=None,
+                ts=1.0,
+                vclock="{}",
+                corrected_mtime=0.0,
+            )
+            db.upsert_tombstone(
+                folder_id,
+                "k",
+                sha256sum="h",
+                version_id="v",
+                origin_cid=None,
+                ts=1.0,
+                vclock="{}",
+            )
+
+        assert db.reset_folder(reset) == (1, 1)
+
+        assert db.count_versions(reset) == 0
+        assert db.iter_tombstones(reset) == []
+        # The other folder is untouched.
+        assert db.count_versions(kept) == 1
+        assert len(db.iter_tombstones(kept)) == 1
+        # The folder row survives, so the next sync re-opens the same DB
+        # instead of minting a new folder UUID.
+        assert db.find_folder_by_path(f"/{reset}") == reset
+
+    def test_reset_folder_keeps_bucket_binding(self, tmp_path):
+        db = StateDb(tmp_path / "state DB")
+        bucket_folder = db.ensure_bucket_id("photos")
+        db.upsert_version(
+            bucket_folder,
+            "k",
+            base_hash="h",
+            version_id="v",
+            origin_cid=None,
+            ts=1.0,
+            vclock="{}",
+            corrected_mtime=0.0,
+        )
+
+        assert db.reset_folder(bucket_folder) == (1, 0)
+        assert db.folder_canonical_path(bucket_folder) == "bucket:photos"
+        assert db.ensure_bucket_id("photos") == bucket_folder
+
+    def test_reset_folder_unknown_is_noop(self, tmp_path):
+        db = StateDb(tmp_path / "state DB")
+        assert db.reset_folder("33333333-3333-4333-8333-333333333333") == (0, 0)
+
     def test_get_state_db_caches_file_not_memory(self, tmp_path):
         path = tmp_path / "state DB"
         a = get_state_db(path)
