@@ -134,7 +134,7 @@ Runtime environment detection shared across HSYNC projects:
 |----------|-------------|
 | `detect_container` | Detect whether the process runs inside a container (Docker, Podman, Kubernetes, containerd) |
 | `is_tty_interactive` | True when both stdin and stdout are attached to a terminal |
-| `color_output_enabled` | Whether colored log output should be emitted (respects `--no-color` and `NO_COLOR`) |
+| `color_output_enabled` | Whether colored log output should be emitted (`ColorMode`: `auto` respects the terminal and `NO_COLOR`, `always` forces, `never` disables) |
 | `get_memory_limit_bytes` | Effective RAM limit for this process in bytes (cgroup v2 then v1) |
 | `get_cpu_quota_cores` | Effective CPU quota in cores (cgroup v2 then v1) |
 | `runtime_summary` | One-line human-readable summary of the runtime environment for startup logs |

@@ -317,8 +317,10 @@ reconciliation, transfers, previews and server lines.
   `/proc/1/cgroup` (docker / podman / kubernetes / containerd). Never raises.
 - `is_tty_interactive` (`runtime.py::is_tty_interactive`) — True only when stdin **and** stdout
   are TTYs; False in containers without `-t`, systemd units, cron, pipes.
-- `color_output_enabled` (`runtime.py::color_output_enabled`) — color gate SSOT used by the
-  client/server loggers: `--no-color` flag, `NO_COLOR` env (no-color.org), TTY.
+- `color_output_enabled` (`runtime.py::color_output_enabled`, `runtime.py::ColorMode`) — color
+  gate SSOT used by the client/server loggers and forced by the Desktop (which
+  captures the client's pipe): `auto` = TTY + `NO_COLOR` env (no-color.org),
+  `always` = forced (wins over `NO_COLOR`), `never` = off. An unknown mode raises.
 - `get_memory_limit_bytes` (`runtime.py::get_memory_limit_bytes`) / `get_cpu_quota_cores`
   (`runtime.py::get_cpu_quota_cores`) — cgroup v2 (`memory.max`, `cpu.max`) with v1 fallback;
   `None` = unlimited/unknown. Unlike `os.cpu_count()`, the CPU quota reflects

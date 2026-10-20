@@ -6,6 +6,7 @@ import pytest
 
 from hsync_common import runtime
 from hsync_common.runtime import (
+    ColorMode,
     ContainerInfo,
     color_output_enabled,
     detect_container,
@@ -147,9 +148,27 @@ class TestColorOutput:
         monkeypatch.setattr(sys, "stdout", _NotTty())
         assert color_output_enabled() is False
 
-    def test_flag_disables_even_on_tty(self, monkeypatch):
+    def test_always_forces_colors_off_a_tty(self, monkeypatch):
+        monkeypatch.setattr(sys, "stdout", _NotTty())
+        assert color_output_enabled(ColorMode.ALWAYS) is True
+
+    def test_always_wins_over_the_env_opt_out(self, monkeypatch):
+        monkeypatch.setattr(sys, "stdout", _NotTty())
+        monkeypatch.setenv("NO_COLOR", "1")
+        assert color_output_enabled(ColorMode.ALWAYS) is True
+
+    def test_never_disables_even_on_tty(self, monkeypatch):
         monkeypatch.setattr(sys, "stdout", _Tty())
-        assert color_output_enabled(no_color=True) is False
+        assert color_output_enabled(ColorMode.NEVER) is False
+
+    def test_string_mode_is_accepted(self, monkeypatch):
+        monkeypatch.setattr(sys, "stdout", _NotTty())
+        assert color_output_enabled("always") is True
+
+    def test_unknown_mode_is_rejected(self, monkeypatch):
+        monkeypatch.setattr(sys, "stdout", _Tty())
+        with pytest.raises(ValueError):
+            color_output_enabled("rainbow")
 
     def test_no_color_env_disables(self, monkeypatch):
         monkeypatch.setattr(sys, "stdout", _Tty())

@@ -21,10 +21,25 @@ from __future__ import annotations
 import os
 import sys
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 from typing import IO, Final
 
 from hsync_common.format import format_bytes
+
+
+class ColorMode(StrEnum):
+    """How colored log output is decided (``--color`` on the CLIs).
+
+    Consumers: ``hsync-client`` and ``hsync-server`` (``color_output_enabled``)
+    and ``hsync-desktop``, which forces ``always`` over the subprocess pipe so
+    the in-app log panel can render the client's palette.
+    """
+
+    AUTO = "auto"  # colors only on a TTY, honouring NO_COLOR
+    ALWAYS = "always"  # force colors, even when stdout is a pipe
+    NEVER = "never"  # no colors
+
 
 # =============================================================================
 # Probe locations
@@ -155,15 +170,24 @@ def is_tty_interactive() -> bool:
     return _isatty(sys.stdin) and _isatty(sys.stdout)
 
 
-def color_output_enabled(*, no_color: bool = False) -> bool:
+def color_output_enabled(mode: ColorMode | str = ColorMode.AUTO) -> bool:
     """Whether colored log output should be emitted on stdout.
 
-    Colors require an interactive terminal and are disabled by the
-    ``--no-color`` flag or by the standard ``NO_COLOR`` environment
-    variable (https://no-color.org): any non-empty value opts out.
+    ``auto`` follows the terminal (colors need a TTY) and honours the standard
+    ``NO_COLOR`` environment variable (https://no-color.org): any non-empty value
+    opts out. ``always`` forces colors even when stdout is a pipe — the Desktop
+    asks for it so the in-app log panel can render the client's own palette —
+    and is an explicit request, so it wins over ``NO_COLOR``. ``never`` disables
+    colors. An unknown mode is rejected instead of falling back silently.
     """
-    if no_color:
+    try:
+        resolved = ColorMode(mode)
+    except ValueError:
+        raise ValueError(f"Unknown color mode: {mode!r}") from None
+    if resolved is ColorMode.NEVER:
         return False
+    if resolved is ColorMode.ALWAYS:
+        return True
     if os.environ.get(NO_COLOR_ENV_VAR):
         return False
     return _isatty(sys.stdout)

@@ -42,7 +42,7 @@ and the node is now applying peer events.
 - Labels are grouped into **semantic color categories** so the log conveys the
   *kind* of operation at a glance, not a rainbow of one color per label.
 - In terminals/terminals-with-color the label is wrapped in the category color;
-  in plain output (files, `--no-color`, non-TTY) the label is emitted as-is.
+  in plain output (files, `--color=never`, non-TTY) the label is emitted as-is.
 - The Android client mirrors the same labels in its `LogAction` enum and colors
   them in the in-app log panel by the same categories.
 
