@@ -89,6 +89,17 @@ documentation-engineering rules:
 ### 6. Removal Discipline
 * **Delete With the Code**: When a feature or logic is **removed**, delete or update its documentation in BOTH `llm-wiki/` and `docs/` in the same change. Consistent with the project's *Zero Backward Compatibility* stance, do **NOT** keep documentation describing removed functionality.
 
+### 7. Drift Prevention (Reference Integrity)
+
+The wiki must describe the code as it is **now**. Accumulated inaccuracies come from restating facts that the code already owns, so:
+
+* **Reference, never restate, derivable facts.** Point to `path/to/file::symbol` instead of copying values the symbol owns: versions, defaults, thresholds, counts, route paths, CLI flags, enum members, table/column names, and config keys. Write "the version SSOT (`…::VERSION`)" rather than the literal value. A quoted value is acceptable only when it is the point of the sentence (e.g. a limit a reader must know); it must name its owning constant and be updated with it.
+* **No history on current-state pages.** `architecture.md`, `data-models.md` and `modules/*` describe the present. Measurements and "was X, now Y" belong in a dated benchmark page or an ADR; delete prose that no longer explains current behavior.
+* **Historical mentions must be explicit.** A sentence about removed code is allowed only with an explicit historical marker (e.g. "the old `x.py` shim was removed"); otherwise delete it with the code.
+* **Unambiguous cross-repo references.** Use a repository-relative link or a fully qualified `repo/path::symbol`; a bare sibling path (e.g. `hsync_client/p2p.py`) becomes ambiguous as soon as either repository renames the module.
+* **One responsibility per page.** Split a page when it describes areas that change independently, so a code change touches the smallest possible doc surface.
+* **Verify reference integrity before completion.** Every `path::symbol` must resolve (file exists, declaration exists), every backticked path and markdown link/anchor must exist, and every quoted derived value must match its owning symbol. Correct or delete stale references in the same task: an unresolved reference is a task defect, not a follow-up.
+
 ---
 
 ## ⚠️ Domain-Critical Rules
@@ -143,6 +154,8 @@ After implementation and before finalizing:
 4. Verify consistency across models, type hints, serialization, protocol versions, JSON schemas, fixtures, callers, all consumers, and documentation.
 5. Run targeted `poetry run pytest` tests first. When practical, run full `poetry run pytest` and `poetry run ruff check .` checks configured by the project.
 6. Correct every issue found and rerun affected checks.
+
+Documentation reference integrity (Documentation Maintenance §7) is part of step 4: every `path::symbol`, backticked path, link/anchor and quoted derived value in `llm-wiki/` must resolve or be corrected in the same task.
 
 Diff inspection and executed checks are required; stating that the implementation was reviewed is insufficient.
 
