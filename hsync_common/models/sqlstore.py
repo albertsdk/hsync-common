@@ -39,6 +39,10 @@ __all__ = [
 ]
 
 _db_cache: dict[str, StateDb] = {}
+# Guards cache population: two workers opening the same file concurrently must
+# share one StateDb. Without it both can see an empty slot, both open a
+# connection, and the overwritten one is never closed (leaked handle).
+_db_cache_lock = threading.Lock()
 
 SCHEMA_USER_VERSION = 1
 
@@ -143,20 +147,27 @@ def get_state_db(db_path: str | Path) -> StateDb:
         return StateDb(db_path)
     key = str(Path(db_path).resolve())
     db = _db_cache.get(key)
-    if db is None:
-        db = StateDb(db_path)
-        _db_cache[key] = db
-    return db
+    if db is not None:
+        return db
+    # Double-checked under the lock: concurrent first-use must not create (and
+    # then overwrite, leaking) a second connection for the same file.
+    with _db_cache_lock:
+        db = _db_cache.get(key)
+        if db is None:
+            db = StateDb(db_path)
+            _db_cache[key] = db
+        return db
 
 
 def reset_state_db_cache() -> None:
     """Close and drop every cached connection (tests; process teardown)."""
-    for db in _db_cache.values():
-        try:
-            db.close()
-        except sqlite3.Error:
-            pass
-    _db_cache.clear()
+    with _db_cache_lock:
+        for db in _db_cache.values():
+            try:
+                db.close()
+            except sqlite3.Error:
+                pass
+        _db_cache.clear()
 
 
 def incremental_vacuum_state_db(db_path: str | Path, pages: int = INCREMENTAL_VACUUM_PAGES) -> int:

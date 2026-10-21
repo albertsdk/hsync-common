@@ -1,6 +1,9 @@
 """Tests for the shared SQLite state backend (ADR-0025)."""
 
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
+
+import pytest
 
 from hsync_common.models.sqlstore import (
     SCHEMA_USER_VERSION,
@@ -12,6 +15,22 @@ from hsync_common.models.sqlstore import (
     state_db_freelist_count,
     vacuum_state_db,
 )
+
+
+@pytest.fixture
+def state_db(tmp_path):
+    """A directly-created ``StateDb`` closed after the test.
+
+    Only connections obtained through ``get_state_db`` live in the module cache
+    that the conftest fixture resets; a ``StateDb(...)`` built here is not
+    cached, so it must be closed explicitly or the connection is collected (and
+    reported as ``ResourceWarning: unclosed database``) during a later test.
+    """
+    db = StateDb(tmp_path / "state DB")
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 class TestOpenStateDb:
@@ -63,8 +82,8 @@ class TestOpenStateDb:
 
 
 class TestStateDb:
-    def test_ensure_folder_and_bucket(self, tmp_path):
-        db = StateDb(tmp_path / "state DB")
+    def test_ensure_folder_and_bucket(self, state_db):
+        db = state_db
         db.ensure_folder("11111111-1111-4111-8111-111111111111", "/bucket")
         assert db.folder_canonical_path("11111111-1111-4111-8111-111111111111") == "/bucket"
         assert db.find_folder_by_path("/bucket") == "11111111-1111-4111-8111-111111111111"
@@ -73,8 +92,8 @@ class TestStateDb:
         assert first == second
         assert db.folder_canonical_path(first) == "bucket:photos"
 
-    def test_delete_versions_chunked(self, tmp_path):
-        db = StateDb(tmp_path / "state DB")
+    def test_delete_versions_chunked(self, state_db):
+        db = state_db
         folder_id = "11111111-1111-4111-8111-111111111111"
         db.ensure_folder(folder_id, "/b")
         for i in range(1200):
@@ -93,8 +112,8 @@ class TestStateDb:
         assert deleted == 1100
         assert db.count_versions(folder_id) == 100
 
-    def test_reset_folder_drops_versions_and_tombstones(self, tmp_path):
-        db = StateDb(tmp_path / "state DB")
+    def test_reset_folder_drops_versions_and_tombstones(self, state_db):
+        db = state_db
         kept = "11111111-1111-4111-8111-111111111111"
         reset = "22222222-2222-4222-8222-222222222222"
         for folder_id in (kept, reset):
@@ -130,8 +149,8 @@ class TestStateDb:
         # instead of minting a new folder UUID.
         assert db.find_folder_by_path(f"/{reset}") == reset
 
-    def test_reset_folder_keeps_bucket_binding(self, tmp_path):
-        db = StateDb(tmp_path / "state DB")
+    def test_reset_folder_keeps_bucket_binding(self, state_db):
+        db = state_db
         bucket_folder = db.ensure_bucket_id("photos")
         db.upsert_version(
             bucket_folder,
@@ -148,8 +167,8 @@ class TestStateDb:
         assert db.folder_canonical_path(bucket_folder) == "bucket:photos"
         assert db.ensure_bucket_id("photos") == bucket_folder
 
-    def test_reset_folder_unknown_is_noop(self, tmp_path):
-        db = StateDb(tmp_path / "state DB")
+    def test_reset_folder_unknown_is_noop(self, state_db):
+        db = state_db
         assert db.reset_folder("33333333-3333-4333-8333-333333333333") == (0, 0)
 
     def test_get_state_db_caches_file_not_memory(self, tmp_path):
@@ -160,6 +179,18 @@ class TestStateDb:
         mem_a = get_state_db(":memory:")
         mem_b = get_state_db(":memory:")
         assert mem_a is not mem_b
+        # ``:memory:`` handles are not cached, so the conftest reset does not
+        # reach them; close them here.
+        mem_a.close()
+        mem_b.close()
+        reset_state_db_cache()
+
+    def test_get_state_db_is_thread_safe(self, tmp_path):
+        """Concurrent first-use shares one connection (no leaked duplicates)."""
+        path = tmp_path / "state DB"
+        with ThreadPoolExecutor(max_workers=16) as pool:
+            dbs = list(pool.map(lambda _: get_state_db(path), range(32)))
+        assert all(db is dbs[0] for db in dbs)
         reset_state_db_cache()
 
 
@@ -187,8 +218,8 @@ class TestStateDbMaintenance:
         finally:
             conn.close()
 
-    def test_incremental_vacuum_reclaims_freelist(self, tmp_path):
-        db = StateDb(tmp_path / "state DB")
+    def test_incremental_vacuum_reclaims_freelist(self, state_db):
+        db = state_db
         folder_id = "11111111-1111-4111-8111-111111111111"
         self._fill_and_prune(db, folder_id)
         freelist_before = db.conn.execute("PRAGMA freelist_count").fetchone()[0]
@@ -198,8 +229,8 @@ class TestStateDbMaintenance:
         freelist_after = db.conn.execute("PRAGMA freelist_count").fetchone()[0]
         assert freelist_after < freelist_before
 
-    def test_vacuum_clears_freelist(self, tmp_path):
-        db = StateDb(tmp_path / "state DB")
+    def test_vacuum_clears_freelist(self, state_db):
+        db = state_db
         folder_id = "11111111-1111-4111-8111-111111111111"
         self._fill_and_prune(db, folder_id)
         assert db.conn.execute("PRAGMA freelist_count").fetchone()[0] > 0
@@ -212,8 +243,8 @@ class TestStateDbMaintenance:
         vacuum_state_db(missing)  # no-op, no exception
         assert not missing.exists()
 
-    def test_module_helpers_operate_on_existing_file(self, tmp_path):
-        db = StateDb(tmp_path / "state DB")
+    def test_module_helpers_operate_on_existing_file(self, state_db):
+        db = state_db
         folder_id = "11111111-1111-4111-8111-111111111111"
         self._fill_and_prune(db, folder_id)
         freed = incremental_vacuum_state_db(db.db_path, pages=1000)
@@ -222,8 +253,8 @@ class TestStateDbMaintenance:
         assert db.conn.execute("PRAGMA freelist_count").fetchone()[0] == 0
         reset_state_db_cache()
 
-    def test_incremental_vacuum_nonpositive_is_noop(self, tmp_path):
-        db = StateDb(tmp_path / "state DB")
+    def test_incremental_vacuum_nonpositive_is_noop(self, state_db):
+        db = state_db
         folder_id = "11111111-1111-4111-8111-111111111111"
         self._fill_and_prune(db, folder_id)
         freelist = db.freelist_count()
