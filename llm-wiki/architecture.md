@@ -40,7 +40,7 @@ these constants:
 | `Capability` enum + `encode/decode_capabilities` | `protocol/handshake.py::Capability` | WS handshake on all peers; includes `peer_download` |
 | `build_ws_auth_request/ok/error` + presence frame | `protocol/handshake.py::build_ws_auth_request` | client/android WS auth, server `events.py` |
 | `UiEventName` + `build_event` | `protocol/events.py::UiEventName` | client emits, desktop/android parse; transfer payload may carry peer `source_cid` |
-| `elect_master` / `election_sort_key` | `protocol/p2p.py::elect_master` | client `p2p.py`, android `Election.kt` |
+| `elect_master` / `election_sort_key` | `protocol/p2p.py::elect_master` | client `p2p_peers.py`, android `Election.kt` |
 | `evaluate_pin` / `p2p_write_requires_key` | `protocol/pairing.py::evaluate_pin` | client `pinning.py`, android `Pairing.kt` |
 | p2p source/inventory builders + validators | `protocol/peer_download.py::validate_p2p_sources_request` | client master/seeder/source resolver, Android mirror, generated contracts |
 
@@ -76,7 +76,8 @@ these constants:
 | p2p source JSON Schema | `build_p2p_sources_schema` (`protocol/schemas.py::build_p2p_sources_schema`) | `protocol/__init__.py::P2P_SOURCES_SCHEMA_PATH` |
 | Cross-language fixtures | `build_fixtures` (`protocol/fixtures.py::build_fixtures`) | `protocol/__init__.py::FIXTURES_DIR` |
 
-Regeneration: `scripts/export_protocol_schemas.py` and `scripts/export_openapi.py`.
+Regeneration: `scripts/export_protocol_schemas.py` here and
+`hsync-server/scripts/export_openapi.py` (it imports the server app).
 Drift is enforced by `tests/test_protocol_schemas.py` (rebuild must equal the
 committed snapshot). `ANDROID_FIXTURES_DIR` (`protocol/__init__.py::ANDROID_FIXTURES_DIR`)
 lets the common suite optionally assert byte-equality with the Android resources;

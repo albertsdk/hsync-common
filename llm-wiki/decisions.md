@@ -13,10 +13,10 @@ each ADR to the code it governs.
 | [0004 desktop-subprocess-contract](../docs/internal/adr/0004-desktop-subprocess-contract.md) | `protocol/events.py` event stream; `protocol/capabilities.py` |
 | [0005 protocol-versioning](../docs/internal/adr/0005-protocol-versioning.md) | `protocol/handshake.py::PROTOCOL_VERSION_REST` (versions + hard-fail handshake) |
 | [0007 content-addressed-storage](../docs/internal/adr/0007-content-addressed-storage.md) | `hsync_server/hashes.py` (`FILE_HASHES`: `SHA256(filepath)→SHA256(content)`, idempotent upload detection); `models/file.py` (content hash model) |
-| [0008 client-accounts](../docs/internal/adr/0008-client-accounts.md) | `hsync_server/auth.py` + `auth_store.py` (account tokens, roles, bucket membership); server-only, common defines no auth code |
+| [0008 client-accounts](../docs/internal/adr/0008-client-accounts.md) | `hsync_server/auth.py` + `auth_store/` package (account tokens, roles, bucket membership); server-only, common defines no auth code |
 | [0009 rest-websocket-transport](../docs/internal/adr/0009-rest-websocket-transport.md) | `protocol/schemas.py` (REST schema SSOT); `protocol/ws/ws-schema.json` (WS schema); `hsync_server` implements endpoints |
 | [0010 zstandard-compression](../docs/internal/adr/0010-zstandard-compression.md) | `compression.py` (adaptive thresholds, precompressed extension list) |
-| [0011 resumable-upload](../docs/internal/adr/0011-resumable-upload.md) | `hsync_server/api/files/upload.py` (Content-Range, `.partial` temp files, atomic rename) |
+| [0011 resumable-upload](../docs/internal/adr/0011-resumable-upload.md) | `hsync_server/api/files/upload.py` (offset-based resume, `.part` temp files, atomic rename) |
 | [0012 rate-limiting](../docs/internal/adr/0012-rate-limiting.md) | `hsync_server/rate_limiter.py` (slowapi token-bucket, per-IP tiers) |
 | [0013 hsyncignore-gitignore-syntax](../docs/internal/adr/0013-hsyncignore-gitignore-syntax.md) | `ignore.py` (`load_hsyncignore`, `pathspec.PathSpec`) |
 | [0014 multi-repo-strategy](../docs/internal/adr/0014-multi-repo-strategy.md) | this repository is the SSOT; enforced by path dependencies, golden fixtures, ADR index |

@@ -110,7 +110,7 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   `rank_election_candidates` (`protocol/p2p.py::rank_election_candidates`) returns the full ranked list
   (never_master filtered out); `elect_master` (`protocol/p2p.py::elect_master`) is its
   winner-only projection; `SYNC_DIRECTION_BIDIRECTIONAL` (`protocol/p2p.py::SYNC_DIRECTION_BIDIRECTIONAL`).
-- The client `hsync_client/p2p.py` consumes `rank_election_candidates` for
+- The client `hsync_client/p2p_peers.py` consumes `rank_election_candidates` for
   master, successor and the prefer_master conflict subset; android
   `Election.kt` mirrors the ordering; parity is pinned by the
   `p2p-election-scenarios` fixture.
@@ -205,7 +205,7 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
 ## Change checklist
 
 Editing any of the above ⇒ rerun `scripts/export_protocol_schemas.py`
-(+ `export_openapi.py` for REST), regenerate fixtures, and confirm
+(+ `hsync-server/scripts/export_openapi.py` for REST), regenerate fixtures, and confirm
 `tests/test_protocol_schemas.py` / `test_capabilities.py` stay green. Update the
 Kotlin mirrors (`Protocol.kt`, `Election.kt`, `Pairing.kt`) in the same change.
 
