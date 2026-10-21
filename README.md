@@ -9,15 +9,13 @@ upon — data formats, compression, file exclusion rules, and security utilities
 You don't install or run it directly; it's a library used by the client, server and
 desktop application.
 
-> New to HSYNC? Start with the [HSYNC Ecosystem](https://github.com/albertsdk/hsync/blob/main/README.md) for an overview of the platform before using the library.
-
 It is also the **single source of truth for the open, versioned wire protocol**:
 the shared models, JSON-Schema builders and committed fixtures live here
 (`hsync_common.protocol`, `docs/protocol.md`, `docs/p2p-protocol.md`), so every
 implementation speaks the same contract. The library sends no telemetry or
 analytics anywhere.
 
-> 👉 **Operational Advisory:** As with any data-management software, integrators are strongly advised to validate the library's behavior against their own data and to maintain validated, independent backups in the applications built on top of it.
+> 👉 **Operational Advisory:** integrators are strongly advised to validate the library's behavior against their own data before relying on it in production.
 
 ---
 
@@ -26,10 +24,6 @@ analytics anywhere.
 [![Release](https://img.shields.io/github/v/release/albertsdk/hsync-common)](https://github.com/albertsdk/hsync-common/releases/latest)
 [![PyPI](https://img.shields.io/pypi/v/hsync-common)](https://pypi.org/project/hsync-common/)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/)
-
-**Quick navigation:**
-- **Want to contribute?** See [Contributing](CONTRIBUTING.md)
-- **Looking for detailed documentation?** Navigate to [docs/README.md](docs/README.md)
 
 ---
 
@@ -73,12 +67,18 @@ shared helpers and the measurement methodology.
 
 ## Documentation
 
+The most-used guides are listed below; [`docs/README.md`](docs/README.md) is the
+complete documentation index.
+
 | Document | What it covers |
 | -------- | -------------- |
 | [Usage](docs/usage.md) | How to integrate hsync-common as a dependency |
 | [Models](docs/models.md) | Shared data models reference |
 | [Utilities](docs/utilities.md) | Cross-cutting utilities guide |
 | [Protocol](docs/protocol.md) | Versioned wire protocol reference |
+| [p2p Protocol](docs/p2p-protocol.md) | Authoritative p2p discovery, master-election, pairing and security specification |
+| [Boot/1 Protocol](docs/bootnode-protocol.md) | The `boot/1` bootstrap channel as mirrored for the client |
+| [Authentication](docs/authentication.md) | Shared authentication contracts: CID format, message schema, version negotiation |
 | [Ignore file](docs/ignore-file.md) | `.hsyncignore` syntax, `IgnoreMatcher` layers, and API |
 | [Android Mirroring](docs/android-mirroring.md) | How Python models are mirrored in Kotlin |
 | [Internal Architecture](docs/internal/architecture.md) | Shared models, utilities, and how they fit the HSYNC ecosystem |
@@ -103,9 +103,6 @@ The other components of the HSYNC ecosystem:
 To report a vulnerability, please use GitHub's **Private Vulnerability Reporting**:
 
 👉 **[Report a vulnerability](https://github.com/albertsdk/hsync-common/security/advisories/new)**
-
-See our [Security Policy](SECURITY.md) for supported versions and hardening
-recommendations.
 
 ## 🙋‍♂️ A note from the maintainer
 
