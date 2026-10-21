@@ -29,8 +29,8 @@ def test_max_keys_evicts_least_recently_used() -> None:
     assert limiter.allow("a", now=0.0) is True
     assert limiter.allow("b", now=0.0) is True
     assert limiter.allow("c", now=0.0) is True  # evicts the LRU key "a"
-    assert len(limiter._updated) == 2
-    assert "a" not in limiter._updated
+    assert len(limiter._buckets) == 2
+    assert "a" not in limiter._buckets
     # the evicted key starts fresh (decision-neutral: it had refilled by now)
     assert limiter.has_tokens("a", now=0.0) is True
 
@@ -41,8 +41,8 @@ def test_max_keys_eviction_protects_a_recently_used_key() -> None:
     assert limiter.allow("b", now=0.0) is True
     assert limiter.allow("a", now=0.0) is True  # "a" becomes most-recently-used
     assert limiter.allow("c", now=0.0) is True  # evicts the LRU key "b", not "a"
-    assert "b" not in limiter._updated
-    assert "a" in limiter._updated and "c" in limiter._updated
+    assert "b" not in limiter._buckets
+    assert "a" in limiter._buckets and "c" in limiter._buckets
 
 
 def test_evict_stale_drops_fully_refilled_buckets() -> None:

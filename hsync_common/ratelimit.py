@@ -12,7 +12,6 @@ Declared consumers: ``hsync-client`` (P2P listener new-connection limiting) and
 from __future__ import annotations
 
 import time
-from collections import OrderedDict
 
 __all__ = [
     "RateLimitKey",
@@ -56,32 +55,34 @@ class TokenBucketLimiter:
         self._capacity = float(capacity)
         self._rate = refill / window  # tokens per second
         self._max_keys = max_keys
-        # Ordered least-recently-used first; ``_updated`` drives eviction order.
-        self._tokens: OrderedDict[RateLimitKey, float] = OrderedDict()
-        self._updated: OrderedDict[RateLimitKey, float] = OrderedDict()
+        # One entry per tracked key: ``key -> (tokens, updated_at)``, ordered
+        # least-recently-used first so its dict order drives eviction. A second
+        # OrderedDict (as before) only duplicated the key and the per-entry
+        # overhead: the limiter state runs into the millions of keys under churn.
+        self._buckets: dict[RateLimitKey, tuple[float, float]] = {}
 
     def allow(self, key: RateLimitKey, now: float | None = None) -> bool:
         now = now if now is not None else time.monotonic()
         # Inlined _refill(): the check is the per-frame hot path (one call per
-        # admitted metric), so it avoids a second method call and the redundant
-        # ``_tokens`` write _refill would do before this method overwrites it.
-        updated_at = self._updated.get(key)
-        if updated_at is None:
+        # admitted metric), so it avoids a second method call.
+        entry = self._buckets.get(key)
+        if entry is None:
             self._make_room()
             tokens = self._capacity
         else:
-            elapsed = now - updated_at
+            elapsed = now - entry[1]
             if elapsed < 0.0:
                 elapsed = 0.0
-            tokens = self._tokens[key] + elapsed * self._rate
+            tokens = entry[0] + elapsed * self._rate
             if tokens > self._capacity:
                 tokens = self._capacity
-        self._updated[key] = now
-        self._updated.move_to_end(key)
+            # Re-insert so this key becomes the most-recently-used (a plain dict
+            # assignment on an existing key would keep its old position).
+            del self._buckets[key]
         if tokens < 1.0:
-            self._tokens[key] = tokens
+            self._buckets[key] = (tokens, now)
             return False
-        self._tokens[key] = tokens - 1.0
+        self._buckets[key] = (tokens - 1.0, now)
         return True
 
     def has_tokens(self, key: RateLimitKey, now: float | None = None) -> bool:
@@ -91,21 +92,19 @@ class TokenBucketLimiter:
         dry is dropped before the parser runs, so the parse-storm budget truly
         bounds CPU instead of only labelling the drop.
         """
-        updated_at = self._updated.get(key)
-        if updated_at is None:
+        entry = self._buckets.get(key)
+        if entry is None:
             return self._capacity >= 1.0
         now = now if now is not None else time.monotonic()
-        elapsed = max(0.0, now - updated_at)
-        tokens = min(self._capacity, self._tokens[key] + elapsed * self._rate)
+        elapsed = max(0.0, now - entry[1])
+        tokens = min(self._capacity, entry[0] + elapsed * self._rate)
         return tokens >= 1.0
 
     def _make_room(self) -> None:
         """Evict the least-recently-used key when the population ceiling is reached."""
-        if self._max_keys is None or len(self._updated) < self._max_keys:
+        if self._max_keys is None or len(self._buckets) < self._max_keys:
             return
-        lru = next(iter(self._updated))
-        del self._updated[lru]
-        self._tokens.pop(lru, None)
+        del self._buckets[next(iter(self._buckets))]
 
     def retry_after(self, key: RateLimitKey, now: float | None = None) -> int:
         """Seconds until the next token of ``key`` becomes available (>=1)."""
@@ -125,22 +124,19 @@ class TokenBucketLimiter:
         """
         now = now if now is not None else time.monotonic()
         horizon = self._capacity / self._rate
-        stale = [k for k, ts in self._updated.items() if now - ts >= horizon]
+        stale = [k for k, (_, ts) in self._buckets.items() if now - ts >= horizon]
         for k in stale:
-            del self._tokens[k]
-            del self._updated[k]
+            del self._buckets[k]
         return len(stale)
 
     def _refill(self, key: RateLimitKey, now: float) -> float:
         """Return the (unconsumed) token count after applying the elapsed refill."""
-        updated_at = self._updated.get(key)
-        if updated_at is None:
+        entry = self._buckets.get(key)
+        if entry is None:
             self._make_room()
-            self._tokens[key] = self._capacity
-            self._updated[key] = now
+            self._buckets[key] = (self._capacity, now)
             return self._capacity
-        elapsed = max(0.0, now - updated_at)
-        tokens = min(self._capacity, self._tokens[key] + elapsed * self._rate)
-        self._tokens[key] = tokens
-        self._updated[key] = now
+        elapsed = max(0.0, now - entry[1])
+        tokens = min(self._capacity, entry[0] + elapsed * self._rate)
+        self._buckets[key] = (tokens, now)
         return tokens
