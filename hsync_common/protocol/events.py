@@ -51,7 +51,7 @@ class UiEventName(StrEnum):
     transfer = "transfer"  # a file was downloaded / uploaded / deleted
     rename = "rename"  # a file or directory was renamed
     dir_created = "dir_created"  # a directory was created
-    progress = "progress"  # in-flight transfer progress
+    progress = "progress"  # in-flight transfer progress (op: download|upload)
     sync_complete = "sync_complete"  # a full sync cycle finished
     folder_size = "folder_size"  # local bytes + sync-set total (aggregate, per cycle)
     error = "error"  # generic error
@@ -95,7 +95,7 @@ class UiEventDict(TypedDict):
     group: NotRequired[str]
     cid: NotRequired[str]
     url: NotRequired[str]
-    op: NotRequired[str]
+    op: NotRequired[str]  # transfer/progress direction: download|upload|...
     file: NotRequired[str]
     size: NotRequired[int]
     src: NotRequired[str]

@@ -86,6 +86,10 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   can surface the active discovery plan instead of silently degrading to mDNS.
   The payload is a flat optional-field object; `parse_event_line` ignores
   unknown event names.
+- `progress` carries `file`, `transferred`, `total` and `op` (`download` |
+  `upload`). The throttled progress of every in-flight transfer — received
+  files included — is how a GUI learns about a file that is not on disk yet;
+  consumers must use `op` to decide the direction instead of assuming one.
 - `UiEventDict` (`protocol/events.py::UiEventDict`) includes optional `source_cid` only for a
   successful verified peer-served full download; build/serialize/parse:
   `build_event` (`protocol/events.py::build_event`), `serialize_event` (`protocol/events.py::serialize_event`),
