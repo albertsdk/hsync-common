@@ -5,8 +5,12 @@
 
 from __future__ import annotations
 
+import gc
+import io
 import os
 import random
+import tempfile
+import tracemalloc
 import zlib
 from hashlib import sha256
 
@@ -27,8 +31,11 @@ from hsync_common.delta import (
     compute_signatures,
     find_matches,
     find_matches_file,
+    find_matches_file_to_sink,
+    find_matches_to_sink,
     is_delta_worthwhile,
     optimal_block_size,
+    signatures_for_data,
 )
 from hsync_common.models.delta import (
     OP_TYPE_COPY,
@@ -309,6 +316,61 @@ class TestApplyDelta:
         ops, literals = find_matches(new, sigs, BLOCK)
         with pytest.raises(DeltaError, match="same path"):
             apply_delta(str(real), ops, literals, str(link))
+
+    def test_sink_variant_produces_the_same_ops_and_bytes(self, tmp_path):
+        base = _base_bytes(size=BLOCK * 8)
+        new = bytearray(base)
+        new[3 * BLOCK : 4 * BLOCK] = b"Z" * BLOCK
+        sigs = _sigs_for(tmp_path, base)
+        ref_ops, ref_literals = find_matches(bytes(new), sigs, BLOCK)
+
+        sink = io.BytesIO()
+        ops = find_matches_to_sink(bytes(new), sigs, BLOCK, sink)
+
+        assert ops == ref_ops
+        assert sink.getvalue() == ref_literals
+
+    def test_file_sink_variant_matches_the_file_result(self, tmp_path):
+        base = _base_bytes(size=BLOCK * 6)
+        new = b"HEADER" + base[BLOCK:]
+        path = _write(tmp_path / "new.bin", new)
+        sigs = _sigs_for(tmp_path, base)
+        ref_ops, ref_literals = find_matches_file(path, sigs, BLOCK)
+
+        sink = io.BytesIO()
+        ops = find_matches_file_to_sink(path, sigs, BLOCK, sink)
+
+        assert ops == ref_ops
+        assert sink.getvalue() == ref_literals
+
+    def test_sink_variant_keeps_the_payload_out_of_python_memory(self, tmp_path):
+        """The sink path writes literals to disk; the buffered path holds 2x."""
+        gc.collect()
+        block = 4096
+        size = 1024 * 1024
+        changed = 256 * 1024
+        base = (bytes(range(256)) * (size // 256))[:size]
+        new = bytearray(base)
+        new[size // 2 : size // 2 + changed] = b"\xff" * changed
+        new = bytes(new)
+        sigs = signatures_for_data(base, block)
+
+        tracemalloc.start()
+        ref_ops, ref_literals = find_matches(new, sigs, block)
+        _, buffered_peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        with tempfile.TemporaryFile() as sink:
+            gc.collect()
+            tracemalloc.start()
+            ops = find_matches_to_sink(new, sigs, block, sink)
+            _, sink_peak = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
+            sink.seek(0)
+            assert ops == ref_ops
+            assert sink.read() == ref_literals
+
+        assert sink_peak < buffered_peak * 0.6
 
 
 # ---------------------------------------------------------------------------

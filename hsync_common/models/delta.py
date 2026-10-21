@@ -103,7 +103,7 @@ class DeltaApplyMetadataDict(TypedDict):
     ops: list[DeltaOpDict]  # ordered operations to rebuild the file
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class BlockSignature:
     """Signature of a single base-file block (weak + strong checksum)."""
 
@@ -124,7 +124,7 @@ class BlockSignature:
         )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class DeltaOp:
     """A single reconstruction operation (copy from base / data literal)."""
 
@@ -153,7 +153,7 @@ class DeltaOp:
         )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class DeltaInstructions:
     """Ordered operations that rebuild the new file from base + literals."""
 
@@ -176,7 +176,7 @@ class DeltaInstructions:
         return out
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class DeltaApplyMetadata:
     """Metadata for POST /delta/apply (upload delta).
 

@@ -19,8 +19,11 @@ the parity tests against fresh ``zlib.adler32`` windows).
 
 Memory profile: :func:`find_matches_file` mmaps the new file instead of
 loading it, so peak memory stays bounded regardless of file size (the OS
-pages the mapping); only the literal payload is accumulated in RAM and it is
-capped by the caller via ``DELTA_MAX_LITERAL_SIZE``.
+pages the mapping). :func:`find_matches` accumulates the literal payload in
+RAM (capped by the caller via ``DELTA_MAX_LITERAL_SIZE``);
+:func:`find_matches_to_sink` / :func:`find_matches_file_to_sink` stream the
+literal bytes to a seekable binary sink (e.g. a temp file) instead, so the
+sender's peak stays O(block_size) plus the op list.
 
 The partial tail signature (last base block shorter than ``block_size``) is
 computed by :func:`compute_signatures` for completeness but is *never matched*
@@ -50,6 +53,8 @@ __all__ = [
     "compute_signatures",
     "find_matches",
     "find_matches_file",
+    "find_matches_file_to_sink",
+    "find_matches_to_sink",
     "signatures_for_data",
 ]
 
@@ -209,17 +214,13 @@ def build_signature_index(
     return table
 
 
-def find_matches(
+def _find_matches(
     new_data: bytes | bytearray | memoryview | mmap.mmap,
     signatures: list[BlockSignature] | tuple[BlockSignature, ...],
     block_size: int,
+    literal_sink: BinaryIO | None,
 ) -> tuple[list[DeltaOp], bytes]:
-    """Match *new_data* against the base signatures; return (ops, literals).
-
-    Consecutive unmatched bytes are coalesced into one ``data`` op referencing
-    the shared literal buffer via ``data_offset``. The partial tail signature
-    is ignored (see module docstring).
-    """
+    """Core matcher; buffer the literals (sink None) or stream them to a sink."""
     _require_positive_block_size(block_size)
     table = build_signature_index(signatures, block_size)
     table_get = table.get  # bind locally: O(1) lookup, one attribute resolution saved per window
@@ -231,6 +232,10 @@ def find_matches(
 
     ops: list[DeltaOp] = []
     literal_data = bytearray()
+    # Offsets are absolute in the literal source: the sink's start position
+    # (0 for a fresh temp file) or the buffer length. The sink path never
+    # materialises the payload in a Python bytes/bytearray.
+    literal_len = literal_sink.tell() if literal_sink is not None else 0
     # Start of the open literal run *in the new file*. The run is materialised
     # in one slice copy when it ends (a match or EOF) instead of appending one
     # byte at a time (bytearray.append(int) is ~25-30 ns/byte): on the
@@ -280,10 +285,15 @@ def find_matches(
             for base_offset, expected_strong in candidates:
                 if strong == expected_strong:
                     if literal_src_start is not None:
-                        # The data offset is the buffer length *before* the
-                        # append: ops and buffer stay in the same order.
-                        data_offset = len(literal_data)
-                        literal_data += view[literal_src_start:pos]
+                        # The data offset is the literal length *before* the
+                        # append: ops and the literal source stay in sync.
+                        run = view[literal_src_start:pos]
+                        data_offset = literal_len
+                        if literal_sink is None:
+                            literal_data += run
+                        else:
+                            literal_sink.write(run)
+                        literal_len += len(run)
                         ops.append(DeltaOp.data(data_offset, pos - literal_src_start))
                         literal_src_start = None
                     ops.append(DeltaOp.copy(base_offset, block_size))
@@ -302,11 +312,49 @@ def find_matches(
     if literal_src_start is None and pos < n:
         literal_src_start = pos
     if literal_src_start is not None:
-        data_offset = len(literal_data)
-        literal_data += view[literal_src_start:n]
+        run = view[literal_src_start:n]
+        data_offset = literal_len
+        if literal_sink is None:
+            literal_data += run
+        else:
+            literal_sink.write(run)
+        literal_len += len(run)
         ops.append(DeltaOp.data(data_offset, n - literal_src_start))
 
+    if literal_sink is not None:
+        return ops, b""
     return ops, bytes(literal_data)
+
+
+def find_matches(
+    new_data: bytes | bytearray | memoryview | mmap.mmap,
+    signatures: list[BlockSignature] | tuple[BlockSignature, ...],
+    block_size: int,
+) -> tuple[list[DeltaOp], bytes]:
+    """Match *new_data* against the base signatures; return (ops, literals).
+
+    Consecutive unmatched bytes are coalesced into one ``data`` op referencing
+    the shared literal buffer via ``data_offset``. The partial tail signature
+    is ignored (see module docstring).
+    """
+    return _find_matches(new_data, signatures, block_size, None)
+
+
+def find_matches_to_sink(
+    new_data: bytes | bytearray | memoryview | mmap.mmap,
+    signatures: list[BlockSignature] | tuple[BlockSignature, ...],
+    block_size: int,
+    literal_sink: BinaryIO,
+) -> list[DeltaOp]:
+    """Like :func:`find_matches`, but stream the literals to *literal_sink*.
+
+    ``literal_sink`` must be a seekable binary stream positioned where the
+    literal payload starts (normally a fresh temp file at offset 0). The
+    returned data ops keep referencing ``literal_sink`` offsets, so the caller
+    can hand that file to ``apply_delta`` without a Python bytes copy.
+    """
+    ops, _ = _find_matches(new_data, signatures, block_size, literal_sink)
+    return ops
 
 
 def find_matches_file(
@@ -320,7 +368,23 @@ def find_matches_file(
         return [], b""
     with open(new_path, "rb") as f:
         with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
-            return find_matches(mm, signatures, block_size)
+            return _find_matches(mm, signatures, block_size, None)
+
+
+def find_matches_file_to_sink(
+    new_path: str,
+    signatures: list[BlockSignature] | tuple[BlockSignature, ...],
+    block_size: int,
+    literal_sink: BinaryIO,
+) -> list[DeltaOp]:
+    """mmap-backed :func:`find_matches_to_sink` for large new files."""
+    size = os.path.getsize(new_path)
+    if size == 0:
+        return []
+    with open(new_path, "rb") as f:
+        with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
+            ops, _ = _find_matches(mm, signatures, block_size, literal_sink)
+            return ops
 
 
 def _read_literal(
