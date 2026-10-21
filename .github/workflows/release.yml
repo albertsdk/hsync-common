@@ -38,7 +38,7 @@ jobs:
 
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.13"
+          python-version: "3.14.9"
 
       # A published version is immutable, so refuse a tag/version mismatch
       # before anything is uploaded.
