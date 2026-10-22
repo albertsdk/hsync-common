@@ -35,15 +35,19 @@ fixtures/tests.
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import math
-import re
 from collections.abc import Mapping
 from typing import Literal, NotRequired, TypedDict
 
 from hsync_common.models.event import CID_PATTERN, is_valid_cid
 from hsync_common.path_validation import is_valid_bucket_name
+from hsync_common.protocol.boot_tokens import (
+    BUCKET_TOKEN_LEN,
+    constant_time_equals,
+    derive_bucket_token,
+    is_valid_bucket_token,
+    verify_bucket_token,
+)
 from hsync_common.protocol.p2p import SYNC_DIRECTION_BIDIRECTIONAL
 from hsync_common.protocol.pairing import (
     SYNC_DIRECTION_DOWNLOAD_ONLY,
@@ -84,10 +88,8 @@ PROTOCOL_VERSION_BOOT: Literal["boot/1"] = "boot/1"
 # QUIC ALPN offered by the bootnode's TLS handshake.
 BOOT_ALPN = "hsync-boot/1"
 
-# hex(32 bytes) = 64 chars. Absent = open bucket.
-BUCKET_TOKEN_LEN = 64
-_BUCKET_TOKEN_RE = re.compile(rf"^[0-9a-f]{{{BUCKET_TOKEN_LEN}}}$")
-
+# hex(32 bytes) = 64 chars. Absent = open bucket. The token grammar and the
+# derivation live in ``protocol/boot_tokens.py`` (shared with the bootnode).
 BucketProto = Literal["tcp", "udp"]
 
 # Uniform refusal codes on a ``response`` frame: ``token_required`` (authorization,
@@ -122,8 +124,6 @@ _SYNC_DIRECTIONS = frozenset(
 # as a last-resort ordering key before the CID tiebreaker.
 _MAX_STARTUP_TIME = float(2**53)
 
-_TOKEN_DOMAIN = b"boot/1"
-
 # Wire bounds, mirrored from the bootnode models. Bucket names are bounded by
 # ``is_valid_bucket_name`` (``MAX_BUCKET_NAME_LENGTH``), not by a length here.
 _MAX_GROUP_LEN = 128
@@ -134,38 +134,6 @@ _MIN_QUERY_LIMIT = 1
 _MAX_QUERY_LIMIT = 50
 _MIN_TTL = 1
 _MAX_TTL = 3600
-
-
-def derive_bucket_token(key: bytes, bucket: str) -> str:
-    """Derive the 64-char hex bucket token for the given group key + bucket."""
-    digest = hmac.new(key, _TOKEN_DOMAIN + bucket.encode("utf-8"), hashlib.sha256).digest()
-    return digest[:32].hex()
-
-
-def is_valid_bucket_token(value: str) -> bool:
-    """True iff ``value`` is a well-formed 64-char lowercase hex token."""
-    return _BUCKET_TOKEN_RE.match(value) is not None
-
-
-def constant_time_equals(a: bytes, b: bytes) -> bool:
-    """Constant-time byte-string comparison (no timing side-channel)."""
-    return hmac.compare_digest(a, b)
-
-
-def verify_bucket_token(expected: str, provided: str | None) -> bool:
-    """Return True iff a provided token matches the expected one, uniformly.
-
-    A missing/malformed token simply never matches (caller decides whether the
-    bucket requires one — this helper never reveals that a bucket exists).
-    """
-    if provided is None:
-        return False
-    if not is_valid_bucket_token(provided):
-        return False
-    return constant_time_equals(
-        expected.encode("ascii"),
-        provided.encode("ascii"),
-    )
 
 
 class Endpoint(TypedDict):

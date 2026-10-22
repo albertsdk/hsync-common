@@ -17,7 +17,7 @@ and by the final whole-file SHA-256 verification after reconstruction.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Literal, NotRequired, TypedDict, TypeGuard
 
@@ -31,12 +31,18 @@ __all__ = [
     "BlockSignatureDict",
     "DeltaApplyMetadata",
     "DeltaApplyMetadataDict",
+    "DeltaDownloadDict",
+    "DeltaDownloadInstructionsDict",
     "DeltaInstructions",
     "DeltaInstructionsDict",
     "DeltaOp",
     "DeltaOpDict",
+    "DeltaSignaturesDict",
+    "delta_download_payload",
+    "delta_signatures_payload",
     "sanitize_block_signature",
     "sanitize_delta_op",
+    "validate_op_bounds",
 ]
 
 OP_TYPE_COPY = "copy"
@@ -82,6 +88,38 @@ class DeltaInstructionsDict(TypedDict):
     block_size: int  # block size used for signature/matching
     ops: list[DeltaOpDict]  # ordered operations
     base_sha256: NotRequired[str]  # upload only: SHA-256 of the base file
+
+
+class DeltaDownloadInstructionsDict(TypedDict):
+    """Instruction block inside a download-delta response.
+
+    Reduced on purpose: the content hash and the block size are response-level
+    fields, so only the coverage size and the ordered ops travel here.
+    """
+
+    new_size: int  # expected size of the reconstructed file (ops coverage check)
+    ops: list[DeltaOpDict]  # ordered operations
+
+
+class DeltaDownloadDict(TypedDict):
+    """Response of a successful download-delta (server and P2P master)."""
+
+    delta: Literal[True]
+    block_size: int
+    new_sha256: str
+    instructions: DeltaDownloadInstructionsDict
+    data_url: str  # single-use URL serving the literal payload
+    data_size: int  # literal payload bytes (before any transfer encoding)
+    compressed: bool  # payload is a single zstd frame
+
+
+class DeltaSignaturesDict(TypedDict):
+    """Response of the base-file signature listing (upload delta)."""
+
+    block_size: int
+    file_size: int
+    sha256: str
+    signatures: list[BlockSignatureDict]
 
 
 class DeltaApplyMetadataDict(TypedDict):
@@ -310,3 +348,95 @@ def sanitize_signature_list(value: object) -> list[BlockSignatureDict] | None:
 def sanitize_op_list(value: object) -> list[DeltaOpDict] | None:
     """Validate an untrusted op list, enforcing the wire count cap."""
     return _sanitize_list(value, cap=DELTA_MAX_OPS, sanitize_item=sanitize_delta_op)
+
+
+def validate_op_bounds(
+    ops: Sequence[DeltaOp],
+    *,
+    base_size: int,
+    literal_size: int,
+    new_size: int,
+) -> str | None:
+    """Validate op bounds and coverage against the real base/literal sizes.
+
+    ``sanitize_delta_op`` only enforces the wire shape: an op may still point
+    past the end of the base file, past the literal payload, or leave the
+    reconstructed length different from the advertised ``new_size``. Both the
+    server's delta-apply endpoint and the P2P master run this check before
+    touching the filesystem, so the rejection reasons are one shared vocabulary
+    (returned verbatim in the 422 detail).
+
+    Returns ``None`` when every op is in bounds and the lengths add up, or one
+    of ``copy_op_out_of_bounds`` / ``data_op_out_of_bounds`` /
+    ``unknown_op_type`` / ``ops_coverage_mismatch``.
+    """
+    total = 0
+    for op in ops:
+        if op.type == OP_TYPE_COPY:
+            if op.offset + op.length > base_size:
+                return "copy_op_out_of_bounds"
+        elif op.type == OP_TYPE_DATA:
+            if op.data_offset + op.length > literal_size:
+                return "data_op_out_of_bounds"
+        else:
+            return "unknown_op_type"
+        total += op.length
+    if total != new_size:
+        return "ops_coverage_mismatch"
+    return None
+
+
+def delta_signatures_payload(
+    *,
+    block_size: int,
+    file_size: int,
+    sha256: str,
+    signatures: Sequence[BlockSignature | BlockSignatureDict],
+) -> DeltaSignaturesDict:
+    """Build the base-file signature listing response body.
+
+    Accepts both the model and its wire form because the server caches
+    serialized signatures while the P2P master computes models; the envelope
+    lives here so the REST and P2P responses stay byte-identical.
+
+    Consumers: ``hsync-server`` (delta signatures GET), ``hsync-client``
+    (``p2p_delta``), shared fixtures/tests.
+    """
+    return DeltaSignaturesDict(
+        block_size=block_size,
+        file_size=file_size,
+        sha256=sha256,
+        signatures=[
+            dict(signature) if isinstance(signature, dict) else signature.to_dict()
+            for signature in signatures
+        ],
+    )
+
+
+def delta_download_payload(
+    *,
+    block_size: int,
+    new_sha256: str,
+    new_size: int,
+    ops: Sequence[DeltaOp],
+    data_url: str,
+    data_size: int,
+    compressed: bool,
+) -> DeltaDownloadDict:
+    """Build the download-delta response body (instructions + token URL).
+
+    Consumers: ``hsync-server`` (delta signatures POST), ``hsync-client``
+    (``p2p_delta``), shared fixtures/tests.
+    """
+    return DeltaDownloadDict(
+        delta=True,
+        block_size=block_size,
+        new_sha256=new_sha256,
+        instructions=DeltaDownloadInstructionsDict(
+            new_size=new_size,
+            ops=[op.to_dict() for op in ops],
+        ),
+        data_url=data_url,
+        data_size=data_size,
+        compressed=compressed,
+    )

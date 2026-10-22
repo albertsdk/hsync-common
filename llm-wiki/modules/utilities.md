@@ -34,6 +34,14 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
 - `PARTIAL_DOWNLOAD_SUFFIX = ".part"` (`constants.py::PARTIAL_DOWNLOAD_SUFFIX`).
 - `HOSTNAME_PATTERN` (`constants.py::HOSTNAME_PATTERN`) — bare hostname/IPv4 charset SSOT, consumed by
   `endpoint.py` and re-exported by `hsync_client.constants`.
+- Network defaults: `BOOT_DEFAULT_PORT` (`constants.py::BOOT_DEFAULT_PORT`, boot/1 UDP)
+  and `SERVER_DEFAULT_PORT` (`constants.py::SERVER_DEFAULT_PORT`, sync server TCP)
+  are the single defaults for every consumer (server `Settings.port`, client
+  bare-host CLI, desktop endpoint grammar/trust pre-flight).
+- Far-future mtime clamp: `CORRECTED_MTIME_MAX_FUTURE_SKEW`
+  (`constants.py::CORRECTED_MTIME_MAX_FUTURE_SKEW`, ADR-0023) is the only
+  definition; the client and server import it (their local
+  `MTIME_MAX_FUTURE_SKEW_SECONDS` names are bindings, not values).
 
 ## endpoint.py (shared `HOST[:PORT]` parser)
 
@@ -206,6 +214,13 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
   `serialize_private_key_unencrypted` (`ssl_utils.py::serialize_private_key_unencrypted`; RSA, ECDSA or Ed25519).
 - Fingerprints: `compute_cert_fingerprint`, `verify_cert_fingerprint` — the DER
   SHA-256 domain shared with the service trust contract (ADR-0034/ADR-0037).
+- Persistence: `write_pem_keypair` (`ssl_utils.py::write_pem_keypair`) /
+  `load_pem_keypair` (`ssl_utils.py::load_pem_keypair`) — the single implementation
+  of "write an identity pair with permission-enforced files" (key `0o600`,
+  directory `0o700`, modes in `KEY_FILE_MODE`/`PUBLIC_CERT_FILE_MODE`/
+  `IDENTITY_DIR_MODE`) and of loading one back (ECDSA-only validation, stable
+  fingerprint). Consumers: `hsync-server` (server TLS certificate, public
+  `0o644` cert) and `hsync-client` (P2P master identity, owner-only pair).
 
 ## logger.py
 
@@ -308,6 +323,71 @@ reconciliation, transfers, previews and server lines.
 > `NTP_PROBES_PER_HOST`, `CORRECTED_MTIME_MAX_FUTURE_SKEW`) live in
 > `constants.py` Clock Synchronisation section.
 
+## models/arbitration.py (causal upload gate, ADR-0022)
+
+- `decide_arbitration` (`arbitration.py::decide_arbitration`) — pure decision
+  for an incoming version against the stored one: tolerant wire-vclock parse,
+  `resolve_three_way`, then the outcome mapping
+  (`accepted` / `accepted_conflict_won` / `superseded` / `conflict_lost`) plus
+  the clock and corrected mtime the receiver must record. Persistence-free: the
+  caller reads/applies its own store.
+- `plan_self_record` (`arbitration.py::plan_self_record`) — the out-of-band
+  anti-aliasing advance (disk content ≠ stored base) as a `SelfRecord`
+  (`arbitration.py::SelfRecord`), applied by the caller under its own CID.
+- `conflicted_copy_name` (`arbitration.py::conflicted_copy_name`) — canonical
+  `<stem>_conflicted_copy_<ts>_<cid>.<ext>` loser path (ADR-0021).
+- Consumers: `hsync-server/arbitration.py` and `hsync-client/arbitration.py`
+  (thin store/CID bindings), shared tests.
+
+## models/sentinel.py (`.hsynckeep` lifecycle)
+
+- `ensure_sentinel` (`sentinel.py::ensure_sentinel`) — create the marker only
+  when the directory has no syncable entry; `is_sentinel_file`
+  (`sentinel.py::is_sentinel_file`) and `remove_empty_dir`
+  (`sentinel.py::remove_empty_dir`, `keep_root` guard) own the reverse rule.
+- Consumers: server delete path (`api/file_utils.py`) and client
+  (`sync.ensure_sentinel`, `utils.paths.safe_rmdir_if_empty`), so both leave the
+  same tree.
+
+## delta/token_store.py (single-use download tokens)
+
+- `DeltaTokenStore` (`token_store.py::DeltaTokenStore`) — TTL + count/storage
+  caps, lazy expiry, cached storage accounting, atomic payload adoption
+  (`issue` / `issue_from_file` / `lookup` / `is_expired` / `consume` /
+  `discard` / `reset`). `DeltaTokenEntry` (`token_store.py::DeltaTokenEntry`)
+  carries `bucket`/`compressed`/`meta`; `TokenStoreFull` /
+  `TokenStoreStorageFull` are the two capacity refusals.
+- Consumers: `hsync-server/api/files/delta/tokens.py` (metrics + bucket dir) and
+  `hsync-client/p2p_delta.py` (process temp dir), tests.
+
+## defaults.py (CLI/GUI shared defaults)
+
+- User-facing defaults that must agree between the `hsync` CLI and the desktop
+  GUI, which cannot import the client package: `HTTP_TIMEOUT_DEFAULT`,
+  `STABILITY_DELAY_DEFAULT`, `RECONNECT_DELAY_DEFAULT`,
+  `SYNC_DIRECTION_DEFAULT`, `MAX_CONCURRENT_TRANSFERS_DEFAULT`,
+  `MASS_DELETE_GUARD_DEFAULT`, `MASS_DELETE_THRESHOLD_DEFAULT`,
+  `MASS_DELETE_PERCENT_DEFAULT`, `MIN_FREE_DISK_SPACE_MB_DEFAULT`,
+  `MAX_INBOUND_SIZE_MB_DEFAULT`, `BANDWIDTH_MIN_BPS`, `BANDWIDTH_MAX_BPS`,
+  `MAX_WAIT_TIMEOUT_DEFAULT`, `P2P_PEER_DOWNLOAD_DEFAULT`,
+  `P2P_PEER_READ_CAP_DEFAULT` and `P2P_PEER_SOURCES_MAX_DEFAULT`.
+- The accepted range of every bounded knob lives here too: the `*_MIN`/`*_MAX`
+  pairs for HTTP timeout, stability delay, max-wait timeout, reconnect delay,
+  resync interval, concurrent transfers, free-space/inbound caps and the p2p
+  caps (`defaults.py::MAX_WAIT_TIMEOUT_MIN`). The CLI validates against them and
+  the GUI clamps to them, so a value the GUI emits is always accepted by the CLI.
+- `MAX_WAIT_TIMEOUT_DEFAULT` (`defaults.py::MAX_WAIT_TIMEOUT_DEFAULT`) is the
+  upper bound on one upload slot's stability wait. The wait ends as soon as
+  size+mtime settle, so it does not penalise large files; keeping it short bounds
+  how long a pooled slot can be parked by a file that never settles.
+- `hsync_client.constants` and `hsync_desktop.config` re-export the values and
+  bounds under their own names; GUI-only guardrails (a taller minimum than the
+  CLI allows) and GUI-exclusive defaults stay in `hsync_desktop/config.py`.
+  Consumers: `hsync-client`, `hsync-desktop`, tests
+  (`hsync-common/tests/test_defaults_bounds.py`,
+  `hsync-desktop/tests/test_defaults_parity.py`,
+  `hsync-client/tests/test_cli_option_parity.py`).
+
 ## runtime.py (container / TTY / cgroup detection)
 
 - `ContainerInfo` (`runtime.py::ContainerInfo`) — frozen dataclass: `is_container`,
@@ -323,12 +403,19 @@ reconciliation, transfers, previews and server lines.
   `always` = forced (wins over `NO_COLOR`), `never` = off. An unknown mode raises.
 - `get_memory_limit_bytes` (`runtime.py::get_memory_limit_bytes`) / `get_cpu_quota_cores`
   (`runtime.py::get_cpu_quota_cores`) — cgroup v2 (`memory.max`, `cpu.max`) with v1 fallback;
+  the memory limit resolves the process's **own** (possibly nested) cgroup from
+  `/proc/self/cgroup` first (`_process_cgroup_memory_limit`), so a systemd
+  `MemoryMax=` or a service slice is honoured, then falls back to the mount root.
   `None` = unlimited/unknown. Unlike `os.cpu_count()`, the CPU quota reflects
-  container limits, not host hardware. Both are consumed by `hsync-client`:
-  the CPU quota sizes the parallel scan/hash pool (`_get_optimal_workers`), and
-  the memory limit additionally caps that pool inside containers (8 MiB/worker
-  budget); on bare metal the memory probe is `None` and only the CPU quota
-  applies.
+  container limits, not host hardware. Consumers: `hsync-client`
+  (`_get_optimal_workers`: the CPU quota sizes the parallel scan/hash pool and
+  the memory limit additionally caps it inside containers, 8 MiB/worker budget;
+  on bare metal the memory probe is `None` and only the CPU quota applies),
+  `hsync-bootnode` (`resources.py`), `runtime_summary`.
+- `total_memory_bytes` (`runtime.py::total_memory_bytes`) / `available_memory_bytes`
+  (`runtime.py::available_memory_bytes`) — `sysconf` physical RAM and
+  `/proc/meminfo` `MemAvailable` capped by the cgroup limit; `None` when the
+  source is unreadable (the bootnode then applies its conservative fallback).
 - `runtime_summary` (`runtime.py::runtime_summary`) — one-line startup log line composed
   from the probes above; logged by both client (`run_sync`) and server
   (`__main__`) at startup.

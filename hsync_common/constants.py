@@ -289,6 +289,12 @@ NTP_PORT = 123
 # hsync-client bare-host default, so the two can never drift.
 BOOT_DEFAULT_PORT = 443
 
+# Default TCP port of the sync server (HTTPS/WSS) when an endpoint carries no
+# explicit port. Single SSOT shared by the hsync-server ``Settings.port``
+# default, the hsync-client bare-host CLI and the hsync-desktop endpoint
+# grammar / trust pre-flight.
+SERVER_DEFAULT_PORT = 9753
+
 # Recommended ordered UDP port set for the boot/1 listener (opt-in multi-port;
 # the default remains the single BOOT_DEFAULT_PORT). First = canonical QUIC/HTTP3
 # (443, usually allowed); second = DNS (53, the most permissive UDP port, but

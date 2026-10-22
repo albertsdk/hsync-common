@@ -159,6 +159,14 @@ Wire models for rsync-style delta transfer (block-level sync):
 - `DeltaApplyMetadata` / `DeltaApplyMetadataDict` (`models/delta.py::DeltaApplyMetadata`):
   metadata for POST /delta/apply (upload delta) — includes cid, base/new SHA-256,
   new_size, block_size, compressed flag, ops, optional mtime/permissions
+- Response bodies are built by `delta_signatures_payload`
+  (`models/delta.py::delta_signatures_payload`) and `delta_download_payload`
+  (`models/delta.py::delta_download_payload`), typed as `DeltaSignaturesDict`
+  (`models/delta.py::DeltaSignaturesDict`) and `DeltaDownloadDict`
+  (`models/delta.py::DeltaDownloadDict`; the nested
+  `DeltaDownloadInstructionsDict` carries only `new_size` + `ops`, since the
+  hash and block size are response-level). Consumers: server delta endpoints and
+  the client P2P master, so the REST and P2P envelopes cannot drift.
 
 Sanitizers: `sanitize_block_signature` (`models/delta.py::sanitize_block_signature`),
 `sanitize_delta_op` (`models/delta.py::sanitize_delta_op`),

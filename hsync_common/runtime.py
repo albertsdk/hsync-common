@@ -80,6 +80,11 @@ _CGROUP_RUNTIME_MARKERS: Final[tuple[tuple[str, str], ...]] = (
 # (0x7FFFFFFFFFFFF000 on x86_64); anything at/above 2^62 means "unlimited".
 _V1_UNLIMITED_THRESHOLD: Final[int] = 1 << 62
 
+# The process's own cgroup membership (nested under the mount root for a systemd
+# service or a non-namespaced container) and the kernel's memory statistics.
+PROC_SELF_CGROUP_PATH: Final[Path] = Path("/proc/self/cgroup")
+MEMINFO_PATH: Final[Path] = Path("/proc/meminfo")
+
 
 # =============================================================================
 # Container detection
@@ -232,27 +237,111 @@ def _read_memory_limit_v2(root: Path) -> int | None:
     return value if value > 0 else None
 
 
-def _read_memory_limit_v1(root: Path) -> int | None:
-    """cgroup v1 memory limit; None when unlimited (sentinel)/unknown."""
-    value = _read_int_file(root / "memory" / "memory.limit_in_bytes")
+def _read_memory_limit_v1_dir(mem_dir: Path) -> int | None:
+    """cgroup v1 memory limit in *mem_dir*; None when unlimited (sentinel)/unknown."""
+    value = _read_int_file(mem_dir / "memory.limit_in_bytes")
     if value is None or value <= 0 or value >= _V1_UNLIMITED_THRESHOLD:
         return None
     return value
 
 
-def get_memory_limit_bytes(cgroup_root: Path = CGROUP_ROOT) -> int | None:
+def _read_memory_limit_v1(root: Path) -> int | None:
+    """cgroup v1 memory limit at the mount *root*; None when unlimited/unknown."""
+    return _read_memory_limit_v1_dir(root / "memory")
+
+
+def _process_cgroup_memory_limit(cgroup_root: Path, proc_self_cgroup: Path) -> int | None:
+    """Memory limit of the process's *own* cgroup, or None when not capped.
+
+    A systemd service and a container with a non-namespaced cgroup view run in a
+    nested cgroup: the mount-root ``memory.max`` is often ``max`` while the
+    enforced limit lives under the service's slice. The membership line names the
+    hierarchy (``0::/path`` for cgroup v2, ``N:memory:/path`` for v1), so the
+    candidate is resolved under ``cgroup_root`` and read with the matching parser.
+    """
+    raw = _read_cgroup_text(proc_self_cgroup)
+    if raw is None:
+        return None
+    for line in raw.splitlines():
+        parts = line.split(":", 2)
+        if len(parts) != 3 or not parts[2]:
+            continue
+        controllers, path = parts[1], parts[2].strip("/")
+        if controllers == "":
+            base = cgroup_root / path if path else cgroup_root
+            limit = _read_memory_limit_v2(base)
+        elif "memory" in controllers.split(","):
+            base = cgroup_root / "memory" / path if path else cgroup_root / "memory"
+            limit = _read_memory_limit_v1_dir(base)
+        else:
+            continue
+        if limit is not None:
+            return limit
+    return None
+
+
+def get_memory_limit_bytes(
+    cgroup_root: Path = CGROUP_ROOT,
+    proc_self_cgroup: Path = PROC_SELF_CGROUP_PATH,
+) -> int | None:
     """Effective RAM limit for this process in bytes.
 
-    Reads cgroup v2 first, then falls back to v1. Returns None when no
-    limit is set or the limit cannot be determined.
+    The process's own (possibly nested) cgroup is consulted first, then the
+    mount root: cgroup v2 is read via ``memory.max``, v1 via
+    ``memory.limit_in_bytes``. Returns None when no limit is set or none can be
+    determined.
 
     Consumers: hsync-client (``_get_optimal_workers`` bounds the parallel
-    local-file scan/hash pool by this limit, alongside the CPU quota).
+    local-file scan/hash pool by this limit, alongside the CPU quota),
+    hsync-bootnode (``resources.py`` sizes its in-memory ceilings),
+    ``runtime_summary``.
     """
+    limit = _process_cgroup_memory_limit(cgroup_root, proc_self_cgroup)
+    if limit is not None:
+        return limit
     limit = _read_memory_limit_v2(cgroup_root)
     if limit is not None:
         return limit
     return _read_memory_limit_v1(cgroup_root)
+
+
+def total_memory_bytes() -> int | None:
+    """Physical RAM visible to the process in bytes, or None when unknown."""
+    try:
+        pages = int(os.sysconf("SC_PHYS_PAGES"))
+        page_size = int(os.sysconf("SC_PAGE_SIZE"))
+    except (ValueError, OSError, AttributeError):
+        return None
+    if pages <= 0 or page_size <= 0:
+        return None
+    return pages * page_size
+
+
+def available_memory_bytes(
+    meminfo_path: Path = MEMINFO_PATH,
+    cgroup_root: Path = CGROUP_ROOT,
+    proc_self_cgroup: Path = PROC_SELF_CGROUP_PATH,
+) -> int | None:
+    """Currently available RAM in bytes, capped by the cgroup limit.
+
+    ``MemAvailable`` is preferred when readable; the cgroup limit caps the
+    result so a container cannot over-commit the host. Returns None when neither
+    the statistics nor a limit can be read.
+    """
+    limit = get_memory_limit_bytes(cgroup_root, proc_self_cgroup)
+    raw = _read_cgroup_text(meminfo_path)
+    if raw is not None:
+        for line in raw.splitlines():
+            if not line.startswith("MemAvailable:"):
+                continue
+            try:
+                available = int(line.split()[1]) * 1024
+            except (IndexError, ValueError):
+                break
+            if available > 0:
+                return min(available, limit) if limit is not None else available
+            break
+    return limit
 
 
 def _read_cpu_quota_v2(root: Path) -> float | None:

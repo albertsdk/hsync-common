@@ -31,12 +31,22 @@ from hsync_common.delta.rolling_checksum import (
     find_matches_to_sink,
     signatures_for_data,
 )
+from hsync_common.delta.token_store import (
+    DeltaTokenEntry,
+    DeltaTokenStore,
+    TokenStoreFull,
+    TokenStoreStorageFull,
+)
 
 __all__ = [
     "ADLER32_MOD",
     "APPLY_BUFFER_SIZE",
     "BoundedLiteralSink",
     "DeltaError",
+    "DeltaTokenEntry",
+    "DeltaTokenStore",
+    "TokenStoreFull",
+    "TokenStoreStorageFull",
     "adler32_roll",
     "apply_delta",
     "build_signature_index",

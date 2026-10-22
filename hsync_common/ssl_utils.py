@@ -18,8 +18,10 @@ a :data:`SERVICE_CERT_VALIDITY_DAYS` (20-year) lifetime with a backdated
 from __future__ import annotations
 
 import hashlib
+import os
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
@@ -27,6 +29,14 @@ from cryptography.hazmat.primitives.asymmetric import ec, ed25519, rsa
 
 # Default RSA key size in bits (good security/performance balance).
 DEFAULT_KEY_SIZE = 2048
+
+# Identity file permissions. The private key is always owner-only inside an
+# owner-only directory; the certificate is world-readable only when another
+# process must be served it (the sync server), and stays owner-only for the
+# client's P2P identity.
+KEY_FILE_MODE = 0o600
+PUBLIC_CERT_FILE_MODE = 0o644
+IDENTITY_DIR_MODE = 0o700
 
 # Validity of a long-lived, self-signed *service* identity (bootnode node key,
 # server TLS certificate): 20 years. Such an identity is authenticated by a
@@ -180,3 +190,70 @@ def fingerprint_from_der(cert_der: bytes) -> str:
 def verify_cert_fingerprint(cert_der: bytes, expected_fingerprint: str) -> bool:
     """Compare a DER-encoded certificate's SHA-256 fingerprint to the expected one."""
     return fingerprint_from_der(cert_der).lower() == expected_fingerprint.lower()
+
+
+def write_pem_keypair(
+    cert_pem: bytes,
+    key_pem: bytes,
+    cert_path: str | os.PathLike[str],
+    key_path: str | os.PathLike[str],
+    *,
+    cert_mode: int = KEY_FILE_MODE,
+    key_mode: int = KEY_FILE_MODE,
+    create_parents: bool = True,
+    chmod_parents: bool = False,
+) -> None:
+    """Write an identity pair with permission-enforced files.
+
+    Missing parent directories are created with :data:`IDENTITY_DIR_MODE` so the
+    key never sits in a directory other users can traverse. ``chmod_parents``
+    also tightens an *existing* parent (the client keeps its device directory
+    ``0o700`` unconditionally); the server leaves an operator-provided
+    certificate directory untouched. The key is written first, so a crash
+    between the two writes leaves the secret protected and no half identity that
+    a later load would accept (callers load only when both files exist).
+
+    Consumers: ``hsync-server`` (server TLS certificate), ``hsync-client``
+    (P2P master identity), tests.
+    """
+    cert = Path(cert_path)
+    key = Path(key_path)
+    if create_parents or chmod_parents:
+        for parent in {cert.parent, key.parent}:
+            if not parent.exists():
+                parent.mkdir(parents=True, exist_ok=True)
+                os.chmod(parent, IDENTITY_DIR_MODE)
+            elif chmod_parents:
+                os.chmod(parent, IDENTITY_DIR_MODE)
+    key.write_bytes(key_pem)
+    os.chmod(key, key_mode)
+    cert.write_bytes(cert_pem)
+    os.chmod(cert, cert_mode)
+
+
+def load_pem_keypair(
+    cert_path: str | os.PathLike[str],
+    key_path: str | os.PathLike[str],
+    *,
+    subject: str = "identity",
+) -> tuple[bytes, bytes, str]:
+    """Read a persisted identity pair; return cert PEM, key PEM and fingerprint.
+
+    The key must be an ECDSA private key (ADR-0037). A non-EC key is rejected
+    rather than silently used: the identity model is pinned, so an old or
+    foreign keypair must be deleted and regenerated, and a clear error is the
+    only safe behaviour. ``subject`` names the identity in the error message
+    (e.g. ``"P2P master identity"``).
+
+    Consumers: ``hsync-client`` (P2P master identity), tests.
+    """
+    cert_bytes = Path(cert_path).read_bytes()
+    key_bytes = Path(key_path).read_bytes()
+    cert = x509.load_pem_x509_certificate(cert_bytes)
+    key = serialization.load_pem_private_key(key_bytes, password=None)
+    if not isinstance(key, ec.EllipticCurvePrivateKey):
+        raise ValueError(
+            f"{subject} {Path(key_path)} must hold an ECDSA P-256 private "
+            "key; delete the keypair to regenerate it under the current model."
+        )
+    return cert_bytes, key_bytes, compute_cert_fingerprint(cert)

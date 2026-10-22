@@ -43,7 +43,10 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   node, or a single-element observed-source fallback), so the client can prefer
   a host/LAN candidate over the NATed public one.
 - Token helpers: `derive_bucket_token` (`HMAC-SHA256(key, "boot/1"||bucket)`),
-  `is_valid_bucket_token`, `constant_time_equals`, `verify_bucket_token`.
+  `is_valid_bucket_token`, `constant_time_equals`, `verify_bucket_token`. The
+  implementation (and the 64-hex grammar) is the protocol-neutral
+  `protocol/boot_tokens.py` (`boot_tokens.py::derive_bucket_token`), shared with
+  the bootnode daemon and re-exported here so the client import path is stable.
 - Fixture mirror `protocol/fixtures/bootnode-*.json` is byte-checked against the
   canonical bootnode fixtures by `tests/test_protocol_bootnode.py`.
 - Consumers: `hsync-client` (bootnode discovery), shared fixtures/tests.

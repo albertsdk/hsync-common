@@ -8,6 +8,7 @@ from hsync_common import runtime
 from hsync_common.runtime import (
     ColorMode,
     ContainerInfo,
+    available_memory_bytes,
     color_output_enabled,
     detect_container,
     get_cpu_quota_cores,
@@ -215,6 +216,60 @@ class TestMemoryLimit:
 
     def test_missing_files_mean_unknown(self, tmp_path):
         assert get_memory_limit_bytes(tmp_path) is None
+
+    def test_process_nested_cgroup_v2_limit_wins(self, tmp_path):
+        """A systemd/container service limit lives in its own nested cgroup."""
+        (tmp_path / "memory.max").write_text("8589934592\n")
+        nested = tmp_path / "system.slice" / "hsync-bootnode.service"
+        nested.mkdir(parents=True)
+        (nested / "memory.max").write_text("536870912\n")
+        proc = tmp_path / "self_cgroup"
+        proc.write_text("0::/system.slice/hsync-bootnode.service\n")
+        assert get_memory_limit_bytes(tmp_path, proc) == 536870912
+
+    def test_process_nested_cgroup_v1_limit(self, tmp_path):
+        mem = tmp_path / "memory"
+        (mem / "svc").mkdir(parents=True)
+        (mem / "svc" / "memory.limit_in_bytes").write_text("268435456\n")
+        proc = tmp_path / "self_cgroup"
+        proc.write_text("4:memory:/svc\n")
+        assert get_memory_limit_bytes(tmp_path, proc) == 268435456
+
+    def test_process_line_without_memory_controller_is_skipped(self, tmp_path):
+        (tmp_path / "memory.max").write_text("1073741824\n")
+        proc = tmp_path / "self_cgroup"
+        proc.write_text("3:cpu,cpuacct:/svc\n")
+        assert get_memory_limit_bytes(tmp_path, proc) == 1073741824
+
+    def test_process_root_path_reads_the_mount_root(self, tmp_path):
+        (tmp_path / "memory.max").write_text("536870912\n")
+        proc = tmp_path / "self_cgroup"
+        proc.write_text("0::/\n")
+        assert get_memory_limit_bytes(tmp_path, proc) == 536870912
+
+
+class TestAvailableMemory:
+    def test_meminfo_is_capped_by_the_cgroup_limit(self, tmp_path):
+        cgroup = tmp_path / "cg"
+        cgroup.mkdir()
+        (cgroup / "memory.max").write_text(f"{512 * 1024 * 1024}\n")
+        meminfo = tmp_path / "meminfo"
+        meminfo.write_text("MemTotal: 16384 kB\nMemAvailable: 1048576 kB\n")
+        assert (
+            available_memory_bytes(meminfo, cgroup, tmp_path / "no-self-cgroup")
+            == 512 * 1024 * 1024
+        )
+
+    def test_without_meminfo_the_limit_is_returned(self, tmp_path):
+        cgroup = tmp_path / "cg"
+        cgroup.mkdir()
+        (cgroup / "memory.max").write_text("268435456\n")
+        assert (
+            available_memory_bytes(tmp_path / "missing", cgroup, tmp_path / "no-self") == 268435456
+        )
+
+    def test_nothing_readable_is_unknown(self, tmp_path):
+        assert available_memory_bytes(tmp_path / "missing", tmp_path, tmp_path / "no") is None
 
 
 class TestCpuQuota:

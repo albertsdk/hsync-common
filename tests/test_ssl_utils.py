@@ -1,6 +1,7 @@
 """Tests for hsync_common.ssl_utils."""
 
 import hashlib
+import os
 
 import pytest
 from cryptography import x509
@@ -9,15 +10,20 @@ from cryptography.hazmat.primitives.asymmetric import ec, ed25519, rsa
 
 from hsync_common.ssl_utils import (
     DEFAULT_KEY_SIZE,
+    IDENTITY_DIR_MODE,
+    KEY_FILE_MODE,
+    PUBLIC_CERT_FILE_MODE,
     SERVICE_CERT_VALIDITY_DAYS,
     build_self_signed_certificate,
     compute_cert_fingerprint,
     generate_ecdsa_private_key,
     generate_ed25519_private_key,
     generate_rsa_private_key,
+    load_pem_keypair,
     serialize_cert_pem,
     serialize_private_key_unencrypted,
     verify_cert_fingerprint,
+    write_pem_keypair,
 )
 
 # ---------------------------------------------------------------------------
@@ -239,3 +245,67 @@ class TestEd25519:
         assert pem.startswith(b"-----BEGIN PRIVATE KEY-----")
         loaded = serialization.load_pem_private_key(pem, password=None)
         assert isinstance(loaded, ed25519.Ed25519PrivateKey)
+
+
+# ---------------------------------------------------------------------------
+# write_pem_keypair / load_pem_keypair
+# ---------------------------------------------------------------------------
+
+
+def _identity_material(key) -> tuple[bytes, bytes, str]:
+    """Cert PEM, key PEM and fingerprint for *key* (an ECDSA or RSA key)."""
+    cert = build_self_signed_certificate(
+        key,
+        subject_attrs=[x509.NameAttribute(x509.oid.NameOID.COMMON_NAME, "svc")],
+        san_list=[x509.DNSName("svc")],
+        validity_days=1,
+    )
+    return (
+        serialize_cert_pem(cert),
+        serialize_private_key_unencrypted(key),
+        compute_cert_fingerprint(cert),
+    )
+
+
+class TestPersistence:
+    def test_write_creates_protected_files_and_directories(self, tmp_path):
+        cert_pem, key_pem, _ = _identity_material(generate_ecdsa_private_key())
+        cert_path = tmp_path / "deep" / "dir" / "svc.crt"
+        key_path = tmp_path / "deep" / "dir" / "svc.key"
+
+        write_pem_keypair(cert_pem, key_pem, cert_path, key_path, cert_mode=PUBLIC_CERT_FILE_MODE)
+
+        assert cert_path.read_bytes() == cert_pem
+        assert key_path.read_bytes() == key_pem
+        assert (os.stat(key_path).st_mode & 0o777) == KEY_FILE_MODE
+        assert (os.stat(cert_path).st_mode & 0o777) == PUBLIC_CERT_FILE_MODE
+        assert (os.stat(cert_path.parent).st_mode & 0o777) == IDENTITY_DIR_MODE
+
+    def test_write_leaves_an_existing_parent_alone_unless_asked(self, tmp_path):
+        parent = tmp_path / "certs"
+        parent.mkdir()
+        os.chmod(parent, 0o755)  # umask-independent starting state
+        cert_pem, key_pem, _ = _identity_material(generate_ecdsa_private_key())
+
+        write_pem_keypair(cert_pem, key_pem, parent / "a.crt", parent / "a.key")
+        assert (os.stat(parent).st_mode & 0o777) == 0o755
+
+        write_pem_keypair(cert_pem, key_pem, parent / "b.crt", parent / "b.key", chmod_parents=True)
+        assert (os.stat(parent).st_mode & 0o777) == IDENTITY_DIR_MODE
+
+    def test_load_returns_the_stored_bytes_and_fingerprint(self, tmp_path):
+        cert_pem, key_pem, fingerprint = _identity_material(generate_ecdsa_private_key())
+        cert_path = tmp_path / "svc.crt"
+        key_path = tmp_path / "svc.key"
+        write_pem_keypair(cert_pem, key_pem, cert_path, key_path)
+
+        assert load_pem_keypair(cert_path, key_path) == (cert_pem, key_pem, fingerprint)
+
+    def test_load_rejects_a_non_ec_key(self, tmp_path):
+        cert_pem, key_pem, _ = _identity_material(generate_rsa_private_key())
+        cert_path = tmp_path / "svc.crt"
+        key_path = tmp_path / "svc.key"
+        write_pem_keypair(cert_pem, key_pem, cert_path, key_path)
+
+        with pytest.raises(ValueError, match="P2P master identity .* ECDSA P-256"):
+            load_pem_keypair(cert_path, key_path, subject="P2P master identity")

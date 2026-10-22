@@ -42,6 +42,8 @@ from hsync_common.models.delta import (
     OP_TYPE_DATA,
     BlockSignature,
     DeltaOp,
+    delta_download_payload,
+    delta_signatures_payload,
     sanitize_delta_op,
     sanitize_signature_list,
 )
@@ -563,3 +565,74 @@ class TestProperty:
         with open(out_path, "rb") as f:
             assert f.read() == bytes(new)
         assert len(literals) < size // 2  # delta actually saved bandwidth
+
+
+class TestDeltaResponseBuilders:
+    def test_signatures_payload_serializes_models(self):
+        sigs = [
+            BlockSignature(index=0, offset=0, length=4, weak=1, strong="a" * 64),
+            BlockSignature(index=1, offset=4, length=4, weak=2, strong="b" * 64),
+        ]
+        payload = delta_signatures_payload(
+            block_size=4, file_size=8, sha256="c" * 64, signatures=sigs
+        )
+        assert payload == {
+            "block_size": 4,
+            "file_size": 8,
+            "sha256": "c" * 64,
+            "signatures": [
+                {"index": 0, "offset": 0, "length": 4, "weak": 1, "strong": "a" * 64},
+                {"index": 1, "offset": 4, "length": 4, "weak": 2, "strong": "b" * 64},
+            ],
+        }
+
+    def test_signatures_payload_accepts_wire_dicts(self):
+        wire = [{"index": 0, "offset": 0, "length": 2, "weak": 7, "strong": "d" * 64}]
+        payload = delta_signatures_payload(
+            block_size=2, file_size=2, sha256="e" * 64, signatures=wire
+        )
+        assert payload["signatures"] == wire
+        assert payload["signatures"] is not wire  # a copy, not the caller's list
+
+    def test_download_payload_serializes_ops(self):
+        ops = [
+            DeltaOp(type=OP_TYPE_COPY, offset=0, length=4),
+            DeltaOp(type=OP_TYPE_DATA, length=2, data_offset=0),
+        ]
+        payload = delta_download_payload(
+            block_size=4,
+            new_sha256="f" * 64,
+            new_size=6,
+            ops=ops,
+            data_url="/b/bucket/files/delta/data/tok",
+            data_size=2,
+            compressed=True,
+        )
+        assert payload == {
+            "delta": True,
+            "block_size": 4,
+            "new_sha256": "f" * 64,
+            "instructions": {
+                "new_size": 6,
+                "ops": [
+                    {"type": OP_TYPE_COPY, "offset": 0, "length": 4, "data_offset": 0},
+                    {"type": OP_TYPE_DATA, "offset": 0, "length": 2, "data_offset": 0},
+                ],
+            },
+            "data_url": "/b/bucket/files/delta/data/tok",
+            "data_size": 2,
+            "compressed": True,
+        }
+
+    def test_download_instructions_stay_reduced(self):
+        """Hash and block size are top-level: the nested block carries size + ops only."""
+        payload = delta_download_payload(
+            block_size=4,
+            new_sha256="a" * 64,
+            new_size=0,
+            ops=[],
+            data_url="u",
+            data_size=0,
+            compressed=False,
+        )
+        assert set(payload["instructions"]) == {"new_size", "ops"}
