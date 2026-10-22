@@ -23,6 +23,12 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
   (`constants.py::SYNCSTATE_DIRNAME`); leftover `.hsynctombstones` / `.hsyncstate`
   (`constants.py::HSYNCTOMBSTONES_FILENAME`) stay
   rejected on the wire (ADR-0025).
+- State-dir resolution: `default_state_dir` (`state_paths.py::default_state_dir`)
+  owns the `HSYNC_STATE_DIR` → `$XDG_STATE_HOME/hsync` → `~/.local/state/hsync`
+  order, and `state_path` (`state_paths.py::state_path`) joins a relative item
+  under it while honouring a per-item env override. Every client/bootnode state
+  file (device identity, server/bootnode trust stores, p2p pins, bootnode
+  identity) resolves through it, so one state-dir override moves them together.
 - Adaptive chunk tiers: `CHUNK_SIZE_SMALL/MEDIUM/LARGE`
   (`constants.py::CHUNK_SIZE_SMALL`) gated by
   `FILE_SIZE_SMALL/MEDIUM` (`constants.py::FILE_SIZE_SMALL`). The sub-1MB tier is 256 KiB so a

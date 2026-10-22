@@ -15,7 +15,7 @@ wire shape. Re-exported from `hsync_common/models/__init__.py`.
 | `TombstoneStore` | `models/tombstone_store.py::TombstoneStore` | `TombstoneEntry` (`models/tombstone.py::TombstoneEntry`) | causal deletion markers (vclock merge); SQLite-backed; re-exported from `models/tombstone.py`; inherits `CausalStoreBase` (`models/_store_base.py::CausalStoreBase`) |
 | `SyncStateStore` / `FileVersion` | `models/version_store.py::SyncStateStore` / `models/version.py::FileVersion` | `FileVersion` TypedDict | 3-way merge state; SQLite-backed; `SyncStateStore` re-exported from `models/version.py`; inherits `CausalStoreBase` |
 | `StateDb` | `models/sqlstore.py` | — | per-folder SQLite DB (ADR-0025); `auto_vacuum=INCREMENTAL`; `vacuum()` / `incremental_vacuum(pages)` + `vacuum_state_db` / `incremental_vacuum_state_db` maintenance helpers; `reset_folder(folder_id)` drops one folder's `versions`+`tombstones` in one transaction (used by `hsync state reset`) while keeping the `folders`/`buckets` rows; `get_state_db` caches one connection per DB path behind a lock (thread-safe first use) and `reset_state_db_cache` closes them |
-| folder marker | `models/folder.py` | — | `.hsyncfolder` UUIDv4 + `default_state_dir` |
+| folder marker | `models/folder.py` | — | `.hsyncfolder` UUIDv4 + `default_state_dir` / `state_path` (state-dir layout shared by client and bootnode) |
 
 ## File
 

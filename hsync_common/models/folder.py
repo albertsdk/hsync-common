@@ -25,13 +25,13 @@ from pathlib import Path
 from hsync_common.constants import (
     AUTH_DB_FILENAME,
     HSYNC_STATE_DB_ENV,
-    HSYNC_STATE_DIR_ENV,
     HSYNCFOLDER_FILENAME,
     PARTIAL_DOWNLOAD_SUFFIX,
     SERVER_STATE_SUBDIR,
     STATE_INDEX_DB_FILENAME,
     SYNCSTATE_DIRNAME,
 )
+from hsync_common.state_paths import default_state_dir, state_path
 
 __all__ = [
     "client_state_db_dir",
@@ -44,6 +44,7 @@ __all__ = [
     "server_auth_db_path",
     "server_state_db_path",
     "state_db_override",
+    "state_path",
     "write_folder_marker",
 ]
 
@@ -62,20 +63,6 @@ def is_folder_id(value: object) -> bool:
     new folder silently when a well-formed id is required).
     """
     return isinstance(value, str) and _FOLDER_ID_RE.fullmatch(value) is not None
-
-
-def default_state_dir() -> Path:
-    """Return the installation state directory (not inside any bucket).
-
-    Resolution order: ``HSYNC_STATE_DIR``, then ``$XDG_STATE_HOME/hsync``,
-    then ``~/.local/state/hsync``. Consumers: ``hsync-client`` and
-    ``hsync-server``; tests override via the env var.
-    """
-    override = os.environ.get(HSYNC_STATE_DIR_ENV)
-    if override:
-        return Path(override)
-    base = os.environ.get("XDG_STATE_HOME") or os.path.join(Path.home(), ".local", "state")
-    return Path(base) / "hsync"
 
 
 def state_db_override() -> Path | None:
