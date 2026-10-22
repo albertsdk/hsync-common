@@ -924,7 +924,7 @@
     },
     "/api/v1/buckets/{bucket}/dirs": {
       "get": {
-        "description": "List directory metadata (path + permissions) in a bucket.\n\nDirectories carry no content hash and never appear in the ``/files``\nlisting, so this dedicated endpoint exposes their permissions for the\ndownload-only permission converge (\"remote wins\"): a peer applies a\ndivergent directory mode locally without any per-file event having\narrived.\n\nArgs:\n    bucket: Name of the bucket to list.\n\nReturns:\n    JSON response with a list of ``{\"path\": <bucket-relative>,\n    \"permissions\": <octal>}`` entries, sorted by path for determinism.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    BucketNotFoundError: If bucket does not exist.",
+        "description": "List directory metadata (path + permissions) in a bucket.\n\nDirectories carry no content hash and never appear in the ``/files``\nlisting, so this dedicated endpoint exposes their permissions for the\ndownload-only permission converge (\"remote wins\"): a peer applies a\ndivergent directory mode locally without any per-file event having\narrived.\n\nArgs:\n    bucket: Name of the bucket to list.\n\nReturns:\n    Streamed JSON array (chunked) of ``{\"path\": <bucket-relative>,\n    \"permissions\": <octal>}`` entries, in deterministic path order.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    BucketNotFoundError: If bucket does not exist.",
         "operationId": "get_dirs_api_v1_buckets__bucket__dirs_get",
         "parameters": [
           {
@@ -1024,7 +1024,7 @@
         ]
       },
       "get": {
-        "description": "List all files in a bucket or subdirectory.\n\nRecursively walks the directory tree and returns metadata for\nall non-hidden files, sorted by mtime ascending (oldest first)\nto prioritize updating older files.\n\nArgs:\n    bucket: Name of the bucket to list files from.\n    path: Optional subdirectory path within the bucket.\n\nReturns:\n    JSON response with list of file metadata dictionaries.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    InvalidPathError: If path is invalid.\n    BucketNotFoundError: If bucket does not exist.",
+        "description": "List all files in a bucket or subdirectory.\n\nRecursively walks the directory tree and streams metadata for all\nnon-hidden files as a JSON array, in deterministic path order. The array is\nproduced incrementally (chunked), so the server holds O(directory fanout +\none entry) rather than one dict per file; consumers collect the whole array\nand apply the ``mtime`` priority locally.\n\nArgs:\n    bucket: Name of the bucket to list files from.\n    path: Optional subdirectory path within the bucket.\n\nReturns:\n    Streamed JSON array of file metadata dictionaries.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    InvalidPathError: If path is invalid.\n    BucketNotFoundError: If bucket does not exist.",
         "operationId": "get_files_api_v1_buckets__bucket__files_get",
         "parameters": [
           {

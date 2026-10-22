@@ -14,6 +14,9 @@ from hsync_common.delta.decision import (
     is_delta_worthwhile,
     optimal_block_size,
 )
+from hsync_common.delta.literals import (
+    BoundedLiteralSink,
+)
 from hsync_common.delta.rolling_checksum import (
     ADLER32_MOD,
     APPLY_BUFFER_SIZE,
@@ -32,6 +35,7 @@ from hsync_common.delta.rolling_checksum import (
 __all__ = [
     "ADLER32_MOD",
     "APPLY_BUFFER_SIZE",
+    "BoundedLiteralSink",
     "DeltaError",
     "adler32_roll",
     "apply_delta",
