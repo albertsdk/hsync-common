@@ -14,6 +14,7 @@ from hsync_common.protocol.tls_trust import (
     TrustAction,
     TrustPolicy,
     evaluate_tls_trust,
+    resolve_trust_policy,
 )
 
 _FP_A = "a" * 64
@@ -71,3 +72,44 @@ class TestEvaluateTlsTrust:
         for malformed in ("not-a-fingerprint", "abcdef", "sha256:zz", "a" * 63):
             assert evaluate_tls_trust(policy, None, malformed) is TrustAction.refuse
             assert evaluate_tls_trust(policy, _FP_A, malformed) is TrustAction.refuse
+
+
+class TestResolveTrustPolicy:
+    """The flag/env precedence shared by every pinned transport."""
+
+    @pytest.mark.parametrize(
+        ("policy", "fingerprints", "tofu", "verify_ssl", "env_default", "expected"),
+        [
+            # --insecure wins over every other signal.
+            ("strict", (_FP_A,), True, False, "accept-new", TrustPolicy.none),
+            # An explicit pin beats TOFU and the flag/env value.
+            ("ask", (_FP_A,), True, True, "accept-new", TrustPolicy.strict),
+            # TOFU beats the flag/env value.
+            ("strict", (), True, True, "ask", TrustPolicy.accept_new),
+            # The flag beats the env default.
+            ("strict", (), False, True, "accept-new", TrustPolicy.strict),
+            # The env default applies when the flag is absent.
+            (None, (), False, True, "accept-new", TrustPolicy.accept_new),
+            # Nothing selects a policy: the transport fallback wins.
+            (None, (), False, True, None, TrustPolicy.ask),
+        ],
+    )
+    def test_precedence(self, policy, fingerprints, tofu, verify_ssl, env_default, expected):
+        assert (
+            resolve_trust_policy(policy, fingerprints, tofu, verify_ssl, env_default=env_default)
+            is expected
+        )
+
+    def test_fallback_is_transport_specific(self):
+        assert resolve_trust_policy(None, (), False, True) is TrustPolicy.ask
+        assert (
+            resolve_trust_policy(None, (), False, True, fallback=TrustPolicy.chain)
+            is TrustPolicy.chain
+        )
+
+    def test_unknown_policy_name_is_rejected(self):
+        # Silently falling back would disable an operator's explicit request.
+        with pytest.raises(ValueError):
+            resolve_trust_policy("bogus", (), False, True)
+        with pytest.raises(ValueError):
+            resolve_trust_policy(None, (), False, True, env_default="bogus")

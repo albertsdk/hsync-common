@@ -38,7 +38,7 @@ from enum import StrEnum
 
 from .pairing import parse_fingerprint
 
-__all__ = ["TrustAction", "TrustPolicy", "evaluate_tls_trust"]
+__all__ = ["TrustAction", "TrustPolicy", "evaluate_tls_trust", "resolve_trust_policy"]
 
 
 class TrustPolicy(StrEnum):
@@ -105,3 +105,45 @@ def evaluate_tls_trust(
     if observed == stored:
         return TrustAction.proceed
     return TrustAction.refuse
+
+
+def resolve_trust_policy(
+    policy: str | None,
+    fingerprints: tuple[str, ...],
+    tofu: bool,
+    verify_ssl: bool,
+    *,
+    env_default: str | None = None,
+    fallback: TrustPolicy = TrustPolicy.ask,
+) -> TrustPolicy:
+    """Resolve the effective :class:`TrustPolicy` from CLI flags and the environment.
+
+    One precedence for every pinned transport (bootnode, P2P master, sync server),
+    so the transports cannot drift: ``--insecure`` (``none``) > an explicit
+    ``--*-fingerprint`` pin (``strict``) > ``--*-tofu`` (``accept-new``) > the
+    ``--*-trust`` flag > the ``HSYNC_*_TRUST`` env default > *fallback*.
+
+    Args:
+        policy: The ``--*-trust`` flag value, if given.
+        fingerprints: Explicit pins from ``--*-fingerprint``.
+        tofu: Whether Trust-On-First-Use was requested.
+        verify_ssl: ``False`` for ``--insecure``, which disables pinning entirely.
+        env_default: Policy supplied by the environment (``HSYNC_*_TRUST``).
+        fallback: Policy when neither the flag nor the env selects one:
+            ``ask`` for a self-signed transport, ``chain`` for the sync server.
+
+    Raises:
+        ValueError: *policy* or *env_default* is not a :class:`TrustPolicy` member.
+
+    Consumers: ``hsync-client`` (``server_trust.resolve_server_trust`` and
+    ``main_logic._resolve_bootnode_trust``); the Android mirror resolves defaults
+    from the shared fixtures instead of this flag/env helper.
+    """
+    if not verify_ssl:
+        return TrustPolicy.none
+    if fingerprints:
+        return TrustPolicy.strict
+    if tofu:
+        return TrustPolicy.accept_new
+    explicit = policy or env_default
+    return TrustPolicy(explicit) if explicit else fallback

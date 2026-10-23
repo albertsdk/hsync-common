@@ -171,9 +171,18 @@ Wire models for rsync-style delta transfer (block-level sync):
 Sanitizers: `sanitize_block_signature` (`models/delta.py::sanitize_block_signature`),
 `sanitize_delta_op` (`models/delta.py::sanitize_delta_op`),
 `sanitize_signature_list` (`models/delta.py::sanitize_signature_list`),
-`sanitize_op_list` (`models/delta.py::sanitize_op_list`) — validate
+`sanitize_op_list` (`models/delta.py::sanitize_op_list`),
+`parse_op_payload` (`models/delta.py::parse_op_payload`) — validate
 untrusted payloads from peers, rejecting malformed shapes to prevent crashes
-or poisoning.
+or poisoning. `parse_op_payload` additionally builds the executable `DeltaOp`
+models, so both delta receivers (client download and P2P delta-apply) decode the
+wire shape through one function instead of a per-module comprehension.
+
+Policy resolution: `resolve_trust_policy`
+(`protocol/tls_trust.py::resolve_trust_policy`) — the flag/env precedence shared
+by every pinned transport (bootnode, P2P master, sync server). Only the fallback
+(`ask` vs `chain`) and the env source are transport-specific, so a new precedence
+rule is implemented once. `evaluate_tls_trust` remains the pure decision.
 
 ## Serialization & protocol tie-in
 

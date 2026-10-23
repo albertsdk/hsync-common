@@ -40,6 +40,7 @@ __all__ = [
     "DeltaSignaturesDict",
     "delta_download_payload",
     "delta_signatures_payload",
+    "parse_op_payload",
     "sanitize_block_signature",
     "sanitize_delta_op",
     "validate_op_bounds",
@@ -348,6 +349,35 @@ def sanitize_signature_list(value: object) -> list[BlockSignatureDict] | None:
 def sanitize_op_list(value: object) -> list[DeltaOpDict] | None:
     """Validate an untrusted op list, enforcing the wire count cap."""
     return _sanitize_list(value, cap=DELTA_MAX_OPS, sanitize_item=sanitize_delta_op)
+
+
+def parse_op_payload(value: object) -> list[DeltaOp] | None:
+    """Validate an untrusted op list and build the executable :class:`DeltaOp` models.
+
+    Combines :func:`sanitize_op_list` with model construction so both delta
+    receivers — the client's download path (``hsync-client/delta_transfer.py``)
+    and the master's delta-apply endpoint (``hsync-client/p2p_delta.py``) — decode
+    the same wire shape the same way. A local re-implementation would drift
+    silently, since a wrong field mapping only surfaces as a checksum mismatch
+    after the rebuild.
+
+    Bounds are still the caller's job (:func:`validate_op_bounds`): this function
+    only enforces the wire shape and the count cap.
+
+    Consumers: ``hsync-client`` (delta download and P2P delta apply).
+    """
+    clean = sanitize_op_list(value)
+    if clean is None:
+        return None
+    return [
+        DeltaOp(
+            type=op["type"],
+            offset=op["offset"],
+            length=op["length"],
+            data_offset=op["data_offset"],
+        )
+        for op in clean
+    ]
 
 
 def validate_op_bounds(

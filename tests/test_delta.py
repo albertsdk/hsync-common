@@ -48,6 +48,7 @@ from hsync_common.models.delta import (
     DeltaOp,
     delta_download_payload,
     delta_signatures_payload,
+    parse_op_payload,
     sanitize_delta_op,
     sanitize_signature_list,
 )
@@ -519,6 +520,18 @@ class TestSanitizers:
         assert (
             sanitize_delta_op({"type": "copy", "offset": True, "length": 1, "data_offset": 0})
             is None
+        )
+
+    def test_parse_op_payload_builds_models(self):
+        ops = parse_op_payload([DeltaOp.copy(10, 5).to_dict(), DeltaOp.data(2, 3).to_dict()])
+        assert ops == [DeltaOp.copy(10, 5), DeltaOp.data(2, 3)]
+
+    def test_parse_op_payload_rejects_invalid_payloads(self):
+        # Both delta receivers rely on this returning None rather than raising.
+        assert parse_op_payload("nope") is None
+        assert parse_op_payload([{"type": "copy"}]) is None
+        assert (
+            parse_op_payload([{"type": "wat", "offset": 0, "length": 1, "data_offset": 0}]) is None
         )
 
 
