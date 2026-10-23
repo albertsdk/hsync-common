@@ -62,7 +62,7 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
   canonicalization for scheme-less `HOST[:PORT]` values (unbracketed host when no
   port, else `[IPv6]:port`; empty ⇒ `None`). Consumers: `hsync-client`
   (`HSYNC_BOOTNODE` validator) and `hsync-desktop`
-  (`engine/endpoints.py::normalize_bootnode_endpoint`) so the GUI field and the
+  (`hsync-desktop/hsync_desktop/engine/endpoints.py::normalize_bootnode_endpoint`) so the GUI field and the
   client env var cannot normalize differently.
 - `build_https_url(hp, default_port)` (`endpoint.py::build_https_url`) — canonical HTTPS URL for
   a parsed endpoint (port always explicit); used by `hsync-client` CLI and env.
@@ -171,9 +171,9 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
   is the single receiver-side applier (sanitize → mode → OR-floor for
   directories → `chmod`; `skip_if_equal` avoids a redundant syscall and returns
   `None`). Consumers wrap it only for their own concern: client
-  `utils/permissions.py::set_permissions`/`set_permissions_on_dir` (sync,
+  `hsync-client/hsync_client/utils/permissions.py::set_permissions`/`set_permissions_on_dir` (sync,
   `skip_if_equal=True`, debug log) and server
-  `api/utils.py::set_permissions`/`set_directory_permissions`
+  `hsync-server/hsync_server/api/utils.py::set_permissions`/`set_directory_permissions`
   (`await to_thread(...)`). Metadata-only `PATCH …/files/permissions` (client
   `patch_permissions_remote`, server `api/files/permissions.py`) routes through
   the same wrappers. Tests: `hsync-common/tests/test_permissions.py`,
@@ -470,7 +470,7 @@ reconciliation, transfers, previews and server lines.
   its inverse: it parses `"500MB"`/`"2GB"`/`"0"` (binary multiples, `K`/`KiB`
   spellings accepted, `require_unit=True` rejects a bare non-zero number) into
   bytes, and is the single parser behind `--min-free-disk-space`,
-  `HSYNC_MIN_FREE_DISK_SPACE`, the WD OS5 field and `utils/throttle.py::parse_bandwidth`;
+  `HSYNC_MIN_FREE_DISK_SPACE`, the WD OS5 field and `hsync-client/hsync_client/utils/throttle.py::parse_bandwidth`;
   `format_duration` (`format.py::format_duration`)
   — `subsecond=True` renders sub-second durations as `"120ms"` / `"5.2s"` for
   transfer timing; default `False` preserves the whole-second compact style.
@@ -544,11 +544,11 @@ bucket-relative paths, deterministic order, streamed JSON array body:
 - One operator surface exists for that reserve: a size string (`"500MB"`,
   `"2GB"`, `"0"` = disabled) parsed by `format.py::parse_size` into bytes —
   `--min-free-disk-space` (client), `HSYNC_MIN_FREE_DISK_SPACE` (server,
-  `config.py::Settings.validate_min_free_disk_space`), the desktop spin box
+  `hsync-server/hsync_server/config.py::Settings.validate_min_free_disk_space`), the desktop spin box
   (whole MB, emitted as `"<n>MB"`) and the WD OS5 form.
-- Consumers: `hsync-server` `api/utils.py::ensure_disk_space`,
+- Consumers: `hsync-server` `hsync-server/hsync_server/api/utils.py::ensure_disk_space`,
   `hsync-client` `transfer.py` (per-download guard), `p2p_server.py`
-  (LAN-master upload guard) and `main_logic.py::_check_disk_space` (startup
+  (LAN-master upload guard) and `hsync-client/hsync_client/main_logic.py::_check_disk_space` (startup
   check) — all in bytes.
 
 ## ratelimit.py (shared token bucket)
