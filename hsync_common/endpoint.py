@@ -33,6 +33,7 @@ __all__ = [
     "build_https_url",
     "build_url",
     "format_authority",
+    "normalize_bare_endpoint",
     "parse_host_port",
     "parse_https_url",
     "parse_port_list",
@@ -262,3 +263,28 @@ def parse_https_url(raw: str) -> str:
     if urlsplit(value).query or urlsplit(value).fragment:
         raise ValueError(f"invalid server URL: {raw!r}")
     return value
+
+
+def normalize_bare_endpoint(raw: str | None) -> str | None:
+    """Canonicalize a scheme-less ``HOST[:PORT]`` value; empty yields ``None``.
+
+    Single definition of the "bare endpoint" normalization: the unbracketed host
+    when the input carries no port, otherwise the ``[IPv6]:port`` composite from
+    :func:`format_authority`. Values that already are canonical are returned
+    unchanged; invalid input raises :class:`ValueError` (from
+    :func:`parse_host_port`).
+
+    Used for channels that are not URLs (QUIC/UDP bootnode, discovery server) and
+    therefore must not gain a scheme or a default port.
+
+    Consumers: ``hsync-client`` (``HSYNC_BOOTNODE`` / ``--bootnode`` validator),
+    ``hsync-desktop`` (settings and wizard "discovery server" field), shared
+    tests.
+    """
+    value = (raw or "").strip()
+    if not value:
+        return None
+    endpoint = parse_host_port(value)
+    if endpoint.port is None:
+        return endpoint.host
+    return format_authority(endpoint.host, endpoint.port)

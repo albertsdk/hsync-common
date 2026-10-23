@@ -11,9 +11,12 @@ Permissions travel on the wire as an octal POSIX mode string (e.g. ``"644"``,
 
 This is the single source of truth shared by hsync-common, hsync-server and
 hsync-client; the Android client mirrors the same format.
+:func:`apply_remote_permissions` is the single *receiver-side* applier (server
+upload/download/delta, client download/metadata events).
 """
 
 import re
+from os import chmod
 from os import stat as os_stat
 
 # Permission bits we preserve: the standard rwx triplets plus the special bits
@@ -109,3 +112,49 @@ def get_permissions(obj_path: str) -> str:
         Octal permission string (e.g. ``"644"``).
     """
     return mode_to_octal(os_stat(obj_path).st_mode)
+
+
+def apply_remote_permissions(
+    obj_path: str,
+    permissions: str,
+    *,
+    directory: bool = False,
+    skip_if_equal: bool = False,
+) -> str | None:
+    """Apply a wire-supplied permission string to a local path.
+
+    Single implementation of the *receiver* rule shared by ``hsync-server`` and
+    ``hsync-client`` (full upload, download, delta apply, metadata events):
+    sanitize the peer value, convert it to a mode, OR the owner-access floor in
+    for directories, then chmod. Keeping it here means the security policy —
+    special bits stripped, owner always able to traverse its own storage —
+    cannot drift between the two receivers.
+
+    Args:
+        obj_path: File or directory to update.
+        permissions: Octal permission string received from a peer.
+        directory: Apply the :data:`OWNER_DIRECTORY_ACCESS` floor (directory
+            targets). A peer-supplied ``000`` must never lock the receiver out
+            of its own storage.
+        skip_if_equal: Skip the ``chmod`` syscall when the current mode already
+            matches (used by the client, which re-applies modes on every event).
+
+    Returns:
+        The octal mode actually applied, or ``None`` when *skip_if_equal* found
+        the mode already in place.
+
+    Raises:
+        ValueError: If *permissions* is not a valid octal permission string.
+    """
+    sanitized = sanitize_remote_permissions(permissions)
+    if skip_if_equal:
+        try:
+            if mode_to_octal(os_stat(obj_path).st_mode) == sanitized:
+                return None
+        except OSError:
+            pass  # missing path: let chmod raise the real error
+    mode = octal_to_mode(sanitized)
+    if directory:
+        mode |= OWNER_DIRECTORY_ACCESS
+    chmod(obj_path, mode)
+    return sanitized

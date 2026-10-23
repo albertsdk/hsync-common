@@ -14,8 +14,10 @@ Currently exposes loguru-safe formatting primitives:
   retry messages) or ``KeyError`` (e.g. JSON payloads).
 - :func:`safe_json_for_log` serializes any JSON-compatible object to a string
   via :func:`json.dumps` and then escapes its markup.
-- :func:`compact_json_bytes` serializes any JSON-compatible object to the
-  canonical compact UTF-8 wire form used across the LAN/peer protocol.
+- :func:`compact_json_str` / :func:`compact_json_bytes` serialize any
+  JSON-compatible object to the canonical compact wire form used across the
+  LAN/peer protocol (the ``str`` variant feeds text-frame transports such as
+  ``aiohttp`` ``send_str``).
 """
 
 from __future__ import annotations
@@ -45,20 +47,33 @@ def safe_json_for_log(obj: Any) -> str:
     return escape_loguru_markup(dumps(obj))
 
 
-def compact_json_bytes(obj: Any) -> bytes:
-    """Serialize *obj* to the canonical compact UTF-8 JSON wire form.
+def compact_json_str(obj: Any) -> str:
+    """Serialize *obj* to the canonical compact JSON wire form, as ``str``.
 
     ``ensure_ascii=False``, ``allow_nan=False`` and ``separators=(",", ":")``
     are the single canonical wire encoding: every LAN/peer payload must use it
     so peers never diverge on serialization.
 
-    Consumers: ``hsync-client`` (LAN master, inventory and peer-source payloads),
-    ``hsync-common`` (``protocol.peer_download._fits_encoded_limit``), shared
-    fixtures/tests.
+    Consumers: ``hsync-client`` (LAN master and slave, text frames over
+    ``aiohttp``/``websockets``), shared fixtures/tests. Use
+    :func:`compact_json_bytes` for byte-oriented transports.
     """
     return dumps(
         obj,
         ensure_ascii=False,
         allow_nan=False,
         separators=(",", ":"),
-    ).encode("utf-8")
+    )
+
+
+def compact_json_bytes(obj: Any) -> bytes:
+    """Serialize *obj* to the canonical compact UTF-8 JSON wire form.
+
+    Byte-oriented counterpart of :func:`compact_json_str`; one encoding rule,
+    two transports.
+
+    Consumers: ``hsync-server`` (streamed listing body), ``hsync-client`` (LAN
+    master responses, bootnode requests), ``hsync-common``
+    (``protocol.peer_download._fits_encoded_limit``), shared fixtures/tests.
+    """
+    return compact_json_str(obj).encode("utf-8")

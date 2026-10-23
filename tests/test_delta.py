@@ -23,7 +23,10 @@ from hsync_common.constants import (
     DELTA_BLOCK_SIZE_XLARGE,
 )
 from hsync_common.delta import (
+    MISMATCH_HASH,
+    MISMATCH_SIZE,
     DeltaError,
+    ReconstructionMismatch,
     adler32_roll,
     apply_delta,
     build_signature_index,
@@ -35,6 +38,7 @@ from hsync_common.delta import (
     find_matches_to_sink,
     is_delta_worthwhile,
     optimal_block_size,
+    reconstruct_and_verify,
     signatures_for_data,
 )
 from hsync_common.models.delta import (
@@ -636,3 +640,77 @@ class TestDeltaResponseBuilders:
             compressed=False,
         )
         assert set(payload["instructions"]) == {"new_size", "ops"}
+
+
+class TestReconstructAndVerify:
+    """The receiver-side invariant shared by server, LAN master and client."""
+
+    def _base(self, tmp_path):
+        base = tmp_path / "base.bin"
+        base.write_bytes(b"0123456789")
+        return base
+
+    def test_accepts_a_faithful_rebuild(self, tmp_path):
+        base = self._base(tmp_path)
+        ops = [DeltaOp(type="copy", offset=0, length=10, data_offset=0)]
+        target = tmp_path / "out.bin"
+
+        rebuilt = reconstruct_and_verify(
+            str(base),
+            ops,
+            b"",
+            str(target),
+            expected_sha256=sha256(b"0123456789").hexdigest(),
+            expected_size=10,
+        )
+
+        assert rebuilt == sha256(b"0123456789").hexdigest()
+        assert target.read_bytes() == b"0123456789"
+
+    def test_hash_mismatch_reports_the_reason_and_leaves_cleanup_to_the_caller(self, tmp_path):
+        base = self._base(tmp_path)
+        ops = [DeltaOp(type="copy", offset=0, length=10, data_offset=0)]
+        target = tmp_path / "out.bin"
+
+        with pytest.raises(ReconstructionMismatch) as excinfo:
+            reconstruct_and_verify(
+                str(base),
+                ops,
+                b"",
+                str(target),
+                expected_sha256="a" * 64,
+                expected_size=10,
+            )
+
+        assert excinfo.value.details["reason"] == MISMATCH_HASH
+        assert excinfo.value.details["expected_sha256"] == "a" * 64
+        assert target.exists()  # the caller owns the partial
+
+    def test_size_mismatch_is_detected(self, tmp_path, monkeypatch):
+        base = self._base(tmp_path)
+        ops = [DeltaOp(type="copy", offset=0, length=10, data_offset=0)]
+        target = tmp_path / "out.bin"
+        expected = sha256(b"0123456789").hexdigest()
+        monkeypatch.setattr("hsync_common.delta.reconstruct.compute_sha256", lambda _p: expected)
+
+        with pytest.raises(ReconstructionMismatch) as excinfo:
+            reconstruct_and_verify(
+                str(base), ops, b"", str(target), expected_sha256=expected, expected_size=99
+            )
+
+        assert excinfo.value.details["reason"] == MISMATCH_SIZE
+        assert excinfo.value.details["expected_size"] == 99
+
+    def test_is_a_delta_error(self, tmp_path):
+        base = self._base(tmp_path)
+        ops = [DeltaOp(type="copy", offset=0, length=10, data_offset=0)]
+
+        with pytest.raises(DeltaError):
+            reconstruct_and_verify(
+                str(base),
+                ops,
+                b"",
+                str(tmp_path / "out.bin"),
+                expected_sha256="b" * 64,
+                expected_size=10,
+            )

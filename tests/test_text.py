@@ -5,7 +5,14 @@
 
 from json import loads
 
-from hsync_common.text import escape_loguru_markup, safe_json_for_log
+import pytest
+
+from hsync_common.text import (
+    compact_json_bytes,
+    compact_json_str,
+    escape_loguru_markup,
+    safe_json_for_log,
+)
 
 
 class TestEscapeLoguruMarkup:
@@ -49,3 +56,27 @@ class TestSafeJsonForLog:
         result = safe_json_for_log(payload)
         roundtripped = loads(result.replace("{{", "{").replace("}}", "}"))
         assert roundtripped == payload
+
+
+class TestCompactJson:
+    """One canonical wire encoding: no whitespace, raw UTF-8, no NaN."""
+
+    def test_str_and_bytes_agree(self):
+        payload = [{"path": "dati-\u010d", "size": 3}]
+
+        assert compact_json_bytes(payload) == compact_json_str(payload).encode("utf-8")
+
+    def test_is_compact_and_keeps_unicode(self):
+        encoded = compact_json_str({"a": 1, "b": "x y"})
+
+        assert encoded == '{"a":1,"b":"x y"}'
+        assert compact_json_str({"p": "\u010d"}) == '{"p":"\u010d"}'
+
+    def test_rejects_nan(self):
+        with pytest.raises(ValueError):
+            compact_json_bytes({"v": float("nan")})
+
+    def test_roundtrips(self):
+        payload = {"peers": [{"cid": "abc", "port": 443}], "count": 1}
+
+        assert loads(compact_json_bytes(payload)) == payload

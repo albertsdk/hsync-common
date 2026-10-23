@@ -2,11 +2,13 @@
 
 import hashlib
 import os
+from datetime import UTC, datetime
 
 import pytest
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519, rsa
+from cryptography.x509.oid import NameOID
 
 from hsync_common.ssl_utils import (
     DEFAULT_KEY_SIZE,
@@ -16,9 +18,11 @@ from hsync_common.ssl_utils import (
     SERVICE_CERT_VALIDITY_DAYS,
     build_self_signed_certificate,
     compute_cert_fingerprint,
+    create_service_identity,
     generate_ecdsa_private_key,
     generate_ed25519_private_key,
     generate_rsa_private_key,
+    load_or_create_service_identity,
     load_pem_keypair,
     serialize_cert_pem,
     serialize_private_key_unencrypted,
@@ -309,3 +313,74 @@ class TestPersistence:
 
         with pytest.raises(ValueError, match="P2P master identity .* ECDSA P-256"):
             load_pem_keypair(cert_path, key_path, subject="P2P master identity")
+
+
+class TestServiceIdentityOperations:
+    """The shared load-or-create / create skeleton for service identities."""
+
+    @staticmethod
+    def _params():
+        return {
+            "subject_attrs": [x509.NameAttribute(NameOID.COMMON_NAME, "svc")],
+            "san_list": [x509.DNSName("localhost")],
+        }
+
+    def test_create_writes_an_ecdsa_identity(self, tmp_path):
+        identity = create_service_identity(
+            tmp_path / "svc.crt", tmp_path / "svc.key", **self._params()
+        )
+
+        assert identity.created is True
+        assert identity.fingerprint == compute_cert_fingerprint(
+            x509.load_pem_x509_certificate(identity.cert_pem)
+        )
+        assert os.path.exists(identity.cert_file)
+        assert oct(os.stat(identity.key_file).st_mode & 0o777) == oct(KEY_FILE_MODE)
+        assert identity.not_valid_after > datetime.now(UTC)
+
+    def test_create_honours_the_certificate_mode(self, tmp_path):
+        identity = create_service_identity(
+            tmp_path / "svc.crt",
+            tmp_path / "svc.key",
+            cert_mode=PUBLIC_CERT_FILE_MODE,
+            **self._params(),
+        )
+
+        assert oct(os.stat(identity.cert_file).st_mode & 0o777) == oct(PUBLIC_CERT_FILE_MODE)
+
+    def test_create_always_regenerates(self, tmp_path):
+        first = create_service_identity(tmp_path / "c.pem", tmp_path / "k.pem", **self._params())
+        second = create_service_identity(tmp_path / "c.pem", tmp_path / "k.pem", **self._params())
+
+        assert first.fingerprint != second.fingerprint
+
+    def test_load_or_create_generates_then_loads(self, tmp_path):
+        cert = tmp_path / "svc.crt"
+        key = tmp_path / "svc.key"
+
+        created = load_or_create_service_identity(cert, key, **self._params())
+        loaded = load_or_create_service_identity(cert, key, **self._params())
+
+        assert created.created is True
+        assert loaded.created is False
+        assert created.fingerprint == loaded.fingerprint
+        assert loaded.cert_pem == created.cert_pem
+
+    def test_a_partial_pair_is_never_accepted(self, tmp_path):
+        cert = tmp_path / "svc.crt"
+        key = tmp_path / "svc.key"
+        cert.write_bytes(b"")
+
+        identity = load_or_create_service_identity(cert, key, **self._params())
+
+        assert identity.created is True
+        assert key.exists()
+
+    def test_load_or_create_rejects_a_foreign_key_type(self, tmp_path):
+        cert_pem, key_pem, _ = _identity_material(generate_rsa_private_key())
+        cert = tmp_path / "svc.crt"
+        key = tmp_path / "svc.key"
+        write_pem_keypair(cert_pem, key_pem, cert, key)
+
+        with pytest.raises(ValueError, match="svc identity .* ECDSA P-256"):
+            load_or_create_service_identity(cert, key, subject="svc identity", **self._params())

@@ -39,9 +39,9 @@ __all__ = [
     "MAX_WAIT_TIMEOUT_DEFAULT",
     "MAX_WAIT_TIMEOUT_MAX",
     "MAX_WAIT_TIMEOUT_MIN",
-    "MIN_FREE_DISK_SPACE_MB_DEFAULT",
-    "MIN_FREE_DISK_SPACE_MB_MAX",
-    "MIN_FREE_DISK_SPACE_MB_MIN",
+    "MIN_FREE_DISK_SPACE_DEFAULT",
+    "MIN_FREE_DISK_SPACE_MAX",
+    "MIN_FREE_DISK_SPACE_MIN",
     "P2P_PEER_DOWNLOAD_DEFAULT",
     "P2P_PEER_READ_CAP_DEFAULT",
     "P2P_PEER_READ_CAP_MAX",
@@ -103,10 +103,14 @@ MASS_DELETE_GUARD_DEFAULT = True
 MASS_DELETE_THRESHOLD_DEFAULT = 50
 MASS_DELETE_PERCENT_DEFAULT = 50
 
-# Free-space pre-flight (MB) and the absolute per-file inbound cap (MB).
-MIN_FREE_DISK_SPACE_MB_DEFAULT = 500
-MIN_FREE_DISK_SPACE_MB_MIN = 0
-MIN_FREE_DISK_SPACE_MB_MAX = 100_000
+# Free-space pre-flight (bytes) and the absolute per-file inbound cap (MB).
+# The reserve is bytes because that is what ``shutil.disk_usage`` reports and
+# what both receivers store; the operator-facing surfaces (CLI flag, server
+# env var, WD OS5 form) accept a human-readable size string parsed by
+# ``hsync_common.format.parse_size``.
+MIN_FREE_DISK_SPACE_DEFAULT = 500 * 1024 * 1024  # 500 MiB
+MIN_FREE_DISK_SPACE_MIN = 0  # 0 = disabled
+MIN_FREE_DISK_SPACE_MAX = 100 * 1024 * 1024 * 1024  # 100 GiB
 MAX_INBOUND_SIZE_MB_DEFAULT = 10_240
 MAX_INBOUND_SIZE_MB_MIN = 0
 MAX_INBOUND_SIZE_MB_MAX = 10_000_000

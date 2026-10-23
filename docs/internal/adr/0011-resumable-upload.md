@@ -36,8 +36,8 @@ implemented in `api/files/upload.py`:
 - If the checksum doesn't match, the `.partial` file is deleted and the client
   must restart.
 - The server enforces a maximum upload size (`HSYNC_MAX_UPLOAD_SIZE`,
-  default 10 GB) and minimum free disk space (`HSYNC_MIN_FREE_DISK_SPACE`)
-  before accepting any upload.
+  default 10 GB) and minimum free disk space (`HSYNC_MIN_FREE_DISK_SPACE`,
+  default `500MB`; a size with an explicit unit) before accepting any upload.
 
 Alternatives rejected:
 

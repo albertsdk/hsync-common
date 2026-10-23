@@ -7,10 +7,42 @@ from hsync_common.endpoint import (
     build_https_url,
     build_url,
     format_authority,
+    normalize_bare_endpoint,
     parse_host_port,
     parse_https_url,
     parse_port_list,
 )
+
+
+class TestNormalizeBareEndpoint:
+    """The one canonicalization used by HSYNC_BOOTNODE and the desktop GUI."""
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            ("example.com", "example.com"),
+            ("example.com:443", "example.com:443"),
+            ("  example.com  ", "example.com"),
+            ("[::1]", "::1"),
+            ("[::1]:443", "[::1]:443"),
+            ("::1", "::1"),
+        ],
+    )
+    def test_canonical_forms(self, raw: str, expected: str):
+        assert normalize_bare_endpoint(raw) == expected
+
+    @pytest.mark.parametrize("raw", [None, "", "   "])
+    def test_empty_is_none(self, raw: str | None):
+        assert normalize_bare_endpoint(raw) is None
+
+    @pytest.mark.parametrize("raw", ["https://example.com", "example.com:0", "host:port"])
+    def test_invalid_raises(self, raw: str):
+        with pytest.raises(ValueError):
+            normalize_bare_endpoint(raw)
+
+    def test_idempotent(self):
+        once = normalize_bare_endpoint("[::1]:443")
+        assert normalize_bare_endpoint(once) == once
 
 
 @pytest.mark.parametrize(

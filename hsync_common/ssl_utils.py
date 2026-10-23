@@ -5,14 +5,17 @@
 Shared SSL/TLS primitives for HSYNC projects.
 
 Low-level helpers for self-signed certificate generation, PEM serialization
-and fingerprint handling. Higher-level wrappers (p2p certs in the client,
-file-backed server certs in the server) live in the consumer projects.
+and fingerprint handling, plus the two identity operations every service
+shares (:func:`create_service_identity` for rotation,
+:func:`load_or_create_service_identity` for normal startup). Consumers only
+supply their subject/SAN/file-name parameters.
 
-Service identities (the bootnode node key and the server TLS certificate)
-follow one shared model (ADR-0037): ECDSA P-256, an unencrypted PKCS#8 key
-guarded by ``0o600``/``0o700`` filesystem permissions instead of a passphrase,
-a :data:`SERVICE_CERT_VALIDITY_DAYS` (20-year) lifetime with a backdated
-``NotBefore``, and rotation announced by fingerprint.
+Service identities (the bootnode node key, the server TLS certificate and the
+client's P2P master certificate) follow one shared model (ADR-0037): ECDSA
+P-256, an unencrypted PKCS#8 key guarded by ``0o600``/``0o700`` filesystem
+permissions instead of a passphrase, a :data:`SERVICE_CERT_VALIDITY_DAYS`
+(20-year) lifetime with a backdated ``NotBefore``, and rotation announced by
+fingerprint.
 """
 
 from __future__ import annotations
@@ -20,6 +23,7 @@ from __future__ import annotations
 import hashlib
 import os
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -257,3 +261,158 @@ def load_pem_keypair(
             "key; delete the keypair to regenerate it under the current model."
         )
     return cert_bytes, key_bytes, compute_cert_fingerprint(cert)
+
+
+@dataclass(frozen=True, slots=True)
+class ServiceIdentity:
+    """A persisted self-signed service keypair plus its fingerprint.
+
+    Attributes:
+        cert_pem: Certificate PEM bytes (as loaded or generated).
+        key_pem: Unencrypted PKCS#8 private-key PEM bytes.
+        fingerprint: ``sha256:<hex>``-style bare hex digest of the certificate
+            (see :func:`compute_cert_fingerprint`).
+        cert_file: Path the certificate was read from / written to.
+        key_file: Path the private key was read from / written to.
+        created: ``True`` when this call generated the keypair, ``False`` when
+            an existing one was loaded (consumers log the distinction).
+        not_valid_after: Certificate expiry (UTC), for operator warnings.
+
+    Consumers: ``hsync-server`` (``ssl_utils.ensure_certificates``),
+    ``hsync-client`` (``ssl_utils.load_or_create_master_cert``), tests.
+    """
+
+    cert_pem: bytes
+    key_pem: bytes
+    fingerprint: str
+    cert_file: str
+    key_file: str
+    created: bool
+    not_valid_after: datetime
+
+
+def create_service_identity(
+    cert_path: str | os.PathLike[str],
+    key_path: str | os.PathLike[str],
+    *,
+    subject_attrs: Sequence[x509.NameAttribute],
+    san_list: Sequence[x509.GeneralName],
+    validity_days: int = SERVICE_CERT_VALIDITY_DAYS,
+    cert_mode: int = KEY_FILE_MODE,
+    chmod_parents: bool = False,
+) -> ServiceIdentity:
+    """Generate and persist a fresh ECDSA P-256 service identity (overwrites).
+
+    The single *generation* implementation: a bootnode/server/client identity
+    differs only in its subject, SANs, file names and certificate mode, so this
+    function takes those as parameters instead of being copied per project.
+    Used directly by rotation paths that must always regenerate.
+
+    Args:
+        cert_path: Destination of the certificate PEM.
+        key_path: Destination of the unencrypted PKCS#8 private key.
+        subject_attrs: X.509 name attributes for subject and issuer.
+        san_list: Subject Alternative Names.
+        validity_days: Certificate lifetime; pass
+            :data:`SERVICE_CERT_VALIDITY_DAYS` for a pinned identity.
+        cert_mode: File mode for the certificate (owner-only for P2P, world
+            readable when another process must be served it).
+        chmod_parents: Also tighten an *existing* parent directory to
+            :data:`IDENTITY_DIR_MODE` (client device dir).
+
+    Returns:
+        The generated :class:`ServiceIdentity` with ``created=True``.
+
+    Raises:
+        OSError: If the files cannot be written.
+    """
+    private_key = generate_ecdsa_private_key()
+    certificate = build_self_signed_certificate(
+        private_key,
+        subject_attrs=subject_attrs,
+        san_list=san_list,
+        validity_days=validity_days,
+    )
+    cert_pem = serialize_cert_pem(certificate)
+    key_pem = serialize_private_key_unencrypted(private_key)
+    write_pem_keypair(
+        cert_pem,
+        key_pem,
+        cert_path,
+        key_path,
+        cert_mode=cert_mode,
+        key_mode=KEY_FILE_MODE,
+        chmod_parents=chmod_parents,
+    )
+    return ServiceIdentity(
+        cert_pem=cert_pem,
+        key_pem=key_pem,
+        fingerprint=compute_cert_fingerprint(certificate),
+        cert_file=str(cert_path),
+        key_file=str(key_path),
+        created=True,
+        not_valid_after=certificate.not_valid_after_utc,
+    )
+
+
+def load_or_create_service_identity(
+    cert_path: str | os.PathLike[str],
+    key_path: str | os.PathLike[str],
+    *,
+    subject_attrs: Sequence[x509.NameAttribute],
+    san_list: Sequence[x509.GeneralName],
+    validity_days: int = SERVICE_CERT_VALIDITY_DAYS,
+    subject: str = "service identity",
+    cert_mode: int = KEY_FILE_MODE,
+    chmod_parents: bool = False,
+) -> ServiceIdentity:
+    """Load the persisted keypair at the given paths, generating it on first use.
+
+    Single definition of the load-or-create skeleton shared by every HSYNC
+    service identity: ``both files exist`` → load; otherwise generate (see
+    :func:`create_service_identity`). Consumers only supply their identity
+    parameters, so the "a partial pair is never accepted" rule and the key-first
+    write order cannot drift.
+
+    Args:
+        cert_path: Certificate PEM path.
+        key_path: Private-key PEM path.
+        subject_attrs: X.509 name attributes used when generating.
+        san_list: Subject Alternative Names used when generating.
+        validity_days: Certificate lifetime used when generating.
+        subject: Name of the identity in error messages (e.g.
+            ``"P2P master identity"``).
+        cert_mode: File mode for the certificate.
+        chmod_parents: Also tighten an existing parent directory.
+
+    Returns:
+        The loaded or generated :class:`ServiceIdentity`; ``created`` says which.
+
+    Raises:
+        ValueError: When an existing key is not ECDSA P-256 (see
+            :func:`load_pem_keypair`).
+        OSError: If an existing pair cannot be read or a new one written.
+    """
+    cert = Path(cert_path)
+    key = Path(key_path)
+    if cert.exists() and key.exists():
+        cert_pem, key_pem, fingerprint = load_pem_keypair(cert, key, subject=subject)
+        certificate = x509.load_pem_x509_certificate(cert_pem)
+        return ServiceIdentity(
+            cert_pem=cert_pem,
+            key_pem=key_pem,
+            fingerprint=fingerprint,
+            cert_file=str(cert),
+            key_file=str(key),
+            created=False,
+            not_valid_after=certificate.not_valid_after_utc,
+        )
+    return create_service_identity(
+        cert,
+        key,
+        subject_attrs=subject_attrs,
+        san_list=san_list,
+        validity_days=validity_days,
+        cert_mode=cert_mode,
+        chmod_parents=chmod_parents,
+    )

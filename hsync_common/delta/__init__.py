@@ -17,6 +17,12 @@ from hsync_common.delta.decision import (
 from hsync_common.delta.literals import (
     BoundedLiteralSink,
 )
+from hsync_common.delta.reconstruct import (
+    MISMATCH_HASH,
+    MISMATCH_SIZE,
+    ReconstructionMismatch,
+    reconstruct_and_verify,
+)
 from hsync_common.delta.rolling_checksum import (
     ADLER32_MOD,
     APPLY_BUFFER_SIZE,
@@ -45,6 +51,9 @@ __all__ = [
     "DeltaError",
     "DeltaTokenEntry",
     "DeltaTokenStore",
+    "MISMATCH_HASH",
+    "MISMATCH_SIZE",
+    "ReconstructionMismatch",
     "TokenStoreFull",
     "TokenStoreStorageFull",
     "adler32_roll",
@@ -58,5 +67,6 @@ __all__ = [
     "find_matches_to_sink",
     "is_delta_worthwhile",
     "optimal_block_size",
+    "reconstruct_and_verify",
     "signatures_for_data",
 ]

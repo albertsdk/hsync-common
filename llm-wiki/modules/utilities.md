@@ -58,6 +58,12 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
   empty hosts are rejected with `ValueError`.
 - `HostPort` (`endpoint.py::HostPort`) frozen dataclass: `host` (unbracketed) +
   `port: int | None`; `authority` brackets an IPv6 host for URLs/display.
+- `normalize_bare_endpoint` (`endpoint.py::normalize_bare_endpoint`) — the single
+  canonicalization for scheme-less `HOST[:PORT]` values (unbracketed host when no
+  port, else `[IPv6]:port`; empty ⇒ `None`). Consumers: `hsync-client`
+  (`HSYNC_BOOTNODE` validator) and `hsync-desktop`
+  (`engine/endpoints.py::normalize_bootnode_endpoint`) so the GUI field and the
+  client env var cannot normalize differently.
 - `build_https_url(hp, default_port)` (`endpoint.py::build_https_url`) — canonical HTTPS URL for
   a parsed endpoint (port always explicit); used by `hsync-client` CLI and env.
 - `parse_https_url(raw)` (`endpoint.py::parse_https_url`) — validates an explicit `https://` URL
@@ -100,6 +106,14 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
   `signatures_for_data(data, block_size)` (in-memory twin for fixture/test
   builders) share the same per-chunk weak+strong helper, so the two paths
   cannot drift.
+- `reconstruct_and_verify` (`delta/reconstruct.py::reconstruct_and_verify`) — the
+  receiver-side invariant: apply the ops into the caller's `*.delta.part`, then
+  prove the rebuild with `expected_sha256` + `expected_size`, raising
+  `ReconstructionMismatch` (`delta/reconstruct.py::ReconstructionMismatch`, a
+  `DeltaError` whose `details["reason"]` is `MISMATCH_HASH`/`MISMATCH_SIZE`).
+  Consumers: server `api/files/delta/apply.py`, client
+  `p2p_delta.handle_delta_apply` and `delta_transfer.download_file_delta`, each
+  mapping the reason to its own error surface.
 
 ## compression.py (Zstandard, level 3)
 
@@ -151,10 +165,19 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
     peer-supplied strings, so `"4755"` is applied as `"755"`. A remote peer can
     never create a setuid/setgid/sticky object on this host.
   - *Directory floor*: `OWNER_DIRECTORY_ACCESS = 0o700` (`permissions.py::OWNER_DIRECTORY_ACCESS`) is OR-ed onto
-    peer-supplied directory modes by the apply helpers (client
-    `set_permissions_on_dir`, server `set_directory_permissions`) so a peer
-    `000` can never lock the storage owner out of its own tree.
-- Apply wiring: client `hsync_client/utils.py` `_apply_permissions`/`set_permissions`/`set_permissions_on_dir`; server `hsync_server/api/utils.py` `set_permissions`/`set_directory_permissions`; metadata-only `PATCH …/files/permissions` (client `patch_permissions_remote`, server `api/files/permissions.py`). Tests: `hsync-common/tests/test_permissions.py`, `hsync-client/tests/test_security_inbound.py`.
+    peer-supplied directory modes by the apply helper so a peer `000` can never
+    lock the storage owner out of its own tree.
+- Apply: `apply_remote_permissions` (`permissions.py::apply_remote_permissions`)
+  is the single receiver-side applier (sanitize → mode → OR-floor for
+  directories → `chmod`; `skip_if_equal` avoids a redundant syscall and returns
+  `None`). Consumers wrap it only for their own concern: client
+  `utils/permissions.py::set_permissions`/`set_permissions_on_dir` (sync,
+  `skip_if_equal=True`, debug log) and server
+  `api/utils.py::set_permissions`/`set_directory_permissions`
+  (`await to_thread(...)`). Metadata-only `PATCH …/files/permissions` (client
+  `patch_permissions_remote`, server `api/files/permissions.py`) routes through
+  the same wrappers. Tests: `hsync-common/tests/test_permissions.py`,
+  `hsync-client/tests/test_security_inbound.py`.
 
 ## path_validation.py
 
@@ -227,6 +250,16 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
   `IDENTITY_DIR_MODE`) and of loading one back (ECDSA-only validation, stable
   fingerprint). Consumers: `hsync-server` (server TLS certificate, public
   `0o644` cert) and `hsync-client` (P2P master identity, owner-only pair).
+- Identity operations: `create_service_identity` (`ssl_utils.py::create_service_identity`,
+  always regenerates — rotation) and `load_or_create_service_identity`
+  (`ssl_utils.py::load_or_create_service_identity`, loads when both files exist,
+  else generates) returning `ServiceIdentity`
+  (`ssl_utils.py::ServiceIdentity`: cert/key PEM, fingerprint, paths, `created`,
+  `not_valid_after`). Consumers supply only subject/SAN/file modes:
+  `hsync-server` `ssl_utils.generate_self_signed_cert` (rotation) and
+  `ensure_certificates` (an operator-provided pair is used as-is, any key type),
+  `hsync-client` `ssl_utils.load_or_create_master_cert`. The bootnode keeps its
+  own combined-PEM load/rotate (single-file identity + key/cert match check).
 
 ## logger.py
 
@@ -373,10 +406,14 @@ reconciliation, transfers, previews and server lines.
   `STABILITY_DELAY_DEFAULT`, `RECONNECT_DELAY_DEFAULT`,
   `SYNC_DIRECTION_DEFAULT`, `MAX_CONCURRENT_TRANSFERS_DEFAULT`,
   `MASS_DELETE_GUARD_DEFAULT`, `MASS_DELETE_THRESHOLD_DEFAULT`,
-  `MASS_DELETE_PERCENT_DEFAULT`, `MIN_FREE_DISK_SPACE_MB_DEFAULT`,
+  `MASS_DELETE_PERCENT_DEFAULT`, `MIN_FREE_DISK_SPACE_DEFAULT`,
   `MAX_INBOUND_SIZE_MB_DEFAULT`, `BANDWIDTH_MIN_BPS`, `BANDWIDTH_MAX_BPS`,
   `MAX_WAIT_TIMEOUT_DEFAULT`, `P2P_PEER_DOWNLOAD_DEFAULT`,
   `P2P_PEER_READ_CAP_DEFAULT` and `P2P_PEER_SOURCES_MAX_DEFAULT`.
+- `MIN_FREE_DISK_SPACE_DEFAULT`/`_MIN`/`_MAX` are **bytes** (500 MiB / 0 /
+  100 GiB): the unit `shutil.disk_usage` reports. The operator-facing form is a
+  size string parsed by `format.py::parse_size` (see `disk.py` below); the
+  desktop derives its MB spin-box bounds with `disk.py::BYTES_PER_MB`.
 - The accepted range of every bounded knob lives here too: the `*_MIN`/`*_MAX`
   pairs for HTTP timeout, stability delay, max-wait timeout, reconnect delay,
   resync interval, concurrent transfers, free-space/inbound caps and the p2p
@@ -429,7 +466,12 @@ reconciliation, transfers, previews and server lines.
 ## format.py / time_utils.py / text.py / env.py / exceptions.py
 
 - `format_bytes` (`format.py::format_bytes`) renders compact binary units with **no
-  separating space** (`"500B"`, `"1.5MB"`); `format_duration` (`format.py::format_duration`)
+  separating space** (`"500B"`, `"1.5MB"`); `parse_size` (`format.py::parse_size`) is
+  its inverse: it parses `"500MB"`/`"2GB"`/`"0"` (binary multiples, `K`/`KiB`
+  spellings accepted, `require_unit=True` rejects a bare non-zero number) into
+  bytes, and is the single parser behind `--min-free-disk-space`,
+  `HSYNC_MIN_FREE_DISK_SPACE`, the WD OS5 field and `utils/throttle.py::parse_bandwidth`;
+  `format_duration` (`format.py::format_duration`)
   — `subsecond=True` renders sub-second durations as `"120ms"` / `"5.2s"` for
   transfer timing; default `False` preserves the whole-second compact style.
 - `time_utils.to_epoch` (`time_utils.py::to_epoch`) treats **naive datetimes as UTC**
@@ -437,9 +479,10 @@ reconciliation, transfers, previews and server lines.
   caller's local timezone. `to_iso` and `conflict_timestamp` reject naive
   datetimes instead.
 - `escape_loguru_markup` (`text.py::escape_loguru_markup`), `safe_json_for_log` (`text.py::safe_json_for_log`),
-  `compact_json_bytes` (`text.py::compact_json_bytes`): the single canonical compact wire-JSON
-  encoder (`ensure_ascii=False`, `allow_nan=False`, `separators=(",", ":")`),
-  shared by the hsync-client LAN payloads and `protocol.peer_download` limits.
+  `compact_json_str` / `compact_json_bytes` (`text.py::compact_json_str`): the single canonical compact
+  wire-JSON encoder (`ensure_ascii=False`, `allow_nan=False`, `separators=(",", ":")`), shared by
+  the hsync-client LAN payloads (byte responses and `aiohttp`/`websockets` text frames),
+  the hsync-server streamed listing body and `protocol.peer_download` limits.
 - `load_env_file` (`env.py::load_env_file`).
 - `HSyncError` base (`exceptions.py::HSyncError`) with `to_dict()` JSON
   serialization; each project subclasses it with its own `error_code` /
@@ -463,6 +506,50 @@ reconciliation, transfers, previews and server lines.
   accepts an `http_post` transport seam.
 - Consumers: `hsync-client` `upnp.py` (`UpnpMapper`, TCP), `hsync-bootnode/python`
   `upnp.py` (`UpnpManager`, UDP; re-exports the core for its tests/fuzz).
+
+## listing.py (bucket listing SSOT)
+
+The bucket listing published to peers is the same on every surface — hidden /
+ignored entries filtered, symlinks emitted structurally and never dereferenced,
+bucket-relative paths, deterministic order, streamed JSON array body:
+
+- `iter_json_array` (`listing.py::iter_json_array`) — `[` / item / `,` / `]`
+  generator using `compact_json_bytes`; consumed by the server's
+  `StreamingResponse` (`get_files`, `get_dirs`).
+- `iter_dir_entries` (`listing.py::iter_dir_entries`) — `{path, permissions}` per
+  directory (dir-symlinks skipped); server `GET …/dirs` and client
+  `p2p_server._handle_list_dirs`.
+- `iter_bucket_entries` (`listing.py::iter_bucket_entries`) — `(abs_path,
+  Symlink | None)` walk with the hidden filters and the
+  `is_safe_symlink_target` confinement check; `start_dir` (server subdirectory
+  listing), `skip_suffixes` (server `BACKUP_SUFFIX`) and
+  `include_dir_symlinks` (server lists dir-symlinks, the client's sync scan does
+  not). Consumers: `hsync-client` `sync.iter_bucket_entries` (wrapper) and
+  `p2p_server._handle_list_files`, `hsync-server`
+  `api/files/list.py._iter_file_entries`.
+- `file_entry` (`listing.py::file_entry`) / `symlink_entry`
+  (`listing.py::symlink_entry`) — the wire dict with a bucket-relative
+  `filepath` (a path outside the bucket is kept verbatim); `symlink_entry`
+  returns `None` for an escaping target.
+
+## disk.py (free-space guards)
+
+- `check_free_space` (`disk.py::check_free_space`) — the single "can this
+  filesystem hold the write" rule: `free >= reserve_bytes + incoming_bytes`,
+  returning `FreeSpaceCheck` (`disk.py::FreeSpaceCheck`: `ok`, `free_bytes`,
+  `required_bytes`, `error`, plus `free_mb`/`required_mb` for messages). A probe
+  failure (`OSError`) yields `ok=True` + `error`, never a rejection; a
+  non-positive reserve disables the check. The reserve is always **bytes**: the
+  unit `shutil.disk_usage` reports and the one every consumer stores.
+- One operator surface exists for that reserve: a size string (`"500MB"`,
+  `"2GB"`, `"0"` = disabled) parsed by `format.py::parse_size` into bytes —
+  `--min-free-disk-space` (client), `HSYNC_MIN_FREE_DISK_SPACE` (server,
+  `config.py::Settings.validate_min_free_disk_space`), the desktop spin box
+  (whole MB, emitted as `"<n>MB"`) and the WD OS5 form.
+- Consumers: `hsync-server` `api/utils.py::ensure_disk_space`,
+  `hsync-client` `transfer.py` (per-download guard), `p2p_server.py`
+  (LAN-master upload guard) and `main_logic.py::_check_disk_space` (startup
+  check) — all in bytes.
 
 ## ratelimit.py (shared token bucket)
 

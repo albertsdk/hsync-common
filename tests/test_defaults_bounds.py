@@ -47,10 +47,10 @@ BOUNDED_KNOBS = [
         defaults.MAX_CONCURRENT_TRANSFERS_MAX,
     ),
     (
-        "MIN_FREE_DISK_SPACE_MB",
-        defaults.MIN_FREE_DISK_SPACE_MB_MIN,
-        defaults.MIN_FREE_DISK_SPACE_MB_DEFAULT,
-        defaults.MIN_FREE_DISK_SPACE_MB_MAX,
+        "MIN_FREE_DISK_SPACE",
+        defaults.MIN_FREE_DISK_SPACE_MIN,
+        defaults.MIN_FREE_DISK_SPACE_DEFAULT,
+        defaults.MIN_FREE_DISK_SPACE_MAX,
     ),
     (
         "MAX_INBOUND_SIZE_MB",

@@ -5,7 +5,7 @@
 
 import pytest
 
-from hsync_common.format import format_bytes, format_duration
+from hsync_common.format import format_bytes, format_duration, parse_size
 
 
 class TestFormatBytes:
@@ -88,3 +88,61 @@ class TestFormatDuration:
     def test_subsecond_has_no_effect_on_clock_style(self):
         # subsecond only affects the compact style
         assert format_duration(0.5, style="clock", subsecond=True) == "0:00"
+
+
+class TestParseSize:
+    """One size grammar for every operator surface (bytes internally)."""
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            (0, 0),
+            (500, 500),
+            ("0", 0),
+            ("0B", 0),
+            ("500B", 500),
+            ("500", 500),
+            ("1KB", 1024),
+            ("1kb", 1024),
+            ("1K", 1024),
+            ("1KiB", 1024),
+            ("500 MB", 500 * 1024**2),
+            ("1.5GB", int(1.5 * 1024**3)),
+            ("2TiB", 2 * 1024**4),
+            ("  500MB  ", 500 * 1024**2),
+        ],
+    )
+    def test_accepts_binary_sizes(self, raw, expected):
+        assert parse_size(raw) == expected
+
+    def test_require_unit_rejects_bare_numbers(self):
+        with pytest.raises(ValueError, match="missing a unit"):
+            parse_size("500", require_unit=True)
+
+    def test_require_unit_still_accepts_zero(self):
+        assert parse_size("0", require_unit=True) == 0
+        assert parse_size(0, require_unit=True) == 0
+
+    def test_require_unit_accepts_an_explicit_unit(self):
+        assert parse_size("1MB", require_unit=True) == 1024**2
+
+    @pytest.mark.parametrize("raw", ["", "   ", "MB", "abc", "1XB", "-1", "1,5MB", "1e3", "3.14"])
+    def test_rejects_malformed_values(self, raw):
+        with pytest.raises(ValueError):
+            parse_size(raw)
+
+    def test_rejects_negative_int(self):
+        with pytest.raises(ValueError, match="must not be negative"):
+            parse_size(-1)
+
+    def test_rejects_bool(self):
+        with pytest.raises(ValueError, match="Invalid size"):
+            parse_size(True)
+
+    def test_unknown_unit_names_the_suffix(self):
+        with pytest.raises(ValueError, match="Unknown size unit 'XB'"):
+            parse_size("1XB")
+
+    def test_roundtrips_with_format_bytes(self):
+        for value in (0, 1024, 500 * 1024**2, 3 * 1024**3):
+            assert parse_size(format_bytes(value)) == value

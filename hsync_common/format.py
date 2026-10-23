@@ -7,14 +7,44 @@ Human-readable formatting helpers shared across HSYNC projects.
 Provides the canonical implementations for:
 
 - :func:`format_bytes` - render a byte count using binary (1024-based) units.
+- :func:`parse_size` - parse a human-readable size (``"500MB"``, ``"2GB"``)
+  back into bytes, the inverse of :func:`format_bytes`.
 - :func:`format_duration` - render a number of seconds either as a compact
   ``"1h 5m 30s"`` style string or as a ``"1:05:30"`` clock style string.
 """
 
 from __future__ import annotations
 
+import re
+
 # Binary (1024-based) size units, from bytes up to yottabytes.
 _BYTE_UNITS: tuple[str, ...] = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+
+# Size suffixes accepted by :func:`parse_size`, mapped to their binary
+# multiplier. The ``iB`` (``KiB``…) and short (``K``…) spellings are aliases of
+# the same 1024-based multiples: every HSYNC surface is binary
+# (``format_bytes``, ``--limit-upload``, the free-space reserve), so there is no
+# decimal-MB ambiguity to preserve and a user who writes ``500MiB`` must not be
+# rejected for being *more* precise.
+_SIZE_MULTIPLIERS: dict[str, int] = {
+    "B": 1,
+    "K": 1024,
+    "KB": 1024,
+    "KIB": 1024,
+    "M": 1024**2,
+    "MB": 1024**2,
+    "MIB": 1024**2,
+    "G": 1024**3,
+    "GB": 1024**3,
+    "GIB": 1024**3,
+    "T": 1024**4,
+    "TB": 1024**4,
+    "TIB": 1024**4,
+}
+
+# ``<number><optional space><unit>``; the unit is validated separately so an
+# unknown suffix gets its own error message.
+_SIZE_RE = re.compile(r"^(?P<number>[0-9]+(?:\.[0-9]+)?)\s*(?P<unit>[A-Za-z]*)$")
 
 
 def format_bytes(n: float, *, decimals: int = 1) -> str:
@@ -41,6 +71,67 @@ def format_bytes(n: float, *, decimals: int = 1) -> str:
             return format(value, fmt) + unit
         value /= 1024
     return format(value, fmt) + _BYTE_UNITS[-1]
+
+
+def parse_size(raw: str | int, *, require_unit: bool = False) -> int:
+    """Parse a human-readable size into bytes (inverse of :func:`format_bytes`).
+
+    Accepted forms: ``500`` (bytes, only when *require_unit* is false), ``0``,
+    ``"0"``, ``"0B"``, ``"500B"``, ``"500KB"``, ``"500 MB"``, ``"1.5GB"``,
+    ``"2TiB"``. Units are binary (``1KB = 1024B``) and case-insensitive; the
+    short (``K``) and ``iB`` (``KiB``) spellings are aliases of the same
+    multiple. Fractions are truncated to whole bytes.
+
+    Args:
+        raw: Size as an integer byte count or a human-readable string.
+        require_unit: Reject a non-zero string without a unit. Operator-facing
+            settings enable it so a bare ``500`` cannot be silently read as
+            500 bytes when the user meant 500 MB; ``0`` (disabled) is always
+            accepted.
+
+    Returns:
+        The size in bytes (``>= 0``).
+
+    Raises:
+        ValueError: If the value is empty, negative, malformed, carries an
+            unknown unit, or lacks a unit while *require_unit* is set.
+
+    Consumers: ``hsync-client`` (``--min-free-disk-space``, ``--limit-upload``),
+    ``hsync-server`` (``HSYNC_MIN_FREE_DISK_SPACE``), ``hsync-desktop``
+    (settings/wizard validation), shared tests.
+    """
+    if isinstance(raw, bool):
+        # bool is an int subclass; True must never mean "1 byte".
+        raise ValueError(f"Invalid size: {raw!r}")
+    if isinstance(raw, int):
+        if raw < 0:
+            raise ValueError(f"Size must not be negative, got {raw}")
+        return raw
+
+    text = str(raw).strip()
+    if not text:
+        raise ValueError("Size is empty")
+    match = _SIZE_RE.match(text)
+    if match is None:
+        raise ValueError(f"Invalid size {raw!r} (expected e.g. '500MB')")
+
+    number = float(match.group("number"))
+    unit = match.group("unit").upper()
+    if not unit:
+        if number == 0:
+            return 0
+        if not number.is_integer() or require_unit:
+            # A bare fraction has no meaning in bytes; a bare integer is only
+            # accepted where the caller does not require an explicit unit.
+            raise ValueError(f"Size {raw!r} is missing a unit (expected e.g. '500MB')")
+        return int(number)
+
+    multiplier = _SIZE_MULTIPLIERS.get(unit)
+    if multiplier is None:
+        raise ValueError(
+            f"Unknown size unit {match.group('unit')!r} in {raw!r} (use B, KB, MB, GB or TB)"
+        )
+    return int(number * multiplier)
 
 
 def format_duration(
