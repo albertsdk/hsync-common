@@ -263,6 +263,66 @@ def load_pem_keypair(
     return cert_bytes, key_bytes, compute_cert_fingerprint(cert)
 
 
+def load_pem_certificate_and_key(
+    cert_path: str | os.PathLike[str],
+    key_path: str | os.PathLike[str],
+) -> tuple[x509.Certificate, PrivateKey]:
+    """Parse a PEM certificate and its unencrypted private key (no match check).
+
+    Used by the rotation commands to re-read what they just wrote, so the
+    reported fingerprint comes from a freshly parsed certificate rather than the
+    serialized bytes; pair consistency is checked separately with
+    :func:`verify_keypair_matches`.
+
+    Consumers: ``hsync-server`` (``admin tls rotate``), ``hsync-bootnode``
+    (``identity rotate``).
+    """
+    certificate = x509.load_pem_x509_certificate(Path(cert_path).read_bytes())
+    private_key = serialization.load_pem_private_key(Path(key_path).read_bytes(), password=None)
+    return certificate, private_key
+
+
+def public_keys_match(certificate: x509.Certificate, private_key: PrivateKey) -> bool:
+    """True when ``private_key`` is the key behind ``certificate``'s public key.
+
+    Both public keys are serialized to DER SubjectPublicKeyInfo and compared, so
+    a keypair that pairs a certificate with a different key (a corrupted or
+    hand-edited file, or a half-completed rotation) is refused with a clear error
+    instead of failing later inside a TLS handshake.
+
+    Consumers: ``hsync-bootnode`` (identity load), tests.
+    """
+    cert_public = certificate.public_key().public_bytes(
+        serialization.Encoding.DER,
+        serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+    file_public = private_key.public_key().public_bytes(
+        serialization.Encoding.DER,
+        serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+    return cert_public == file_public
+
+
+def verify_keypair_matches(
+    certificate: x509.Certificate,
+    private_key: PrivateKey,
+    *,
+    who: str = "service identity",
+) -> None:
+    """Raise :class:`ValueError` unless *private_key* matches *certificate*.
+
+    Called right after a rotation writes a new keypair, so a half-completed or
+    corrupted write is reported at the command instead of surfacing as handshake
+    failures (or, worse, as a silently announced fingerprint the process cannot
+    serve).
+
+    Consumers: ``hsync-server`` (``admin tls rotate``), ``hsync-bootnode``
+    (``identity rotate``), tests.
+    """
+    if not public_keys_match(certificate, private_key):
+        raise ValueError(f"{who} private key does not match its certificate")
+
+
 @dataclass(frozen=True, slots=True)
 class ServiceIdentity:
     """A persisted self-signed service keypair plus its fingerprint.

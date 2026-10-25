@@ -23,10 +23,13 @@ from hsync_common.ssl_utils import (
     generate_ed25519_private_key,
     generate_rsa_private_key,
     load_or_create_service_identity,
+    load_pem_certificate_and_key,
     load_pem_keypair,
+    public_keys_match,
     serialize_cert_pem,
     serialize_private_key_unencrypted,
     verify_cert_fingerprint,
+    verify_keypair_matches,
     write_pem_keypair,
 )
 
@@ -384,3 +387,38 @@ class TestServiceIdentityOperations:
 
         with pytest.raises(ValueError, match="svc identity .* ECDSA P-256"):
             load_or_create_service_identity(cert, key, subject="svc identity", **self._params())
+
+
+class TestKeypairVerification:
+    """The key↔cert check the rotation commands run before announcing a fingerprint."""
+
+    def test_public_keys_match_for_the_owning_key(self):
+        key = generate_ecdsa_private_key()
+        cert_pem, _, _ = _identity_material(key)
+        certificate = x509.load_pem_x509_certificate(cert_pem)
+
+        assert public_keys_match(certificate, key) is True
+        verify_keypair_matches(certificate, key)  # does not raise
+
+    def test_public_keys_do_not_match_for_a_foreign_key(self):
+        cert_pem, _, _ = _identity_material(generate_ecdsa_private_key())
+        certificate = x509.load_pem_x509_certificate(cert_pem)
+        foreign = generate_ecdsa_private_key()
+
+        assert public_keys_match(certificate, foreign) is False
+        with pytest.raises(ValueError, match="does not match its certificate"):
+            verify_keypair_matches(certificate, foreign, who="server TLS certificate")
+
+    def test_load_pem_certificate_and_key_round_trips(self, tmp_path):
+        # The rotate commands re-read the pair they just wrote and verify it
+        # before printing a fingerprint.
+        key = generate_ecdsa_private_key()
+        cert_pem, key_pem, fingerprint = _identity_material(key)
+        cert_path = tmp_path / "svc.crt"
+        key_path = tmp_path / "svc.key"
+        write_pem_keypair(cert_pem, key_pem, cert_path, key_path)
+
+        certificate, loaded_key = load_pem_certificate_and_key(cert_path, key_path)
+
+        assert compute_cert_fingerprint(certificate) == fingerprint
+        verify_keypair_matches(certificate, loaded_key)

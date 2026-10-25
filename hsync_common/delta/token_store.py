@@ -58,6 +58,10 @@ class DeltaTokenEntry:
     compressed: bool  # payload is a single zstd frame
     created: float  # time.time() of issuance
     meta: Mapping[str, str] = field(default_factory=dict)
+    # Issuer of the capability. Empty for producers that have no account
+    # identity (e.g. the LAN P2P master); the REST server always sets it so a
+    # leaked URL cannot be redeemed by a different account.
+    account_id: str = ""
 
 
 class DeltaTokenStore:
@@ -183,6 +187,7 @@ class DeltaTokenStore:
         meta: Mapping[str, str] | None,
         total_storage: int,
         payload_size: int,
+        account_id: str = "",
     ) -> None:
         """Register *token* and refresh the observer (called with the lock held)."""
         self._tokens[token] = DeltaTokenEntry(
@@ -191,6 +196,7 @@ class DeltaTokenStore:
             compressed=compressed,
             created=time.time(),
             meta=dict(meta or {}),
+            account_id=account_id,
         )
         # The just-computed total plus the new payload is the new exact size, so
         # the cache stays valid without a rescan (O(1) update).
@@ -204,6 +210,7 @@ class DeltaTokenStore:
         payload: bytes,
         compressed: bool,
         meta: Mapping[str, str] | None = None,
+        account_id: str = "",
     ) -> str:
         """Park *payload* on disk and return its download token (UUID v4)."""
         with self._lock:
@@ -220,6 +227,7 @@ class DeltaTokenStore:
                 meta=meta,
                 total_storage=total_storage,
                 payload_size=len(payload),
+                account_id=account_id,
             )
             return token
 
@@ -231,6 +239,7 @@ class DeltaTokenStore:
         size: int,
         compressed: bool,
         meta: Mapping[str, str] | None = None,
+        account_id: str = "",
     ) -> str:
         """Adopt an already-written payload file as a download token (UUID v4).
 
@@ -251,6 +260,7 @@ class DeltaTokenStore:
                 meta=meta,
                 total_storage=total_storage,
                 payload_size=size,
+                account_id=account_id,
             )
             return token
 
