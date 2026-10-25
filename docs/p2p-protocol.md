@@ -653,9 +653,12 @@ group reached through a `boot/1` bootnode — and degrades safely on an
   distinguish the real master from an impostor that generated its own
   certificate. A peer that does not advertise both `https` and `cert_fp` is not a
   valid master and is refused (`[INSECURE MASTER]`).
-- `HSYNC_P2P_KEY` is a shared secret presented as a bearer token. It authenticates
-  *writes* to the master, travels only over the (mandatory) encrypted transport,
-  and is shared, not per-peer.
+- `HSYNC_P2P_KEY` is a shared, full-strength group key presented as a bearer
+  token. A user-typed `HSYNC_P2P_PASSPHRASE` (at least 12 characters) is expanded
+  to that key with scrypt (fixed, versioned salt `hsync-p2p-group-key/v1`) before
+  use, so the wire shape is unchanged. It authenticates *writes* to the master,
+  travels only over the (mandatory) encrypted transport, and is shared, not
+  per-peer.
 
 Identity is therefore established by **Trust On First Use (TOFU)** pinning.
 Mutation authorization uses the shared key, or an explicit dangerous keyless

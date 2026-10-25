@@ -129,6 +129,7 @@ class TestEventNameCoverage:
         names = {m.value for m in UiEventName}
         expected = {
             "status",
+            "ready",
             "peers",
             "role",
             "bucket",

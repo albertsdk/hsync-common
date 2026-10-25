@@ -41,6 +41,7 @@ class UiEventName(StrEnum):
     """Discriminator for a structured UI event (1:1 with Desktop signals)."""
 
     status = "status"  # connection status: disconnected|connecting|connected|waiting|error
+    ready = "ready"  # startup validation passed; the engine is entering its run loop
     peers = "peers"  # client presence changed (connected / total clients in the share)
     role = "role"  # this client became master / client
     bucket = "bucket"  # bucket name detected

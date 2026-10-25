@@ -15,7 +15,16 @@ import json
 import pytest
 
 from hsync_common.protocol import BOOTNODE_FIXTURES_DIR, FIXTURES_DIR
-from hsync_common.protocol.boot_tokens import MIN_GROUP_KEY_CHARS, validate_group_key
+from hsync_common.protocol.boot_tokens import (
+    BUCKET_TOKEN_LEN,
+    MIN_GROUP_KEY_CHARS,
+    MIN_GROUP_PASSPHRASE_CHARS,
+    WeakGroupPassphrase,
+    derive_group_key,
+    passphrase_warning,
+    validate_group_key,
+    validate_group_passphrase,
+)
 from hsync_common.protocol.bootnode import (
     CAPACITY_MAX,
     PROTOCOL_VERSION_BOOT,
@@ -385,3 +394,48 @@ def test_group_key_strength_floor():
     with pytest.raises(ValueError):
         validate_group_key("k" * (MIN_GROUP_KEY_CHARS - 1))
     assert MIN_GROUP_KEY_CHARS == 32
+
+
+def test_group_key_derivation_is_pinned():
+    """Python and Kotlin must derive this exact key (cross-language vector)."""
+    assert (
+        derive_group_key("correct horse battery")
+        == "02d6cc2221b988cd84b9ccc08d8c894a36e51f31917b0cffcd238a7ba67c3a92"
+    )
+    token = derive_bucket_token(derive_group_key("correct horse battery").encode("utf-8"), "shared")
+    assert token == "641af13039a225e50f5435a021bcc4063f5d5584f919cfe88615ad2578f6f19e"
+    assert len(token) == BUCKET_TOKEN_LEN
+
+
+def test_passphrase_normalization_is_nfkc_and_trimmed():
+    """Composed/decomposed accents and padding must derive the same key."""
+    composed = "caf\u00e9-abcdwxyz1234"
+    decomposed = "cafe\u0301-abcdwxyz1234"
+    assert derive_group_key(composed) == derive_group_key(decomposed)
+    assert derive_group_key("  correct horse battery  ") == derive_group_key(
+        "correct horse battery"
+    )
+
+
+@pytest.mark.parametrize(
+    ("passphrase", "code"),
+    [
+        ("short", "too_short"),
+        ("abcdefghijk", "too_short"),  # 11 chars
+        ("aaaaaaaaaaaaaaaa", "too_weak"),
+        ("abcdefghijklmnop", "too_weak"),  # consecutive run
+        ("password1234", "too_weak"),
+    ],
+)
+def test_validate_group_passphrase_rejects_weak_input(passphrase, code):
+    with pytest.raises(WeakGroupPassphrase) as exc:
+        validate_group_passphrase(passphrase)
+    assert exc.value.code == code
+
+
+def test_validate_group_passphrase_accepts_the_floor():
+    validate_group_passphrase("abcdwxyz1234")
+    assert MIN_GROUP_PASSPHRASE_CHARS == 12
+    assert passphrase_warning("abcdwxyz1234") == "short"
+    validate_group_passphrase("abcdwxyz12345678")
+    assert passphrase_warning("abcdwxyz12345678") is None

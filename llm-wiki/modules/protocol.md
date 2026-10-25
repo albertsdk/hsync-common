@@ -53,7 +53,10 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   the bootnode daemon and re-exported here so the client import path is stable.
   `MIN_GROUP_KEY_CHARS` / `validate_group_key` in the same module are the single
   key-strength floor both ends enforce (the group key is the token's only
-  entropy).
+  entropy). A user-typed passphrase goes through `validate_group_passphrase` /
+  `derive_group_key` (scrypt, fixed salt `hsync-p2p-group-key/v1`, at least 12
+  chars) and is materialised as the same 64-hex key, so no downstream consumer
+  changes.
 - Fixture mirror `protocol/fixtures/bootnode-*.json` is byte-checked against the
   canonical bootnode fixtures by `tests/test_protocol_bootnode.py`.
 - Consumers: `hsync-client` (bootnode discovery), shared fixtures/tests.
@@ -83,7 +86,12 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   client and consumed by desktop/android (incl. `sync_paused`,
   `transfer_failed`, `fingerprint_changed`, `auth_required`, `pairing_needed`,
   `duplicate_identity`, `security_rejected`, `discovery`, `no_master`, `no_peers`,
-  `folder_size`).
+  `folder_size`, `ready`).
+- `ready` marks the end of startup validation: the client emits it once, after
+  every fatal configuration check and before its run loop. A consumer treats an
+  exit before it as a **startup failure** (the Desktop engine's safety net), and
+  the client emits `error` with `reason="startup"` for a known fatal startup
+  error before exiting.
 - `no_peers` is emitted by the client when a p2p one-shot aborts because no peer
   was discovered (`P2P_NO_PEER`).
 - `folder_size` carries `local_bytes` (files present on this device) and
