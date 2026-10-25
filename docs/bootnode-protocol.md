@@ -83,11 +83,16 @@ ready, the client sends a **second `register`** that publishes `endpoints[]`
   it.
 - **`reachable`** is derived from `bool(endpoints)` at register time: only a peer
   that published a listen endpoint is advertised as a data-plane master.
-- **`endpoints`** is the peer's full candidate list, relayed verbatim and in
-  order (a single-element observed-source fallback when the peer advertised
-  none). Try the candidates host/LAN-first and fall back to the next, so two
-  peers behind the same NAT connect over the local path even when the public
-  endpoint has no hairpin route ([ADR-0038](internal/adr/0038-bootnode-endpoint-candidate-list.md)).
+- **`endpoints`** is the peer's candidate list, relayed in order and capped at
+  **four** entries per peer (a single-element observed-source fallback when the
+  peer advertised none); each `host` must be an IP literal or a DNS name, so a
+  peer cannot hand other peers an undialable or internal-looking target. Try the
+  candidates host/LAN-first and fall back to the next, so two peers behind the
+  same NAT connect over the local path even when the public endpoint has no
+  hairpin route ([ADR-0038](internal/adr/0038-bootnode-endpoint-candidate-list.md)).
+- **`cert_fp`** is a SHA-256 certificate fingerprint (`sha256:<hex>`, bare hex, or
+  colon-separated hex): the value the data-plane pin compares, so anything that is
+  not a full digest is an invalid frame.
 
 ## Bucket tokens
 
@@ -95,6 +100,11 @@ Protected buckets derive the token as
 `HMAC-SHA256(key, "boot/1" || bucket)[:32]` hex (64 chars); the mirror exposes
 `derive_bucket_token` / `verify_bucket_token` and the daemon compares in
 constant time. Refusals are uniform and never reveal whether a bucket exists.
+
+The group key is the token's only entropy, so both the node's key source and the
+client's `HSYNC_P2P_KEY` enforce `MIN_GROUP_KEY_CHARS`
+(`hsync_common/protocol/boot_tokens.py::MIN_GROUP_KEY_CHARS`, 32 characters):
+a shorter key is a configuration error, never a weaker deployment.
 
 ## See also
 

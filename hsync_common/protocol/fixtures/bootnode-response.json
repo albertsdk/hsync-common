@@ -11,7 +11,7 @@
           "port": 443
         }
       ],
-      "cert_fp": "AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99",
+      "cert_fp": "AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99",
       "bucket": "shared",
       "group": "home",
       "version": "1.0.0",

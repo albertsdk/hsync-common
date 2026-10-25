@@ -7,6 +7,7 @@ from hsync_common.endpoint import (
     build_https_url,
     build_url,
     format_authority,
+    is_valid_endpoint_host,
     normalize_bare_endpoint,
     parse_host_port,
     parse_https_url,
@@ -210,3 +211,45 @@ class TestParsePortList:
     def test_strict_empty_yields_empty_tuple(self):
         # The caller enforces its own minimum (the CLI requires at least one).
         assert parse_port_list("", strict=True) == ()
+
+
+class TestEndpointHostGrammar:
+    """The dialable-host grammar of ``boot/1`` ``endpoints[].host``."""
+
+    @pytest.mark.parametrize(
+        "host",
+        [
+            "10.0.0.1",
+            "198.51.100.7",
+            "2001:db8::1",
+            "[2001:db8::1]",
+            "peer.example",
+            "a",
+            "x" * 63 + ".example",
+        ],
+    )
+    def test_accepts_dialable_hosts(self, host: str):
+        assert is_valid_endpoint_host(host) is True
+
+    @pytest.mark.parametrize(
+        "host",
+        [
+            "",
+            " ",
+            "..\\..",
+            "../etc/passwd",
+            "a b",
+            "a\x00b",
+            "évil",
+            "999.1.1.1",
+            "a..b",
+            ".leading.dot",
+            "trailing.dot.",
+            "x" * 64 + ".example",
+            "a" * 254,
+            "[::1",
+            "http://peer.example",
+        ],
+    )
+    def test_rejects_non_dialable_values(self, host: str):
+        assert is_valid_endpoint_host(host) is False

@@ -126,6 +126,12 @@ port. Helpers: `build_https_url`, `parse_https_url`, `build_url` and
 bootnode's `run --ports`) and silently drops them in lenient mode (the client's
 `HSYNC_BOOTNODE_PORTS` multi-port dial fallback).
 
+`is_valid_endpoint_host` is the dialable-host grammar used on the wire: an
+IPv4/IPv6 literal (bracketed or bare) or an LDH hostname, and nothing else —
+control characters, path separators, empty labels, over-long labels and
+IPv4-shaped values that are not real addresses are rejected. It is what the
+`boot/1` `endpoints[].host` field accepts, in the daemon and in the mirror.
+
 ## Runtime (`hsync_common.runtime`)
 
 Runtime environment detection shared across HSYNC projects:
@@ -153,8 +159,10 @@ Shared, dependency-free SSDP + SOAP client to map a port on the LAN's Internet
 Gateway Device. SSRF-hardened because an SSDP reply is unauthenticated data: only
 a private LAN source may answer, the `LOCATION` URL must be an `http(s)://`
 private IP **literal equal to the reply source**, redirects are refused, and a
-`controlURL` cannot change host. Every failure degrades to "no UPnP" (`None` or
-`UpnpError`). `discover_igd`, `add_port_mapping`/`delete_port_mapping`,
+`controlURL` cannot change host. Every XML body it parses is read under a byte
+bound and refused when it carries a document type declaration, so a device
+cannot expand entities into memory. Every failure degrades to "no UPnP" (`None`
+or `UpnpError`). `discover_igd`, `add_port_mapping`/`delete_port_mapping`,
 `build_add_mapping_soap`/`build_delete_mapping_soap`, `parse_soap_error`.
 Consumers: `hsync-client` (`UpnpMapper`) and `hsync-bootnode/python`
 (`UpnpManager`).

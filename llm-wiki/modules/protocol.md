@@ -39,14 +39,21 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   (server→client); `validate_boot_frame` dispatches on `type`.
 - `CAPACITY_MAX = 32` bounds the advisory service-capacity hint (`0` = not a
   seeder); `reachable` is derived from `bool(endpoints)`. `BootPeer.endpoints`
-  mirrors the peer's full advertised candidate list (relayed verbatim by the
-  node, or a single-element observed-source fallback), so the client can prefer
-  a host/LAN candidate over the NATed public one.
+  mirrors the peer's candidate list as the node relays it (at most
+  `MAX_RELAY_ENDPOINTS` entries, or a single-element observed-source fallback),
+  so the client can prefer a host/LAN candidate over the NATed public one.
+- Field grammars enforced by both the mirror and the daemon:
+  `endpoints[].host` via `hsync_common.endpoint.is_valid_endpoint_host`, and
+  `cert_fp` via `hsync_common.protocol.pairing.parse_fingerprint` (a full SHA-256
+  digest — the value the data-plane pin compares).
 - Token helpers: `derive_bucket_token` (`HMAC-SHA256(key, "boot/1"||bucket)`),
   `is_valid_bucket_token`, `constant_time_equals`, `verify_bucket_token`. The
   implementation (and the 64-hex grammar) is the protocol-neutral
   `protocol/boot_tokens.py` (`boot_tokens.py::derive_bucket_token`), shared with
   the bootnode daemon and re-exported here so the client import path is stable.
+  `MIN_GROUP_KEY_CHARS` / `validate_group_key` in the same module are the single
+  key-strength floor both ends enforce (the group key is the token's only
+  entropy).
 - Fixture mirror `protocol/fixtures/bootnode-*.json` is byte-checked against the
   canonical bootnode fixtures by `tests/test_protocol_bootnode.py`.
 - Consumers: `hsync-client` (bootnode discovery), shared fixtures/tests.

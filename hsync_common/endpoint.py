@@ -22,6 +22,7 @@ The port, when present, must be an integer in ``1..65535``. URL-like input
 
 from __future__ import annotations
 
+import ipaddress
 import re
 from dataclasses import dataclass
 from urllib.parse import urlsplit
@@ -33,6 +34,7 @@ __all__ = [
     "build_https_url",
     "build_url",
     "format_authority",
+    "is_valid_endpoint_host",
     "normalize_bare_endpoint",
     "parse_host_port",
     "parse_https_url",
@@ -170,6 +172,40 @@ def parse_host_port(raw: str) -> HostPort:
         raise ValueError(f"invalid hostname or IPv4 address: {host!r}")
 
     return HostPort(host=host, port=port)
+
+
+def is_valid_endpoint_host(value: str) -> bool:
+    """Return True when *value* is a host a remote peer can dial.
+
+    Accepted: an IPv4/IPv6 literal (bracketed or bare) or an LDH hostname.
+    Rejected: everything else — empty values, control characters, path or
+    authority separators, empty labels, labels longer than 63 characters, and
+    values that look like an IPv4 literal without being one.
+
+    Stricter than :func:`parse_host_port`, which parses operator input that a
+    human immediately sees fail: this is the grammar of a value a *remote*
+    client will dial, so a shape a resolver cannot turn into an address is an
+    invalid value rather than a dial-time error on someone else's host.
+
+    Consumers: ``hsync-bootnode`` (``protocol.Endpoint``), the bootnode mirror in
+    :mod:`hsync_common.protocol.bootnode`, and the shared fixtures/tests.
+    """
+    host = value
+    if host.startswith("[") and host.endswith("]"):
+        host = host[1:-1]
+    if not host or len(host) > 253:
+        return False
+    try:
+        ipaddress.ip_address(host)
+        return True
+    except ValueError:
+        pass
+    # All-digits-and-dots is an IPv4 attempt; it must be a *valid* one.
+    if all(char.isdigit() or char == "." for char in host):
+        return False
+    if _HOST_RE.fullmatch(host) is None or ".." in host:
+        return False
+    return all(len(label) <= 63 for label in host.split("."))
 
 
 def _authority_of(host: str) -> str:

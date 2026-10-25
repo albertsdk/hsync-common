@@ -24,14 +24,25 @@ import re
 
 __all__ = [
     "BUCKET_TOKEN_LEN",
+    "MIN_GROUP_KEY_CHARS",
     "constant_time_equals",
     "derive_bucket_token",
     "is_valid_bucket_token",
+    "validate_group_key",
     "verify_bucket_token",
 ]
 
 # hex(32 bytes) = 64 chars. Absent = open bucket.
 BUCKET_TOKEN_LEN = 64
+
+# A group key is the ONLY entropy behind a bucket token
+# (``hex(HMAC-SHA256(key, "boot/1" || bucket)[:32])``): with a guessable key a
+# token seen anywhere (an instrumented client, a process dump) can be brute
+# forced offline. 32 characters carries >=128 bits for any random or
+# passphrase-grade value, and is the single threshold both the node (key file)
+# and the client (``HSYNC_P2P_KEY``) enforce.
+MIN_GROUP_KEY_CHARS = 32
+
 _BUCKET_TOKEN_RE = re.compile(rf"^[0-9a-f]{{{BUCKET_TOKEN_LEN}}}$")
 
 # Domain separation: the same key derives different tokens per protocol channel.
@@ -47,6 +58,23 @@ def derive_bucket_token(key: bytes, bucket: str) -> str:
 def is_valid_bucket_token(value: str) -> bool:
     """True iff ``value`` is a well-formed 64-char lowercase hex token."""
     return _BUCKET_TOKEN_RE.fullmatch(value) is not None
+
+
+def validate_group_key(key: str) -> None:
+    """Reject a group key too weak to protect the derived bucket token.
+
+    Raises:
+        ValueError: when ``key`` is shorter than :data:`MIN_GROUP_KEY_CHARS`.
+
+    Consumers: ``hsync-bootnode`` (``cli._parse_keys``, the node's key source) and
+    ``hsync-client`` (``config.get_p2p_key``, ``HSYNC_P2P_KEY``), so both ends of
+    a bucket enforce one threshold.
+    """
+    if len(key) < MIN_GROUP_KEY_CHARS:
+        raise ValueError(
+            f"group key must be at least {MIN_GROUP_KEY_CHARS} characters "
+            f"(got {len(key)}); generate one with 'openssl rand -hex 32'"
+        )
 
 
 def constant_time_equals(a: bytes, b: bytes) -> bool:

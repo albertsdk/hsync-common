@@ -97,6 +97,12 @@ _OPENER: urllib.request.OpenerDirector | None = None
 _LOCATION_SCHEMES = ("http", "https")
 
 
+# Size bound for the IGD description/error bodies: an SSDP reply is unauthenticated
+# data, so its payload must not be able to grow the process (the fetch is bounded
+# by bytes, not by the responder's cooperation).
+_MAX_XML_BODY_BYTES = 64 * 1024
+
+
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     """Refuse redirects: never follow a URL that came from an SSDP reply."""
 
@@ -269,12 +275,11 @@ def _igd_service_from_location(location: str, local_ip: str) -> IgdService | Non
         return None
     try:
         with no_redirect_urlopen(base, timeout=3.0) as response:
-            xml_bytes = response.read(65536)
+            xml_bytes = response.read(_MAX_XML_BODY_BYTES)
     except OSError:
         return None
-    try:
-        root = ElementTree.fromstring(xml_bytes)
-    except ElementTree.ParseError:
+    root = _parse_bounded_xml(xml_bytes)
+    if root is None:
         return None
     for element in root.iter():
         if element.tag.rsplit("}", 1)[-1] != "service":
@@ -376,11 +381,27 @@ def build_delete_mapping_soap(
     return _soap_envelope(inner)
 
 
+def _parse_bounded_xml(body: bytes) -> ElementTree.Element | None:
+    """Parse an IGD XML body under the byte bound, refusing any DTD.
+
+    The body comes from an unauthenticated LAN reply: a document type
+    declaration (or an internal entity) lets the responder expand entities into
+    far more memory than the bytes it sent, so a DTD is refused before the
+    parser ever sees it.
+    """
+    head = body[:_MAX_XML_BODY_BYTES]
+    if b"<!DOCTYPE" in head or b"<!ENTITY" in head:
+        return None
+    try:
+        return ElementTree.fromstring(head)
+    except ElementTree.ParseError:
+        return None
+
+
 def parse_soap_error(response_body: bytes) -> int | None:
     """Return the UPnP ``errorCode`` from a SOAP fault, or ``None`` if absent."""
-    try:
-        root = ElementTree.fromstring(response_body)
-    except ElementTree.ParseError:
+    root = _parse_bounded_xml(response_body)
+    if root is None:
         return None
     for element in root.iter():
         tag = element.tag.rsplit("}", 1)[-1]
@@ -413,7 +434,7 @@ def _soap_post(
         else:
             http_post(service.control_url, soap_action, soap_body)
     except urllib.error.HTTPError as exc:
-        error_code = parse_soap_error(exc.read())
+        error_code = parse_soap_error(exc.read(_MAX_XML_BODY_BYTES))
         message = f"SOAP {action} failed (HTTP {exc.code})"
         if error_code is not None:
             message += f" — errorCode {error_code}"

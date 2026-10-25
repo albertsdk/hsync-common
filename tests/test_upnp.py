@@ -14,6 +14,7 @@ from hsync_common.upnp import (
     _NoRedirect,
     is_lan_unicast_address,
     is_private_http_location,
+    parse_soap_error,
 )
 
 NS = "urn:schemas-upnp-org:service:WANIPConnection:1"
@@ -139,3 +140,27 @@ def test_discover_igd_returns_none_without_a_reply() -> None:
         assert upnp_mod.discover_igd(timeout=0.01) is None
     finally:
         upnp_mod.socket.socket = original  # type: ignore[assignment]
+
+
+def test_soap_error_parsing_is_bounded() -> None:
+    """A SOAP fault body is read under the byte bound, never unbounded."""
+    fault = (
+        b"<Envelope><Body><Fault><detail><UPnPError>"
+        b"<errorCode>718</errorCode></UPnPError></detail></Fault></Body></Envelope>"
+    )
+    assert parse_soap_error(fault) == 718
+    # An error code beyond the bound is not parsed (the read is bounded by bytes).
+    padded = b"<r>" + b"<!--pad-->" * 8000 + b"<errorCode>718</errorCode></r>"
+    assert parse_soap_error(padded) is None
+    # Malformed/empty bodies degrade to "no error code", never raise.
+    assert parse_soap_error(b"") is None
+    assert parse_soap_error(b"<not-xml") is None
+
+
+def test_soap_error_refuses_a_document_type_declaration() -> None:
+    """An entity expansion bomb from a LAN device is refused, not expanded."""
+    bomb = (
+        b'<?xml version="1.0"?><!DOCTYPE lolz [<!ENTITY lol "lol">]>'
+        b"<lolz><errorCode>&lol;</errorCode></lolz>"
+    )
+    assert parse_soap_error(bomb) is None

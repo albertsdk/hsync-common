@@ -39,6 +39,7 @@ import math
 from collections.abc import Mapping
 from typing import Literal, NotRequired, TypedDict
 
+from hsync_common.endpoint import is_valid_endpoint_host
 from hsync_common.models.event import CID_PATTERN, is_valid_cid
 from hsync_common.path_validation import is_valid_bucket_name
 from hsync_common.protocol.boot_tokens import (
@@ -52,6 +53,7 @@ from hsync_common.protocol.p2p import SYNC_DIRECTION_BIDIRECTIONAL
 from hsync_common.protocol.pairing import (
     SYNC_DIRECTION_DOWNLOAD_ONLY,
     SYNC_DIRECTION_UPLOAD_ONLY,
+    parse_fingerprint,
 )
 
 __all__ = [
@@ -235,11 +237,12 @@ class BootAck(TypedDict):
 class BootPeer(TypedDict):
     """A single advertised peer in a BootResponse.
 
-    ``endpoints`` is the peer's full advertised candidate list, relayed verbatim
-    and in order (or a single-element list with the observed source endpoint
-    when the peer advertised none). A requester tries the candidates, preferring
-    a host/LAN one reachable from its own network, so peers behind the same NAT
-    — where the public endpoint has no hairpin route — still connect locally.
+    ``endpoints`` is the peer's advertised candidate list, relayed in order and
+    capped by the node (at most 4 entries; a register that advertised none is
+    relayed as a single-element list with the observed source endpoint). A
+    requester tries the candidates, preferring a host/LAN one reachable from its
+    own network, so peers behind the same NAT — where the public endpoint has no
+    hairpin route — still connect locally.
 
     ``capacity`` is the peer's advisory service-capacity hint as relayed from
     its ``register`` (``0`` = not a seeder); ``reachable`` is derived from
@@ -483,7 +486,12 @@ def _validate_endpoint(value: object) -> Endpoint | None:
     proto = value["proto"]
     host = value["host"]
     port = value["port"]
-    if proto not in ("tcp", "udp") or not _is_str(host, max_len=255) or not _is_port(port):
+    if (
+        proto not in ("tcp", "udp")
+        or not _is_str(host, max_len=255)
+        or not is_valid_endpoint_host(host)
+        or not _is_port(port)
+    ):
         return None
     return Endpoint(proto=proto, host=host, port=port)
 
@@ -512,6 +520,7 @@ def _validate_peer(value: object) -> BootPeer | None:
         or not isinstance(endpoints, list)
         or not 1 <= len(endpoints) <= _MAX_ENDPOINTS
         or not _is_str(cert_fp, max_len=_MAX_CERT_FP_LEN)
+        or parse_fingerprint(cert_fp) is None
         or not is_valid_bucket_name(bucket)
         or not _is_str(version, max_len=_MAX_VERSION_LEN)
         or not _is_capacity(value["capacity"])
@@ -559,6 +568,7 @@ def validate_boot_register(value: object) -> BootRegister | None:
         not is_valid_cid(value["cid"])
         or not is_valid_bucket_name(value["bucket"])
         or not _is_str(value["cert_fp"], max_len=_MAX_CERT_FP_LEN)
+        or parse_fingerprint(value["cert_fp"]) is None
         or not _is_str(value["version"], max_len=_MAX_VERSION_LEN)
         or not _is_capacity(capacity)
         or not isinstance(endpoints, list)

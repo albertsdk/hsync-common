@@ -80,6 +80,12 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
   (consumed by `hsync-bootnode` `run --ports`); `strict=False` drops
   invalid/duplicate tokens (consumed by `hsync-client` `HSYNC_BOOTNODE_PORTS`).
   Empty input yields `()`; each caller enforces its own minimum.
+- `is_valid_endpoint_host(host) -> bool` (`endpoint.py::is_valid_endpoint_host`) —
+  the dialable-host grammar of the wire: IPv4/IPv6 literal (bracketed or bare) or
+  LDH hostname, rejecting control characters, path/authority separators, empty
+  labels, labels > 63 chars and IPv4-shaped non-addresses. Consumed by the
+  bootnode `protocol.Endpoint` model and by this mirror's `_validate_endpoint`,
+  so an advertised `endpoints[].host` is the same grammar on both ends.
 - Consumers: `hsync-client` `cli.py` (bootnode/server/trust host args),
   `hsync-bootnode` `cli.py` (`run --host HOST[:PORT]`), `hsync-server`
   `__main__.py` (`--host HOST[:PORT]`). The same grammar applies to the
@@ -503,7 +509,10 @@ reconciliation, transfers, previews and server lines.
   `no_redirect_urlopen` / `_NoRedirect` (a 3xx is never followed).
 - SOAP: `build_add_mapping_soap` / `build_delete_mapping_soap`,
   `add_port_mapping` / `delete_port_mapping`, `parse_soap_error`; `_soap_post`
-  accepts an `http_post` transport seam.
+  accepts an `http_post` transport seam. Every XML body (description and SOAP
+  fault) goes through `_parse_bounded_xml`: read capped at `_MAX_XML_BODY_BYTES`
+  and refused when it carries `<!DOCTYPE`/`<!ENTITY`, so a device cannot expand
+  entities beyond the bytes it sent.
 - Consumers: `hsync-client` `upnp.py` (`UpnpMapper`, TCP), `hsync-bootnode/python`
   `upnp.py` (`UpnpManager`, UDP; re-exports the core for its tests/fuzz).
 

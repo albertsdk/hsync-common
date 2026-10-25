@@ -15,6 +15,7 @@ import json
 import pytest
 
 from hsync_common.protocol import BOOTNODE_FIXTURES_DIR, FIXTURES_DIR
+from hsync_common.protocol.boot_tokens import MIN_GROUP_KEY_CHARS, validate_group_key
 from hsync_common.protocol.bootnode import (
     CAPACITY_MAX,
     PROTOCOL_VERSION_BOOT,
@@ -32,6 +33,9 @@ _MIRRORED = {
     "bootnode-ack": validate_boot_ack,
     "bootnode-response": validate_boot_response,
 }
+
+# A canonical SHA-256 certificate fingerprint (the pin format of ADR-0037).
+_FP_HEX = "aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899"
 
 
 def _load(name: str) -> dict:
@@ -66,7 +70,7 @@ def test_capacity_hint_domain_bounds():
         "type": "register",
         "cid": "A1b2C3d4E5f6G7h8I9j0K",
         "bucket": "shared",
-        "cert_fp": "AA:BB",
+        "cert_fp": _FP_HEX,
         "version": "1.0.0",
         "capacity": 0,
         "endpoints": [],
@@ -87,7 +91,7 @@ def test_register_without_capacity_or_endpoints_defaults():
         "type": "register",
         "cid": "A1b2C3d4E5f6G7h8I9j0K",
         "bucket": "shared",
-        "cert_fp": "AA:BB",
+        "cert_fp": _FP_HEX,
         "version": "1.0.0",
     }
     validated = validate_boot_frame(minimal)
@@ -115,7 +119,7 @@ def _minimal_register() -> dict:
         "type": "register",
         "cid": "A1b2C3d4E5f6G7h8I9j0K",
         "bucket": "shared",
-        "cert_fp": "AA:BB",
+        "cert_fp": _FP_HEX,
         "version": "1.0.0",
     }
 
@@ -190,7 +194,7 @@ def test_response_peer_requires_the_election_advert():
     peer = {
         "cid": "A1b2C3d4E5f6G7h8I9j0K",
         "endpoints": [{"proto": "tcp", "host": "198.51.100.7", "port": 443}],
-        "cert_fp": "AA:BB",
+        "cert_fp": _FP_HEX,
         "bucket": "shared",
         "version": "1.0.0",
         "capacity": 0,
@@ -234,7 +238,7 @@ def test_response_peer_requires_a_non_empty_endpoints_list():
     peer = {
         "cid": "A1b2C3d4E5f6G7h8I9j0K",
         "endpoints": [{"proto": "tcp", "host": "198.51.100.7", "port": 443}],
-        "cert_fp": "AA:BB",
+        "cert_fp": _FP_HEX,
         "bucket": "shared",
         "version": "1.0.0",
         "capacity": 0,
@@ -320,3 +324,64 @@ def test_bootnode_fingerprint_fixture_vectors():
     # The canonical form round-trips to the bare hex digest and back.
     assert parse_fingerprint(doc["canonical"]) == doc["hex"]
     assert parse_fingerprint(doc["hex"]) == doc["hex"]
+
+
+@pytest.mark.parametrize("host", ["198.51.100.7", "peer.example", "2001:db8::1", "[2001:db8::1]"])
+def test_register_accepts_a_dialable_endpoint_host(host: str):
+    frame = _load("bootnode-register")
+    frame["endpoints"] = [{"proto": "tcp", "host": host, "port": 443}]
+    assert validate_boot_frame(frame) is not None
+
+
+@pytest.mark.parametrize(
+    "host", ["", "..\\..", "../elsewhere", "a b", "a\x00b", "999.1.1.1", "a..b", "x" * 64]
+)
+def test_register_rejects_a_non_dialable_endpoint_host(host: str):
+    frame = _load("bootnode-register")
+    frame["endpoints"] = [{"proto": "tcp", "host": host, "port": 443}]
+    assert validate_boot_frame(frame) is None
+
+
+def test_response_peer_rejects_a_non_dialable_endpoint_host():
+    doc = _load("bootnode-response")
+    doc["peers"][0]["endpoints"][0]["host"] = "../elsewhere"
+    assert validate_boot_response(doc) is None
+
+
+@pytest.mark.parametrize(
+    "cert_fp",
+    [
+        "",
+        "f",
+        "not-a-fingerprint",
+        "AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99",
+        "sha256:zz",
+    ],
+)
+def test_register_rejects_a_malformed_certificate_fingerprint(cert_fp: str):
+    frame = _load("bootnode-register")
+    frame["cert_fp"] = cert_fp
+    assert validate_boot_frame(frame) is None
+
+
+@pytest.mark.parametrize(
+    "cert_fp",
+    [
+        _FP_HEX,
+        "sha256:" + _FP_HEX,
+        _FP_HEX.upper(),
+        ":".join(_FP_HEX[index : index + 2] for index in range(0, 64, 2)),
+    ],
+)
+def test_register_accepts_a_sha256_certificate_fingerprint(cert_fp: str):
+    frame = _load("bootnode-register")
+    frame["cert_fp"] = cert_fp
+    assert validate_boot_frame(frame) is not None
+
+
+def test_group_key_strength_floor():
+    """The token's only entropy is the group key, so a short key is refused."""
+    validate_group_key("k" * MIN_GROUP_KEY_CHARS)
+    with pytest.raises(ValueError):
+        validate_group_key("k" * (MIN_GROUP_KEY_CHARS - 1))
+    assert MIN_GROUP_KEY_CHARS == 32
