@@ -23,7 +23,7 @@ android).
 ## Quick facts
 
 - Package root: `hsync_common/` (package: `hsync_common/__init__.py`).
-- Version SSOT: `HSYNC_VERSION = "1.0.7"` (`hsync_common/constants.py::HSYNC_VERSION`).
+- Version SSOT: `HSYNC_VERSION = "1.0.8"` (`hsync_common/constants.py::HSYNC_VERSION`).
 - REST header names SSOT: `HEADER_CLIENT_NAME/CLIENT_VERSION/SERVER_VERSION/PROTOCOL_VERSION`
   plus full-download `HEADER_CHECKSUM_SHA256` (`hsync_common/constants.py::HEADER_CLIENT_NAME`);
   slug validator `is_valid_client_name` (`hsync_common/constants.py::is_valid_client_name`) is shared with the server middleware.
