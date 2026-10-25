@@ -195,7 +195,7 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
 - `sanitize_filename` (`path_validation.py::sanitize_filename`).
 - Wire-facing remote-path validation (`path_validation.py::validate_remote_relpath`):
   `INTERNAL_FILENAMES`
-  (`.hsyncignore`/`.hsyncfolder`/legacy `.hsyncstate`/`.hsynctombstones`), `is_internal_name`
+  (`.hsyncignore`/`.hsyncfolder`/`.hsyncstate`/`.hsynctombstones`), `is_internal_name`
   (also matches `*.part`; comparison is case-insensitive so case variants
   like `.HSYNCIGNORE`/`x.PART` are rejected on case-insensitive
   filesystems), `validate_remote_relpath` (rejects `..`, absolute
@@ -311,7 +311,7 @@ reconciliation, transfers, previews and server lines.
   inbound event dispatcher (`event_dispatch._tag`) so the two transports cannot
   drift apart.
 
-> No project-local `LABEL_STYLES`/`ActionLabel` exists anymore: client
+> `LABEL_STYLES`/`ActionLabel` live only here: client
 > (`hsync_client/constants.py::ActionLabel`) and server (`hsync_server/constants.py::ActionLabel`)
 > re-export `ActionLabel` from here.
 

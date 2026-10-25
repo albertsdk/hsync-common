@@ -29,9 +29,9 @@ wire shape. Re-exported from `hsync_common/models/__init__.py`.
   ANY write with kernel resolution, so a rewrite that preserves mtime and size
   (same-second rewrite on a coarse-mtime filesystem, `touch -r`-style mtime
   restoration) still evicts the stale digest. This makes the cache safe to
-  reuse **across sync cycles** (hsync-client no longer clears it per cycle in
-  continuous mode — resyncs re-hash nothing for unchanged files; one-shot
-  runs are one cycle per process, so the old clear was a no-op there).
+  reuse **across sync cycles**: hsync-client keeps it for the process lifetime,
+  so a continuous-mode resync re-hashes nothing for unchanged files, and a
+  one-shot run (one cycle per process) never clears it at all.
   **Thread-safe**: every access
   is serialized by `_sha256_cache_lock` (`models/file.py`), so multi-thread
   callers are legal by design — hsync-client scan/transfer pool threads and
