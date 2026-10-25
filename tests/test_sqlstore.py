@@ -1,6 +1,8 @@
 """Tests for the shared SQLite state backend (ADR-0025)."""
 
+import gc
 import sqlite3
+import warnings
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
@@ -47,6 +49,23 @@ class TestOpenStateDb:
             assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
         finally:
             conn.close()
+
+    def test_corrupt_db_raises_without_leaking_the_connection(self, tmp_path):
+        """A failed schema setup must close the handle it opened.
+
+        An unclosed connection is collected, and reported as ``ResourceWarning:
+        unclosed database``, in whichever unrelated test triggers a GC pass.
+        """
+        path = tmp_path / "corrupt state DB"
+        path.write_bytes(b"not a sqlite database")
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always", ResourceWarning)
+            with pytest.raises(sqlite3.DatabaseError):
+                open_state_db(path)
+            gc.collect()
+
+        assert [w for w in caught if issubclass(w.category, ResourceWarning)] == []
 
     def test_wal_failure_falls_back_to_delete(self, tmp_path, monkeypatch):
         real_connect = sqlite3.connect

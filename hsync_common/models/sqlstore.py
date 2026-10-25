@@ -122,6 +122,9 @@ def open_state_db(db_path: str | Path) -> sqlite3.Connection:
     """Open (or create) the installation DB with ADR-0025 PRAGMAs and schema.
 
     Consumers: :class:`StateDb` and tests that need a raw connection.
+
+    The handle is closed before propagating when setup fails (an unreadable or
+    corrupt file), so a failed open never leaves an unclosed connection behind.
     """
     if str(db_path) == ":memory:":
         conn = sqlite3.connect(":memory:", isolation_level=None, check_same_thread=False)
@@ -129,10 +132,14 @@ def open_state_db(db_path: str | Path) -> sqlite3.Connection:
         path = Path(db_path)
         path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(str(path), isolation_level=None, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    _apply_pragmas(conn)
-    conn.executescript(_SCHEMA_SQL)
-    conn.execute(f"PRAGMA user_version={SCHEMA_USER_VERSION}")
+    try:
+        conn.row_factory = sqlite3.Row
+        _apply_pragmas(conn)
+        conn.executescript(_SCHEMA_SQL)
+        conn.execute(f"PRAGMA user_version={SCHEMA_USER_VERSION}")
+    except BaseException:
+        conn.close()
+        raise
     return conn
 
 
