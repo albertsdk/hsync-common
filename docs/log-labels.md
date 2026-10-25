@@ -148,7 +148,7 @@ notification in desktop/Android.
 | `[INSECURE MASTER]` | warning | Master does not advertise HTTPS + a cert fingerprint; connection refused | ✓ | | ✓ | ✓ |
 | `[PAIRING NEEDED]` | warning | Strict pairing: master cert is unpinned; out-of-band confirmation required | ✓ | | ✓ | ✓ |
 | `[FINGERPRINT CHANGED]` | warning | Master cert no longer matches the pinned fingerprint (possible MITM); refused | ✓ | | ✓ | ✓ |
-| `[AUTH REQUIRED]` | warning | p2p write lacks `HSYNC_P2P_KEY` and the explicit dangerous keyless-write opt-in | ✓ | | ✓ | ✓ |
+| `[AUTH REQUIRED]` | warning | p2p write lacks a shared secret (`HSYNC_P2P_PASSPHRASE`/`HSYNC_P2P_KEY`) and the explicit dangerous keyless-write opt-in | ✓ | | ✓ | ✓ |
 | `[WATCHER ERROR]` | warning | Local file watcher could not start even with the polling fallback: the kernel inotify limits are exhausted (Errno 24 instances / Errno 28 watches) or descriptors are exhausted | ✓ | | | |
 | `[WATCHER FALLBACK]` | warning | File watcher degraded from inotify to polling because an inotify limit was exhausted (higher CPU, ~1 s event latency) | ✓ | | | |
 | `[WATCHER RESTORE]` | create | File watcher restored to inotify after the limits freed up | ✓ | | | |

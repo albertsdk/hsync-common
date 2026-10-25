@@ -3,7 +3,8 @@
 
 """``boot/1`` bucket-token primitives shared by the bootnode and its clients.
 
-The bucket token is derived from the existing group key ``HSYNC_P2P_KEY``:
+The bucket token is derived from the group key (the raw ``HSYNC_P2P_KEY``, or the
+64-hex key derived from ``HSYNC_P2P_PASSPHRASE``):
 ``HMAC-SHA256(key, "boot/1" || bucket)[:32]``, hex-encoded (64 chars). The key
 itself is never transported on the wire; only the derived token is.
 

@@ -6,7 +6,8 @@ Canonical LAN security policy (single source of truth).
 
 The LAN channel is **HTTPS/WSS-only**: every master serves over a self-signed
 certificate whose fingerprint (``cert_fp``) travels in the mDNS TXT record, and
-write authorization uses either a shared ``HSYNC_P2P_KEY`` or the explicit
+write authorization uses either a shared secret (``HSYNC_P2P_PASSPHRASE`` or the
+raw ``HSYNC_P2P_KEY``) or the explicit
 dangerous keyless-write opt-in from ADR-0029. A self-signed certificate does not,
 on its own, prove *identity*: it is trusted only because it is the first one seen
 for a given peer (Trust On First Use). Because the transport is mandatory, a peer

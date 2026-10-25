@@ -103,7 +103,7 @@ constant time. Refusals are uniform and never reveal whether a bucket exists.
 
 The group key is the token's only entropy, so the node's key source enforces
 `MIN_GROUP_KEY_CHARS` (`hsync_common/protocol/boot_tokens.py::MIN_GROUP_KEY_CHARS`,
-32 characters): a shorter key is a configuration error, never a weaker
+32 characters): a shorter node key is a configuration error, never a weaker
 deployment. Clients may instead supply a user-typed `HSYNC_P2P_PASSPHRASE` (at
 least 12 characters), which the client expands with scrypt to the same 64-hex
 key; the node always consumes the derived key (use `hsync derive-group-key` to
