@@ -18,7 +18,7 @@ from typing import Final, Literal
 # Single source of truth for the HSYNC application version, shared by client,
 # server, desktop and Android. The wire-protocol versions live separately in
 # hsync_common.protocol.handshake (PROTOCOL_VERSION_*).
-HSYNC_VERSION = "1.0.8"
+HSYNC_VERSION = "1.0.9"
 
 # =============================================================================
 # HTTP Headers (wire protocol)
