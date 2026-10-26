@@ -53,7 +53,9 @@ class UiEventName(StrEnum):
     rename = "rename"  # a file or directory was renamed
     dir_created = "dir_created"  # a directory was created
     progress = "progress"  # in-flight transfer progress (op: download|upload)
-    sync_complete = "sync_complete"  # a full sync cycle finished
+    # a full sync cycle finished; carries the per-action counters
+    # (downloaded/uploaded/deleted/renamed/skipped/failed/conflicts)
+    sync_complete = "sync_complete"
     folder_size = "folder_size"  # local bytes + sync-set total (aggregate, per cycle)
     error = "error"  # generic error
     auth_error = "auth_error"  # authentication error (invalid/missing API key)
@@ -126,6 +128,15 @@ class UiEventDict(TypedDict):
     total_bytes: NotRequired[int]  # folder_size: remote listing + local-only files
     plan: NotRequired[str]  # discovery event: "mdns" | "mdns+bootnode"
     bootnode: NotRequired[str]  # discovery event: bootnode host (empty without one)
+    # sync_complete: what the cycle applied, reported by the engine itself (a
+    # rename or delete moves no bytes, so the byte-transfer events cannot
+    # describe the outcome).
+    downloaded: NotRequired[int]
+    uploaded: NotRequired[int]
+    deleted: NotRequired[int]
+    renamed: NotRequired[int]
+    skipped: NotRequired[int]
+    conflicts: NotRequired[int]
 
 
 def build_event(
