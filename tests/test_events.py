@@ -148,6 +148,7 @@ class TestEventNameCoverage:
             "master_conflict",
             "no_master",
             "no_peers",
+            "sync_pending",
             "preview_start",
             "preview_end",
             "file_status",

@@ -8,7 +8,7 @@ constants in consumers.
 | Symbol | Location | Purpose |
 | ------ | -------- | ------- |
 | `PROTOCOL_VERSION_REST/WS/P2P` | `protocol/handshake.py::PROTOCOL_VERSION_REST` | `api/1`, `ws/1`, `p2p/1` |
-| `Capability` (StrEnum) | `protocol/handshake.py::Capability` | feature tokens; `ALL_CAPABILITIES` `protocol/handshake.py::ALL_CAPABILITIES`; includes `delta`, `vector_clocks`, and p2p `peer_download` (ADR-0028) |
+| `Capability` (StrEnum) | `protocol/handshake.py::Capability` | feature tokens; `ALL_CAPABILITIES` `protocol/handshake.py::ALL_CAPABILITIES`; includes `delta`, `vector_clocks`, `index` (publishes a read-only inventory) and p2p `peer_download` (serves blocks, ADR-0028) |
 | `encode_capabilities` / `decode_capabilities` | `protocol/handshake.py::encode_capabilities` | tokens ⇄ enum set |
 | `WsAuthRequest` / `WsAuthResponse` TypedDicts | `protocol/handshake.py::WsAuthRequest` | WS auth frames |
 | `WsPresenceFrame` / `build_ws_presence` | `protocol/handshake.py::WsPresenceFrame` | server → client presence frame (connected/total) |
@@ -86,7 +86,7 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   client and consumed by desktop/android (incl. `sync_paused`,
   `transfer_failed`, `fingerprint_changed`, `auth_required`, `pairing_needed`,
   `duplicate_identity`, `security_rejected`, `discovery`, `no_master`, `no_peers`,
-  `folder_size`, `ready`).
+  `sync_pending`, `folder_size`, `ready`).
 - `ready` marks the end of startup validation: the client emits it once, after
   every fatal configuration check and before its run loop. A consumer treats an
   exit before it as a **startup failure** (the Desktop engine's safety net), and
@@ -94,6 +94,10 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   error before exiting.
 - `no_peers` is emitted by the client when a p2p one-shot aborts because no peer
   was discovered (`P2P_NO_PEER`).
+- `sync_pending` is emitted by a serving master when it cannot classify its share
+  yet: `reason="no_device"` (nothing connected) or `reason="awaiting_inventory"`
+  (a device is connected but has not published its inventory). It is never a
+  verdict on the files, and a consumer shows a waiting/unknown state.
 - `folder_size` carries `local_bytes` (files present on this device) and
   `total_bytes` (remote/master listing sizes plus local-only files pending
   upload). The client emits it once per distinct pair after fetching its

@@ -37,7 +37,7 @@ these constants:
 | SSOT symbol | Location | Consumed by |
 | ----------- | -------- | ----------- |
 | `PROTOCOL_VERSION_REST/WS/P2P` | `protocol/handshake.py::PROTOCOL_VERSION_REST` | server middleware, client REST/WS, android `Protocol.kt` |
-| `Capability` enum + `encode/decode_capabilities` | `protocol/handshake.py::Capability` | WS handshake on all peers; includes `peer_download` |
+| `Capability` enum + `encode/decode_capabilities` | `protocol/handshake.py::Capability` | WS handshake on all peers; includes `index` (read-only inventory) and `peer_download` (block serving) |
 | `build_ws_auth_request/ok/error` + presence frame | `protocol/handshake.py::build_ws_auth_request` | client/android WS auth, server `events.py` |
 | `UiEventName` + `build_event` | `protocol/events.py::UiEventName` | client emits, desktop/android parse; transfer payload may carry peer `source_cid` |
 | `elect_master` / `election_sort_key` | `protocol/p2p.py::elect_master` | client `p2p_peers.py`, android `Election.kt` |
