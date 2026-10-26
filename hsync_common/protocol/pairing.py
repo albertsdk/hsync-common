@@ -46,7 +46,6 @@ __all__ = [
     "normalize_fingerprint",
     "p2p_write_requires_key",
     "parse_fingerprint",
-    "requires_pairing_confirmation",
 ]
 
 # Sync-direction vocabulary that, together with ``SYNC_DIRECTION_BIDIRECTIONAL``,
@@ -167,26 +166,6 @@ def fingerprint_matches(observed: str, pins: Sequence[str]) -> bool:
         if pin_norm is not None and hmac.compare_digest(observed_norm, pin_norm):
             return True
     return False
-
-
-def requires_pairing_confirmation(decision: PinDecision, *, require_pairing: bool) -> bool:
-    """Whether a first-seen fingerprint must be confirmed out of band first.
-
-    Under *strict pairing* the Trust-On-First-Use shortcut is disabled: a peer's
-    first certificate (``trusted``) is no longer auto-pinned but must be vouched
-    for by the operator out of band, so the client refuses and emits
-    ``pairing_needed`` instead of silently trusting it. Every other decision
-    (``matched``/``changed``) is unaffected — pairing only gates the very first
-    sighting.
-
-    Args:
-        decision: The outcome of :func:`evaluate_pin` for this peer.
-        require_pairing: ``True`` when strict pairing is enabled.
-
-    Returns:
-        ``True`` when the connection must be refused pending explicit pairing.
-    """
-    return require_pairing and decision is PinDecision.trusted
 
 
 def is_write_direction(sync_direction: str) -> bool:

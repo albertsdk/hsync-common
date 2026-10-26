@@ -13,7 +13,7 @@ the same golden fixtures.
 | Peer-source REST payloads / schema | `hsync_common.protocol.peer_download` (`build_p2p_sources_*`, strict validators), `hsync_common.protocol.schemas` (`build_p2p_sources_schema`) |
 | Full-download checksum header | `hsync_common.constants.HEADER_CHECKSUM_SHA256` (`X-Checksum-SHA256`) |
 | Election algorithm | `hsync_common.protocol.p2p` (`rank_election_candidates`, `elect_master`, `election_sort_key`) |
-| Pairing / trust policy | `hsync_common.protocol.pairing` (`evaluate_pin`, `p2p_write_requires_key`, `requires_pairing_confirmation`) |
+| Pairing / trust policy | `hsync_common.protocol.pairing` (`evaluate_pin`, `p2p_write_requires_key`) + `hsync_common.protocol.tls_trust` (`TrustPolicy`, `evaluate_tls_trust`, `resolve_self_signed_policy`) |
 | Kotlin mirror | `com.hsync.android.p2p.Election`, `com.hsync.android.p2p.Pairing`, `com.hsync.android.data.api.Protocol` |
 | Cross-language scenarios | `protocol/fixtures/p2p-election-scenarios.json`, `protocol/fixtures/p2p-pairing-scenarios.json`, `protocol/fixtures/p2p-sources-*.json`, `protocol/fixtures/p2p-wss-*.json` |
 
@@ -737,21 +737,37 @@ master independently returns 403 for no-key mutation unless its own dangerous
 opt-in is enabled. Upload, delete, rename, permission update, delta apply, and
 tombstone mutation all use this same matrix.
 
-### Explicit pairing (strict mode)
+### P2P master trust policy (ADR-0040)
 
 TOFU trusts a peer's *first* certificate automatically, which is convenient on a
-trusted network but assumes no attacker was already present at first sighting. Strict
-pairing (`HSYNC_P2P_REQUIRE_PAIRING` / client `P2P_REQUIRE_PAIRING` or the
-`--require-pairing` CLI flag, Desktop *Require pairing* toggle, Android
-`SyncConfig.p2pRequirePairing`) closes that window by disabling the auto-pin
-shortcut. `requires_pairing_confirmation(decision, require_pairing=...)` is the
-canonical rule: it returns true only for a first sighting (`trusted`) while
-strict pairing is on; `matched`/`changed` are unaffected.
+trusted network but assumes no attacker was already present at first sighting.
+The p2p master therefore follows the same SSH-style policy as the bootnode and the
+sync server (`TrustPolicy`, ADR-0035/ADR-0036), resolved by
+`resolve_self_signed_policy` from `--p2p-trust` > `HSYNC_P2P_TRUST` >
+`DEFAULT_SELF_SIGNED_POLICY` (`ask`):
 
-When it triggers, the client logs `[PAIRING NEEDED]`, emits the `pairing_needed`
-event and stays in discovery without connecting. The operator confirms the peer
-out of band — by pinning its fingerprint (or disabling strict pairing) — after
-which the normal TOFU table applies.
+| Policy | First sighting | Later sightings |
+|---|---|---|
+| `ask` (default) | prompt the operator; fail closed without one | proceed if it matches, refuse a change |
+| `accept-new` | pin it silently (TOFU) | proceed if it matches, refuse a change |
+| `strict` | refuse until the fingerprint is pinned out of band | proceed if it matches, refuse a change |
+
+`evaluate_tls_trust(policy, stored, observed)` is the canonical rule — the same
+pure function the Android mirror replays from the shared fixture. `chain` and
+`none` are rejected for this transport: they never pin, which would disable the
+master identity check entirely.
+
+Under `ask` the client renders an SSH-style prompt on an interactive terminal and
+otherwise emits `pairing_needed` and stays in discovery without connecting; the
+desktop and Android raise their own confirmation dialog. The operator confirms the
+peer's fingerprint out of band and pins it with
+`hsync trust peer add DEVICE_ID sha256:FINGERPRINT --bucket BUCKET_NAME`, after
+which the normal pin table applies. `strict` is the unattended equivalent: the
+same refusal, without a prompt.
+
+This policy authenticates the master **towards this device**. It does not
+authorize devices that connect to a master: that remains the shared key's job
+(ADR-0029).
 
 ### Security events
 

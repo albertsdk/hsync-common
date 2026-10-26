@@ -43,11 +43,7 @@ from .handshake import (
     build_ws_presence,
 )
 from .p2p import ElectionCandidate, elect_master
-from .pairing import (
-    evaluate_pin,
-    p2p_write_requires_key,
-    requires_pairing_confirmation,
-)
+from .pairing import evaluate_pin, p2p_write_requires_key
 from .peer_download import (
     P2PInventoryDeleteEntry,
     P2PInventoryUpsertEntry,
@@ -301,16 +297,27 @@ _WRITE_POLICY_SCENARIOS: tuple[tuple[str, str, bool], ...] = (
     ("explicit-opt-in-upload-only-no-key", "upload-only", True),
 )
 
-# Cross-language explicit-pairing scenarios. Each lists the stored/observed
-# fingerprints and whether strict pairing is enabled; the resulting
-# ``PinDecision`` and ``expected_requires_pairing`` are *computed* from the shared
-# ``evaluate_pin``/``requires_pairing_confirmation`` so Python and Android agree on
-# when a first-seen master must be confirmed out of band before it is trusted.
-_PAIRING_SCENARIOS: tuple[tuple[str, str | None, str, bool], ...] = (
-    ("first-sighting-strict-needs-pairing", None, "AA:BB:CC:DD", True),
-    ("first-sighting-lax-auto-trust", None, "AA:BB:CC:DD", False),
-    ("matched-never-needs-pairing", "aabbccdd", "AA:BB:CC:DD", True),
-    ("changed-never-needs-pairing", "aabbccdd", "ee:ff:00:11", True),
+# Full SHA-256 digests for the trust scenarios: the policy validates a
+# fingerprint before comparing it, so a short sample would never match.
+_TRUST_FP_A = "a" * 64
+_TRUST_FP_A_COLON = ":".join(["AA"] * 32)
+_TRUST_FP_B = "b" * 64
+
+# Cross-language P2P-master trust scenarios (ADR-0040). Each lists the trust
+# policy, the stored and the observed fingerprint; the expected action is
+# *computed* from the shared ``evaluate_tls_trust`` so Python and Android agree on
+# when an unknown master is prompted, auto-pinned or refused.
+_MASTER_TRUST_SCENARIOS: tuple[tuple[str, TrustPolicy, str | None, str], ...] = (
+    ("ask-unknown-prompts", TrustPolicy.ask, None, _TRUST_FP_A),
+    ("ask-matched-proceeds", TrustPolicy.ask, _TRUST_FP_A, _TRUST_FP_A_COLON),
+    ("ask-changed-refused", TrustPolicy.ask, _TRUST_FP_A, _TRUST_FP_B),
+    ("ask-malformed-observed-refused", TrustPolicy.ask, _TRUST_FP_A, "AA:BB:CC:DD"),
+    ("accept-new-unknown-pins", TrustPolicy.accept_new, None, _TRUST_FP_A),
+    ("accept-new-matched-proceeds", TrustPolicy.accept_new, _TRUST_FP_A, _TRUST_FP_A_COLON),
+    ("accept-new-changed-refused", TrustPolicy.accept_new, _TRUST_FP_A, _TRUST_FP_B),
+    ("strict-unknown-refused", TrustPolicy.strict, None, _TRUST_FP_A),
+    ("strict-matched-proceeds", TrustPolicy.strict, _TRUST_FP_A, _TRUST_FP_A_COLON),
+    ("strict-changed-refused", TrustPolicy.strict, _TRUST_FP_A, _TRUST_FP_B),
 )
 
 
@@ -338,16 +345,15 @@ def _pairing_scenarios() -> dict[str, Any]:
             }
             for name, direction, allow_unauthenticated_writes in _WRITE_POLICY_SCENARIOS
         ],
-        "pairing_scenarios": [
+        "master_trust_scenarios": [
             {
                 "name": name,
-                "decision": evaluate_pin(stored, observed),
-                "require_pairing": require_pairing,
-                "expected_requires_pairing": requires_pairing_confirmation(
-                    evaluate_pin(stored, observed), require_pairing=require_pairing
-                ),
+                "policy": policy.value,
+                "stored": stored,
+                "observed": observed,
+                "expected_action": evaluate_tls_trust(policy, stored, observed).value,
             }
-            for name, stored, observed, require_pairing in _PAIRING_SCENARIOS
+            for name, policy, stored, observed in _MASTER_TRUST_SCENARIOS
         ],
     }
 
@@ -357,27 +363,22 @@ def _pairing_scenarios() -> dict[str, Any]:
 # shared ``evaluate_tls_trust`` so Python, the desktop subprocess contract and the
 # Android mirror agree on when an unknown host is prompted/pinned, when a changed
 # one is refused, and when ``chain`` (standard CA validation, no pinning) proceeds.
-# Fingerprints are full SHA-256 digests (the policy validates them, so short
-# samples would never match).
-_BOOTNODE_FP_A = "a" * 64
-_BOOTNODE_FP_A_COLON = ":".join(["AA"] * 32)
-_BOOTNODE_FP_B = "b" * 64
 _BOOTNODE_TRUST_SCENARIOS: tuple[tuple[str, TrustPolicy, str | None, str | None], ...] = (
-    ("ask-unknown-prompts", TrustPolicy.ask, None, _BOOTNODE_FP_A),
-    ("ask-matched-proceeds", TrustPolicy.ask, _BOOTNODE_FP_A, _BOOTNODE_FP_A_COLON),
-    ("ask-changed-refused", TrustPolicy.ask, _BOOTNODE_FP_A, _BOOTNODE_FP_B),
-    ("accept-new-unknown-pins", TrustPolicy.accept_new, None, _BOOTNODE_FP_A),
-    ("accept-new-matched-proceeds", TrustPolicy.accept_new, _BOOTNODE_FP_A, _BOOTNODE_FP_A_COLON),
-    ("accept-new-changed-refused", TrustPolicy.accept_new, _BOOTNODE_FP_A, _BOOTNODE_FP_B),
-    ("strict-unknown-refused", TrustPolicy.strict, None, _BOOTNODE_FP_A),
-    ("strict-matched-proceeds", TrustPolicy.strict, _BOOTNODE_FP_A, _BOOTNODE_FP_A_COLON),
-    ("strict-changed-refused", TrustPolicy.strict, _BOOTNODE_FP_A, _BOOTNODE_FP_B),
-    ("none-unknown-proceeds", TrustPolicy.none, None, _BOOTNODE_FP_A),
-    ("none-changed-proceeds", TrustPolicy.none, _BOOTNODE_FP_A, _BOOTNODE_FP_B),
-    ("ask-missing-observed-refused", TrustPolicy.ask, _BOOTNODE_FP_A, None),
-    ("chain-unknown-proceeds", TrustPolicy.chain, None, _BOOTNODE_FP_A),
-    ("chain-changed-proceeds", TrustPolicy.chain, _BOOTNODE_FP_A, _BOOTNODE_FP_B),
-    ("chain-missing-observed-proceeds", TrustPolicy.chain, _BOOTNODE_FP_A, None),
+    ("ask-unknown-prompts", TrustPolicy.ask, None, _TRUST_FP_A),
+    ("ask-matched-proceeds", TrustPolicy.ask, _TRUST_FP_A, _TRUST_FP_A_COLON),
+    ("ask-changed-refused", TrustPolicy.ask, _TRUST_FP_A, _TRUST_FP_B),
+    ("accept-new-unknown-pins", TrustPolicy.accept_new, None, _TRUST_FP_A),
+    ("accept-new-matched-proceeds", TrustPolicy.accept_new, _TRUST_FP_A, _TRUST_FP_A_COLON),
+    ("accept-new-changed-refused", TrustPolicy.accept_new, _TRUST_FP_A, _TRUST_FP_B),
+    ("strict-unknown-refused", TrustPolicy.strict, None, _TRUST_FP_A),
+    ("strict-matched-proceeds", TrustPolicy.strict, _TRUST_FP_A, _TRUST_FP_A_COLON),
+    ("strict-changed-refused", TrustPolicy.strict, _TRUST_FP_A, _TRUST_FP_B),
+    ("none-unknown-proceeds", TrustPolicy.none, None, _TRUST_FP_A),
+    ("none-changed-proceeds", TrustPolicy.none, _TRUST_FP_A, _TRUST_FP_B),
+    ("ask-missing-observed-refused", TrustPolicy.ask, _TRUST_FP_A, None),
+    ("chain-unknown-proceeds", TrustPolicy.chain, None, _TRUST_FP_A),
+    ("chain-changed-proceeds", TrustPolicy.chain, _TRUST_FP_A, _TRUST_FP_B),
+    ("chain-missing-observed-proceeds", TrustPolicy.chain, _TRUST_FP_A, None),
     # A malformed observed value is never trusted (matches the Android mirror).
     ("accept-new-invalid-observed-refused", TrustPolicy.accept_new, None, "not-a-fingerprint"),
     ("strict-short-observed-refused", TrustPolicy.strict, None, "abcdef"),

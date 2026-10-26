@@ -163,7 +163,12 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   `fingerprint_matches` (`protocol/pairing.py::fingerprint_matches`) compares constant-time against a pin
   set, `FingerprintMismatch` (`protocol/pairing.py::FingerprintMismatch`) is the shared fatal-exception.
   Consumers: `hsync-client` bootnode pinning; future Rust/Android parity.
-- `requires_pairing_confirmation` (`protocol/pairing.py::requires_pairing_confirmation`) — strict out-of-band pairing.
+- P2P master trust is the `TrustPolicy` of the self-signed transports
+  (`protocol/tls_trust.py::TrustPolicy`, ADR-0040): `evaluate_tls_trust`
+  (`protocol/tls_trust.py::evaluate_tls_trust`) is the rule and
+  `resolve_self_signed_policy` (`protocol/tls_trust.py::resolve_self_signed_policy`)
+  resolves flag > env > `DEFAULT_SELF_SIGNED_POLICY` (`protocol/tls_trust.py::DEFAULT_SELF_SIGNED_POLICY`,
+  `ask`), rejecting the non-pinning `chain`/`none`.
 - `is_write_direction` (`protocol/pairing.py::is_write_direction`) + `p2p_write_requires_key`
   (`protocol/pairing.py::p2p_write_requires_key`); write directions set `protocol/pairing.py::_WRITE_DIRECTIONS`. ADR-0029 makes every
   write-capable run require a key unless the explicit dangerous

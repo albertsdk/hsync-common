@@ -11,9 +11,13 @@ shared ``p2p-bootnode-trust-scenarios`` fixture).
 import pytest
 
 from hsync_common.protocol.tls_trust import (
+    DEFAULT_SELF_SIGNED_POLICY,
+    PINNING_POLICIES,
     TrustAction,
     TrustPolicy,
+    ensure_pinning_policy,
     evaluate_tls_trust,
+    resolve_self_signed_policy,
     resolve_trust_policy,
 )
 
@@ -113,3 +117,34 @@ class TestResolveTrustPolicy:
             resolve_trust_policy("bogus", (), False, True)
         with pytest.raises(ValueError):
             resolve_trust_policy(None, (), False, True, env_default="bogus")
+
+
+def test_default_self_signed_policy_is_ask():
+    assert DEFAULT_SELF_SIGNED_POLICY is TrustPolicy.ask
+    assert DEFAULT_SELF_SIGNED_POLICY in PINNING_POLICIES
+
+
+@pytest.mark.parametrize("policy", [TrustPolicy.ask, TrustPolicy.accept_new, TrustPolicy.strict])
+def test_ensure_pinning_policy_accepts_pinning_policies(policy):
+    assert ensure_pinning_policy(policy) is policy
+
+
+@pytest.mark.parametrize("policy", [TrustPolicy.chain, TrustPolicy.none])
+def test_ensure_pinning_policy_rejects_non_pinning_policies(policy):
+    with pytest.raises(ValueError):
+        ensure_pinning_policy(policy)
+
+
+def test_resolve_self_signed_policy_defaults_to_ask():
+    assert resolve_self_signed_policy(None) is TrustPolicy.ask
+
+
+def test_resolve_self_signed_policy_precedence():
+    assert resolve_self_signed_policy("strict", env_default="accept-new") is TrustPolicy.strict
+    assert resolve_self_signed_policy(None, env_default="accept-new") is TrustPolicy.accept_new
+
+
+@pytest.mark.parametrize("value", ["chain", "none", "bogus"])
+def test_resolve_self_signed_policy_rejects_non_pinning_values(value):
+    with pytest.raises(ValueError):
+        resolve_self_signed_policy(value)

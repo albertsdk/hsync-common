@@ -38,7 +38,16 @@ from enum import StrEnum
 
 from .pairing import parse_fingerprint
 
-__all__ = ["TrustAction", "TrustPolicy", "evaluate_tls_trust", "resolve_trust_policy"]
+__all__ = [
+    "DEFAULT_SELF_SIGNED_POLICY",
+    "PINNING_POLICIES",
+    "TrustAction",
+    "TrustPolicy",
+    "ensure_pinning_policy",
+    "evaluate_tls_trust",
+    "resolve_self_signed_policy",
+    "resolve_trust_policy",
+]
 
 
 class TrustPolicy(StrEnum):
@@ -49,6 +58,19 @@ class TrustPolicy(StrEnum):
     accept_new = "accept-new"  # pin a first sighting silently, refuse a changed one
     strict = "strict"  # require an explicit pin; refuse unknown or changed
     none = "none"  # no verification (tests/loopback only)
+
+
+# The default for a self-signed transport (P2P master, bootnode): confirm an
+# unknown fingerprint on a terminal and fail closed when there is no terminal.
+DEFAULT_SELF_SIGNED_POLICY = TrustPolicy.ask
+
+# Policies that actually pin a self-signed transport. ``chain``/``none`` never
+# pin, so they cannot express trust for a P2P master or a bootnode.
+PINNING_POLICIES: tuple[TrustPolicy, ...] = (
+    TrustPolicy.ask,
+    TrustPolicy.accept_new,
+    TrustPolicy.strict,
+)
 
 
 class TrustAction(StrEnum):
@@ -114,7 +136,7 @@ def resolve_trust_policy(
     verify_ssl: bool,
     *,
     env_default: str | None = None,
-    fallback: TrustPolicy = TrustPolicy.ask,
+    fallback: TrustPolicy = DEFAULT_SELF_SIGNED_POLICY,
 ) -> TrustPolicy:
     """Resolve the effective :class:`TrustPolicy` from CLI flags and the environment.
 
@@ -147,3 +169,50 @@ def resolve_trust_policy(
         return TrustPolicy.accept_new
     explicit = policy or env_default
     return TrustPolicy(explicit) if explicit else fallback
+
+
+def ensure_pinning_policy(policy: TrustPolicy) -> TrustPolicy:
+    """Return *policy* when it pins a self-signed transport; raise otherwise.
+
+    ``chain`` and ``none`` never pin, so they can never be the policy of a P2P
+    master or a bootnode: silently proceeding without a pin would disable the
+    identity check entirely.
+
+    Raises:
+        ValueError: *policy* is not one of :data:`PINNING_POLICIES`.
+    """
+    if policy not in PINNING_POLICIES:
+        allowed = ", ".join(value.value for value in PINNING_POLICIES)
+        raise ValueError(
+            f"policy '{policy.value}' does not pin a self-signed transport; use {allowed}"
+        )
+    return policy
+
+
+def resolve_self_signed_policy(
+    policy: str | None,
+    *,
+    env_default: str | None = None,
+) -> TrustPolicy:
+    """Resolve the policy of a self-signed transport (flag > env > default).
+
+    One precedence for the P2P master and the bootnode, so the two cannot drift:
+    an explicit ``--*-trust`` value wins over the ``HSYNC_*_TRUST`` environment
+    default, which wins over :data:`DEFAULT_SELF_SIGNED_POLICY`.
+
+    Consumers: ``hsync-client`` (P2P master trust in ``main_logic.run_sync``).
+
+    Raises:
+        ValueError: the resolved policy does not pin (``chain``/``none``) or is
+            not a :class:`TrustPolicy` member.
+    """
+    return ensure_pinning_policy(
+        resolve_trust_policy(
+            policy,
+            (),
+            False,
+            True,
+            env_default=env_default,
+            fallback=DEFAULT_SELF_SIGNED_POLICY,
+        )
+    )

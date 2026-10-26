@@ -22,7 +22,6 @@ from hsync_common.protocol.pairing import (
     normalize_fingerprint,
     p2p_write_requires_key,
     parse_fingerprint,
-    requires_pairing_confirmation,
 )
 
 
@@ -105,21 +104,6 @@ class TestFingerprintMatches:
 
 def test_fingerprint_mismatch_is_an_exception():
     assert issubclass(FingerprintMismatch, Exception)
-
-
-class TestRequiresPairingConfirmation:
-    def test_first_sighting_needs_confirmation_under_strict_pairing(self):
-        assert requires_pairing_confirmation(PinDecision.trusted, require_pairing=True) is True
-
-    def test_first_sighting_is_auto_trusted_without_strict_pairing(self):
-        assert requires_pairing_confirmation(PinDecision.trusted, require_pairing=False) is False
-
-    def test_other_decisions_never_need_pairing(self):
-        for decision in (
-            PinDecision.matched,
-            PinDecision.changed,
-        ):
-            assert requires_pairing_confirmation(decision, require_pairing=True) is False
 
 
 class TestWritePolicy:

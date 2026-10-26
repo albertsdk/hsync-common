@@ -74,12 +74,16 @@ has its own revocable key; the p2p group remains a single shared trust domain
 
 ### 3. Strict pairing mode (optional)
 
-**Decision**: when `--require-pairing` is set, TOFU is bypassed and a
-manual out-of-band confirmation is required before the first connection. The
-master displays a pairing code; the slave operator must confirm it.
+**Decision**: the p2p master follows the same `TrustPolicy` as the other
+self-signed transports ([ADR-0040](0040-p2p-master-trust-policy.md)): `ask`
+(the default) confirms a first-seen fingerprint on a terminal and fails closed
+without one, `accept-new` pins it silently, and `strict` requires an explicit
+out-of-band pin before the first connection.
 
-- Implementation: `protocol/pairing.py` (Python), `Pairing.kt` (Android).
-- Pairing is an optional escalation for security-sensitive deployments.
+- Implementation: `protocol/tls_trust.py` + `protocol/pairing.py` (Python),
+  `p2p/Pairing.kt` (Android).
+- `strict` is the escalation for deployments whose network cannot be trusted
+during setup.
 - A `SecurityEvent.PairingNeeded` is emitted when a new peer attempts to
   connect and strict pairing is active.
 
