@@ -86,14 +86,14 @@ The prefix encodes the **origin** of the event (see the two-level rule above).
 | `[LOCAL RENAME]` | rename | Local watcher: file/directory renamed (also slave-side rename pushed to the master) | ✓ | | ✓ | ✓ |
 | `[LOCAL DELETE]` | delete | Local watcher: file/directory deleted (also slave-side delete pushed to the master) | ✓ | | ✓ | ✓ |
 | `[LOCAL SYMLINK]` | create | Local watcher: symbolic link created | ✓ | | ✓ | ✓ |
-| `[LOCAL IGNORE DEL]` | warning | Local watcher: deletion skipped (ignore-delete / backup mode) | ✓ | | ✓ | ✓ |
+| `[LOCAL IGNORE DEL]` | warning | Local watcher: deletion skipped (deletion policy: keep) | ✓ | | ✓ | ✓ |
 | `[LOCAL KEEP]` | in_sync | Local watcher: `.hsynckeep` sentinel created to preserve an empty directory | ✓ | | ✓ | ✓ |
 | `[REMOTE CREATE]` | create | Peer-caused: directory created (inbound event applied, or master broadcasting a slave's create) | ✓ | | ✓ | ✓ |
 | `[REMOTE MODIFY]` | modify | Peer-caused: file/directory content modified (inbound event applied, or master broadcasting a slave's upload) | ✓ | | ✓ | ✓ |
 | `[REMOTE RENAME]` | rename | Peer-caused: file/directory renamed | ✓ | | ✓ | ✓ |
 | `[REMOTE DELETE]` | delete | Peer-caused: file/directory deleted | ✓ | | ✓ | ✓ |
 | `[REMOTE SYMLINK]` | create | Peer-caused: symbolic link created | ✓ | | ✓ | ✓ |
-| `[REMOTE IGNORE DEL]` | warning | Peer-caused: deletion skipped (ignore-delete / backup mode) | ✓ | | ✓ | ✓ |
+| `[REMOTE IGNORE DEL]` | warning | Peer-caused: deletion skipped (deletion policy: keep) | ✓ | | ✓ | ✓ |
 | `[REMOTE SECURITY]` | security | Peer-caused: unsafe inbound path rejected | ✓ | | ✓ | ✓ |
 | `[REMOTE ECHO]` | infrastructure | Peer event echo suppressed (own event discarded) | ✓ | | ✓ | ✓ |
 | `[REMOTE DOWNLOAD]` | transfer | Master serving file bytes to a slave | ✓ | | | ✓ |

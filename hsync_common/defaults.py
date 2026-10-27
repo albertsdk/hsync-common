@@ -58,6 +58,8 @@ __all__ = [
     "STABILITY_DELAY_MAX",
     "STABILITY_DELAY_MIN",
     "SYNC_DIRECTION_DEFAULT",
+    "DELETION_POLICIES",
+    "DELETION_POLICY_DEFAULT",
 ]
 
 # Seconds allowed for one HTTP request (connect + read) before retrying.
@@ -92,6 +94,14 @@ RESYNC_MAX = 3600
 
 # Canonical default direction of a sync pair.
 SYNC_DIRECTION_DEFAULT = "bidirectional"
+
+# What a deletion does. ``propagate`` applies local deletions and sends them to
+# the other side; ``keep`` never deletes on this device (local and remote
+# deletions are ignored), which is what an additive backup target wants. The
+# vocabulary is one contract: the client accepts exactly these values, the
+# desktop offers exactly these options and the Android mirror models them.
+DELETION_POLICY_DEFAULT = "propagate"
+DELETION_POLICIES = ("propagate", "keep")
 
 # Parallel file transfers (downloads/uploads) per peer.
 MAX_CONCURRENT_TRANSFERS_DEFAULT = 5

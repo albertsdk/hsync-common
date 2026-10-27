@@ -69,7 +69,7 @@ proceed unaffected.
   happening in the first place. If a user or operator misconfigures a client
   (e.g. points it at a wrong, empty bucket and *disables* the guard), data can
   still be lost.
-- The guard is not a substitute for backups or the `--ignore-delete` flag.
+- The guard is not a substitute for backups or the `--deletion-policy keep` mode.
 
 ### Why block, not suspend?
 
@@ -104,7 +104,7 @@ effectively an automatic circuit breaker.
   `--no-mass-delete-guard` or raise the thresholds for that session.
 - **Does not protect against slow, incremental data loss.** If an attacker or
   a buggy client deletes files at a rate of 10 per cycle, the guard will never
-  trip. The tombstones ([ADR-0003](0003-tombstone-gossip.md)) and `--ignore-delete` flag are the defenses
+  trip. The tombstones ([ADR-0003](0003-tombstone-gossip.md)) and `--deletion-policy keep` mode are the defenses
   for that class of problem.
 - **Adds a small constant-time overhead** per sync cycle: counting the delete
   actions against the thresholds. This is negligible compared to the I/O cost
