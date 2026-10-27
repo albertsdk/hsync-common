@@ -136,6 +136,7 @@ class UiEventDict(TypedDict):
     deleted: NotRequired[int]
     renamed: NotRequired[int]
     skipped: NotRequired[int]
+    failed: NotRequired[int]
     conflicts: NotRequired[int]
 
 
