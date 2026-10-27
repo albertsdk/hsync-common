@@ -5,7 +5,7 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
 
 ## constants.py
 
-- `HSYNC_VERSION = "1.0.9"` (`constants.py::HSYNC_VERSION`) — ecosystem version SSOT.
+- `HSYNC_VERSION = "1.0.10"` (`constants.py::HSYNC_VERSION`) — ecosystem version SSOT.
 - Wire headers `HEADER_CLIENT_NAME/CLIENT_VERSION/SERVER_VERSION/PROTOCOL_VERSION`
   plus `HEADER_CHECKSUM_SHA256` (`constants.py::HEADER_CLIENT_NAME`) — REST header names shared
   by client, server and the Android mirror; the checksum header is canonical for
@@ -419,9 +419,11 @@ reconciliation, transfers, previews and server lines.
   `DELETION_POLICIES` and `DELETION_POLICY_DEFAULT`.
 - `DELETION_POLICIES` (`propagate`/`keep`) is the deletion-policy vocabulary
   shared by `hsync-client` (`--deletion-policy` / `HSYNC_DELETION_POLICY`, read
-  once through `config.py::deletions_are_kept`), `hsync-desktop` (aliased as
-  `config.DELETION_POLICIES`, used by the Sync-tab combo and the backup badge)
-  and the Kotlin mirror `hsync-android/.../domain/model/DeletionPolicy.kt`.
+  once through
+  `hsync-client/hsync_client/config.py::deletions_are_kept`), `hsync-desktop`
+  (aliased as `hsync-desktop/hsync_desktop/config.py::DELETION_POLICIES`, used by
+  the Sync-tab combo and the backup badge) and the Kotlin mirror
+  `hsync-android/app/src/main/java/com/hsync/android/domain/model/DeletionPolicy.kt::DeletionPolicy`.
 - `MIN_FREE_DISK_SPACE_DEFAULT`/`_MIN`/`_MAX` are **bytes** (500 MiB / 0 /
   100 GiB): the unit `shutil.disk_usage` reports. The operator-facing form is a
   size string parsed by `format.py::parse_size` (see `disk.py` below); the
