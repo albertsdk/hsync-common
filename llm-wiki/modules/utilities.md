@@ -415,7 +415,13 @@ reconciliation, transfers, previews and server lines.
   `MASS_DELETE_PERCENT_DEFAULT`, `MIN_FREE_DISK_SPACE_DEFAULT`,
   `MAX_INBOUND_SIZE_MB_DEFAULT`, `BANDWIDTH_MIN_BPS`, `BANDWIDTH_MAX_BPS`,
   `MAX_WAIT_TIMEOUT_DEFAULT`, `P2P_PEER_DOWNLOAD_DEFAULT`,
-  `P2P_PEER_READ_CAP_DEFAULT` and `P2P_PEER_SOURCES_MAX_DEFAULT`.
+  `P2P_PEER_READ_CAP_DEFAULT`, `P2P_PEER_SOURCES_MAX_DEFAULT`,
+  `DELETION_POLICIES` and `DELETION_POLICY_DEFAULT`.
+- `DELETION_POLICIES` (`propagate`/`keep`) is the deletion-policy vocabulary
+  shared by `hsync-client` (`--deletion-policy` / `HSYNC_DELETION_POLICY`, read
+  once through `config.py::deletions_are_kept`), `hsync-desktop` (aliased as
+  `config.DELETION_POLICIES`, used by the Sync-tab combo and the backup badge)
+  and the Kotlin mirror `hsync-android/.../domain/model/DeletionPolicy.kt`.
 - `MIN_FREE_DISK_SPACE_DEFAULT`/`_MIN`/`_MAX` are **bytes** (500 MiB / 0 /
   100 GiB): the unit `shutil.disk_usage` reports. The operator-facing form is a
   size string parsed by `format.py::parse_size` (see `disk.py` below); the
