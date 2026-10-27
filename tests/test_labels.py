@@ -61,14 +61,19 @@ class TestSpecificLabelColors:
         assert LABEL_STYLES[str(ActionLabel.REMOTE_DELETE)] == ("<red>", "</red>")
 
     def test_warning_labels_are_yellow(self):
-        # ignore-del operations are advisory (deletions skipped), not no-ops.
-        assert LABEL_STYLES[str(ActionLabel.LOCAL_IGNORE_DEL)] == ("<yellow>", "</yellow>")
-        assert LABEL_STYLES[str(ActionLabel.REMOTE_IGNORE_DEL)] == ("<yellow>", "</yellow>")
+        # Real anomalies stay advisory-colored: a paused deletion phase and a
+        # conflict both need the user's attention.
+        assert LABEL_STYLES[str(ActionLabel.GUARD)] == ("<yellow>", "</yellow>")
+        assert LABEL_STYLES[str(ActionLabel.CONFLICT)] == ("<yellow>", "</yellow>")
 
     def test_in_sync_labels_are_dim(self):
         assert LABEL_STYLES[str(ActionLabel.IN_SYNC)] == ("<dim>", "</dim>")
         assert LABEL_STYLES[str(ActionLabel.SKIP)] == ("<dim>", "</dim>")
         assert LABEL_STYLES[str(ActionLabel.LOCAL_KEEP)] == ("<dim>", "</dim>")
+        # A deletion kept by the configured policy is a no-op, not an anomaly:
+        # coloring it as a warning would flag every delete in backup mode.
+        assert LABEL_STYLES[str(ActionLabel.LOCAL_DEL_KEPT)] == ("<dim>", "</dim>")
+        assert LABEL_STYLES[str(ActionLabel.REMOTE_DEL_KEPT)] == ("<dim>", "</dim>")
 
     def test_security_labels_are_red(self):
         assert LABEL_STYLES[str(ActionLabel.SECURITY)] == ("<red>", "</red>")
@@ -137,12 +142,12 @@ class TestColorizeLabels:
         result = colorize_labels("[REMOTE MODIFY] data.json")
         assert "<blue>[REMOTE MODIFY]</blue>" in result
 
-    def test_ignore_del_label_not_corrupted(self):
-        """[IGNORE DEL] is matched as a complete spaced value."""
-        result = colorize_labels("[LOCAL IGNORE DEL] temp.bak")
-        assert "<yellow>[LOCAL IGNORE DEL]</yellow>" in result
-        result = colorize_labels("[REMOTE IGNORE DEL] temp.bak")
-        assert "<yellow>[REMOTE IGNORE DEL]</yellow>" in result
+    def test_del_kept_label_not_corrupted(self):
+        """[DEL KEPT] is matched as a complete spaced value."""
+        result = colorize_labels("[LOCAL DEL KEPT] temp.bak")
+        assert "<dim>[LOCAL DEL KEPT]</dim>" in result
+        result = colorize_labels("[REMOTE DEL KEPT] temp.bak")
+        assert "<dim>[REMOTE DEL KEPT]</dim>" in result
 
 
 class TestResolveLabel:
@@ -155,10 +160,10 @@ class TestResolveLabel:
         assert resolve_label("REMOTE ", "RENAME") == "[REMOTE RENAME]"
 
     def test_multi_word_name(self):
-        # "IGNORE DEL" resolves to the LOCAL_/REMOTE_ prefixed members,
-        # keeping ignore-del advisories colored as warnings.
-        assert resolve_label("LOCAL ", "IGNORE DEL") == "[LOCAL IGNORE DEL]"
-        assert resolve_label("REMOTE ", "IGNORE DEL") == "[REMOTE IGNORE DEL]"
+        # "DEL KEPT" resolves to the LOCAL_/REMOTE_ prefixed members, so a
+        # deletion suppressed by the keep policy stays a registered label.
+        assert resolve_label("LOCAL ", "DEL KEPT") == "[LOCAL DEL KEPT]"
+        assert resolve_label("REMOTE ", "DEL KEPT") == "[REMOTE DEL KEPT]"
 
     def test_unknown_label_falls_back_to_interpolation(self):
         # Unknown labels print verbatim (uncolored) instead of raising.
@@ -181,7 +186,7 @@ class TestResolveLabel:
                 "RENAME",
                 "DELETE",
                 "SYMLINK",
-                "IGNORE DEL",
+                "DEL KEPT",
                 "KEEP",
             ),
             "REMOTE ": (
@@ -190,7 +195,7 @@ class TestResolveLabel:
                 "RENAME",
                 "DELETE",
                 "SYMLINK",
-                "IGNORE DEL",
+                "DEL KEPT",
                 "SECURITY",
                 "ECHO",
                 "DOWNLOAD",

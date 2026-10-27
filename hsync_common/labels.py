@@ -86,7 +86,7 @@ class ActionLabel(StrEnum):
     LOCAL_DELETE = "[LOCAL DELETE]"
     LOCAL_SYMLINK = "[LOCAL SYMLINK]"
     LOCAL_SECURITY = "[LOCAL SECURITY]"
-    LOCAL_IGNORE_DEL = "[LOCAL IGNORE DEL]"
+    LOCAL_DEL_KEPT = "[LOCAL DEL KEPT]"
     LOCAL_KEEP = "[LOCAL KEEP]"
 
     # ── Remote-origin events (inbound dispatch / peer-caused) ──────────
@@ -95,7 +95,7 @@ class ActionLabel(StrEnum):
     REMOTE_RENAME = "[REMOTE RENAME]"
     REMOTE_DELETE = "[REMOTE DELETE]"
     REMOTE_SYMLINK = "[REMOTE SYMLINK]"
-    REMOTE_IGNORE_DEL = "[REMOTE IGNORE DEL]"
+    REMOTE_DEL_KEPT = "[REMOTE DEL KEPT]"
     REMOTE_SECURITY = "[REMOTE SECURITY]"
     REMOTE_ECHO = "[REMOTE ECHO]"
     REMOTE_DOWNLOAD = "[REMOTE DOWNLOAD]"
@@ -176,8 +176,8 @@ _LABEL_CATEGORY_MAP: dict[str, str] = {
     ActionLabel.SKIP: "in_sync",
     ActionLabel.SYNCED: "in_sync",
     ActionLabel.LOCAL_KEEP: "in_sync",
-    ActionLabel.LOCAL_IGNORE_DEL: "warning",
-    ActionLabel.REMOTE_IGNORE_DEL: "warning",
+    ActionLabel.LOCAL_DEL_KEPT: "in_sync",
+    ActionLabel.REMOTE_DEL_KEPT: "in_sync",
     ActionLabel.GUARD: "warning",
     ActionLabel.CONFLICT: "warning",
     ActionLabel.TOMBSTONE: "warning",
@@ -259,8 +259,8 @@ def resolve_label(prefix: str, name: str) -> str:
     - ``prefix="REMOTE "``, ``name="DELETE"`` -> ``[REMOTE DELETE]`` (``ActionLabel.REMOTE_DELETE``)
 
     A prefixed name maps to the ``<PREFIX>_<NAME>`` member (e.g.
-    ``REMOTE DELETE`` -> ``REMOTE_DELETE``, ``LOCAL IGNORE DEL`` ->
-    ``LOCAL_IGNORE_DEL``); an unprefixed name maps to ``<NAME>``. When no
+    ``REMOTE DELETE`` -> ``REMOTE_DELETE``, ``LOCAL DEL KEPT`` ->
+    ``LOCAL_DEL_KEPT``); an unprefixed name maps to ``<NAME>``. When no
     member matches (e.g. an internal debug tag without a registered label),
     the label is interpolated verbatim so it still prints, just uncolored.
 
@@ -270,7 +270,7 @@ def resolve_label(prefix: str, name: str) -> str:
 
     Args:
         prefix: Optional log prefix (``""``, ``"LOCAL "`` or ``"REMOTE "``).
-        name: Label stem without brackets (e.g. ``"CREATE"``, ``"IGNORE DEL"``).
+        name: Label stem without brackets (e.g. ``"CREATE"``, ``"DEL KEPT"``).
 
     Returns:
         The resolved bracketed label string.

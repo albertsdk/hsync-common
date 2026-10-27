@@ -22,7 +22,7 @@ indistinguishable at a glance and force per-role mental translation.
 ### D1 — One verb vocabulary
 
 Event stems are limited to `CREATE`, `MODIFY`, `RENAME`, `DELETE`, `SYMLINK`,
-`IGNORE DEL`, `KEEP`. There are no role abbreviations: the role is implicit in
+`DEL KEPT`, `KEEP`. There are no role abbreviations: the role is implicit in
 which node produces the line.
 
 ### D2 — The prefix encodes origin, in both modes

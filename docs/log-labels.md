@@ -38,7 +38,7 @@ and the node is now applying peer events.
 ## How labels work
 
 - A label is a short, bracketed token: `[DOWNLOAD]`, `[LOCAL CREATE]`,
-  `[REMOTE IGNORE DEL]`. Multi-word labels use **spaces** (never underscores).
+  `[REMOTE DEL KEPT]`. Multi-word labels use **spaces** (never underscores).
 - Labels are grouped into **semantic color categories** so the log conveys the
   *kind* of operation at a glance, not a rainbow of one color per label.
 - In terminals/terminals-with-color the label is wrapped in the category color;
@@ -86,14 +86,14 @@ The prefix encodes the **origin** of the event (see the two-level rule above).
 | `[LOCAL RENAME]` | rename | Local watcher: file/directory renamed (also slave-side rename pushed to the master) | ✓ | | ✓ | ✓ |
 | `[LOCAL DELETE]` | delete | Local watcher: file/directory deleted (also slave-side delete pushed to the master) | ✓ | | ✓ | ✓ |
 | `[LOCAL SYMLINK]` | create | Local watcher: symbolic link created | ✓ | | ✓ | ✓ |
-| `[LOCAL IGNORE DEL]` | warning | Local watcher: deletion skipped (deletion policy: keep) | ✓ | | ✓ | ✓ |
+| `[LOCAL DEL KEPT]` | in_sync | Local watcher: deletion kept, nothing removed (deletion policy: keep) | ✓ | | ✓ | ✓ |
 | `[LOCAL KEEP]` | in_sync | Local watcher: `.hsynckeep` sentinel created to preserve an empty directory | ✓ | | ✓ | ✓ |
 | `[REMOTE CREATE]` | create | Peer-caused: directory created (inbound event applied, or master broadcasting a slave's create) | ✓ | | ✓ | ✓ |
 | `[REMOTE MODIFY]` | modify | Peer-caused: file/directory content modified (inbound event applied, or master broadcasting a slave's upload) | ✓ | | ✓ | ✓ |
 | `[REMOTE RENAME]` | rename | Peer-caused: file/directory renamed | ✓ | | ✓ | ✓ |
 | `[REMOTE DELETE]` | delete | Peer-caused: file/directory deleted | ✓ | | ✓ | ✓ |
 | `[REMOTE SYMLINK]` | create | Peer-caused: symbolic link created | ✓ | | ✓ | ✓ |
-| `[REMOTE IGNORE DEL]` | warning | Peer-caused: deletion skipped (deletion policy: keep) | ✓ | | ✓ | ✓ |
+| `[REMOTE DEL KEPT]` | warning | Peer-caused: deletion skipped (deletion policy: keep) | ✓ | | ✓ | ✓ |
 | `[REMOTE SECURITY]` | security | Peer-caused: unsafe inbound path rejected | ✓ | | ✓ | ✓ |
 | `[REMOTE ECHO]` | infrastructure | Peer event echo suppressed (own event discarded) | ✓ | | ✓ | ✓ |
 | `[REMOTE DOWNLOAD]` | transfer | Master serving file bytes to a slave | ✓ | | | ✓ |
