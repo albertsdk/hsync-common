@@ -159,6 +159,11 @@ class UiEventDict(TypedDict):
     # "watcher", …). The front-end keys its dedup and its notification category
     # on it, so it is an identifier, never a user-facing sentence.
     source: NotRequired[str]
+    # warning: how much of a bounded resource the condition needs versus the
+    # maximum in force (inotify watches, open descriptors). Numbers, not text, so
+    # a front-end can localize "needs N, limit M" and name the right remedy.
+    needed: NotRequired[int]
+    limit: NotRequired[int]
     reason: NotRequired[str]  # sync_paused: human-readable guard reason
     # device_status: the device's backlog against the share it is compared with.
     pending_here: NotRequired[int]  # identities the device holds, missing here

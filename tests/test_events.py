@@ -66,6 +66,23 @@ class TestBuildEvent:
         )
         assert ev["source_cid"] == "TestClientA1234567890"  # type: ignore[reportTypedDictNotRequiredAccess]
 
+    def test_warning_carries_the_measured_resource(self):
+        """``needed``/``limit`` stay numbers, so a consumer localizes them."""
+        ev = build_event(
+            UiEventName.warning,
+            message="The shared folder needs more watches",
+            source="watcher",
+            reason="inotify_watches",
+            needed=12000,
+            limit=8192,
+        )
+        assert ev["needed"] == 12000  # type: ignore[reportTypedDictNotRequiredAccess]
+        assert ev["limit"] == 8192  # type: ignore[reportTypedDictNotRequiredAccess]
+        # An unmeasured warning simply omits them instead of sending null.
+        bare = build_event(UiEventName.warning, message="m", source="watcher", needed=None)
+        assert "needed" not in bare
+        assert "limit" not in bare
+
 
 class TestSerializeEvent:
     def test_round_trips_through_json(self):
