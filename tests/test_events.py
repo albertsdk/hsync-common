@@ -154,6 +154,8 @@ class TestEventNameCoverage:
             "status_pass_start",
             "status_pass_end",
             "device_status",
+            "preview_skipped",
+            "preview_warning",
             "file_status",
             "rename_status",
             "fingerprint_changed",

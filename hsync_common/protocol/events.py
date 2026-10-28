@@ -21,6 +21,12 @@ the share. A consumer therefore never has to infer the end of a burst, and a
 serving pass can never confirm a pending sync. A serving pass also carries one
 ``device_status`` row per live device, so a consumer reports a per-device verdict
 (worst case plus attribution) instead of a union that hides which device lags.
+
+A preview additionally reports the two facts only the client knows:
+``preview_skipped`` (deletions the policy drops before they reach the stream) and
+``preview_warning`` (a plan the mass-deletion guard will pause). A front-end
+never infers either: a plan with no ``to_delete`` row can mean "nothing to delete"
+or "deletions kept", and the two need different wording.
 """
 
 from __future__ import annotations
@@ -86,6 +92,12 @@ class UiEventName(StrEnum):
     # and how many identities it published (held). The serving device renders a
     # per-device verdict from these instead of a single union aggregate.
     device_status = "device_status"
+    # The preview plan the front-end cannot derive by itself: deletions the
+    # configured policy drops before they reach the event stream (reason=
+    # "deletion_policy", count, size) and a plan the mass-deletion guard will
+    # pause (reason="mass_delete_guard", deletes, local).
+    preview_skipped = "preview_skipped"
+    preview_warning = "preview_warning"
     file_status = "file_status"  # preview per-file status (synced/to_*)
     rename_status = "rename_status"  # preview rename status
     # ── LAN security ─────────────────────────────────────────────────
@@ -150,6 +162,8 @@ class UiEventDict(TypedDict):
     devices: NotRequired[int]
     # sync_pending: connected devices whose inventory has not been published yet.
     expected: NotRequired[int]
+    # preview_skipped: actions the plan dropped before emitting them.
+    count: NotRequired[int]
     deletes: NotRequired[int]  # sync_paused: deletions blocked this cycle
     local: NotRequired[int]  # sync_paused: local files considered by the guard
     local_bytes: NotRequired[int]  # folder_size: files present on this device

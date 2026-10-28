@@ -117,6 +117,10 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   out of the devices compared); `sync_pending` carries `devices` / `expected`
   while a connected device has not committed its inventory snapshot — a pass
   never classifies a partial group.
+- `preview_skipped` (`reason="deletion_policy"`, `count`, `size`) and
+  `preview_warning` (`reason="mass_delete_guard"`, `deletes`, `local`) carry the
+  two facts a confirmation cannot derive: deletions the policy dropped before
+  they reached the stream, and a plan the guard will pause (ADR 0043).
 - Invariant: every `file_status` / `rename_status` burst is bracketed by exactly
   one of the two pairs, so no consumer has to infer the end of a burst (no
   quiet-period timers).
