@@ -15,7 +15,7 @@ HSYNC comprises six distinct components:
   (Python).
 - `hsync-android` — Kotlin Android app (mirrors the client logic).
 - `hsync-bootnode` — bootstrap node for cross-network discovery (`boot/1`),
-  with a standalone daemon (Python today, Rust port planned) and its own wire
+  with a standalone daemon (Python today, C port planned) and its own wire
   specification.
 
 These components have different release cadences, different audiences, and

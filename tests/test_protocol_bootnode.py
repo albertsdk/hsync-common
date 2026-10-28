@@ -315,7 +315,7 @@ def test_bootnode_fingerprint_fixture_vectors():
     The fixture lives in the canonical ``hsync-bootnode/fixtures/`` (SSOT); the
     shared ``parse_fingerprint``/``fingerprint_matches`` in
     ``hsync_common.protocol.pairing`` must normalize and match every vector
-    identically, so the future Rust/Android ports replay the same inputs.
+    identically, so the future C/Android ports replay the same inputs.
     """
     canonical = BOOTNODE_FIXTURES_DIR / "bootnode-fingerprint.json"
     if not canonical.is_file():

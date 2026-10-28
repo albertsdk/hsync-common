@@ -6,7 +6,7 @@
 ## Context
 
 [ADR-0032](0032-bootnode-discovery.md) defines the `boot/1` bootstrap protocol
-and keeps the daemon's wire contract standalone and portable to Rust. The Python
+and keeps the daemon's wire contract standalone and portable to C. The Python
 v1 nevertheless declares `hsync-common==1.0.0` as a main dependency
 (`hsync-bootnode/python/pyproject.toml`) and imports `hsync_common.ssl_utils` in
 `server.py` to generate its per-process TLS identity.
@@ -33,7 +33,7 @@ while the `boot/1` wire contract itself stays canonical in `hsync-bootnode`:
 
 The daemon keeps its own `boot/1` frame models and never imports the
 `hsync_common.protocol.bootnode` mirror; `protocol-spec/boot-1.md` and the golden
-fixtures remain the cross-language SSOT, and the Rust/C ports may reimplement the
+fixtures remain the cross-language SSOT, and the C port may reimplement the
 same rules without any Python dependency.
 
 ## Consequences
@@ -50,4 +50,4 @@ same rules without any Python dependency.
   Python daemon reuses.
 - Follow-up obligation: any further shared constant or validator the daemon needs
   is imported from `hsync-common` (pinned to the spec by a drift test), never
-  re-declared locally. The Rust/C ports mirror the spec and fixtures only.
+  re-declared locally. The C port mirrors the spec and fixtures only.

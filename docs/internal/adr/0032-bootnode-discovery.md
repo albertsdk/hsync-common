@@ -13,7 +13,7 @@ peers for a bucket. The bootstrap channel is a new wire contract with its own
 lifecycle, so it needs its own version and specification.
 
 `hsync-common` is the SSOT for the data-plane protocol, but the bootnode is a
-standalone daemon (and a future Rust port) whose `boot/1` wire contract must not
+standalone daemon (and a future C port) whose `boot/1` wire contract must not
 depend on this package. At the same time the `hsync-client` needs typed access
 to the bootstrap frames to speak to the node.
 

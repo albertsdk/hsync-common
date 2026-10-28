@@ -206,7 +206,7 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   normalizes `sha256:<hex>` / bare hex to lowercase 64-char hex (rejects invalid),
   `fingerprint_matches` (`protocol/pairing.py::fingerprint_matches`) compares constant-time against a pin
   set, `FingerprintMismatch` (`protocol/pairing.py::FingerprintMismatch`) is the shared fatal-exception.
-  Consumers: `hsync-client` bootnode pinning; future Rust/Android parity.
+  Consumers: `hsync-client` bootnode pinning; future C/Android parity.
 - P2P master trust is the `TrustPolicy` of the self-signed transports
   (`protocol/tls_trust.py::TrustPolicy`, ADR-0040): `evaluate_tls_trust`
   (`protocol/tls_trust.py::evaluate_tls_trust`) is the rule and

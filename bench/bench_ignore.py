@@ -63,7 +63,7 @@ venv/
 __pycache__/
 *.py[cod]
 .cache/
-.cargo/
+build/
 thumbnails/
 # editor and backup files
 *.bak

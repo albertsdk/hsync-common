@@ -73,7 +73,7 @@ fingerprint domain shared with the existing `cert_fp` carried in frames.
 
 The pure trust primitives (`parse_fingerprint`, `fingerprint_matches`,
 `FingerprintMismatch`) live in `hsync_common.protocol.pairing`, the existing
-pin-decision single source of truth, so the Python client and future Rust/Android
+pin-decision single source of truth, so the Python client and future C/Android
 ports share one fingerprint contract instead of each re-implementing it.
 
 ## Consequences
@@ -93,4 +93,4 @@ ports share one fingerprint contract instead of each re-implementing it.
 - Follow-up obligations: the boot/1 spec gains a "Trust & identity" section; the
   golden fingerprint scenarios (`hsync-bootnode/fixtures/bootnode-fingerprint.json`)
   are replayed by a language-neutral parity test; a future external-CA/WebPKI tier
-  and the Rust/Android ports reuse the same fingerprint format.
+  and the C/Android ports reuse the same fingerprint format.
