@@ -143,6 +143,7 @@ class TestEventNameCoverage:
             "progress",
             "sync_complete",
             "error",
+            "warning",
             "auth_error",
             "path_not_found",
             "master_conflict",

@@ -72,6 +72,10 @@ class UiEventName(StrEnum):
     sync_complete = "sync_complete"
     folder_size = "folder_size"  # local bytes + sync-set total (aggregate, per cycle)
     error = "error"  # generic error
+    # A non-fatal condition the user must eventually see (a degraded watcher, an
+    # unreachable bootnode). Distinct from ``error``: the run continues, so the
+    # front-end surfaces it as a warning and must not treat it as a failure.
+    warning = "warning"
     auth_error = "auth_error"  # authentication error (invalid/missing API key)
     path_not_found = "path_not_found"  # shared path does not exist
     master_conflict = "master_conflict"  # master conflict / takeover
@@ -151,6 +155,10 @@ class UiEventDict(TypedDict):
     conflict_copy: NotRequired[str]  # path of the preserved local copy (conflict_resolved)
     winner: NotRequired[str]  # which side won: "remote" (master) or "local"
     source_cid: NotRequired[str]  # verified peer source for a successful full-file transfer
+    # warning: stable identifier of the subsystem that reported it ("bootnode",
+    # "watcher", …). The front-end keys its dedup and its notification category
+    # on it, so it is an identifier, never a user-facing sentence.
+    source: NotRequired[str]
     reason: NotRequired[str]  # sync_paused: human-readable guard reason
     # device_status: the device's backlog against the share it is compared with.
     pending_here: NotRequired[int]  # identities the device holds, missing here
