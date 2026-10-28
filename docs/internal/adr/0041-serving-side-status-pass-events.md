@@ -16,7 +16,8 @@ The same burst is produced by two roles with different meanings:
 - a **secondary** node answers the front-end's `PREVIEW` command with the preview
   it then asks to confirm (a `SYNC` command follows an accepted summary);
 - the **serving** device (p2p primary) compares the share it holds with the
-  inventories the devices published, on every inventory change and on `PREVIEW`.
+  inventories the devices published, on every change of either side (its own
+  folder, a device's inventory) and on `PREVIEW`.
   It is the source of the share, so there is nothing for it to pull and no sync to
   confirm.
 

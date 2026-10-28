@@ -104,8 +104,8 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
 - `status_pass_start` / `status_pass_end`
   (`protocol/events.py::UiEventName.status_pass_start`) bracket a **serving
   device's** classification pass — emitted around every pass of
-  `hsync-client/hsync_client/master_status.py::MasterSyncStatus.run_now`, inventory-driven
-  or `PREVIEW`-triggered. They are the serving-side counterpart of the preview
+  `hsync-client/hsync_client/master_status.py::MasterSyncStatus.run_now`, whatever
+  triggered the pass. They are the serving-side counterpart of the preview
   pair: a consumer renders a comparison in progress on either start and settles
   its summary on either end, but a pass never confirms a pending sync.
 - Invariant: every `file_status` / `rename_status` burst is bracketed by exactly
