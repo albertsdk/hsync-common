@@ -1083,6 +1083,108 @@
           "Authenticated"
         ]
       },
+      "patch": {
+        "description": "Move a file or directory inside a bucket without transferring its bytes.\n\nThe caller (a peer running its reconcile loop) has already established that\nthe destination holds the same content as the stale source path; this\nendpoint performs the move atomically and records the causal consequences,\nso offline peers observe a rename instead of a delete plus an upload.\n\nArgs:\n    bucket: Target bucket name.\n    src: Bucket-relative path of the existing entry.\n    dst: Bucket-relative path the entry must move to. It must not exist:\n        a concurrent creator is reported as a conflict, never overwritten.\n    cid: Optional originator client ID (echo suppression for the\n        ``renamed`` broadcast).\n    expected_sha256: Optional guard. When given for a regular file, the\n        move is refused unless the current content still hashes to this\n        value — a stale listing must fall back to a normal upload instead\n        of moving bytes the peer did not verify.\n    mtime: Optional modification time (Unix epoch seconds) applied to the\n        destination, so a rename converges the local metadata an upload\n        would have carried.\n    permissions: Optional octal permissions applied to the destination,\n        with the same rationale.\n\nReturns:\n    The destination entry (``file``, listing shape: ``filepath`` for a file,\n    ``path``/``permissions`` for a directory) plus the causal ``version`` the\n    caller must record as the new merge base.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    InvalidPathError: If either path is unsafe, or a symlink rename is\n        attempted (links replicate through the symlink surface).\n    HSyncFileNotFoundError: If the source does not exist.\n    ConflictError: If the destination exists or the checksum guard fails.\n    FileOperationError: If the filesystem move fails.",
+        "operationId": "rename_file_api_v1_buckets__bucket__files_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bucket",
+            "required": true,
+            "schema": {
+              "title": "Bucket",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "src",
+            "required": true,
+            "schema": {
+              "title": "Src",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dst",
+            "required": true,
+            "schema": {
+              "title": "Dst",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cid",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expected_sha256",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Expected Sha256",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "mtime",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Mtime",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "permissions",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Permissions",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rename File",
+        "tags": [
+          "Authenticated"
+        ]
+      },
       "post": {
         "description": "Upload a file to a bucket with resumable upload support.\n\nHandles file upload with integrity verification (SHA-256), timestamp\npreservation, and permission setting. Broadcasts an \"added\" event\nto all connected WebSocket clients.\n\nSupports resumable uploads: if offset > 0, the incoming data is\nappended to an existing partial file (.part extension).\n\nArgs:\n    bucket: Target bucket name.\n    cid: Client ID for event broadcasting.\n    file: The file to upload.\n    path: Subdirectory path within the bucket.\n    ctime: Creation time as Unix epoch seconds (int) or ISO 8601 string\n        (e.g. ``2025-01-15T08:30:00Z``). Naive strings are treated as UTC.\n    mtime: Modification time as Unix epoch seconds (int) or ISO 8601 string\n        (e.g. ``2025-01-15T08:30:00Z``). Naive strings are treated as UTC.\n    sha256sum: Expected SHA-256 checksum for integrity verification.\n    permissions: File permissions as an octal string (e.g., '644').\n    offset: Byte offset for resumable uploads (0 for new uploads).\n    size: Total file size (required for resumable uploads).\n\nReturns:\n    JSON response confirming upload or conflict if identical file exists.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    InvalidPathError: If path is invalid.\n    InvalidPermissionFormatError: If permission format is invalid.\n    InvalidFilenameError: If filename contains forbidden characters or is reserved.\n    ChecksumMismatchError: If SHA-256 checksum verification fails.\n        UploadError: If upload operation fails.",
         "operationId": "upload_file_api_v1_buckets__bucket__files_post",
