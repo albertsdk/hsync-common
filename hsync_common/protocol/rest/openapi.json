@@ -1517,7 +1517,7 @@
     },
     "/api/v1/buckets/{bucket}/files/permissions": {
       "patch": {
-        "description": "Apply a content-unchanged metadata change to an existing file (no payload).\n\nOptimized branch of the upload same-SHA path: the client declares the\nfilename (bucket-relative), the expected permissions, an optional corrected\n``mtime`` and its CID; the server sanitizes/applies what diverges and\nre-broadcasts a ``modified`` event to the other connected clients. No file\nbytes cross the wire. Both a chmod and a plain ``touch`` (same content,\nnewer mtime) converge through this route.\n\nArgs:\n    bucket: Target bucket name.\n    filename: Bucket-relative path of the existing file.\n    permissions: Octal permission string (e.g., '644'). Special bits\n        (setuid/setgid/sticky) are stripped (remote-supplied).\n    cid: Client ID for event attribution (validated, optional).\n    mtime: Corrected Unix mtime to propagate (0 = leave unchanged).\n    vclock: JSON-encoded effective vector clock of the sender (\"\" = none).\n    version_id: Effective version id of the sender (\"\" = none).\n\nReturns:\n    JSON response: 200 on metadata updated, 404 when the file does\n    not exist.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    InvalidPathError: If path escapes the bucket.\n    InvalidPermissionFormatError: If permission format is invalid.\n    InvalidFilenameError: If the basename is forbidden or reserved.\n    ValidationError: If the declared CID is malformed.",
+        "description": "Apply a content-unchanged metadata change to an existing file (no payload).\n\nOptimized branch of the upload same-SHA path: the client declares the\nfilename (bucket-relative), the expected permissions, an optional corrected\n``mtime``, the content hash it believes the path still holds and its CID;\nthe server sanitizes/applies what diverges and re-broadcasts a ``modified``\nevent to the other connected clients. No file bytes cross the wire. Both a\nchmod and a plain ``touch`` (same content, newer mtime) converge through\nthis route.\n\nArgs:\n    bucket: Target bucket name.\n    filename: Bucket-relative path of the existing file.\n    permissions: Octal permission string (e.g., '644'). Special bits\n        (setuid/setgid/sticky) are stripped (remote-supplied).\n    cid: Client ID for event attribution (validated, optional).\n    mtime: Corrected Unix mtime to propagate (0 = leave unchanged).\n    vclock: JSON-encoded effective vector clock of the sender (\"\" = none).\n    version_id: Effective version id of the sender (\"\" = none).\n    expected_sha256: Optional guard. The caller only reached this branch\n        because its content matched the listing; when the path no longer\n        holds that content a concurrent write happened, so the metadata is\n        NOT applied and the caller falls back to the ordinary upload path.\n\nReturns:\n    JSON response: 200 on metadata updated, 404 when the file does\n    not exist.\n\nRaises:\n    InvalidBucketNameError: If bucket name is invalid.\n    InvalidPathError: If path escapes the bucket.\n    InvalidPermissionFormatError: If permission format is invalid.\n    InvalidFilenameError: If the basename is forbidden or reserved.\n    ValidationError: If the declared CID or checksum is malformed.\n    ConflictError: If the path's content no longer matches the declaration.",
         "operationId": "patch_file_permissions_api_v1_buckets__bucket__files_permissions_patch",
         "parameters": [
           {
@@ -1584,6 +1584,16 @@
             "schema": {
               "default": "",
               "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expected_sha256",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Expected Sha256",
               "type": "string"
             }
           }
