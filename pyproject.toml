@@ -1,6 +1,6 @@
 [project]
 name = "hsync-common"
-version = "1.0.10"
+version = "1.0.11"
 description = "HSYNC Common - shared models, constants, and compression utilities"
 authors = [{name = "Alberto Basso", email = "17047798+albertsdk@users.noreply.github.com"}]
 license = "BSD-3-Clause"
