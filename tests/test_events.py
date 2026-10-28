@@ -151,6 +151,8 @@ class TestEventNameCoverage:
             "sync_pending",
             "preview_start",
             "preview_end",
+            "status_pass_start",
+            "status_pass_end",
             "file_status",
             "rename_status",
             "fingerprint_changed",

@@ -13,6 +13,12 @@ set of optional payload fields (only the ones relevant to the event are set).
 The mapping is 1:1 with the signals the Desktop ``engine`` exposes, so the GUI
 consumes structured events instead of matching log wording. The text log stays
 purely diagnostic.
+
+Each per-file status burst is bracketed by one marker pair: ``preview_start`` /
+``preview_end`` around the comparison a front-end requested, ``status_pass_start``
+/ ``status_pass_end`` around the classification pass of the device that serves
+the share. A consumer therefore never has to infer the end of a burst, and a
+serving pass can never confirm a pending sync.
 """
 
 from __future__ import annotations
@@ -68,6 +74,11 @@ class UiEventName(StrEnum):
     )
     preview_start = "preview_start"  # dry-run preview scan started
     preview_end = "preview_end"  # dry-run preview scan ended
+    # The serving side's own pass: a p2p master compares the share it holds with
+    # the inventories the devices published. A distinct pair, so a classification
+    # never consumes the preview above (only preview_end may confirm a sync).
+    status_pass_start = "status_pass_start"  # serving-side classification started
+    status_pass_end = "status_pass_end"  # serving-side classification ended
     file_status = "file_status"  # preview per-file status (synced/to_*)
     rename_status = "rename_status"  # preview rename status
     # ── LAN security ─────────────────────────────────────────────────

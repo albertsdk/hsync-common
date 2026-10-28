@@ -98,6 +98,19 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   yet: `reason="no_device"` (nothing connected) or `reason="awaiting_inventory"`
   (a device is connected but has not published its inventory). It is never a
   verdict on the files, and a consumer shows a waiting/unknown state.
+- `preview_start` / `preview_end` (`protocol/events.py::UiEventName.preview_start`)
+  bracket the comparison **this front-end asked for**: only `preview_end`
+  satisfies the confirmation state that leads to a sync request.
+- `status_pass_start` / `status_pass_end`
+  (`protocol/events.py::UiEventName.status_pass_start`) bracket a **serving
+  device's** classification pass — emitted around every pass of
+  `hsync-client/hsync_client/master_status.py::MasterSyncStatus.run_now`, inventory-driven
+  or `PREVIEW`-triggered. They are the serving-side counterpart of the preview
+  pair: a consumer renders a comparison in progress on either start and settles
+  its summary on either end, but a pass never confirms a pending sync.
+- Invariant: every `file_status` / `rename_status` burst is bracketed by exactly
+  one of the two pairs, so no consumer has to infer the end of a burst (no
+  quiet-period timers).
 - `folder_size` carries `local_bytes` (files present on this device) and
   `total_bytes` (remote/master listing sizes plus local-only files pending
   upload). The client emits it once per distinct pair after fetching its
