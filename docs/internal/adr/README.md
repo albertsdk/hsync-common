@@ -65,6 +65,7 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0039](0039-combined-discovery.md) | Combined mDNS and bootnode discovery | Accepted |
 | [0040](0040-p2p-master-trust-policy.md) | P2P master trust policy: `ask` by default | Accepted |
 | [0041](0041-serving-side-status-pass-events.md) | Serving-side status-pass events: two comparison marker pairs | Accepted |
+| [0042](0042-per-device-serving-status.md) | The serving-side sync status is per device | Accepted |
 
 ## Related documents
 

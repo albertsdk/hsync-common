@@ -18,7 +18,9 @@ Each per-file status burst is bracketed by one marker pair: ``preview_start`` /
 ``preview_end`` around the comparison a front-end requested, ``status_pass_start``
 / ``status_pass_end`` around the classification pass of the device that serves
 the share. A consumer therefore never has to infer the end of a burst, and a
-serving pass can never confirm a pending sync.
+serving pass can never confirm a pending sync. A serving pass also carries one
+``device_status`` row per live device, so a consumer reports a per-device verdict
+(worst case plus attribution) instead of a union that hides which device lags.
 """
 
 from __future__ import annotations
@@ -79,6 +81,11 @@ class UiEventName(StrEnum):
     # never consumes the preview above (only preview_end may confirm a sync).
     status_pass_start = "status_pass_start"  # serving-side classification started
     status_pass_end = "status_pass_end"  # serving-side classification ended
+    # One row per live device inside a serving pass: what that device still
+    # lacks (pending_there), what it holds and the share does not (pending_here)
+    # and how many identities it published (held). The serving device renders a
+    # per-device verdict from these instead of a single union aggregate.
+    device_status = "device_status"
     file_status = "file_status"  # preview per-file status (synced/to_*)
     rename_status = "rename_status"  # preview rename status
     # ── LAN security ─────────────────────────────────────────────────
@@ -133,6 +140,16 @@ class UiEventDict(TypedDict):
     winner: NotRequired[str]  # which side won: "remote" (master) or "local"
     source_cid: NotRequired[str]  # verified peer source for a successful full-file transfer
     reason: NotRequired[str]  # sync_paused: human-readable guard reason
+    # device_status: the device's backlog against the share it is compared with.
+    pending_here: NotRequired[int]  # identities the device holds, missing here
+    pending_there: NotRequired[int]  # local identities the device does not hold
+    held: NotRequired[int]  # identities the device published
+    # file_status: how many live devices hold this identity out of ``devices``.
+    holders: NotRequired[int]
+    # device_status / file_status / sync_pending: live devices compared.
+    devices: NotRequired[int]
+    # sync_pending: connected devices whose inventory has not been published yet.
+    expected: NotRequired[int]
     deletes: NotRequired[int]  # sync_paused: deletions blocked this cycle
     local: NotRequired[int]  # sync_paused: local files considered by the guard
     local_bytes: NotRequired[int]  # folder_size: files present on this device

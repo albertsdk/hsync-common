@@ -108,6 +108,15 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   triggered the pass. They are the serving-side counterpart of the preview
   pair: a consumer renders a comparison in progress on either start and settles
   its summary on either end, but a pass never confirms a pending sync.
+- `device_status` (`protocol/events.py::UiEventName.device_status`) is emitted
+  inside that bracket, one row per live device: `held` (identities it published),
+  `pending_here` (its identities the share lacks) and `pending_there` (share
+  identities it does not hold). It lets a consumer report the **worst device**
+  instead of a union that hides which device lags (ADR 0042).
+- `file_status` carries `holders` / `devices` (live devices holding the identity
+  out of the devices compared); `sync_pending` carries `devices` / `expected`
+  while a connected device has not committed its inventory snapshot — a pass
+  never classifies a partial group.
 - Invariant: every `file_status` / `rename_status` burst is bracketed by exactly
   one of the two pairs, so no consumer has to infer the end of a burst (no
   quiet-period timers).
