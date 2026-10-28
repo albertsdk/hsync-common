@@ -127,9 +127,15 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   `source` (`UiEventDict`,
   `protocol/events.py::UiEventDict`), a stable subsystem
   identifier (`bootnode`, `watcher`, …) the front-end keys its dedup and
-  notification category on. The client deduplicates the stream per
-  `(source, message)` window before emitting, so a flapping condition cannot
-  become a notification storm.
+  notification category on. `reason` names the case class
+  (`unreachable`, `polling_fallback`, `disk_reserve`, …), or the literal
+  **`transient`** for a condition that heals itself (dropped real-time events, a
+  file that kept changing, unreadable files recovered by the next scan): a
+  consumer shows those as an ephemeral notice and never as a persistent problem.
+  The client deduplicates the stream per `(source, message)` window before
+  emitting, so a flapping condition cannot become a notification storm — which
+  is why the message must not embed varying detail (paths, counters): those stay
+  in the log line.
 - Invariant: every `file_status` / `rename_status` burst is bracketed by exactly
   one of the two pairs, so no consumer has to infer the end of a burst (no
   quiet-period timers).
