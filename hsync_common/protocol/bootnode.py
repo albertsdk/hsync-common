@@ -29,8 +29,15 @@ interprets them and they are not authenticated (the data plane authenticates
 identity by certificate pinning); the vocabulary is the canonical sync-direction
 set from :mod:`hsync_common.protocol.pairing`.
 
-Consumers: ``hsync-client`` (bootnode register/refresh/query), shared
-fixtures/tests.
+The **data relay** frames (``relay_listen``/``relay_ping``/``relay_connect``/
+``relay_attach`` and the ``relay_*`` replies) carry the peers' TLS bytes through
+the node, so two peers that no inbound NAT mapping reaches can still run the
+``p2p/1`` data plane. The relayed stream is opaque: the node never sees content,
+names or credentials, and the peers keep authenticating each other by
+certificate pinning.
+
+Consumers: ``hsync-client`` (bootnode register/refresh/query and the data relay),
+shared fixtures/tests.
 """
 
 from __future__ import annotations
@@ -62,6 +69,7 @@ __all__ = [
     "CAPACITY_MAX",
     "CID_PATTERN",
     "PROTOCOL_VERSION_BOOT",
+    "RELAY_ID_LEN",
     "BootAck",
     "BootError",
     "BootFrame",
@@ -70,6 +78,14 @@ __all__ = [
     "BootQuery",
     "BootRefresh",
     "BootRegister",
+    "BootRelayAttach",
+    "BootRelayConnect",
+    "BootRelayError",
+    "BootRelayIncoming",
+    "BootRelayListen",
+    "BootRelayListening",
+    "BootRelayOk",
+    "BootRelayPing",
     "BootResponse",
     "BucketProto",
     "Endpoint",
@@ -79,6 +95,14 @@ __all__ = [
     "is_valid_bucket_token",
     "validate_boot_ack",
     "validate_boot_frame",
+    "validate_boot_relay_attach",
+    "validate_boot_relay_connect",
+    "validate_boot_relay_error",
+    "validate_boot_relay_incoming",
+    "validate_boot_relay_listen",
+    "validate_boot_relay_listening",
+    "validate_boot_relay_ok",
+    "validate_boot_relay_ping",
     "validate_boot_response",
     "verify_bucket_token",
 ]
@@ -94,13 +118,21 @@ BOOT_ALPN = "hsync-boot/1"
 # derivation live in ``protocol/boot_tokens.py`` (shared with the bootnode).
 BucketProto = Literal["tcp", "udp"]
 
-# Uniform refusal codes on a ``response`` frame: ``token_required`` (authorization,
-# no bucket-existence oracle), ``rate_limited`` (per-source/per-(IP,bucket) limit;
-# ``retry_after`` = limiter refill) and ``overloaded`` (the node is at its
-# host-derived routing-table ceiling; ``retry_after`` is advisory backpressure,
-# not a client abuse signal). Mirrors ``hsync_bootnode.protocol.BootError``.
-BootError = Literal["token_required", "rate_limited", "overloaded"]
-_BOOT_ERRORS = ("token_required", "rate_limited", "overloaded")
+# Uniform refusal codes on a ``response``/``relay_error`` frame: ``token_required``
+# (authorization, no bucket-existence oracle), ``rate_limited`` (per-source/
+# per-(IP,bucket) limit; ``retry_after`` = limiter refill), ``overloaded`` (the
+# node is at its host-derived capacity ceiling; ``retry_after`` is advisory
+# backpressure, not a client abuse signal) and ``relay_unavailable`` (no data
+# relay: disabled on this node, no listener for the target CID, or the acceptor
+# did not attach in time). Mirrors ``hsync_bootnode.protocol.BootError``.
+BootError = Literal["token_required", "rate_limited", "overloaded", "relay_unavailable"]
+_BOOT_ERRORS = ("token_required", "rate_limited", "overloaded", "relay_unavailable")
+
+# Data-relay session identifier: hex(16 bytes) = 32 characters, chosen randomly
+# by the node per pairing. It is only meaningful to the two paired peers, so a
+# guess that does not match a live pending session attaches to nothing.
+RELAY_ID_LEN = 32
+_RELAY_ID_PATTERN = f"^[0-9a-f]{{{RELAY_ID_LEN}}}$"
 
 # Advisory service-capacity hint domain (``0..32``; ``0`` = not a peer-download
 # seeder). Mirrors the authenticated ``serve_slots`` range (1..32); the bootnode
@@ -284,10 +316,123 @@ class BootResponse(TypedDict):
     retry_after: NotRequired[int]
 
 
+class BootRelayListen(TypedDict):
+    """A serving peer asks the node to open a data relay (``relay_listen``).
+
+    The stream carrying this frame becomes the **control** stream of one
+    listener: the node answers ``relay_listening`` and then pushes one
+    ``relay_incoming`` per requester, while the peer may answer with
+    ``relay_ping`` lines. Registration is accepted only from the current owner
+    of the ``(cid, bucket, group)`` discovery record, so a peer cannot open a
+    relay in someone else's name.
+    """
+
+    protocol_version: Literal["boot/1"]
+    type: Literal["relay_listen"]
+    cid: str
+    bucket: str
+    group: NotRequired[str]
+    bucket_token: NotRequired[str]
+
+
+class BootRelayPing(TypedDict):
+    """Keepalive on a listener's control stream (``relay_ping``, no reply)."""
+
+    protocol_version: Literal["boot/1"]
+    type: Literal["relay_ping"]
+    cid: str
+    bucket: str
+
+
+class BootRelayConnect(TypedDict):
+    """A requester asks to be paired with a listening peer (``relay_connect``).
+
+    Sent on a **fresh** stream. The node answers ``relay_ok`` — after which the
+    rest of the stream is opaque TLS — or ``relay_error`` and a close.
+    """
+
+    protocol_version: Literal["boot/1"]
+    type: Literal["relay_connect"]
+    cid: str
+    bucket: str
+    target_cid: str
+    group: NotRequired[str]
+    bucket_token: NotRequired[str]
+
+
+class BootRelayAttach(TypedDict):
+    """A listener attaches the stream that carries one relayed session.
+
+    Sent as the first (and only framed) line of a fresh stream; every following
+    byte is opaque TLS in both directions. ``cid``/``bucket`` must match the
+    listener that was told about ``relay_id``.
+    """
+
+    protocol_version: Literal["boot/1"]
+    type: Literal["relay_attach"]
+    cid: str
+    bucket: str
+    relay_id: str
+    bucket_token: NotRequired[str]
+
+
+class BootRelayListening(TypedDict):
+    """Server→listener: the relay listener is registered (``relay_listening``)."""
+
+    protocol_version: Literal["boot/1"]
+    type: Literal["relay_listening"]
+    ttl: int
+
+
+class BootRelayIncoming(TypedDict):
+    """Server→listener: a requester wants a session (``relay_incoming``).
+
+    ``cid`` is the requester's CID, so the listener can bound per-peer
+    concurrency; ``expires_in`` is the seconds left to attach the session.
+    """
+
+    protocol_version: Literal["boot/1"]
+    type: Literal["relay_incoming"]
+    relay_id: str
+    cid: str
+    expires_in: int
+
+
+class BootRelayOk(TypedDict):
+    """Server→requester: the pairing exists and the stream is now opaque.
+
+    Written before any relayed byte, so a requester that buffers pipelined input
+    stays framed.
+    """
+
+    protocol_version: Literal["boot/1"]
+    type: Literal["relay_ok"]
+    relay_id: str
+
+
+class BootRelayError(TypedDict):
+    """Server→client: the relay request was refused (``relay_error``)."""
+
+    protocol_version: Literal["boot/1"]
+    type: Literal["relay_error"]
+    error: BootError
+    retry_after: NotRequired[int]
+
+
 # Client→server frames, dispatched on ``type``. ``BootResponse``/``BootAck``/
-# ``BootPeer`` are server→client and deliberately excluded from the request
-# union: they are never validated on the input path.
-BootFrame = BootRegister | BootRefresh | BootLeave | BootQuery
+# ``BootPeer`` and the ``relay_*`` server replies are server→client and
+# deliberately excluded from the request union: they are never validated on the
+# input path.
+BootFrame = (
+    BootRegister
+    | BootRefresh
+    | BootLeave
+    | BootQuery
+    | BootRelayListen
+    | BootRelayPing
+    | BootRelayConnect
+    | BootRelayAttach
+)
 
 _REGISTER_REQUIRED = frozenset({"protocol_version", "type", "cid", "bucket", "cert_fp", "version"})
 _REGISTER_OPTIONAL = frozenset(
@@ -310,6 +455,18 @@ _LEAVE_REQUIRED = frozenset({"protocol_version", "type", "cid", "bucket"})
 _LEAVE_OPTIONAL = frozenset({"bucket_token"})
 _QUERY_REQUIRED = frozenset({"protocol_version", "type", "bucket"})
 _QUERY_OPTIONAL = frozenset({"group", "bucket_token", "limit"})
+_RELAY_LISTEN_REQUIRED = frozenset({"protocol_version", "type", "cid", "bucket"})
+_RELAY_LISTEN_OPTIONAL = frozenset({"group", "bucket_token"})
+_RELAY_PING_REQUIRED = frozenset({"protocol_version", "type", "cid", "bucket"})
+_RELAY_CONNECT_REQUIRED = frozenset({"protocol_version", "type", "cid", "bucket", "target_cid"})
+_RELAY_CONNECT_OPTIONAL = frozenset({"group", "bucket_token"})
+_RELAY_ATTACH_REQUIRED = frozenset({"protocol_version", "type", "cid", "bucket", "relay_id"})
+_RELAY_ATTACH_OPTIONAL = frozenset({"bucket_token"})
+_RELAY_LISTENING_REQUIRED = frozenset({"protocol_version", "type", "ttl"})
+_RELAY_INCOMING_REQUIRED = frozenset({"protocol_version", "type", "relay_id", "cid", "expires_in"})
+_RELAY_OK_REQUIRED = frozenset({"protocol_version", "type", "relay_id"})
+_RELAY_ERROR_REQUIRED = frozenset({"protocol_version", "type", "error"})
+_RELAY_ERROR_OPTIONAL = frozenset({"retry_after"})
 _ACK_REQUIRED = frozenset({"protocol_version", "type", "observed_endpoint", "ttl", "server_time"})
 _ACK_OPTIONAL = frozenset({"retry_after"})
 _RESPONSE_REQUIRED = frozenset({"protocol_version", "type", "peers", "count", "ttl"})
@@ -478,6 +635,15 @@ def _read_election_advert(value: Mapping, clean: dict, *, optional: bool) -> boo
     else:
         clean["sync_direction"] = value["sync_direction"]
     return True
+
+
+def _is_relay_id(value: object) -> bool:
+    """True for a canonical relay session id (32 lowercase hex characters)."""
+    return (
+        isinstance(value, str)
+        and len(value) == RELAY_ID_LEN
+        and all(char in "0123456789abcdef" for char in value)
+    )
 
 
 def _validate_endpoint(value: object) -> Endpoint | None:
@@ -657,6 +823,143 @@ def validate_boot_query(value: object) -> BootQuery | None:
     return clean
 
 
+def validate_boot_relay_listen(value: object) -> BootRelayListen | None:
+    """Strictly validate a ``relay_listen`` frame."""
+    if not _envelope_ok(value, "relay_listen", _RELAY_LISTEN_REQUIRED, _RELAY_LISTEN_OPTIONAL):
+        return None
+    if not is_valid_cid(value["cid"]) or not is_valid_bucket_name(value["bucket"]):
+        return None
+    clean = BootRelayListen(
+        protocol_version=PROTOCOL_VERSION_BOOT,
+        type="relay_listen",
+        cid=value["cid"],
+        bucket=value["bucket"],
+    )
+    if not (_optional_str(value, clean, "group", _MAX_GROUP_LEN) and _optional_token(value, clean)):
+        return None
+    return clean
+
+
+def validate_boot_relay_ping(value: object) -> BootRelayPing | None:
+    """Strictly validate a ``relay_ping`` frame."""
+    if not _envelope_ok(value, "relay_ping", _RELAY_PING_REQUIRED, frozenset()):
+        return None
+    if not is_valid_cid(value["cid"]) or not is_valid_bucket_name(value["bucket"]):
+        return None
+    return BootRelayPing(
+        protocol_version=PROTOCOL_VERSION_BOOT,
+        type="relay_ping",
+        cid=value["cid"],
+        bucket=value["bucket"],
+    )
+
+
+def validate_boot_relay_connect(value: object) -> BootRelayConnect | None:
+    """Strictly validate a ``relay_connect`` frame."""
+    if not _envelope_ok(value, "relay_connect", _RELAY_CONNECT_REQUIRED, _RELAY_CONNECT_OPTIONAL):
+        return None
+    if (
+        not is_valid_cid(value["cid"])
+        or not is_valid_cid(value["target_cid"])
+        or not is_valid_bucket_name(value["bucket"])
+    ):
+        return None
+    clean = BootRelayConnect(
+        protocol_version=PROTOCOL_VERSION_BOOT,
+        type="relay_connect",
+        cid=value["cid"],
+        bucket=value["bucket"],
+        target_cid=value["target_cid"],
+    )
+    if not (_optional_str(value, clean, "group", _MAX_GROUP_LEN) and _optional_token(value, clean)):
+        return None
+    return clean
+
+
+def validate_boot_relay_attach(value: object) -> BootRelayAttach | None:
+    """Strictly validate a ``relay_attach`` frame."""
+    if not _envelope_ok(value, "relay_attach", _RELAY_ATTACH_REQUIRED, _RELAY_ATTACH_OPTIONAL):
+        return None
+    if (
+        not is_valid_cid(value["cid"])
+        or not is_valid_bucket_name(value["bucket"])
+        or not _is_relay_id(value["relay_id"])
+    ):
+        return None
+    clean = BootRelayAttach(
+        protocol_version=PROTOCOL_VERSION_BOOT,
+        type="relay_attach",
+        cid=value["cid"],
+        bucket=value["bucket"],
+        relay_id=value["relay_id"],
+    )
+    if not _optional_token(value, clean):
+        return None
+    return clean
+
+
+def validate_boot_relay_listening(value: object) -> BootRelayListening | None:
+    """Strictly validate a ``relay_listening`` frame (server→client)."""
+    if not _envelope_ok(value, "relay_listening", _RELAY_LISTENING_REQUIRED, frozenset()):
+        return None
+    if not _is_int(value["ttl"], minimum=_MIN_TTL, maximum=_MAX_TTL):
+        return None
+    return BootRelayListening(
+        protocol_version=PROTOCOL_VERSION_BOOT,
+        type="relay_listening",
+        ttl=value["ttl"],
+    )
+
+
+def validate_boot_relay_incoming(value: object) -> BootRelayIncoming | None:
+    """Strictly validate a ``relay_incoming`` frame (server→client)."""
+    if not _envelope_ok(value, "relay_incoming", _RELAY_INCOMING_REQUIRED, frozenset()):
+        return None
+    if (
+        not _is_relay_id(value["relay_id"])
+        or not is_valid_cid(value["cid"])
+        or not _is_int(value["expires_in"], minimum=1, maximum=_MAX_TTL)
+    ):
+        return None
+    return BootRelayIncoming(
+        protocol_version=PROTOCOL_VERSION_BOOT,
+        type="relay_incoming",
+        relay_id=value["relay_id"],
+        cid=value["cid"],
+        expires_in=value["expires_in"],
+    )
+
+
+def validate_boot_relay_ok(value: object) -> BootRelayOk | None:
+    """Strictly validate a ``relay_ok`` frame (server→client)."""
+    if not _envelope_ok(value, "relay_ok", _RELAY_OK_REQUIRED, frozenset()):
+        return None
+    if not _is_relay_id(value["relay_id"]):
+        return None
+    return BootRelayOk(
+        protocol_version=PROTOCOL_VERSION_BOOT,
+        type="relay_ok",
+        relay_id=value["relay_id"],
+    )
+
+
+def validate_boot_relay_error(value: object) -> BootRelayError | None:
+    """Strictly validate a ``relay_error`` frame (server→client)."""
+    if not _envelope_ok(value, "relay_error", _RELAY_ERROR_REQUIRED, _RELAY_ERROR_OPTIONAL):
+        return None
+    error = value["error"]
+    if error not in _BOOT_ERRORS:
+        return None
+    clean = BootRelayError(
+        protocol_version=PROTOCOL_VERSION_BOOT,
+        type="relay_error",
+        error=error,
+    )
+    if not _optional_int(value, clean, "retry_after", minimum=1):
+        return None
+    return clean
+
+
 def validate_boot_ack(value: object) -> BootAck | None:
     """Strictly validate an ``ack`` frame (server→client)."""
     if not _envelope_ok(value, "ack", _ACK_REQUIRED, _ACK_OPTIONAL):
@@ -729,4 +1032,12 @@ def validate_boot_frame(value: object) -> BootFrame | None:
         return validate_boot_leave(value)
     if frame_type == "query":
         return validate_boot_query(value)
+    if frame_type == "relay_listen":
+        return validate_boot_relay_listen(value)
+    if frame_type == "relay_ping":
+        return validate_boot_relay_ping(value)
+    if frame_type == "relay_connect":
+        return validate_boot_relay_connect(value)
+    if frame_type == "relay_attach":
+        return validate_boot_relay_attach(value)
     return None

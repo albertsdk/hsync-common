@@ -31,6 +31,10 @@ from hsync_common.protocol.bootnode import (
     derive_bucket_token,
     validate_boot_ack,
     validate_boot_frame,
+    validate_boot_relay_error,
+    validate_boot_relay_incoming,
+    validate_boot_relay_listening,
+    validate_boot_relay_ok,
     validate_boot_response,
     verify_bucket_token,
 )
@@ -41,6 +45,14 @@ _MIRRORED = {
     "bootnode-query": validate_boot_frame,
     "bootnode-ack": validate_boot_ack,
     "bootnode-response": validate_boot_response,
+    "bootnode-relay-listen": validate_boot_frame,
+    "bootnode-relay-ping": validate_boot_frame,
+    "bootnode-relay-connect": validate_boot_frame,
+    "bootnode-relay-attach": validate_boot_frame,
+    "bootnode-relay-listening": validate_boot_relay_listening,
+    "bootnode-relay-incoming": validate_boot_relay_incoming,
+    "bootnode-relay-ok": validate_boot_relay_ok,
+    "bootnode-relay-error": validate_boot_relay_error,
 }
 
 # A canonical SHA-256 certificate fingerprint (the pin format of ADR-0037).

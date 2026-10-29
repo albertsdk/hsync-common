@@ -1,0 +1,5 @@
+{
+  "protocol_version": "boot/1",
+  "type": "relay_error",
+  "error": "relay_unavailable"
+}

@@ -1,0 +1,7 @@
+{
+  "protocol_version": "boot/1",
+  "type": "relay_listen",
+  "cid": "A1b2C3d4E5f6G7h8I9j0K",
+  "bucket": "shared",
+  "group": "home"
+}

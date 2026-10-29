@@ -70,6 +70,7 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0044](0044-rename-propagates-as-a-move.md) | A rename propagates as a move, never as a re-upload | Accepted |
 | [0045](0045-discovery-source-degradation.md) | A discovery source failure degrades discovery, it never fails the run | Accepted |
 | [0046](0046-one-log-line-grammar.md) | One log-line grammar for every HSYNC producer | Accepted |
+| [0047](0047-p2p-relay-through-bootnode.md) | Data plane relay through the bootnode (`--relay`, opaque TLS) | Accepted |
 
 ## Related documents
 

@@ -96,6 +96,36 @@ hairpin route on most home routers — still connect over the local path. The
 relayed order is the peer's external-reachability preference; the requester's
 own-network priority is a client-side policy and never an authority.
 
+### Relayed data plane
+
+Candidate fallback cannot help when **no** candidate is dialable: two peers that
+are each behind carrier-grade NAT (mobile data, a hotspot behind a carrier) have
+no endpoint that accepts an inbound connection. The bootnode then carries the
+data plane itself, pairing the elected master with the requester over the same
+`boot/1` channel (`relay_listen` / `relay_incoming` / `relay_connect` /
+`relay_attach`; frames and bounds in
+[`bootnode-protocol.md`](bootnode-protocol.md#data-relay)).
+
+- **Last resort only.** Direct candidates are always tried first, in the shared
+  host/LAN-first order; the relay is opened only after every one of them failed
+  this round. A peer with one reachable address never pays for it.
+- **Opaque TLS.** The relayed bytes *are* the peers' HTTPS+WSS session: the node
+  forwards them without terminating or inspecting them, so the master's
+  certificate pin remains the only identity proof and the node sees no content.
+- **Client shape.** The requester exposes the tunnel as a loopback TCP endpoint
+  (`RelayDialer`) and the master accepts relayed sessions by bridging them to its
+  own `listen_port` (`RelayAcceptor`, started and stopped with the serving role).
+  Logs and UI keep showing the master's real address: only the transport is
+  loopback.
+- **Node shape.** Opt-in (`--relay`), with host-derived session ceilings plus an
+  operator-set aggregate byte rate and idle/per-session limits. Without the flag
+  every relay frame is answered `relay_unavailable` and no state is created.
+- **Not a peer-download path.** Peer-assisted serving
+  ([ADR-0028](internal/adr/0028-p2p-peer-assisted-download.md)) keeps using direct
+  seeder endpoints: a seeder that cannot be reached directly is skipped and the
+  block is served by the master, so a fully relayed group still syncs (through one
+  hop) instead of stalling.
+
 ## Presence counters
 
 `connected` (a stringified non-negative integer, advertised only by a serving

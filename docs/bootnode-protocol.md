@@ -50,8 +50,16 @@ byte-for-byte with the canonical ones.
 | `refresh` | client → server | `cid`, `bucket`, `group?`, `bucket_token?`, `connected?` |
 | `leave` | client → server | `cid`, `bucket`, `bucket_token?` (no response frame) |
 | `query` | client → server | `bucket`, `group?`, `bucket_token?`, `limit?` (1–50, default 20) |
+| `relay_listen` | client → server | `cid`, `bucket`, `group?`, `bucket_token?` (listener control stream) |
+| `relay_ping` | client → server | `cid`, `bucket` (keepalive on that control stream, no reply) |
+| `relay_connect` | client → server | `cid`, `bucket`, `target_cid`, `group?`, `bucket_token?` |
+| `relay_attach` | client → server | `cid`, `bucket`, `relay_id`, `bucket_token?` |
 | `ack` | server → client | `observed_endpoint{proto,ip,port}`, `ttl`, `server_time`, `retry_after?` |
 | `response` | server → client | `peers[{cid, endpoints[{proto,host,port}], cert_fp, bucket, group?, version, capacity, reachable}]`, `count`, `ttl`, `error?`, `retry_after?` |
+| `relay_listening` | server → client | `ttl` |
+| `relay_incoming` | server → client | `relay_id`, `cid`, `expires_in` |
+| `relay_ok` | server → client | `relay_id` |
+| `relay_error` | server → client | `error` (`token_required`/`rate_limited`/`overloaded`/`relay_unavailable`), `retry_after?` |
 
 Every frame carries `protocol_version` (`boot/1`) and a `type` discriminator;
 unknown fields make the frame invalid (`extra="forbid"` in the daemon,
@@ -93,6 +101,31 @@ ready, the client sends a **second `register`** that publishes `endpoints[]`
 - **`cert_fp`** is a SHA-256 certificate fingerprint (`sha256:<hex>`, bare hex, or
   colon-separated hex): the value the data-plane pin compares, so anything that is
   not a full digest is an invalid frame.
+
+## Data relay
+
+The relay gets two peers that no inbound NAT mapping reaches (carrier-grade NAT,
+a hotspot behind a carrier) onto the `p2p/1` data plane. The node pairs them and
+forwards their bytes, which stay **opaque TLS**: it never terminates or inspects
+that TLS, so it sees no content, file name or credential, and the peers keep
+authenticating each other by certificate pinning. The pairing (`cid` ↔ `cid`) and
+the volume are visible to the node; the feature is opt-in per node (`--relay`)
+and bounded by host-derived session caps plus an operator-set byte rate.
+
+- The serving peer (the master) holds a **control** stream: `relay_listen` →
+  `relay_listening`, then one `relay_incoming` per requester and a `relay_ping`
+  keepalive (no reply) while idle.
+- A requester opens a fresh stream with `relay_connect` and gets `relay_ok` (the
+  rest of the stream is opaque) or `relay_error` and a close.
+- For each `relay_incoming` the listener opens a fresh stream whose single framed
+  line is `relay_attach`; the node then bridges the two streams with a fixed
+  64 KiB buffer and `drain()` on both sides.
+- `relay_listen` is accepted only from the current owner of the `(cid, bucket,
+  group)` record, `relay_attach` must match `relay_id` + listener `cid`/`bucket` +
+  the listener's source IP, and every relay frame carries the optional
+  `bucket_token` (uniform `token_required` on protected/private buckets).
+- `relay_unavailable` means "no relay here": disabled on the node, no listener for
+  that `target_cid`, or the listener did not attach within `expires_in`.
 
 ## Bucket tokens
 

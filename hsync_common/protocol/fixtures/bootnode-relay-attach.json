@@ -1,0 +1,7 @@
+{
+  "protocol_version": "boot/1",
+  "type": "relay_attach",
+  "cid": "A1b2C3d4E5f6G7h8I9j0K",
+  "bucket": "shared",
+  "relay_id": "0123456789abcdef0123456789abcdef"
+}

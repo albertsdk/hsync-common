@@ -1,0 +1,7 @@
+{
+  "protocol_version": "boot/1",
+  "type": "relay_incoming",
+  "relay_id": "0123456789abcdef0123456789abcdef",
+  "cid": "L0m1N2o3P4q5R6s7T8u9V",
+  "expires_in": 10
+}

@@ -67,9 +67,10 @@ endpoints unrecoverable).
   candidate instead of timing out on the hairpin-less public endpoint; a remote
   requester keeps the public candidate, and a stale public endpoint can now fall
   back to another candidate.
-- Symmetric NAT with no UPnP and no routable candidate is still unreachable: the
-  fix adds candidate fallback, not hole punching or a relay. A relay/turn-style
-  path remains out of scope.
+- Symmetric NAT with no UPnP and no routable candidate is not reachable through a
+  direct candidate: the fix adds candidate fallback, and the
+  [data plane relay](0047-p2p-relay-through-bootnode.md) covers the case where no
+  candidate is dialable at all.
 - The probe adds one short TLS handshake per candidate for multi-candidate peers,
   bounded by the 3 s per-candidate budget and skipped entirely for mDNS peers.
 - Obligations: spec + fixtures + both `boot/1` implementations and the Kotlin

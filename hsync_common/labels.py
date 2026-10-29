@@ -117,6 +117,7 @@ class ActionLabel(StrEnum):
 
     # ── Infrastructure (transport-level) ───────────────────────────────
     WS = "[WS]"
+    RELAY = "[RELAY]"
 
     # ── Lifecycle phase markers ────────────────────────────────────────
     INITIAL_SYNC = "[INITIAL SYNC]"
@@ -197,6 +198,7 @@ _LABEL_CATEGORY_MAP: dict[str, str] = {
     ActionLabel.LOCAL_SECURITY: "security",
     ActionLabel.REMOTE_SECURITY: "security",
     ActionLabel.WS: "infrastructure",
+    ActionLabel.RELAY: "infrastructure",
     ActionLabel.REMOTE_ECHO: "infrastructure",
     ActionLabel.INITIAL_SYNC: "phase",
     ActionLabel.READY: "create",
