@@ -273,6 +273,20 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
   markup escaping. `LEVEL_STYLES` (`logger.py::LEVEL_STYLES`); rotation defaults and
   `get_rotation_config` (`logger.py::get_rotation_config`); `build_record_formatter`
   (`logger.py::build_record_formatter`); `configure_handlers` (`logger.py::configure_handlers`).
+- **The log-line grammar (ADR 0046)** lives here too, so every project writes one
+  shape (`<ts> - [pid] [fields…] LEVEL: msg`) whatever its sink:
+  `LOG_LEVELS` (`logger.py::LOG_LEVELS`, derived from `LEVEL_STYLES`: the level
+  vocabulary), `LOG_LINE_RE` (`logger.py::LOG_LINE_RE`: the parser, tolerating
+  timestamps without fractional seconds, `message` = first line only) and
+  `format_log_line` (`logger.py::format_log_line`: the renderer for producers
+  without loguru, rejecting an unknown level). `format_timestamp`
+  (`logger.py::format_timestamp`) delegates to
+  `logger.py::_render_timestamp`, which converts an aware instant to UTC before
+  appending `Z` (a naive one is taken as UTC). Consumers: `hsync-desktop`
+  renders with `hsync-desktop/hsync_desktop/main_window/ui.py::UiBuildMixin._append_desktop_log`
+  and parses with `hsync-desktop/hsync_desktop/log_style.py::_fallback_runs`
+  (level coloring) plus `hsync-desktop/hsync_desktop/engine/process.py::HsyncEngine._on_stdout`
+  (recent-error harvest).
 
 ## labels.py (action-label & colorization SSOT)
 

@@ -1,13 +1,21 @@
 """Tests for hsync_common.logger."""
 
 import logging
+import os
+from datetime import UTC, datetime, timedelta, timezone
+
+import pytest
 
 from hsync_common.logger import (
     DEFAULT_LOG_COMPRESSION,
     DEFAULT_LOG_RETENTION,
     DEFAULT_LOG_ROTATION,
     LEVEL_STYLES,
+    LOG_LEVELS,
+    LOG_LINE_RE,
     BaseInterceptHandler,
+    build_record_formatter,
+    format_log_line,
     get_rotation_config,
 )
 
@@ -199,3 +207,98 @@ class TestBaseInterceptHandler:
         )
         h.emit(record)
         assert calls == [True]
+
+
+class TestLogLineGrammar:
+    """The canonical ``<ts> - [pid] [fields] LEVEL: msg`` shape every producer writes."""
+
+    _STAMP = datetime(2026, 10, 29, 10, 46, 23, 187000, tzinfo=UTC)
+
+    @staticmethod
+    def _record(level: str = "INFO", message: str = "hello", client_id: str = "cid1"):
+        """Build a loguru-shaped record mapping (what a sink formatter receives)."""
+        from types import SimpleNamespace
+
+        return {
+            "time": TestLogLineGrammar._STAMP,
+            "level": SimpleNamespace(name=level),
+            "message": message,
+            "process": SimpleNamespace(id=4242),
+            "extra": {"client_id": client_id},
+        }
+
+    def test_client_renderer_and_grammar_agree(self):
+        # Anti-drift: what the loguru sinks emit must be parseable by LOG_LINE_RE.
+        formatter = build_record_formatter(colored=False, extra_fields=("client_id",))
+
+        line = formatter(self._record(message="[READY] ready")).rstrip("\n")
+
+        assert line == "2026-10-29T10:46:23.187Z - [4242] [cid1] INFO: [READY] ready"
+        parsed = LOG_LINE_RE.match(line)
+        assert parsed is not None
+        assert parsed.group("level") == "INFO"
+        assert parsed.group("fields") == "[4242] [cid1] "
+        assert parsed.group("message") == "[READY] ready"
+
+    def test_desktop_line_has_the_client_layout(self):
+        line = format_log_line(
+            "WARNING", "Peer not trusted.", fields=("desktop",), pid=7, timestamp=self._STAMP
+        )
+
+        assert line == "2026-10-29T10:46:23.187Z - [7] [desktop] WARNING: Peer not trusted."
+        parsed = LOG_LINE_RE.match(line)
+        assert parsed is not None
+        assert parsed.group("level") == "WARNING"
+        assert parsed.group("message") == "Peer not trusted."
+
+    def test_several_fields_keep_their_order(self):
+        line = format_log_line(
+            "INFO", "m", fields=("desktop", "req-1"), pid=1, timestamp=self._STAMP
+        )
+
+        assert line == "2026-10-29T10:46:23.187Z - [1] [desktop] [req-1] INFO: m"
+
+    def test_aware_timestamp_is_rendered_in_utc(self):
+        local = self._STAMP.astimezone(timezone(timedelta(hours=2)))
+
+        line = format_log_line("INFO", "m", pid=1, timestamp=local)
+
+        assert line.startswith("2026-10-29T10:46:23.187Z - ")
+
+    def test_default_timestamp_is_utc_now(self):
+        line = format_log_line("INFO", "m", pid=1)
+
+        parsed = LOG_LINE_RE.match(line)
+        assert parsed is not None
+        stamp = datetime.fromisoformat(parsed.group("timestamp"))
+        assert abs((datetime.now(UTC) - stamp).total_seconds()) < 5
+
+    def test_pid_defaults_to_the_current_process(self):
+        line = format_log_line("INFO", "m", timestamp=self._STAMP)
+
+        assert line.startswith(f"2026-10-29T10:46:23.187Z - [{os.getpid()}] INFO: m")
+
+    def test_multiline_message_is_one_record(self):
+        line = format_log_line("ERROR", 'boom\n{\n  "k": 1\n}', pid=1, timestamp=self._STAMP)
+
+        assert line.endswith('ERROR: boom\n{\n  "k": 1\n}')
+        parsed = LOG_LINE_RE.match(line)
+        assert parsed is not None
+        # The grammar describes the record header; the payload follows as-is.
+        assert parsed.group("message") == "boom"
+
+    def test_message_that_starts_with_a_label_is_not_read_as_a_level(self):
+        parsed = LOG_LINE_RE.match(
+            format_log_line("INFO", "[DELETE] gone.txt", pid=1, timestamp=self._STAMP)
+        )
+
+        assert parsed is not None
+        assert parsed.group("level") == "INFO"
+        assert parsed.group("message") == "[DELETE] gone.txt"
+
+    def test_unknown_level_is_rejected(self):
+        with pytest.raises(ValueError, match="unknown log level"):
+            format_log_line("NOTICE", "m", pid=1)
+
+    def test_levels_cover_the_shared_palette(self):
+        assert tuple(LEVEL_STYLES) == LOG_LEVELS

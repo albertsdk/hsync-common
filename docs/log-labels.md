@@ -10,6 +10,38 @@ their color category, and which projects can emit them.
 > human-readable companion: when a label is added/renamed there, update this
 > page in the same change.
 
+## The log line
+
+Every HSYNC component writes the same line, whatever its sink (terminal, log
+file, or a GUI panel):
+
+```
+<timestamp> - [<pid>] [<correlation field> …] LEVEL: <message>
+```
+
+| Part | Meaning |
+|------|---------|
+| `<timestamp>` | ISO-8601 in **UTC**, milliseconds, trailing `Z` (e.g. `2026-10-29T10:46:23.187Z`) |
+| `[<pid>]` | Id of the process that wrote the line |
+| `[<correlation field> …]` | Who/what the line belongs to: `[<client_id>]` for the client, `[<request_id>]` for the server, `[desktop]` for the GUI (which has no client session) |
+| `LEVEL` | One of `DEBUG`, `INFO`, `SUCCESS`, `WARNING`, `ERROR`, `CRITICAL` |
+| `<message>` | Free-form; may continue on the following lines (e.g. a pretty-printed JSON payload) |
+
+The grammar, its level vocabulary and its renderer live only in
+[`hsync_common/logger.py`](../hsync_common/logger.py) (`LOG_LINE_RE`,
+`LOG_LEVELS`, `format_log_line`, plus `build_record_formatter` for the loguru
+sinks), so every consumer — the terminal, the Desktop panel and the error
+harvest of a supervising GUI — reads the same shape:
+
+```
+2026-10-29T10:46:23.187Z - [41234] [desktop] WARNING: Peer not trusted.
+2026-10-29T10:46:23.190Z - [12345] [a1b2c3d4] INFO: [READY] Client ready for sync
+```
+
+Only the correlation field distinguishes the producers: the level, the ordering
+of the parts and the UTC timestamp are identical, and the *message* is the only
+part that may be localized.
+
 ## The two-level origin rule
 
 Labels follow a strict two-level rule:
@@ -190,12 +222,15 @@ in the log — the node will now react to file-system events and peer events.
 
 The desktop GUI is not an engine: it runs the `hsync-client` subprocess and
 surfaces its logs, so every client label above can appear in the desktop log
-panel. It also emits a few **own** markers (not part of `ActionLabel`):
+panel. It also emits a few **own** markers (not part of `ActionLabel`), always
+in the same line grammar with `desktop` in the correlation slot
+(`main_window/ui.py::UiBuildMixin._append_desktop_log`):
 
 | Marker | Meaning |
 |--------|---------|
 | `[NO MASTER]` | surfaced from the client's `no_master` structured event (same meaning as the client label) |
 | `[EVENT ERROR]` | the desktop's own prefix for an error event from the engine/UI layer |
+| `--- … ---` | the GUI's own phase markers (comparison started/ended, stopping, process finished), emitted as `INFO` lines |
 
 ## Legend in the CLI
 

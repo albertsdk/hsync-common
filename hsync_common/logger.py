@@ -4,7 +4,8 @@
 """
 Shared logging primitives used by HSYNC projects.
 
-Provides the constants, rotation defaults and a configurable
+Provides the constants, rotation defaults, the canonical log-line grammar
+(:data:`LOG_LINE_RE`, :func:`format_log_line`) and a configurable
 :class:`BaseInterceptHandler` that bridges stdlib ``logging`` to
 loguru. Project-specific format functions and ``setup_logging``
 wrappers live in the consumer projects.
@@ -14,8 +15,10 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import sys
 from collections.abc import Callable, Iterable, Mapping
+from datetime import UTC, datetime
 from typing import Any, Final
 
 from loguru import logger
@@ -42,6 +45,12 @@ LEVEL_STYLES: dict[str, tuple[str, str]] = {
     "ERROR": ("<red>", "</red>"),
     "CRITICAL": ("<bold><red>", "</red></bold>"),
 }
+
+#: Every severity a HSYNC component may emit, in increasing order of urgency.
+#: The single vocabulary of the log-line grammar: a line whose level is not in
+#: this tuple is not a HSYNC log line. Derived from :data:`LEVEL_STYLES` so a
+#: level can never be colorized without being readable (or vice versa).
+LOG_LEVELS: Final[tuple[str, ...]] = tuple(LEVEL_STYLES)
 
 # =============================================================================
 # Log Rotation Defaults
@@ -136,9 +145,90 @@ class BaseInterceptHandler(logging.Handler):
 # =============================================================================
 
 
+# =============================================================================
+# The canonical log-line grammar
+# =============================================================================
+
+# Every component writes the same record shape, whatever its sink:
+#
+#     <timestamp> - [<pid>] [<correlation field> ...] LEVEL: <message>
+#
+# ``build_record_formatter`` renders it for the loguru sinks (CLI, server);
+# ``format_log_line`` renders it for producers without a loguru stack (the
+# Desktop, which prints the engine's output in a Qt widget). Consumers parse it
+# with ``LOG_LINE_RE`` instead of re-encoding the shape: the Desktop colors the
+# level from it (``hsync_desktop/log_style.py``) and harvests the client's last
+# errors from it (``hsync_desktop/engine/process.py``).
+#
+# The ``Z`` suffix is only truthful when the rendered instant is UTC, so the
+# timestamp is normalized (see ``_render_timestamp``).
+LOG_LINE_RE: Final[re.Pattern[str]] = re.compile(
+    r"^(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)"
+    r" - (?P<fields>(?:\[[^\]\n]*\] ?)+)"
+    r"(?P<level>" + "|".join(LOG_LEVELS) + r"): (?P<message>[^\n]*)"
+)
+
+
+def _render_timestamp(moment: datetime) -> str:
+    """Render *moment* as ISO-8601 with milliseconds and a trailing ``Z``.
+
+    An aware datetime is converted to UTC first, because the ``Z`` suffix must
+    never label a local wall clock (that reads as a lie to whoever compares two
+    lines of the same panel). A naive datetime is taken as UTC: callers holding
+    a local clock must attach its zone instead of relying on the reader.
+    """
+    if moment.tzinfo is not None:
+        moment = moment.astimezone(UTC)
+    return moment.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+
+
+def format_log_line(
+    level: str,
+    message: str,
+    *,
+    fields: Iterable[str] = (),
+    pid: int | None = None,
+    timestamp: datetime | None = None,
+) -> str:
+    """Render one log line in the canonical HSYNC grammar.
+
+    Produces ``<timestamp> - [<pid>] [<field> ...] LEVEL: <message>``: the exact
+    shape :func:`build_record_formatter` renders for the loguru sinks, so a
+    producer that does not log through loguru still emits lines a single reader
+    understands. The correlation *fields* are what distinguishes the producers,
+    not the layout: ``[<client_id>]`` for the client, ``[desktop]`` for the GUI
+    (which has no client session and therefore no CID).
+
+    Args:
+        level: One of :data:`LOG_LEVELS` (upper case). An unknown level is
+            rejected instead of being written as an unparseable line.
+        message: Free-form message; newlines are kept verbatim (they are the
+            continuation of the same record, e.g. a pretty-printed payload).
+        fields: Correlation fields rendered after the pid, each in brackets.
+        pid: Process id to render; defaults to the current process.
+        timestamp: Instant to render, rendered in UTC. Defaults to now.
+
+    Raises:
+        ValueError: If *level* is not in :data:`LOG_LEVELS`.
+
+    Consumers: ``hsync-desktop`` (``main_window/ui.py::UiBuildMixin._append_desktop_log``);
+    the produced grammar is parsed by ``hsync-desktop/log_style.py::_fallback_runs``
+    and ``hsync-desktop/engine/process.py::HsyncEngine._on_stdout`` through
+    :data:`LOG_LINE_RE`.
+    """
+    if level not in LOG_LEVELS:
+        raise ValueError(f"unknown log level {level!r}; expected one of {LOG_LEVELS}")
+
+    moment = timestamp if timestamp is not None else datetime.now(UTC)
+    prefix = f"[{os.getpid() if pid is None else pid}]"
+    for field in fields:
+        prefix += f" [{field}]"
+    return f"{_render_timestamp(moment)} - {prefix} {level}: {message}"
+
+
 def format_timestamp(record: Mapping[str, Any]) -> str:
     """Return an ISO-8601 millisecond timestamp with a trailing ``Z``."""
-    return record["time"].strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+    return _render_timestamp(record["time"])
 
 
 def build_record_formatter(
@@ -152,7 +242,7 @@ def build_record_formatter(
 
     The produced function renders records as::
 
-        <timestamp> - [<pid>][ <extra fields...>] <LEVEL>: <message>
+        <timestamp> - [<pid>] [<field> ...] <LEVEL>: <message>
 
     Args:
         colored: When True, wrap the timestamp in ``<dim>`` tags and the level

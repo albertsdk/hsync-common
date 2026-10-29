@@ -69,6 +69,7 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0043](0043-preview-confirmation-contract.md) | The preview confirmation reports the plan | Accepted |
 | [0044](0044-rename-propagates-as-a-move.md) | A rename propagates as a move, never as a re-upload | Accepted |
 | [0045](0045-discovery-source-degradation.md) | A discovery source failure degrades discovery, it never fails the run | Accepted |
+| [0046](0046-one-log-line-grammar.md) | One log-line grammar for every HSYNC producer | Accepted |
 
 ## Related documents
 
