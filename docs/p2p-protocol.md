@@ -505,7 +505,7 @@ do not split-brain.
 
 **Cross-network liveness floor.** A bootnode-discovered peer is only re-seen
 when its CID is drawn in the node's random sample, and samples arrive at the
-bootnode lease cadence (`HSYNC_BOOTNODE_REFRESH_INTERVAL`, default 30 s). The
+bootnode lease cadence (`HSYNC_DISCOVERY_SERVER_REFRESH_INTERVAL`, default 30 s). The
 shared liveness window must therefore span at least two bootnode query cycles
 whenever a bootnode is configured: the client raises the effective
 `HSYNC_PEER_TIMEOUT` to at least `2 ×` the bootnode refresh interval (default

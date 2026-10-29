@@ -123,8 +123,17 @@ port. Helpers: `build_https_url`, `parse_https_url`, `build_url` and
 
 `parse_port_list` parses a comma-separated UDP port list (order preserved,
 `1–65535`); it raises on an invalid or duplicate entry in strict mode (the
-bootnode's `run --ports`) and silently drops them in lenient mode (the client's
-`HSYNC_BOOTNODE_PORTS` multi-port dial fallback).
+bootnode's `run --listen-ports`) and silently drops them in lenient mode (the
+client's `HSYNC_DISCOVERY_SERVER_EXTRA_PORTS` dial fallback).
+
+`parse_endpoint_list` parses the ordered comma-separated **list** of scheme-less
+endpoints that names the discovery servers (`HSYNC_DISCOVERY_SERVER_ENDPOINTS`,
+lenient) or the repeatable `--discovery-server` option (strict). Duplicates
+collapse case-insensitively, and `default_port` fills the entries that carry no
+port so `a` and `a:443` are one destination instead of two leases.
+`normalize_endpoint_list` returns the same list as the canonical operator-facing
+string (`,` with no spaces, an omitted port stays omitted) — the form a GUI
+writes back into its field.
 
 `is_valid_endpoint_host` is the dialable-host grammar used on the wire: an
 IPv4/IPv6 literal (bracketed or bare) or an LDH hostname, and nothing else —

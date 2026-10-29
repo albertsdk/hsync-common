@@ -61,9 +61,23 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
 - `normalize_bare_endpoint` (`endpoint.py::normalize_bare_endpoint`) — the single
   canonicalization for scheme-less `HOST[:PORT]` values (unbracketed host when no
   port, else `[IPv6]:port`; empty ⇒ `None`). Consumers: `hsync-client`
-  (`HSYNC_BOOTNODE` validator) and `hsync-desktop`
+  (`HSYNC_DISCOVERY_SERVER_TRUST` keys, single-endpoint trust commands) and
+  `hsync-desktop`
   (`hsync-desktop/hsync_desktop/engine/endpoints.py::normalize_bootnode_endpoint`) so the GUI field and the
   client env var cannot normalize differently.
+- `parse_endpoint_list(raw, *, strict=False, default_port=None) -> tuple[HostPort, ...]`
+  (`endpoint.py::parse_endpoint_list`) — the single parser for an ordered
+  comma-separated list of scheme-less endpoints (one destination per entry,
+  duplicates collapsed case-insensitively). `default_port` fills entries that
+  carry none, so `a` and `a:443` are one endpoint, not two leases.
+  `strict=True` raises on the first invalid/empty/duplicate entry (the repeatable
+  CLI option); `strict=False` drops it (the env form,
+  `HSYNC_DISCOVERY_SERVER_ENDPOINTS`). Empty input yields `()`.
+- `normalize_endpoint_list(raw, *, strict=False) -> str | None`
+  (`endpoint.py::normalize_endpoint_list`) — the operator-facing canonical form
+  (entries canonicalized by `normalize_bare_endpoint`, re-joined with `,`, no
+  spaces, an omitted port stays omitted). Written back by the desktop/wizard
+  field so the GUI value is byte-identical to the parsed one.
 - `build_https_url(hp, default_port)` (`endpoint.py::build_https_url`) — canonical HTTPS URL for
   a parsed endpoint (port always explicit); used by `hsync-client` CLI and env.
 - `parse_https_url(raw)` (`endpoint.py::parse_https_url`) — validates an explicit `https://` URL
@@ -77,8 +91,9 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
   (`endpoint.py::parse_port_list`) — the single parser for a comma-separated UDP
   port list (order preserved, tokens `1..65535`, ASCII digits only).
   `strict=True` raises `ValueError` on the first invalid token or duplicate
-  (consumed by `hsync-bootnode` `run --ports`); `strict=False` drops
-  invalid/duplicate tokens (consumed by `hsync-client` `HSYNC_BOOTNODE_PORTS`).
+  (consumed by `hsync-bootnode` `run --listen-ports`); `strict=False` drops
+  invalid/duplicate tokens (consumed by `hsync-client`
+  `HSYNC_DISCOVERY_SERVER_EXTRA_PORTS`).
   Empty input yields `()`; each caller enforces its own minimum.
 - `is_valid_endpoint_host(host) -> bool` (`endpoint.py::is_valid_endpoint_host`) —
   the dialable-host grammar of the wire: IPv4/IPv6 literal (bracketed or bare) or
@@ -86,11 +101,12 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
   labels, labels > 63 chars and IPv4-shaped non-addresses. Consumed by the
   bootnode `protocol.Endpoint` model and by this mirror's `_validate_endpoint`,
   so an advertised `endpoints[].host` is the same grammar on both ends.
-- Consumers: `hsync-client` `cli.py` (bootnode/server/trust host args),
-  `hsync-bootnode` `cli.py` (`run --host HOST[:PORT]`), `hsync-server`
+- Consumers: `hsync-client` `cli.py` (discovery-server/server/trust host args),
+  `hsync-bootnode` `cli.py` (`run --listen-host HOST[:PORT]`), `hsync-server`
   `__main__.py` (`--host HOST[:PORT]`). The same grammar applies to the
-  environment: `HSYNC_SERVER` (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`,
-  or a full `https://…[/path]`) and `HSYNC_BOOTNODE` (same, no scheme/path).
+  environment: `HSYNC_SERVER_URL` (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`,
+  or a full `https://…[/path]`) and `HSYNC_DISCOVERY_SERVER_ENDPOINTS` (same, no
+  scheme/path, comma-separated list).
 
 ## hashing.py
 

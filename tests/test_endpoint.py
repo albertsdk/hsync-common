@@ -9,6 +9,8 @@ from hsync_common.endpoint import (
     format_authority,
     is_valid_endpoint_host,
     normalize_bare_endpoint,
+    normalize_endpoint_list,
+    parse_endpoint_list,
     parse_host_port,
     parse_https_url,
     parse_port_list,
@@ -16,7 +18,7 @@ from hsync_common.endpoint import (
 
 
 class TestNormalizeBareEndpoint:
-    """The one canonicalization used by HSYNC_BOOTNODE and the desktop GUI."""
+    """The canonicalization used by the discovery-server field and the GUI."""
 
     @pytest.mark.parametrize(
         ("raw", "expected"),
@@ -253,3 +255,83 @@ class TestEndpointHostGrammar:
     )
     def test_rejects_non_dialable_values(self, host: str):
         assert is_valid_endpoint_host(host) is False
+
+
+class TestParseEndpointList:
+    """The ordered multi-endpoint form (``HSYNC_DISCOVERY_SERVER_ENDPOINTS``)."""
+
+    def test_empty_is_empty(self):
+        assert parse_endpoint_list(None) == ()
+        assert parse_endpoint_list("") == ()
+        assert parse_endpoint_list("  ,  ") == ()
+
+    def test_preserves_order_and_ports(self):
+        assert parse_endpoint_list("a.example,b.example:8443") == (
+            HostPort("a.example", None),
+            HostPort("b.example", 8443),
+        )
+
+    def test_strips_spaces_and_ignores_empty_tokens(self):
+        assert parse_endpoint_list(" a.example , , b.example:53 ") == (
+            HostPort("a.example", None),
+            HostPort("b.example", 53),
+        )
+
+    def test_ipv6_entries(self):
+        assert parse_endpoint_list("[2001:db8::1]:443,::1") == (
+            HostPort("2001:db8::1", 443),
+            HostPort("::1", None),
+        )
+
+    def test_default_port_fills_missing_and_collapses(self):
+        # ``a`` and ``a:443`` are the same destination once the channel default
+        # applies: one lease, never two.
+        assert parse_endpoint_list("a.example,a.example:443", default_port=443) == (
+            HostPort("a.example", 443),
+        )
+
+    def test_duplicates_collapse_case_insensitively(self):
+        assert parse_endpoint_list("Boot.Example,boot.example") == (HostPort("Boot.Example", None),)
+
+    def test_lenient_drops_invalid_entries(self):
+        assert parse_endpoint_list("good.example,https://evil.example,bad:0,other:53") == (
+            HostPort("good.example", None),
+            HostPort("other", 53),
+        )
+
+    @pytest.mark.parametrize(
+        "raw",
+        ["good.example,,other.example", "good.example,https://evil.example", "a.example:0"],
+    )
+    def test_strict_rejects_invalid_or_empty(self, raw: str):
+        with pytest.raises(ValueError):
+            parse_endpoint_list(raw, strict=True)
+
+    def test_strict_rejects_duplicates(self):
+        with pytest.raises(ValueError):
+            parse_endpoint_list("a.example,a.example:443", strict=True, default_port=443)
+
+
+class TestNormalizeEndpointList:
+    """The operator-facing canonical form written back by a GUI."""
+
+    def test_empty_is_none(self):
+        assert normalize_endpoint_list(None) is None
+        assert normalize_endpoint_list("   ") is None
+
+    def test_canonical_join_without_spaces(self):
+        assert (
+            normalize_endpoint_list(" a.example , [2001:db8::1]:8443 ,b.example:53")
+            == "a.example,[2001:db8::1]:8443,b.example:53"
+        )
+
+    def test_keeps_an_omitted_port_omitted(self):
+        # The GUI must not invent the channel default port in the field.
+        assert normalize_endpoint_list("a.example") == "a.example"
+
+    def test_drops_invalid_entries_leniently(self):
+        assert normalize_endpoint_list("good.example,ftp://bad.example") == "good.example"
+
+    def test_strict_raises(self):
+        with pytest.raises(ValueError):
+            normalize_endpoint_list("a.example,a.example", strict=True)

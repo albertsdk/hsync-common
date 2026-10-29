@@ -49,7 +49,7 @@ _CLIENT_NAME_RE = re.compile(CLIENT_NAME_PATTERN)
 # ``-``/``.``. Anchors are left out so callers can embed it (bare ``^...$`` or
 # inside a full URL pattern). IPv6 literals are bracketed separately by the
 # consumers. Consumers: hsync_common.endpoint (the shared parser), hsync-client
-# (CLI host parsing and the ``HSYNC_SERVER`` URL validator), hsync-bootnode and
+# (CLI host parsing and the ``HSYNC_SERVER_URL`` validator), hsync-bootnode and
 # hsync-server (bind ``--host``).
 HOSTNAME_PATTERN = r"[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?"
 

@@ -36,6 +36,8 @@ __all__ = [
     "format_authority",
     "is_valid_endpoint_host",
     "normalize_bare_endpoint",
+    "normalize_endpoint_list",
+    "parse_endpoint_list",
     "parse_host_port",
     "parse_https_url",
     "parse_port_list",
@@ -251,14 +253,14 @@ def build_https_url(hp: HostPort, default_port: int) -> str:
     explicit: ``hp.port`` when present, otherwise ``default_port``. The host is
     bracketed for IPv6 via :attr:`HostPort.authority`.
 
-    Consumers: ``hsync-client`` (CLI ``_build_server_url`` and the ``HSYNC_SERVER``
+    Consumers: ``hsync-client`` (CLI ``_build_server_url`` and the ``HSYNC_SERVER_URL``
     environment validator), ``hsync-desktop`` (settings normalization).
     """
     port = hp.port if hp.port is not None else default_port
     return f"https://{_authority_of(hp.host)}:{port}"
 
 
-# URL-like HTTPS base accepted for ``HSYNC_SERVER``: scheme + (IPv6-aware)
+# URL-like HTTPS base accepted for ``HSYNC_SERVER_URL``: scheme + (IPv6-aware)
 # authority + optional port + optional path. Username/password, query and
 # fragment are rejected (a server base never carries them).
 _HTTPS_URL_RE = re.compile(
@@ -277,7 +279,7 @@ def parse_https_url(raw: str) -> str:
     rejected; the host must be a hostname/IPv4 or a bracketed IPv6 literal and
     the port, when present, 1-65535.
 
-    Consumers: ``hsync-client`` (``HSYNC_SERVER`` validator), ``hsync-desktop``
+    Consumers: ``hsync-client`` (``HSYNC_SERVER_URL`` validator), ``hsync-desktop``
     (``server_url`` validator).
     """
     value = raw.strip()
@@ -310,12 +312,12 @@ def normalize_bare_endpoint(raw: str | None) -> str | None:
     unchanged; invalid input raises :class:`ValueError` (from
     :func:`parse_host_port`).
 
-    Used for channels that are not URLs (QUIC/UDP bootnode, discovery server) and
+    Used for channels that are not URLs (QUIC/UDP discovery server) and
     therefore must not gain a scheme or a default port.
 
-    Consumers: ``hsync-client`` (``HSYNC_BOOTNODE`` / ``--bootnode`` validator),
-    ``hsync-desktop`` (settings and wizard "discovery server" field), shared
-    tests.
+    Consumers: ``hsync-client`` (``HSYNC_DISCOVERY_SERVER_TRUST`` file keys and
+    the single-endpoint trust commands), ``hsync-desktop`` (settings and wizard
+    "discovery server" field), shared tests.
     """
     value = (raw or "").strip()
     if not value:
@@ -324,3 +326,81 @@ def normalize_bare_endpoint(raw: str | None) -> str | None:
     if endpoint.port is None:
         return endpoint.host
     return format_authority(endpoint.host, endpoint.port)
+
+
+def _endpoint_key(endpoint: HostPort) -> tuple[str, int | None]:
+    """Identity of an endpoint for deduplication (DNS names/IPv6 are case-insensitive)."""
+    return endpoint.host.lower(), endpoint.port
+
+
+def parse_endpoint_list(
+    raw: str | None,
+    *,
+    strict: bool = False,
+    default_port: int | None = None,
+) -> tuple[HostPort, ...]:
+    """Parse a comma-separated list of scheme-less ``HOST[:PORT]`` endpoints.
+
+    Single definition of the ordered multi-endpoint form: one destination per
+    entry, order preserved, duplicates collapsed. Two consumers apply different
+    error policies, exactly like :func:`parse_port_list`:
+
+    * ``hsync-client`` env (``HSYNC_DISCOVERY_SERVER_ENDPOINTS``) calls with
+      ``strict=False``: an invalid or duplicate entry is dropped;
+    * the repeatable CLI option calls with ``strict=True`` and turns the
+      :class:`ValueError` into a user-facing usage error.
+
+    ``default_port`` fills the entries that carry no port, so ``a`` and
+    ``a:443`` collapse into one endpoint instead of dialing the same node twice.
+    Without it the ports stay ``None`` and the caller applies its own default.
+
+    An empty input (or one with no valid entry) yields ``()``; each caller
+    enforces its own minimum (the CLI requires at least one endpoint).
+    """
+    value = (raw or "").strip()
+    if not value:
+        return ()
+    endpoints: list[HostPort] = []
+    seen: set[tuple[str, int | None]] = set()
+    for token in value.split(","):
+        token = token.strip()
+        if not token:
+            if strict:
+                raise ValueError("empty endpoint in the list")
+            continue
+        try:
+            endpoint = parse_host_port(token)
+        except ValueError:
+            if strict:
+                raise
+            continue
+        if endpoint.port is None and default_port is not None:
+            endpoint = HostPort(host=endpoint.host, port=default_port)
+        key = _endpoint_key(endpoint)
+        if key in seen:
+            if strict:
+                raise ValueError(f"duplicate endpoint {token!r}")
+            continue
+        seen.add(key)
+        endpoints.append(endpoint)
+    return tuple(endpoints)
+
+
+def normalize_endpoint_list(raw: str | None, *, strict: bool = False) -> str | None:
+    """Canonicalize a comma-separated endpoint list; empty yields ``None``.
+
+    Each entry is canonicalized by :func:`normalize_bare_endpoint` and the list
+    is re-joined with ``,`` (no spaces), so the value a GUI writes back into its
+    field is byte-identical to the value the client parses. An entry without a
+    port keeps omitting it: this is the operator-facing form, not the dialed one
+    (:func:`parse_endpoint_list` applies the channel default port).
+
+    Invalid or duplicate entries raise :class:`ValueError` with ``strict=True``
+    and are dropped otherwise.
+    """
+    endpoints = parse_endpoint_list(raw, strict=strict)
+    if not endpoints:
+        return None
+    return ",".join(
+        format_authority(e.host, e.port) if e.port is not None else e.host for e in endpoints
+    )
