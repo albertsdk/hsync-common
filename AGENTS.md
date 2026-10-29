@@ -107,18 +107,16 @@ The wiki must describe the code as it is **now**. Accumulated inaccuracies come 
 * **P2P Discovery & Master Election**
   Before modifying any logic related to these mechanisms, you **MUST** read and follow the specifications outlined in `hsync-common/docs/p2p-protocol.md`.
 
-* **Packaging WD My Cloud OS5**
-  Any change to CLI flags, environment variables (`HSYNC_*`), or user-facing behaviors/defaults **REQUIRES** a synchronous update to `hsync-client/packaging/wd-os5`:
-  * `Apkg/start.sh`
-  * `Apkg/install.sh`
-  * `Apkg/web/index.html`
-  * `Apkg/web/app.js`
-  * `Apkg/web/config_get.php`
-  * `Apkg/web/config_set.php`
-  * i18n translations `Apkg/web/i18n/*.json`
-  * `README.md`
-
-  Keep flags, key whitelists, and i18n strings strictly aligned across all five languages (EN, IT, DE, ES, FR).
+* **Packaging WD My Cloud OS5 (cross-repository)**
+  The WD OS5 package lives in its own repository, `hsync-wd-os5`
+  (`packaging/Apkg`). Any change to CLI flags, environment variables
+  (`HSYNC_*`), or user-facing behaviors/defaults **REQUIRES** a synchronous
+  update of that repository: `packaging/Apkg/start.sh`, `install.sh`,
+  `web/index.html`, `web/app.js`, `web/config_get.php`, `web/config_set.php`,
+  the action endpoints, the i18n dictionaries and its `docs/configuration.md`.
+  Keep flags, key whitelists and i18n strings aligned across every language in
+  `SUPPORTED` (`web/app.js`). Do not reintroduce packaging code into
+  `hsync-client`.
 
 ---
 
