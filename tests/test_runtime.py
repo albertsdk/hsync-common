@@ -220,11 +220,11 @@ class TestMemoryLimit:
     def test_process_nested_cgroup_v2_limit_wins(self, tmp_path):
         """A systemd/container service limit lives in its own nested cgroup."""
         (tmp_path / "memory.max").write_text("8589934592\n")
-        nested = tmp_path / "system.slice" / "hsync-bootnode.service"
+        nested = tmp_path / "system.slice" / "hsync-rendezvous.service"
         nested.mkdir(parents=True)
         (nested / "memory.max").write_text("536870912\n")
         proc = tmp_path / "self_cgroup"
-        proc.write_text("0::/system.slice/hsync-bootnode.service\n")
+        proc.write_text("0::/system.slice/hsync-rendezvous.service\n")
         assert get_memory_limit_bytes(tmp_path, proc) == 536870912
 
     def test_process_nested_cgroup_v1_limit(self, tmp_path):

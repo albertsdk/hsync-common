@@ -1,21 +1,22 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2025 Alberto Basso
 
-"""Tests for the mirrored ``boot/1`` bootstrap protocol.
+"""Tests for the mirrored ``rdv/1`` rendezvous protocol.
 
-The canonical specification and fixtures live in the sibling ``hsync-bootnode``
-repository (the bootnode never imports hsync-common). This module guards the
+The canonical specification and fixtures live in the sibling ``hsync-rendezvous``
+repository (the rendezvous never imports hsync-common). This module guards the
 mirror under ``hsync_common/protocol``: every mirrored fixture must validate
 against the mirrored validators and must stay byte-identical to the canonical
-``hsync-bootnode/fixtures/`` bytes, so the two copies cannot drift silently.
+``hsync-rendezvous/fixtures/`` bytes, so the two copies cannot drift silently.
 """
 
 import json
 
 import pytest
 
-from hsync_common.protocol import BOOTNODE_FIXTURES_DIR, FIXTURES_DIR
-from hsync_common.protocol.boot_tokens import (
+from hsync_common.protocol import FIXTURES_DIR, RENDEZVOUS_FIXTURES_DIR
+from hsync_common.protocol.pairing import fingerprint_matches, parse_fingerprint
+from hsync_common.protocol.rdv_tokens import (
     BUCKET_TOKEN_LEN,
     MIN_GROUP_KEY_CHARS,
     MIN_GROUP_PASSPHRASE_CHARS,
@@ -25,34 +26,33 @@ from hsync_common.protocol.boot_tokens import (
     validate_group_key,
     validate_group_passphrase,
 )
-from hsync_common.protocol.bootnode import (
+from hsync_common.protocol.rendezvous import (
     CAPACITY_MAX,
-    PROTOCOL_VERSION_BOOT,
+    PROTOCOL_VERSION_RDV,
     derive_bucket_token,
-    validate_boot_ack,
-    validate_boot_frame,
-    validate_boot_relay_error,
-    validate_boot_relay_incoming,
-    validate_boot_relay_listening,
-    validate_boot_relay_ok,
-    validate_boot_response,
+    validate_rdv_ack,
+    validate_rdv_frame,
+    validate_rdv_relay_error,
+    validate_rdv_relay_incoming,
+    validate_rdv_relay_listening,
+    validate_rdv_relay_ok,
+    validate_rdv_response,
     verify_bucket_token,
 )
-from hsync_common.protocol.pairing import fingerprint_matches, parse_fingerprint
 
 _MIRRORED = {
-    "bootnode-register": validate_boot_frame,
-    "bootnode-query": validate_boot_frame,
-    "bootnode-ack": validate_boot_ack,
-    "bootnode-response": validate_boot_response,
-    "bootnode-relay-listen": validate_boot_frame,
-    "bootnode-relay-ping": validate_boot_frame,
-    "bootnode-relay-connect": validate_boot_frame,
-    "bootnode-relay-attach": validate_boot_frame,
-    "bootnode-relay-listening": validate_boot_relay_listening,
-    "bootnode-relay-incoming": validate_boot_relay_incoming,
-    "bootnode-relay-ok": validate_boot_relay_ok,
-    "bootnode-relay-error": validate_boot_relay_error,
+    "rendezvous-register": validate_rdv_frame,
+    "rendezvous-query": validate_rdv_frame,
+    "rendezvous-ack": validate_rdv_ack,
+    "rendezvous-response": validate_rdv_response,
+    "rendezvous-relay-listen": validate_rdv_frame,
+    "rendezvous-relay-ping": validate_rdv_frame,
+    "rendezvous-relay-connect": validate_rdv_frame,
+    "rendezvous-relay-attach": validate_rdv_frame,
+    "rendezvous-relay-listening": validate_rdv_relay_listening,
+    "rendezvous-relay-incoming": validate_rdv_relay_incoming,
+    "rendezvous-relay-ok": validate_rdv_relay_ok,
+    "rendezvous-relay-error": validate_rdv_relay_error,
 }
 
 # A canonical SHA-256 certificate fingerprint (the pin format of ADR-0037).
@@ -65,29 +65,29 @@ def _load(name: str) -> dict:
 
 @pytest.mark.parametrize("name", sorted(_MIRRORED))
 def test_mirrored_fixture_validates(name):
-    """Each mirrored fixture validates against its mirrored boot/1 validator."""
+    """Each mirrored fixture validates against its mirrored rdv/1 validator."""
     validated = _MIRRORED[name](_load(name))
     assert validated is not None
-    assert validated["protocol_version"] == PROTOCOL_VERSION_BOOT
+    assert validated["protocol_version"] == PROTOCOL_VERSION_RDV
 
 
 @pytest.mark.parametrize("name", sorted(_MIRRORED))
-def test_mirror_matches_canonical_bootnode_fixture(name):
-    """The mirrored fixture is byte-identical to the canonical bootnode one."""
-    canonical = BOOTNODE_FIXTURES_DIR / f"{name}.json"
+def test_mirror_matches_canonical_rendezvous_fixture(name):
+    """The mirrored fixture is byte-identical to the canonical rendezvous one."""
+    canonical = RENDEZVOUS_FIXTURES_DIR / f"{name}.json"
     if not canonical.is_file():
-        pytest.skip(f"hsync-bootnode fixtures not present at {BOOTNODE_FIXTURES_DIR}")
+        pytest.skip(f"hsync-rendezvous fixtures not present at {RENDEZVOUS_FIXTURES_DIR}")
     mirrored = (FIXTURES_DIR / f"{name}.json").read_text(encoding="utf-8")
     assert mirrored == canonical.read_text(encoding="utf-8"), (
-        "Mirrored boot/1 fixture drift: copy the canonical file from "
-        "hsync-bootnode/fixtures/ into hsync_common/protocol/fixtures/"
+        "Mirrored rdv/1 fixture drift: copy the canonical file from "
+        "hsync-rendezvous/fixtures/ into hsync_common/protocol/fixtures/"
     )
 
 
 def test_capacity_hint_domain_bounds():
     """The advisory capacity hint is 0..32 (0 = not a seeder); 33 is rejected."""
     register = {
-        "protocol_version": "boot/1",
+        "protocol_version": "rdv/1",
         "type": "register",
         "cid": "A1b2C3d4E5f6G7h8I9j0K",
         "bucket": "shared",
@@ -96,47 +96,47 @@ def test_capacity_hint_domain_bounds():
         "capacity": 0,
         "endpoints": [],
     }
-    assert validate_boot_frame(register) is not None
-    assert validate_boot_frame({**register, "capacity": CAPACITY_MAX}) is not None
-    assert validate_boot_frame({**register, "capacity": CAPACITY_MAX + 1}) is None
+    assert validate_rdv_frame(register) is not None
+    assert validate_rdv_frame({**register, "capacity": CAPACITY_MAX}) is not None
+    assert validate_rdv_frame({**register, "capacity": CAPACITY_MAX + 1}) is None
 
 
 def test_register_without_capacity_or_endpoints_defaults():
     """A register may omit capacity/endpoints (first STUN register); null is invalid.
 
-    Mirrors the bootnode pydantic models (``capacity=0``, ``endpoints=[]``) and
+    Mirrors the rendezvous pydantic models (``capacity=0``, ``endpoints=[]``) and
     the spec rule that a register with no known public endpoint is valid.
     """
     minimal = {
-        "protocol_version": "boot/1",
+        "protocol_version": "rdv/1",
         "type": "register",
         "cid": "A1b2C3d4E5f6G7h8I9j0K",
         "bucket": "shared",
         "cert_fp": _FP_HEX,
         "version": "1.0.0",
     }
-    validated = validate_boot_frame(minimal)
+    validated = validate_rdv_frame(minimal)
     assert validated is not None
     assert validated["capacity"] == 0
     assert validated["endpoints"] == []
-    assert validate_boot_frame({**minimal, "capacity": None}) is None
-    assert validate_boot_frame({**minimal, "endpoints": None}) is None
+    assert validate_rdv_frame({**minimal, "capacity": None}) is None
+    assert validate_rdv_frame({**minimal, "endpoints": None}) is None
 
 
 def test_unknown_field_is_rejected():
     """The mirror is strict: an unknown frame field is rejected (extra=forbid)."""
     query = {
-        "protocol_version": "boot/1",
+        "protocol_version": "rdv/1",
         "type": "query",
         "bucket": "shared",
         "target_file": "secret.txt",
     }
-    assert validate_boot_frame(query) is None
+    assert validate_rdv_frame(query) is None
 
 
 def _minimal_register() -> dict:
     return {
-        "protocol_version": "boot/1",
+        "protocol_version": "rdv/1",
         "type": "register",
         "cid": "A1b2C3d4E5f6G7h8I9j0K",
         "bucket": "shared",
@@ -148,13 +148,13 @@ def _minimal_register() -> dict:
 def test_register_election_advert_defaults_and_bounds():
     """The election advertisement is optional (documented defaults) and strict.
 
-    Mirrors the bootnode models: booleans default to false, ``startup_time`` to
+    Mirrors the rendezvous models: booleans default to false, ``startup_time`` to
     ``0.0`` ("unknown") and ``sync_direction`` to ``bidirectional``. A malformed
     value (wrong type, null, negative/non-finite/out-of-range timestamp, unknown
     direction) makes the whole frame invalid instead of being silently coerced,
     and the canonical vocabulary is the pairing/p2p SSOT pair.
     """
-    validated = validate_boot_frame(_minimal_register())
+    validated = validate_rdv_frame(_minimal_register())
     assert validated is not None
     assert validated["server_ready"] is False
     assert validated["prefer_master"] is False
@@ -162,7 +162,7 @@ def test_register_election_advert_defaults_and_bounds():
     assert validated["startup_time"] == 0.0
     assert validated["sync_direction"] == "bidirectional"
 
-    advertised = validate_boot_frame(
+    advertised = validate_rdv_frame(
         {
             **_minimal_register(),
             "server_ready": True,
@@ -191,12 +191,12 @@ def test_register_election_advert_defaults_and_bounds():
         ("sync_direction", "sideways"),
         ("sync_direction", 3),
     ):
-        assert validate_boot_frame({**_minimal_register(), field: bad}) is None, field
+        assert validate_rdv_frame({**_minimal_register(), field: bad}) is None, field
 
 
 def _response_with_peer(peer: dict) -> dict:
     return {
-        "protocol_version": "boot/1",
+        "protocol_version": "rdv/1",
         "type": "response",
         "peers": [peer],
         "count": 1,
@@ -207,7 +207,7 @@ def _response_with_peer(peer: dict) -> dict:
 def test_response_peer_requires_the_election_advert():
     """A relayed peer always carries the advertisement; a missing key is invalid.
 
-    The bootnode echoes every advertisement key on every peer, so the mirror
+    The rendezvous echoes every advertisement key on every peer, so the mirror
     rejects a peer that omits one instead of defaulting it client-side: a
     silently-defaulted ``server_ready``/``never_master`` is exactly what made a
     seeder look like an electable serving master.
@@ -226,7 +226,7 @@ def test_response_peer_requires_the_election_advert():
         "startup_time": 1760000000.0,
         "sync_direction": "bidirectional",
     }
-    validated = validate_boot_response(_response_with_peer(peer))
+    validated = validate_rdv_response(_response_with_peer(peer))
     assert validated is not None
     relayed = validated["peers"][0]
     assert relayed["never_master"] is True
@@ -241,12 +241,12 @@ def test_response_peer_requires_the_election_advert():
         "sync_direction",
     ):
         partial = {name: value for name, value in peer.items() if name != key}
-        assert validate_boot_response(_response_with_peer(partial)) is None, key
+        assert validate_rdv_response(_response_with_peer(partial)) is None, key
 
     assert (
-        validate_boot_response(_response_with_peer({**peer, "sync_direction": "sideways"})) is None
+        validate_rdv_response(_response_with_peer({**peer, "sync_direction": "sideways"})) is None
     )
-    assert validate_boot_response(_response_with_peer({**peer, "startup_time": None})) is None
+    assert validate_rdv_response(_response_with_peer({**peer, "startup_time": None})) is None
 
 
 def test_response_peer_requires_a_non_empty_endpoints_list():
@@ -270,13 +270,13 @@ def test_response_peer_requires_a_non_empty_endpoints_list():
         "startup_time": 1760000000.0,
         "sync_direction": "bidirectional",
     }
-    assert validate_boot_response(_response_with_peer(peer)) is not None
-    assert validate_boot_response(_response_with_peer({**peer, "endpoints": []})) is None
-    assert validate_boot_response(_response_with_peer({**peer, "endpoints": None})) is None
+    assert validate_rdv_response(_response_with_peer(peer)) is not None
+    assert validate_rdv_response(_response_with_peer({**peer, "endpoints": []})) is None
+    assert validate_rdv_response(_response_with_peer({**peer, "endpoints": None})) is None
     too_many = [{"proto": "tcp", "host": "198.51.100.7", "port": 443}] * 17
-    assert validate_boot_response(_response_with_peer({**peer, "endpoints": too_many})) is None
+    assert validate_rdv_response(_response_with_peer({**peer, "endpoints": too_many})) is None
     bad_port = [{"proto": "tcp", "host": "198.51.100.7", "port": 0}]
-    assert validate_boot_response(_response_with_peer({**peer, "endpoints": bad_port})) is None
+    assert validate_rdv_response(_response_with_peer({**peer, "endpoints": bad_port})) is None
 
 
 def test_response_refusal_error_domain():
@@ -287,7 +287,7 @@ def test_response_refusal_error_domain():
     """
     for code in ("token_required", "rate_limited", "overloaded"):
         frame = {
-            "protocol_version": "boot/1",
+            "protocol_version": "rdv/1",
             "type": "response",
             "peers": [],
             "count": 0,
@@ -295,20 +295,20 @@ def test_response_refusal_error_domain():
             "error": code,
             "retry_after": 5,
         }
-        validated = validate_boot_response(frame)
+        validated = validate_rdv_response(frame)
         assert validated is not None, code
         assert validated["error"] == code
         assert validated["retry_after"] == 5
 
     unknown = {
-        "protocol_version": "boot/1",
+        "protocol_version": "rdv/1",
         "type": "response",
         "peers": [],
         "count": 0,
         "ttl": 60,
         "error": "throttled",
     }
-    assert validate_boot_response(unknown) is None
+    assert validate_rdv_response(unknown) is None
 
 
 def test_bucket_token_derivation_and_verify():
@@ -321,17 +321,17 @@ def test_bucket_token_derivation_and_verify():
     assert derive_bucket_token(b"secret", "other") != token
 
 
-def test_bootnode_fingerprint_fixture_vectors():
-    """The golden bootnode-fingerprint scenarios pin the shared trust contract.
+def test_rendezvous_fingerprint_fixture_vectors():
+    """The golden rendezvous-fingerprint scenarios pin the shared trust contract.
 
-    The fixture lives in the canonical ``hsync-bootnode/fixtures/`` (SSOT); the
+    The fixture lives in the canonical ``hsync-rendezvous/fixtures/`` (SSOT); the
     shared ``parse_fingerprint``/``fingerprint_matches`` in
     ``hsync_common.protocol.pairing`` must normalize and match every vector
     identically, so the future C/Android ports replay the same inputs.
     """
-    canonical = BOOTNODE_FIXTURES_DIR / "bootnode-fingerprint.json"
+    canonical = RENDEZVOUS_FIXTURES_DIR / "rendezvous-fingerprint.json"
     if not canonical.is_file():
-        pytest.skip(f"hsync-bootnode fixtures not present at {BOOTNODE_FIXTURES_DIR}")
+        pytest.skip(f"hsync-rendezvous fixtures not present at {RENDEZVOUS_FIXTURES_DIR}")
     doc = json.loads(canonical.read_text(encoding="utf-8"))
 
     for scenario in doc["parse_scenarios"]:
@@ -349,24 +349,24 @@ def test_bootnode_fingerprint_fixture_vectors():
 
 @pytest.mark.parametrize("host", ["198.51.100.7", "peer.example", "2001:db8::1", "[2001:db8::1]"])
 def test_register_accepts_a_dialable_endpoint_host(host: str):
-    frame = _load("bootnode-register")
+    frame = _load("rendezvous-register")
     frame["endpoints"] = [{"proto": "tcp", "host": host, "port": 443}]
-    assert validate_boot_frame(frame) is not None
+    assert validate_rdv_frame(frame) is not None
 
 
 @pytest.mark.parametrize(
     "host", ["", "..\\..", "../elsewhere", "a b", "a\x00b", "999.1.1.1", "a..b", "x" * 64]
 )
 def test_register_rejects_a_non_dialable_endpoint_host(host: str):
-    frame = _load("bootnode-register")
+    frame = _load("rendezvous-register")
     frame["endpoints"] = [{"proto": "tcp", "host": host, "port": 443}]
-    assert validate_boot_frame(frame) is None
+    assert validate_rdv_frame(frame) is None
 
 
 def test_response_peer_rejects_a_non_dialable_endpoint_host():
-    doc = _load("bootnode-response")
+    doc = _load("rendezvous-response")
     doc["peers"][0]["endpoints"][0]["host"] = "../elsewhere"
-    assert validate_boot_response(doc) is None
+    assert validate_rdv_response(doc) is None
 
 
 @pytest.mark.parametrize(
@@ -380,9 +380,9 @@ def test_response_peer_rejects_a_non_dialable_endpoint_host():
     ],
 )
 def test_register_rejects_a_malformed_certificate_fingerprint(cert_fp: str):
-    frame = _load("bootnode-register")
+    frame = _load("rendezvous-register")
     frame["cert_fp"] = cert_fp
-    assert validate_boot_frame(frame) is None
+    assert validate_rdv_frame(frame) is None
 
 
 @pytest.mark.parametrize(
@@ -395,9 +395,9 @@ def test_register_rejects_a_malformed_certificate_fingerprint(cert_fp: str):
     ],
 )
 def test_register_accepts_a_sha256_certificate_fingerprint(cert_fp: str):
-    frame = _load("bootnode-register")
+    frame = _load("rendezvous-register")
     frame["cert_fp"] = cert_fp
-    assert validate_boot_frame(frame) is not None
+    assert validate_rdv_frame(frame) is not None
 
 
 def test_group_key_strength_floor():
@@ -415,7 +415,7 @@ def test_group_key_derivation_is_pinned():
         == "02d6cc2221b988cd84b9ccc08d8c894a36e51f31917b0cffcd238a7ba67c3a92"
     )
     token = derive_bucket_token(derive_group_key("correct horse battery").encode("utf-8"), "shared")
-    assert token == "641af13039a225e50f5435a021bcc4063f5d5584f919cfe88615ad2578f6f19e"
+    assert token == "bb26e3983ed36ec3e8ea10f0a91771330c5f5a1662d7b7d254caea95fe3520da"
     assert len(token) == BUCKET_TOKEN_LEN
 
 

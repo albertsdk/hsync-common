@@ -1,12 +1,12 @@
-# Boot/1 bootstrap protocol (client mirror)
+# Rdv/1 rendezvous protocol (client mirror)
 
-Reference for the `boot/1` channel the `hsync p2p` client uses to discover peers
-across networks through a bootstrap node.
+Reference for the `rdv/1` channel the `hsync p2p` client uses to discover peers
+across networks through a rendezvous node.
 
 > **The authoritative specification is
-> [`hsync-bootnode/protocol-spec/boot-1.md`](https://github.com/albertsdk/hsync-bootnode/blob/main/protocol-spec/boot-1.md)**
+> [`hsync-rendezvous/protocol-spec/rdv-1.md`](https://github.com/albertsdk/hsync-rendezvous/blob/main/protocol-spec/rdv-1.md)**
 > and the canonical golden fixtures are
-> [`hsync-bootnode/fixtures/`](https://github.com/albertsdk/hsync-bootnode/tree/main/fixtures). This page
+> [`hsync-rendezvous/fixtures/`](https://github.com/albertsdk/hsync-rendezvous/tree/main/fixtures). This page
 > describes the mirror that ships in `hsync-common` for the client; it never
 > replaces the spec.
 
@@ -14,12 +14,12 @@ across networks through a bootstrap node.
 
 | Artifact | Path |
 | -------- | ---- |
-| Frame models + validators | `hsync_common/protocol/bootnode.py` |
-| Mirrored golden fixtures | `hsync_common/protocol/fixtures/bootnode-*.json` |
-| Drift test (bytes vs the canonical fixtures) | `tests/test_protocol_bootnode.py` |
-| Consumer | `hsync-client` (`hsync p2p`, bootnode discovery plan) |
+| Frame models + validators | `hsync_common/protocol/rendezvous.py` |
+| Mirrored golden fixtures | `hsync_common/protocol/fixtures/rendezvous-*.json` |
+| Drift test (bytes vs the canonical fixtures) | `tests/test_protocol_rendezvous.py` |
+| Consumer | `hsync-client` (`hsync p2p`, rendezvous rendezvous plan) |
 
-The bootnode daemon keeps its own model of the frames (it does not import this
+The rendezvous daemon keeps its own model of the frames (it does not import this
 mirror); its Python v1 reuses only generic `hsync-common` utilities — the TLS
 identity helpers, the CID pattern and the canonical bucket-name rule. The two
 copies are kept honest by the drift test, which compares the mirrored fixtures
@@ -27,14 +27,14 @@ byte-for-byte with the canonical ones.
 
 ## Transport
 
-- QUIC over UDP, TLS 1.3, ALPN **`hsync-boot/1`**
-  (`BOOT_ALPN`).
+- QUIC over UDP, TLS 1.3, ALPN **`hsync-rdv/1`**
+  (`RDV_ALPN`).
 - The QUIC/TLS listener presents a **self-signed** certificate: the client
   authenticates its SHA-256 DER fingerprint against an explicit pin, the opt-in
   TOFU store or an SSH-style confirmation prompt (the default), and never sends a
   frame to a node it has not authenticated. The full rule lives in the canonical
   spec's *Trust & identity* section; the operator procedure is
-  [`hsync-client` — Sync across networks](https://github.com/albertsdk/hsync-client/blob/main/docs/p2p-bootnode.md).
+  [`hsync-client` — Sync across networks](https://github.com/albertsdk/hsync-client/blob/main/docs/p2p-rendezvous.md).
 - One bidirectional stream per request; frames are **newline-terminated JSON**
   (NDJSON).
 - A refusal is a uniform `response` with `error` — `token_required`
@@ -61,7 +61,7 @@ byte-for-byte with the canonical ones.
 | `relay_ok` | server → client | `relay_id` |
 | `relay_error` | server → client | `error` (`token_required`/`rate_limited`/`overloaded`/`relay_unavailable`), `retry_after?` |
 
-Every frame carries `protocol_version` (`boot/1`) and a `type` discriminator;
+Every frame carries `protocol_version` (`rdv/1`) and a `type` discriminator;
 unknown fields make the frame invalid (`extra="forbid"` in the daemon,
 strict validators in the mirror).
 
@@ -87,7 +87,7 @@ ready, the client sends a **second `register`** that publishes `endpoints[]`
   peer's declared service-capacity hint, relayed to querying peers. It is **not
   authenticated and not authoritative**: the authoritative value is `serve_slots`
   on the authenticated data-plane session (ADR-0030). Use it to pre-size
-  concurrency, never to exclude a peer; the bootnode never orders its sample by
+  concurrency, never to exclude a peer; the rendezvous never orders its sample by
   it.
 - **`reachable`** is derived from `bool(endpoints)` at register time: only a peer
   that published a listen endpoint is advertised as a data-plane master.
@@ -97,7 +97,7 @@ ready, the client sends a **second `register`** that publishes `endpoints[]`
   peer cannot hand other peers an undialable or internal-looking target. Try the
   candidates host/LAN-first and fall back to the next, so two peers behind the
   same NAT connect over the local path even when the public endpoint has no
-  hairpin route ([ADR-0038](internal/adr/0038-bootnode-endpoint-candidate-list.md)).
+  hairpin route ([ADR-0038](internal/adr/0038-rendezvous-endpoint-candidate-list.md)).
 - **`cert_fp`** is a SHA-256 certificate fingerprint (`sha256:<hex>`, bare hex, or
   colon-separated hex): the value the data-plane pin compares, so anything that is
   not a full digest is an invalid frame.
@@ -130,12 +130,12 @@ and bounded by host-derived session caps plus an operator-set byte rate.
 ## Bucket tokens
 
 Protected buckets derive the token as
-`HMAC-SHA256(key, "boot/1" || bucket)[:32]` hex (64 chars); the mirror exposes
+`HMAC-SHA256(key, "rdv/1" || bucket)[:32]` hex (64 chars); the mirror exposes
 `derive_bucket_token` / `verify_bucket_token` and the daemon compares in
 constant time. Refusals are uniform and never reveal whether a bucket exists.
 
 The group key is the token's only entropy, so the node's key source enforces
-`MIN_GROUP_KEY_CHARS` (`hsync_common/protocol/boot_tokens.py::MIN_GROUP_KEY_CHARS`,
+`MIN_GROUP_KEY_CHARS` (`hsync_common/protocol/rdv_tokens.py::MIN_GROUP_KEY_CHARS`,
 32 characters): a shorter node key is a configuration error, never a weaker
 deployment. Clients may instead supply a user-typed `HSYNC_P2P_PASSPHRASE` (at
 least 12 characters), which the client expands with scrypt to the same 64-hex
@@ -145,5 +145,5 @@ produce it).
 ## See also
 
 - [p2p Protocol spec](p2p-protocol.md) — the data plane (`p2p/1`).
-- [`hsync-client` — Sync across networks (bootnode)](https://github.com/albertsdk/hsync-client/blob/main/docs/p2p-bootnode.md) — the operator how-to.
+- [`hsync-client` — Sync across networks (rendezvous)](https://github.com/albertsdk/hsync-client/blob/main/docs/p2p-rendezvous.md) — the operator how-to.
 - [Protocol guide](protocol.md) — the versioned channels at a glance.

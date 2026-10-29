@@ -1,9 +1,9 @@
-# ADR 0035 — Bootnode trust policy: SSH-like `ask` and `known_hosts`
+# ADR 0035 — Rendezvous trust policy: SSH-like `ask` and `known_hosts`
 
 > **Renamed since (2026-10-29, zero backward compatibility)**: the current
-> names are `HSYNC_DISCOVERY_SERVER_TRUST` / `HSYNC_DISCOVERY_SERVER_TRUST_FILE`,
-> `discovery_server_known_hosts.json`, `hsync trust discovery-server` and a pin
-> per endpoint (`HSYNC_DISCOVERY_SERVER_FINGERPRINTS="host:port=fp[|fp]"`), so
+> names are `HSYNC_RENDEZVOUS_SERVER_TRUST` / `HSYNC_RENDEZVOUS_SERVER_TRUST_FILE`,
+> `rendezvous_server_known_hosts.json`, `hsync trust rendezvous-server` and a pin
+> per endpoint (`HSYNC_RENDEZVOUS_SERVER_FINGERPRINTS="host:port=fp[|fp]"`), so
 > that several independent servers keep separate identities. The decision below
 > is unchanged; only the vocabulary and the pin scope moved.
 
@@ -43,33 +43,33 @@ Two constraints shape the design:
    closed, like SSH `BatchMode`. `accept_new` (silent first-sighting pin) and
    `strict` (explicit pin required) cover automation.
 3. **The existing options keep their meaning as policy aliases:**
-   `--bootnode-tofu` = `accept-new`; `--bootnode-fingerprint` (<=2) = `strict`;
-   `--insecure` = `none`. New: `--bootnode-trust {ask,accept-new,strict}` and
-   `HSYNC_BOOTNODE_TRUST`. `ask` prompts **only on a terminal**; non-interactive
+   `--rendezvous-tofu` = `accept-new`; `--rendezvous-fingerprint` (<=2) = `strict`;
+   `--insecure` = `none`. New: `--rendezvous-trust {ask,accept-new,strict}` and
+   `HSYNC_RENDEZVOUS_TRUST`. `ask` prompts **only on a terminal**; non-interactive
    acceptance is expressed with `accept-new`.
-4. **The store is `bootnode_known_hosts.json`**, managed like `known_hosts`:
+4. **The store is `rendezvous_known_hosts.json`**, managed like `known_hosts`:
    each `host:port` record carries `current`, `updated_at`, `first_seen` and
    `source` (`prompt | tofu | flag | cli`). The `0600`/`0700` JSON store and the
-   `HSYNC_BOOTNODE_TRUST_FILE` override are unchanged.
-5. **The user manages the store with `hsync trust bootnode`**:
+   `HSYNC_RENDEZVOUS_TRUST_FILE` override are unchanged.
+5. **The user manages the store with `hsync trust rendezvous`**:
    `list`/`show`, `add HOST[:PORT] FINGERPRINT`, `remove HOST[:PORT]`
    (like `ssh-keygen -R`) and `fingerprint HOST[:PORT]` (read the node's
    fingerprint without trusting it, like `ssh-keyscan`).
 6. **A refusal is fatal.** A user who declines the prompt, or a caller that
-   cannot prompt, stops discovery and exits non-zero; the lease loop never
+   cannot prompt, stops rendezvous and exits non-zero; the lease loop never
    re-prompts. A changed fingerprint is refused with the store path and the
    `trust remove` recovery command.
 
 ## Consequences
 
 - The default first connection is interactive and SSH-like; subsequent runs are
-  silent; automation uses `--bootnode-tofu`/`--bootnode-fingerprint` (or
-  `--bootnode-trust accept-new`).
+  silent; automation uses `--rendezvous-tofu`/`--rendezvous-fingerprint` (or
+  `--rendezvous-trust accept-new`).
 - The desktop uses a pre-flight: it reads the fingerprint with
-  `hsync trust bootnode fingerprint`, shows a dialog, and starts the client with
+  `hsync trust rendezvous fingerprint`, shows a dialog, and starts the client with
   an explicit pin or `trust add`. Android mirrors `TrustPolicy` and persists to
-  the same `bootnode_known_hosts.json` name.
+  the same `rendezvous_known_hosts.json` name.
 - New CLI/env surface obliges the man page, `docs/`, the WD OS5 packaging and
   the wiki to be updated atomically; the shared
-  `p2p-bootnode-trust-scenarios` fixture keeps the Python and Android decisions
+  `p2p-rendezvous-trust-scenarios` fixture keeps the Python and Android decisions
   byte-for-byte equal.

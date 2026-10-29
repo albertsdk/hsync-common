@@ -3,7 +3,7 @@
 
 """Run every L1 benchmark and write one versioned results file.
 
-Mirrors ``hsync-bootnode/bench_result.txt``: a single committed file that
+Mirrors ``hsync-rendezvous/bench_result.txt``: a single committed file that
 records the baseline of one machine so two revisions can be compared
 (``git diff bench_result.txt``). The file is a comparison artefact, not an SLA:
 each section is the raw stdout of one ``bench_*.py`` script plus its exit code,

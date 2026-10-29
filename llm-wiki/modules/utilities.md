@@ -26,8 +26,8 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
 - State-dir resolution: `default_state_dir` (`state_paths.py::default_state_dir`)
   owns the `HSYNC_STATE_DIR` → `$XDG_STATE_HOME/hsync` → `~/.local/state/hsync`
   order, and `state_path` (`state_paths.py::state_path`) joins a relative item
-  under it while honouring a per-item env override. Every client/bootnode state
-  file (device identity, server/bootnode trust stores, p2p pins, bootnode
+  under it while honouring a per-item env override. Every client/rendezvous state
+  file (device identity, server/rendezvous trust stores, p2p pins, rendezvous
   identity) resolves through it, so one state-dir override moves them together.
 - Adaptive chunk tiers: `CHUNK_SIZE_SMALL/MEDIUM/LARGE`
   (`constants.py::CHUNK_SIZE_SMALL`) gated by
@@ -40,7 +40,7 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
 - `PARTIAL_DOWNLOAD_SUFFIX = ".part"` (`constants.py::PARTIAL_DOWNLOAD_SUFFIX`).
 - `HOSTNAME_PATTERN` (`constants.py::HOSTNAME_PATTERN`) — bare hostname/IPv4 charset SSOT, consumed by
   `endpoint.py` and re-exported by `hsync_client.constants`.
-- Network defaults: `BOOT_DEFAULT_PORT` (`constants.py::BOOT_DEFAULT_PORT`, boot/1 UDP)
+- Network defaults: `RDV_DEFAULT_PORT` (`constants.py::RDV_DEFAULT_PORT`, rdv/1 UDP)
   and `SERVER_DEFAULT_PORT` (`constants.py::SERVER_DEFAULT_PORT`, sync server TCP)
   are the single defaults for every consumer (server `Settings.port`, client
   bare-host CLI, desktop endpoint grammar/trust pre-flight).
@@ -61,9 +61,9 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
 - `normalize_bare_endpoint` (`endpoint.py::normalize_bare_endpoint`) — the single
   canonicalization for scheme-less `HOST[:PORT]` values (unbracketed host when no
   port, else `[IPv6]:port`; empty ⇒ `None`). Consumers: `hsync-client`
-  (`HSYNC_DISCOVERY_SERVER_TRUST` keys, single-endpoint trust commands) and
+  (`HSYNC_RENDEZVOUS_SERVER_TRUST` keys, single-endpoint trust commands) and
   `hsync-desktop`
-  (`hsync-desktop/hsync_desktop/engine/endpoints.py::normalize_bootnode_endpoint`) so the GUI field and the
+  (`hsync-desktop/hsync_desktop/engine/endpoints.py::normalize_rendezvous_endpoint`) so the GUI field and the
   client env var cannot normalize differently.
 - `parse_endpoint_list(raw, *, strict=False, default_port=None) -> tuple[HostPort, ...]`
   (`endpoint.py::parse_endpoint_list`) — the single parser for an ordered
@@ -72,7 +72,7 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
   carry none, so `a` and `a:443` are one endpoint, not two leases.
   `strict=True` raises on the first invalid/empty/duplicate entry (the repeatable
   CLI option); `strict=False` drops it (the env form,
-  `HSYNC_DISCOVERY_SERVER_ENDPOINTS`). Empty input yields `()`.
+  `HSYNC_RENDEZVOUS_SERVER_ENDPOINTS`). Empty input yields `()`.
 - `normalize_endpoint_list(raw, *, strict=False) -> str | None`
   (`endpoint.py::normalize_endpoint_list`) — the operator-facing canonical form
   (entries canonicalized by `normalize_bare_endpoint`, re-joined with `,`, no
@@ -91,21 +91,21 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
   (`endpoint.py::parse_port_list`) — the single parser for a comma-separated UDP
   port list (order preserved, tokens `1..65535`, ASCII digits only).
   `strict=True` raises `ValueError` on the first invalid token or duplicate
-  (consumed by `hsync-bootnode` `run --listen-ports`); `strict=False` drops
+  (consumed by `hsync-rendezvous` `run --listen-ports`); `strict=False` drops
   invalid/duplicate tokens (consumed by `hsync-client`
-  `HSYNC_DISCOVERY_SERVER_EXTRA_PORTS`).
+  `HSYNC_RENDEZVOUS_SERVER_EXTRA_PORTS`).
   Empty input yields `()`; each caller enforces its own minimum.
 - `is_valid_endpoint_host(host) -> bool` (`endpoint.py::is_valid_endpoint_host`) —
   the dialable-host grammar of the wire: IPv4/IPv6 literal (bracketed or bare) or
   LDH hostname, rejecting control characters, path/authority separators, empty
   labels, labels > 63 chars and IPv4-shaped non-addresses. Consumed by the
-  bootnode `protocol.Endpoint` model and by this mirror's `_validate_endpoint`,
+  rendezvous `protocol.Endpoint` model and by this mirror's `_validate_endpoint`,
   so an advertised `endpoints[].host` is the same grammar on both ends.
-- Consumers: `hsync-client` `cli.py` (discovery-server/server/trust host args),
-  `hsync-bootnode` `cli.py` (`run --listen-host HOST[:PORT]`), `hsync-server`
+- Consumers: `hsync-client` `cli.py` (rendezvous-server/server/trust host args),
+  `hsync-rendezvous` `cli.py` (`run --listen-host HOST[:PORT]`), `hsync-server`
   `__main__.py` (`--host HOST[:PORT]`). The same grammar applies to the
   environment: `HSYNC_SERVER_URL` (`host`, `host:port`, `[IPv6]`, `[IPv6]:port`,
-  or a full `https://…[/path]`) and `HSYNC_DISCOVERY_SERVER_ENDPOINTS` (same, no
+  or a full `https://…[/path]`) and `HSYNC_RENDEZVOUS_SERVER_ENDPOINTS` (same, no
   scheme/path, comma-separated list).
 
 ## hashing.py
@@ -280,7 +280,7 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
   `not_valid_after`). Consumers supply only subject/SAN/file modes:
   `hsync-server` `ssl_utils.generate_self_signed_cert` (rotation) and
   `ensure_certificates` (an operator-provided pair is used as-is, any key type),
-  `hsync-client` `ssl_utils.load_or_create_master_cert`. The bootnode keeps its
+  `hsync-client` `ssl_utils.load_or_create_master_cert`. The rendezvous keeps its
   own combined-PEM load/rotate (single-file identity + key/cert match check).
 
 ## logger.py
@@ -498,11 +498,11 @@ reconciliation, transfers, previews and server lines.
   (`_get_optimal_workers`: the CPU quota sizes the parallel scan/hash pool and
   the memory limit additionally caps it inside containers, 8 MiB/worker budget;
   on bare metal the memory probe is `None` and only the CPU quota applies),
-  `hsync-bootnode` (`resources.py`), `runtime_summary`.
+  `hsync-rendezvous` (`resources.py`), `runtime_summary`.
 - `total_memory_bytes` (`runtime.py::total_memory_bytes`) / `available_memory_bytes`
   (`runtime.py::available_memory_bytes`) — `sysconf` physical RAM and
   `/proc/meminfo` `MemAvailable` capped by the cgroup limit; `None` when the
-  source is unreadable (the bootnode then applies its conservative fallback).
+  source is unreadable (the rendezvous then applies its conservative fallback).
 - `runtime_summary` (`runtime.py::runtime_summary`) — one-line startup log line composed
   from the probes above; logged by both client (`run_sync`) and server
   (`__main__`) at startup.
@@ -551,7 +551,7 @@ reconciliation, transfers, previews and server lines.
   fault) goes through `_parse_bounded_xml`: read capped at `_MAX_XML_BODY_BYTES`
   and refused when it carries `<!DOCTYPE`/`<!ENTITY`, so a device cannot expand
   entities beyond the bytes it sent.
-- Consumers: `hsync-client` `upnp.py` (`UpnpMapper`, TCP), `hsync-bootnode/python`
+- Consumers: `hsync-client` `upnp.py` (`UpnpMapper`, TCP), `hsync-rendezvous/python`
   `upnp.py` (`UpnpManager`, UDP; re-exports the core for its tests/fuzz).
 
 ## listing.py (bucket listing SSOT)
@@ -605,5 +605,5 @@ bucket-relative paths, deterministic order, streamed JSON array body:
   `evict_stale`; `max_keys` evicts the LRU key so IP/bucket churn cannot grow the
   map unbounded (peeks never refresh recency, only a real `allow` does).
 - Consumers: `hsync-client` `p2p_server` (per-IP new-request admission;
-  `P2P_REQ_RATE_*`), `hsync-bootnode/python` `ratelimit.py` (facade over the
+  `P2P_REQ_RATE_*`), `hsync-rendezvous/python` `ratelimit.py` (facade over the
   shared class for its admission/query/register limits).

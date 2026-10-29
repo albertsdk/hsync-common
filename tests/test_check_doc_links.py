@@ -300,25 +300,25 @@ class TestFindBrokenAnchors:
         assert warnings == []
         assert checked == 0
 
-    def test_hsync_bootnode_legacy_line_is_fatal(self, tmp_path: Path):
-        proj = tmp_path / "hsync-bootnode"
+    def test_hsync_rendezvous_legacy_line_is_fatal(self, tmp_path: Path):
+        proj = tmp_path / "hsync-rendezvous"
         wiki = proj / "llm-wiki"
         wiki.mkdir(parents=True)
-        (wiki / "README.md").write_text("v `python/src/hsync_bootnode/protocol.py:10`")
+        (wiki / "README.md").write_text("v `python/src/hsync_rendezvous/protocol.py:10`")
 
         errors, warnings, _ = cdl.find_broken_anchors(tmp_path)
 
         assert len(errors) == 1
         assert warnings == []
 
-    def test_hsync_bootnode_full_path_anchor_resolves(self, tmp_path: Path):
-        proj = tmp_path / "hsync-bootnode"
+    def test_hsync_rendezvous_full_path_anchor_resolves(self, tmp_path: Path):
+        proj = tmp_path / "hsync-rendezvous"
         wiki = proj / "llm-wiki"
         wiki.mkdir(parents=True)
-        pkg = proj / "python" / "src" / "hsync_bootnode"
+        pkg = proj / "python" / "src" / "hsync_rendezvous"
         pkg.mkdir(parents=True)
-        (pkg / "protocol.py").write_text("class BootRegister:\n    pass\n")
-        (wiki / "README.md").write_text("v `python/src/hsync_bootnode/protocol.py::BootRegister`")
+        (pkg / "protocol.py").write_text("class RdvRegister:\n    pass\n")
+        (wiki / "README.md").write_text("v `python/src/hsync_rendezvous/protocol.py::RdvRegister`")
 
         errors, warnings, checked = cdl.find_broken_anchors(tmp_path)
 

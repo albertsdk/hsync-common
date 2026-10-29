@@ -1,7 +1,7 @@
 """Minimal UPnP-IGD client (pure standard library, cross-platform).
 
 Shared SSOT for the SSDP/SOAP IGD client used by ``hsync-client`` (the p2p
-master's TCP port) and ``hsync-bootnode/python`` (the QUIC listener's UDP port).
+master's TCP port) and ``hsync-rendezvous/python`` (the QUIC listener's UDP port).
 It keeps the whole surface dependency-free and byte-identical on
 Linux/macOS/Windows: the IGD protocol itself (SSDP + SOAP over HTTP) is
 platform-independent.
@@ -23,7 +23,7 @@ The description body is parsed with ElementTree on a bounded response (64 KiB)
 and every failure degrades to the documented "no UPnP" state (``None`` or an
 ``UpnpError``), never a crash.
 
-Declared consumers: ``hsync-client`` (``UpnpMapper``), ``hsync-bootnode/python``
+Declared consumers: ``hsync-client`` (``UpnpMapper``), ``hsync-rendezvous/python``
 (``UpnpManager``), and their tests.
 """
 
@@ -197,14 +197,14 @@ def discover_igd(timeout: float = 2.0, local_ip: str | None = None) -> IgdServic
         try:
             sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
         except OSError:
-            pass  # not fatal: discovery still works with the default TTL
+            pass  # not fatal: rendezvous still works with the default TTL
         if local_ip is not None:
             sock.bind((local_ip, 0))
         sock.sendto(_MSEARCH, UPNP_SSDP_ADDR)
         source_ip = local_ip if local_ip is not None else sock.getsockname()[0]
         return _first_igd_location(sock, timeout, source_ip)
     except OSError as exc:
-        raise UpnpError(f"SSDP discovery failed: {exc}") from exc
+        raise UpnpError(f"SSDP rendezvous failed: {exc}") from exc
     finally:
         sock.close()
 
@@ -345,7 +345,7 @@ def build_add_mapping_soap(
     internal_port: int,
     external_port: int,
     protocol: str = "UDP",
-    description: str = "hsync-bootnode",
+    description: str = "hsync-rendezvous",
     lease_duration: int = 0,
 ) -> bytes:
     """Build the AddPortMapping SOAP envelope (pure builder, unit-testable)."""
@@ -449,7 +449,7 @@ def add_port_mapping(
     internal_port: int,
     external_port: int | None = None,
     protocol: str = "UDP",
-    description: str = "hsync-bootnode",
+    description: str = "hsync-rendezvous",
     lease_duration: int = 0,
     http_post: Callable[[str, str, bytes], None] | None = None,
 ) -> None:

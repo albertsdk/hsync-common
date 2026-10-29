@@ -19,11 +19,11 @@ from hsync_common.protocol.handshake import (
 Consumers advertise their supported version during connection setup. A mismatch
 causes the connection to be refused.
 
-The `boot/1` bootstrap channel (QUIC/UDP, ALPN `hsync-boot/1`) is specified
-canonically in `hsync-bootnode` and mirrored for the client in
-`hsync_common/protocol/bootnode.py` (`PROTOCOL_VERSION_BOOT`); it is advertised
-alongside the others as `protocol_version.boot` in the capabilities document.
-See [Boot/1 bootstrap protocol](bootnode-protocol.md).
+The `rdv/1` rendezvous channel (QUIC/UDP, ALPN `hsync-rdv/1`) is specified
+canonically in `hsync-rendezvous` and mirrored for the client in
+`hsync_common/protocol/rendezvous.py` (`PROTOCOL_VERSION_RDV`); it is advertised
+alongside the others as `protocol_version.rdv` in the capabilities document.
+See [Rdv/1 rendezvous protocol](rendezvous-protocol.md).
 
 ## Capabilities
 
@@ -85,7 +85,7 @@ produce identical results before an ecosystem protocol change is complete.
 
 ## See also
 
-- [p2p Protocol specification](p2p-protocol.md) — detailed p2p discovery, election,
+- [p2p Protocol specification](p2p-protocol.md) — detailed p2p rendezvous, election,
   pairing, and security specification.
 - [Models guide](models.md) — data models used in protocol messages.
 - [Internal architecture](internal/architecture.md) — detailed protocol package

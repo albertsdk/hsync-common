@@ -1,5 +1,5 @@
 {
-  "protocol_version": "boot/1",
+  "protocol_version": "rdv/1",
   "type": "relay_connect",
   "cid": "L0m1N2o3P4q5R6s7T8u9V",
   "bucket": "shared",

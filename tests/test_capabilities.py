@@ -5,7 +5,6 @@
 
 import json
 
-from hsync_common.protocol.bootnode import PROTOCOL_VERSION_BOOT
 from hsync_common.protocol.capabilities import (
     CAPABILITIES_SCHEMA_VERSION,
     build_capabilities,
@@ -20,6 +19,7 @@ from hsync_common.protocol.handshake import (
     PROTOCOL_VERSION_WS,
     Capability,
 )
+from hsync_common.protocol.rendezvous import PROTOCOL_VERSION_RDV
 
 
 def _doc(**overrides):
@@ -45,7 +45,7 @@ class TestBuildCapabilities:
             "rest": PROTOCOL_VERSION_REST,
             "ws": PROTOCOL_VERSION_WS,
             "p2p": PROTOCOL_VERSION_P2P,
-            "boot": PROTOCOL_VERSION_BOOT,
+            "rdv": PROTOCOL_VERSION_RDV,
         }
         assert doc["events_schema_version"] == EVENTS_SCHEMA_VERSION
 
@@ -154,8 +154,8 @@ class TestParseCapabilities:
         doc["protocol_version"] = {"rest": 1, "ws": "ws/1"}  # type: ignore[typeddict-item]
         assert parse_capabilities(json.dumps(doc)) is None
 
-    def test_rejects_missing_boot_channel(self):
-        # v3 added the ``boot`` channel: a document without it is not v3.
+    def test_rejects_missing_rdv_channel(self):
+        # v3 added the ``rdv`` channel: a document without it is not v3.
         doc = _doc()
         doc["protocol_version"] = {  # type: ignore[typeddict-item]
             "rest": PROTOCOL_VERSION_REST,

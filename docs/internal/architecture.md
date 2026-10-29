@@ -72,7 +72,7 @@ hsync-common/
 ├── README.md
 ├── docs/
 │   ├── architecture.md         # This file
-│   ├── p2p-protocol.md         # p2p discovery/election/pairing/security spec
+│   ├── p2p-protocol.md         # p2p rendezvous/election/pairing/security spec
 │   └── adr/                    # Architecture Decision Records
 ├── llm-wiki/                   # Agent-optimized knowledge base
 └── hsync_common/

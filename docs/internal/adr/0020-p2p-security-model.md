@@ -14,7 +14,7 @@ address:
   not a rogue device on the same network?
 - **Write authorization**: which peers are allowed to push file changes to the
   master?
-- **Discovery trust**: mDNS/TXT records are unauthenticated — what can an
+- **Rendezvous trust**: mDNS/TXT records are unauthenticated — what can an
   attacker spoof?
 
 These decisions are specified technically in
@@ -38,7 +38,7 @@ fingerprint MUST match; a change is rejected as a potential MITM.
 - A fingerprint mismatch produces a `SecurityEvent.FingerprintChanged` and
   blocks the connection, requiring operator intervention to clear the pin.
 
-**Rationale**: TOFU is the standard trust bootstrapping model for
+**Rationale**: TOFU is the standard trust rendezvousping model for
 decentralized systems (SSH, Syncthing). It provides strong protection against
 active MITM after the first connection, at the cost of a vulnerable first
 connection window. In a home LAN, the first-connection window is small and
@@ -93,16 +93,16 @@ Suitable for networks where the operator cannot trust the LAN during setup
 
 ### 4. mDNS/TXT record trust
 
-**Decision**: mDNS/TXT records are treated as **discovery hints, never as
+**Decision**: mDNS/TXT records are treated as **rendezvous hints, never as
 proof of identity**. The election algorithm ([ADR-0002](0002-p2p-master-election.md))
 uses TXT fields as inputs to a deterministic ranking, but the trust decision
 (after election) is entirely separate: TOFU pinning + p2p key.
 
 A peer with a `cert_fp` in its TXT record that does not match the pinned
-fingerprint is discarded at discovery time (`P2PPeer.fromNsdServiceInfo`).
+fingerprint is discarded at rendezvous time (`P2PPeer.fromNsdServiceInfo`).
 
 **Rationale**: mDNS is unauthenticated by design. Any device on the LAN can
-spoof a TXT record. The security model treats the discovery layer as an
+spoof a TXT record. The security model treats the rendezvous layer as an
 untrusted bulletin board and moves all trust decisions to the TLS+key layer.
 
 ## Consequences
@@ -112,7 +112,7 @@ untrusted bulletin board and moves all trust decisions to the TLS+key layer.
 - **No CA dependency**: self-signed certificates with TOFU avoid the operational
   burden of a private CA, while providing equivalent MITM protection after first
   contact.
-- **Discovery is untrusted by design**: eliminating trust from mDNS simplifies
+- **Rendezvous is untrusted by design**: eliminating trust from mDNS simplifies
   the threat model — no need to secure a protocol that is inherently unsecurable.
 - **Shared secret model**: the p2p key is a shared secret; the server's account
   tokens ([ADR-0008](0008-client-accounts.md)) are per-account and individually

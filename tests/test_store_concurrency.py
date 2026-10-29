@@ -8,7 +8,7 @@ at once (``hsync-server`` keeps one version/tombstone store per bucket;
 The documented contract pinned here: each writer owns a *distinct* store
 instance -- mutations of one instance are serialized by its caller (see
 ``hsync_server.store_registry.PerBucketStores``) -- while every instance
-persists into the same database file, whose WAL bootstrap and schema creation
+persists into the same database file, whose WAL rendezvous and schema creation
 may happen concurrently on the very first writers. ``save()`` is incremental
 and transactional, so interleaved flushes must neither lose dirty keys nor
 raise ``database is locked`` / ``table is locked``.
@@ -68,7 +68,7 @@ def _integrity_check(db_path: Path) -> None:
 
 
 class TestConcurrentFirstWriters:
-    def test_parallel_writers_bootstrap_and_persist(self, tmp_path: Path):
+    def test_parallel_writers_rendezvous_and_persist(self, tmp_path: Path):
         db_path = tmp_path / "state DB"
         folders = _folders()
         relpaths = _paths("shared")

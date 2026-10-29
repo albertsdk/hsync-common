@@ -19,8 +19,8 @@ class TestStatePath:
     def test_joins_under_the_state_dir(self, tmp_path, monkeypatch):
         monkeypatch.setenv(HSYNC_STATE_DIR_ENV, str(tmp_path / "state"))
         assert state_path("device") == tmp_path / "state" / "device"
-        assert state_path("bootnode", "identity.pem") == (
-            tmp_path / "state" / "bootnode" / "identity.pem"
+        assert state_path("rendezvous", "identity.pem") == (
+            tmp_path / "state" / "rendezvous" / "identity.pem"
         )
 
     def test_per_item_override_wins(self, tmp_path, monkeypatch):

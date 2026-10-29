@@ -293,7 +293,7 @@ def get_memory_limit_bytes(
 
     Consumers: hsync-client (``_get_optimal_workers`` bounds the parallel
     local-file scan/hash pool by this limit, alongside the CPU quota),
-    hsync-bootnode (``resources.py`` sizes its in-memory ceilings),
+    hsync-rendezvous (``resources.py`` sizes its in-memory ceilings),
     ``runtime_summary``.
     """
     limit = _process_cgroup_memory_limit(cgroup_root, proc_self_cgroup)

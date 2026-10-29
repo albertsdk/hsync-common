@@ -21,7 +21,7 @@ rather than log scraping and hard-coded assumptions:
   channel (`--events-json-fd`) carrying `schema_version`; the desktop consumes
   *only* these events for state (`role_changed`, `transfer`, `sync_complete`,
   `pairing_needed`, …).
-- **Capability discovery** — the client prints a capabilities document via
+- **Capability rendezvous** — the client prints a capabilities document via
   `--capabilities-json` (assembled by `hsync_common.protocol.capabilities`):
   the supported subcommands with their per-subcommand CLI options, protocol
   versions, events schema version and feature flags. The desktop probes this at

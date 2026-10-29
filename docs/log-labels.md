@@ -191,7 +191,7 @@ notification in desktop/Android.
 | Label | Category | Description | C | S | A | D |
 |-------|----------|-------------|---|---|---|---|
 | `[WS]` | infrastructure | WebSocket transport message (e.g. dropping a dead connection) | | ✓ | ✓ | |
-| `[RELAY]` | infrastructure | p2p data plane relayed through the bootnode because no inbound candidate was reachable (CGNAT) | ✓ | | | |
+| `[RELAY]` | infrastructure | p2p data plane relayed through the rendezvous because no inbound candidate was reachable (CGNAT) | ✓ | | | |
 
 ## Lifecycle phases
 

@@ -10,7 +10,7 @@ shares (:func:`create_service_identity` for rotation,
 :func:`load_or_create_service_identity` for normal startup). Consumers only
 supply their subject/SAN/file-name parameters.
 
-Service identities (the bootnode node key, the server TLS certificate and the
+Service identities (the rendezvous node key, the server TLS certificate and the
 client's P2P master certificate) follow one shared model (ADR-0037): ECDSA
 P-256, an unencrypted PKCS#8 key guarded by ``0o600``/``0o700`` filesystem
 permissions instead of a passphrase, a :data:`SERVICE_CERT_VALIDITY_DAYS`
@@ -42,14 +42,14 @@ KEY_FILE_MODE = 0o600
 PUBLIC_CERT_FILE_MODE = 0o644
 IDENTITY_DIR_MODE = 0o700
 
-# Validity of a long-lived, self-signed *service* identity (bootnode node key,
+# Validity of a long-lived, self-signed *service* identity (rendezvous node key,
 # server TLS certificate): 20 years. Such an identity is authenticated by a
 # pinned certificate fingerprint, not by a public CA or a browser trust store,
 # so the Apple/CA-Browser-Forum 825-day cap does not apply — it exists only to
 # bound WebPKI exposure. A pinned identity (SSH host key / Syncthing device key
 # model) should live for the lifetime of the deployment; Syncthing hardcodes 20
 # years for exactly this case. 7305 = 20 * 365 + 5 (leap-day allowance).
-# Consumers: ``hsync-bootnode``, ``hsync-server`` (ADR-0037).
+# Consumers: ``hsync-rendezvous``, ``hsync-server`` (ADR-0037).
 SERVICE_CERT_VALIDITY_DAYS = 7305
 
 # NotBefore is backdated by one day so a freshly generated certificate is still
@@ -71,10 +71,10 @@ def generate_ecdsa_private_key() -> ec.EllipticCurvePrivateKey:
     """Generate an ECDSA P-256 private key.
 
     P-256 (secp256r1) is the standard key type for HSYNC service identities
-    (bootnode node key, server TLS certificate — ADR-0034/ADR-0037): it is
+    (rendezvous node key, server TLS certificate — ADR-0034/ADR-0037): it is
     advertised by every mainstream TLS stack (BoringSSL/OpenSSL/rustls), unlike
     Ed25519 which BoringSSL omits from the default client signature algorithms.
-    Certificates are signed with SHA-256. Consumers: ``hsync-bootnode``
+    Certificates are signed with SHA-256. Consumers: ``hsync-rendezvous``
     (ephemeral and persistent identity), ``hsync-server``, tests.
     """
     return ec.generate_private_key(ec.SECP256R1())
@@ -107,7 +107,7 @@ def build_self_signed_certificate(
         san_list: Subject Alternative Names (DNS names, IP addresses, ...).
         validity_days: Days the certificate is valid for. Pass
             :data:`SERVICE_CERT_VALIDITY_DAYS` for a long-lived, pinned service
-            identity (bootnode/server); the value only bounds the certificate's
+            identity (rendezvous/server); the value only bounds the certificate's
             own lifetime, since such identities never rely on WebPKI validity.
         basic_constraints_ca: When True, mark the certificate as a CA with
             ``path_length=0`` (used for server-side self-signed certs).
@@ -162,7 +162,7 @@ def serialize_private_key_unencrypted(private_key: PrivateKey) -> bytes:
     The caller is responsible for writing the result with restrictive
     permissions.
 
-    Consumers: ``hsync-bootnode`` (persistent node identity), ``hsync-server``
+    Consumers: ``hsync-rendezvous`` (persistent node identity), ``hsync-server``
     (server TLS certificate), ``hsync-client`` (P2P certificate), tests.
     """
     return private_key.private_bytes(
@@ -274,7 +274,7 @@ def load_pem_certificate_and_key(
     serialized bytes; pair consistency is checked separately with
     :func:`verify_keypair_matches`.
 
-    Consumers: ``hsync-server`` (``admin tls rotate``), ``hsync-bootnode``
+    Consumers: ``hsync-server`` (``admin tls rotate``), ``hsync-rendezvous``
     (``identity rotate``).
     """
     certificate = x509.load_pem_x509_certificate(Path(cert_path).read_bytes())
@@ -290,7 +290,7 @@ def public_keys_match(certificate: x509.Certificate, private_key: PrivateKey) ->
     hand-edited file, or a half-completed rotation) is refused with a clear error
     instead of failing later inside a TLS handshake.
 
-    Consumers: ``hsync-bootnode`` (identity load), tests.
+    Consumers: ``hsync-rendezvous`` (identity load), tests.
     """
     cert_public = certificate.public_key().public_bytes(
         serialization.Encoding.DER,
@@ -316,7 +316,7 @@ def verify_keypair_matches(
     failures (or, worse, as a silently announced fingerprint the process cannot
     serve).
 
-    Consumers: ``hsync-server`` (``admin tls rotate``), ``hsync-bootnode``
+    Consumers: ``hsync-server`` (``admin tls rotate``), ``hsync-rendezvous``
     (``identity rotate``), tests.
     """
     if not public_keys_match(certificate, private_key):
@@ -363,7 +363,7 @@ def create_service_identity(
 ) -> ServiceIdentity:
     """Generate and persist a fresh ECDSA P-256 service identity (overwrites).
 
-    The single *generation* implementation: a bootnode/server/client identity
+    The single *generation* implementation: a rendezvous/server/client identity
     differs only in its subject, SANs, file names and certificate mode, so this
     function takes those as parameters instead of being copied per project.
     Used directly by rotation paths that must always regenerate.

@@ -110,7 +110,7 @@ Environment-file loading helpers (`load_env_file`).
 ## Endpoint (`hsync_common.endpoint`)
 
 Shared `HOST[:PORT]` grammar for every `hsync*` component (`hsync`,
-`hsync-bootnode`, `hsync-server`, the desktop GUI and the `HSYNC_*`
+`hsync-rendezvous`, `hsync-server`, the desktop GUI and the `HSYNC_*`
 environment). `parse_host_port` returns a `HostPort(host, port)`; IPv6 literals
 are bracketed in the combined form (`[::1]:443`), and `HostPort.authority`
 brackets a bare IPv6 host for URLs/display.
@@ -123,12 +123,12 @@ port. Helpers: `build_https_url`, `parse_https_url`, `build_url` and
 
 `parse_port_list` parses a comma-separated UDP port list (order preserved,
 `1–65535`); it raises on an invalid or duplicate entry in strict mode (the
-bootnode's `run --listen-ports`) and silently drops them in lenient mode (the
-client's `HSYNC_DISCOVERY_SERVER_EXTRA_PORTS` dial fallback).
+rendezvous's `run --listen-ports`) and silently drops them in lenient mode (the
+client's `HSYNC_RENDEZVOUS_SERVER_EXTRA_PORTS` dial fallback).
 
 `parse_endpoint_list` parses the ordered comma-separated **list** of scheme-less
-endpoints that names the discovery servers (`HSYNC_DISCOVERY_SERVER_ENDPOINTS`,
-lenient) or the repeatable `--discovery-server` option (strict). Duplicates
+endpoints that names the rendezvous servers (`HSYNC_RENDEZVOUS_SERVER_ENDPOINTS`,
+lenient) or the repeatable `--rendezvous-server` option (strict). Duplicates
 collapse case-insensitively, and `default_port` fills the entries that carry no
 port so `a` and `a:443` are one destination instead of two leases.
 `normalize_endpoint_list` returns the same list as the canonical operator-facing
@@ -139,7 +139,7 @@ writes back into its field.
 IPv4/IPv6 literal (bracketed or bare) or an LDH hostname, and nothing else —
 control characters, path separators, empty labels, over-long labels and
 IPv4-shaped values that are not real addresses are rejected. It is what the
-`boot/1` `endpoints[].host` field accepts, in the daemon and in the mirror.
+`rdv/1` `endpoints[].host` field accepts, in the daemon and in the mirror.
 
 ## Runtime (`hsync_common.runtime`)
 
@@ -173,7 +173,7 @@ bound and refused when it carries a document type declaration, so a device
 cannot expand entities into memory. Every failure degrades to "no UPnP" (`None`
 or `UpnpError`). `discover_igd`, `add_port_mapping`/`delete_port_mapping`,
 `build_add_mapping_soap`/`build_delete_mapping_soap`, `parse_soap_error`.
-Consumers: `hsync-client` (`UpnpMapper`) and `hsync-bootnode/python`
+Consumers: `hsync-client` (`UpnpMapper`) and `hsync-rendezvous/python`
 (`UpnpManager`).
 
 ## Rate limiting (`hsync_common.ratelimit`)
@@ -182,7 +182,7 @@ Consumers: `hsync-client` (`UpnpMapper`) and `hsync-bootnode/python`
 `refill`/`window` sustained rate, optional `max_keys` LRU ceiling), using a
 monotonic clock and never persisting state. `allow`, `has_tokens`, `retry_after`,
 `evict_stale`. Consumers: `hsync-client` (P2P listener new-request admission) and
-`hsync-bootnode/python` (admission/query/register limits).
+`hsync-rendezvous/python` (admission/query/register limits).
 
 ## See also
 

@@ -6,8 +6,8 @@
 Single source of truth for the combined host/port form accepted by the
 terminal-launchable commands. Consumers:
 
-* ``hsync-client`` — ``cli.py`` bootnode/server/trust host arguments;
-* ``hsync-bootnode`` — ``run --host HOST[:PORT]``;
+* ``hsync-client`` — ``cli.py`` rendezvous/server/trust host arguments;
+* ``hsync-rendezvous`` — ``run --host HOST[:PORT]``;
 * ``hsync-server`` — ``--host HOST[:PORT]`` bind option.
 
 Grammar:
@@ -88,9 +88,9 @@ def parse_port_list(raw: str, *, strict: bool = False) -> tuple[int, ...]:
     Single source of truth for the ordered multi-port set shared by the two
     consumers, which apply different error policies:
 
-    * ``hsync-bootnode`` — ``run --ports`` calls with ``strict=True`` and turns
+    * ``hsync-rendezvous`` — ``run --ports`` calls with ``strict=True`` and turns
       the :class:`ValueError` into a user-facing CLI error;
-    * ``hsync-client`` — ``HSYNC_BOOTNODE_PORTS`` calls with ``strict=False`` and
+    * ``hsync-client`` — ``HSYNC_RENDEZVOUS_PORTS`` calls with ``strict=False`` and
       silently drops invalid/duplicate entries (env getters are lenient).
 
     Empty tokens are ignored on both policies. With ``strict=True`` the first
@@ -189,8 +189,8 @@ def is_valid_endpoint_host(value: str) -> bool:
     client will dial, so a shape a resolver cannot turn into an address is an
     invalid value rather than a dial-time error on someone else's host.
 
-    Consumers: ``hsync-bootnode`` (``protocol.Endpoint``), the bootnode mirror in
-    :mod:`hsync_common.protocol.bootnode`, and the shared fixtures/tests.
+    Consumers: ``hsync-rendezvous`` (``protocol.Endpoint``), the rendezvous mirror in
+    :mod:`hsync_common.protocol.rendezvous`, and the shared fixtures/tests.
     """
     host = value
     if host.startswith("[") and host.endswith("]"):
@@ -312,12 +312,12 @@ def normalize_bare_endpoint(raw: str | None) -> str | None:
     unchanged; invalid input raises :class:`ValueError` (from
     :func:`parse_host_port`).
 
-    Used for channels that are not URLs (QUIC/UDP discovery server) and
+    Used for channels that are not URLs (QUIC/UDP rendezvous server) and
     therefore must not gain a scheme or a default port.
 
-    Consumers: ``hsync-client`` (``HSYNC_DISCOVERY_SERVER_TRUST`` file keys and
+    Consumers: ``hsync-client`` (``HSYNC_RENDEZVOUS_SERVER_TRUST`` file keys and
     the single-endpoint trust commands), ``hsync-desktop`` (settings and wizard
-    "discovery server" field), shared tests.
+    "rendezvous server" field), shared tests.
     """
     value = (raw or "").strip()
     if not value:
@@ -345,7 +345,7 @@ def parse_endpoint_list(
     entry, order preserved, duplicates collapsed. Two consumers apply different
     error policies, exactly like :func:`parse_port_list`:
 
-    * ``hsync-client`` env (``HSYNC_DISCOVERY_SERVER_ENDPOINTS``) calls with
+    * ``hsync-client`` env (``HSYNC_RENDEZVOUS_SERVER_ENDPOINTS``) calls with
       ``strict=False``: an invalid or duplicate entry is dropped;
     * the repeatable CLI option calls with ``strict=True`` and turns the
       :class:`ValueError` into a user-facing usage error.

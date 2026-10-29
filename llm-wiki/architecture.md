@@ -13,7 +13,7 @@ hashing / compression / permissions / path_validation / ignore / ssl_utils / log
 models/  (File, Dir, Symlink, Event, SyncAction, Tombstone, Version)
         │
 protocol/  (versions, capabilities, handshake, events, p2p, pairing, peer_download,
-            bootnode, rest, tls_trust, schemas, fixtures)
+            rendezvous, rest, tls_trust, schemas, fixtures)
 ```
 
 Higher layers may import lower ones; the reverse never happens. `protocol/`
@@ -81,8 +81,8 @@ Regeneration: `scripts/export_protocol_schemas.py` here and
 Drift is enforced by `tests/test_protocol_schemas.py` (rebuild must equal the
 committed snapshot). `ANDROID_FIXTURES_DIR` (`protocol/__init__.py::ANDROID_FIXTURES_DIR`)
 lets the common suite optionally assert byte-equality with the Android resources;
-`BOOTNODE_FIXTURES_DIR` (`protocol/__init__.py::BOOTNODE_FIXTURES_DIR`) points at
-the canonical `hsync-bootnode` fixtures mirrored under `protocol/fixtures/`.
+`RENDEZVOUS_FIXTURES_DIR` (`protocol/__init__.py::RENDEZVOUS_FIXTURES_DIR`) points at
+the canonical `hsync-rendezvous` fixtures mirrored under `protocol/fixtures/`.
 
 ## Consumer contract
 

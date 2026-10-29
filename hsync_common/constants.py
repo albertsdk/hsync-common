@@ -49,7 +49,7 @@ _CLIENT_NAME_RE = re.compile(CLIENT_NAME_PATTERN)
 # ``-``/``.``. Anchors are left out so callers can embed it (bare ``^...$`` or
 # inside a full URL pattern). IPv6 literals are bracketed separately by the
 # consumers. Consumers: hsync_common.endpoint (the shared parser), hsync-client
-# (CLI host parsing and the ``HSYNC_SERVER_URL`` validator), hsync-bootnode and
+# (CLI host parsing and the ``HSYNC_SERVER_URL`` validator), hsync-rendezvous and
 # hsync-server (bind ``--host``).
 HOSTNAME_PATTERN = r"[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?"
 
@@ -284,10 +284,10 @@ NTP_DEFAULT_HOSTS: tuple[str, ...] = (
 # SNTP server port (RFC 4330).
 NTP_PORT = 123
 
-# Default UDP port of the boot/1 bootstrap listener (boot-1.md §Transport).
-# Single SSOT shared by the hsync-bootnode CLI (`--port` default) and the
+# Default UDP port of the rdv/1 rendezvous listener (rdv-1.md §Transport).
+# Single SSOT shared by the hsync-rendezvous CLI (`--port` default) and the
 # hsync-client bare-host default, so the two can never drift.
-BOOT_DEFAULT_PORT = 443
+RDV_DEFAULT_PORT = 443
 
 # Default TCP port of the sync server (HTTPS/WSS) when an endpoint carries no
 # explicit port. Single SSOT shared by the hsync-server ``Settings.port``
@@ -295,13 +295,13 @@ BOOT_DEFAULT_PORT = 443
 # grammar / trust pre-flight.
 SERVER_DEFAULT_PORT = 9753
 
-# Recommended ordered UDP port set for the boot/1 listener (opt-in multi-port;
-# the default remains the single BOOT_DEFAULT_PORT). First = canonical QUIC/HTTP3
+# Recommended ordered UDP port set for the rdv/1 listener (opt-in multi-port;
+# the default remains the single RDV_DEFAULT_PORT). First = canonical QUIC/HTTP3
 # (443, usually allowed); second = DNS (53, the most permissive UDP port, but
 # often hijacked by a local resolver). ADVISORY: neither side applies it by
-# default — the operator enables it explicitly with hsync-bootnode `--ports`
-# and the hsync-client `HSYNC_BOOTNODE_PORTS`; both sides must agree on the set.
-BOOT_PORT_SET = (BOOT_DEFAULT_PORT, 53)
+# default — the operator enables it explicitly with hsync-rendezvous `--ports`
+# and the hsync-client `HSYNC_RENDEZVOUS_PORTS`; both sides must agree on the set.
+RDV_PORT_SET = (RDV_DEFAULT_PORT, 53)
 
 # Seconds to wait for a single SNTP probe before moving to the next host.
 NTP_TIMEOUT_SECONDS = 3.0

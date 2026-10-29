@@ -80,7 +80,7 @@ hsync-common/
     ├── p2p-pairing-scenarios.json     # Pairing/pinning test vectors
     ├── p2p-wss-*.json                 # p2p WS auth / hello / inventory frames
     ├── p2p-txt-*.json, p2p-sources-*.json  # mDNS TXT + source-lookup frames
-    ├── bootnode-*.json                # boot/1 register / query / response / ack
+    ├── rendezvous-*.json                # rdv/1 register / query / response / ack
     ├── delta-*.json                   # delta signatures / instructions / apply
     ├── causal-*.json                  # conflict-resolution / tombstone scenarios
     └── ws-*.json                      # server-mode WS auth / event / ping / presence

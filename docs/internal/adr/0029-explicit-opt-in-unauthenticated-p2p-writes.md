@@ -46,7 +46,7 @@ The settings are explicit and disabled by default:
 Python and the corresponding persisted advanced setting on Android. Their UI
 and CLI presentation must label the mode as dangerous.
 
-The TLS, TOFU, p2p-key, discovery-trust, and strict-pairing decisions are
+The TLS, TOFU, p2p-key, rendezvous-trust, and strict-pairing decisions are
 defined by [ADR-0020](0020-p2p-security-model.md); this record defines the
 write-authorization policy that complements them.
 

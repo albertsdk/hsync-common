@@ -1,30 +1,30 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2025 Alberto Basso
 
-"""``boot/1`` bootstrap-protocol mirror for the client (SSOT = ``hsync-bootnode``).
+"""``rdv/1`` rendezvous-protocol mirror for the client (SSOT = ``hsync-rendezvous``).
 
 The canonical specification and the canonical golden fixtures live in the
-``hsync-bootnode`` repository (``protocol-spec/boot-1.md`` and ``fixtures/``);
+``hsync-rendezvous`` repository (``protocol-spec/rdv-1.md`` and ``fixtures/``);
 this module is a *mirror* of that contract for the consumers that live in this
-monorepo — today the ``hsync-client`` bootnode discovery and the
+monorepo — today the ``hsync-client`` rendezvous rendezvous and the
 shared fixtures/drift tests. The daemon keeps its own frame models and never
 imports this mirror (the fixtures are the cross-language contract), but its
 Python v1 does reuse a small set of generic ``hsync-common`` utilities
 (``ssl_utils``, ``CID_PATTERN``, ``is_valid_bucket_name``) — see ADR-0033. A
-drift test (``tests/test_protocol_bootnode.py``) compares the mirrored fixtures
-against the canonical ``hsync-bootnode/fixtures/`` bytes so the two copies
+drift test (``tests/test_protocol_rendezvous.py``) compares the mirrored fixtures
+against the canonical ``hsync-rendezvous/fixtures/`` bytes so the two copies
 cannot diverge silently.
 
 Like the rest of the protocol package this mirror is dependency-free: TypedDicts
 describe the wire shape and strict ``validate_*`` helpers reject unknown or
 malformed fields without partially accepting them (the same strictness the
-bootnode's ``extra="forbid"`` models provide).
+rendezvous's ``extra="forbid"`` models provide).
 
 Besides the advisory ``capacity`` hint, ``register`` and ``peers[]`` carry the
 **election advertisement** (``server_ready``/``prefer_master``/``never_master``/
 ``startup_time``/``sync_direction``) — the same values the mDNS TXT record
-carries, relayed verbatim by the bootnode so both discovery plans feed the one
-shared election algorithm in :mod:`hsync_common.protocol.p2p`. The bootnode never
+carries, relayed verbatim by the rendezvous so both rendezvous plans feed the one
+shared election algorithm in :mod:`hsync_common.protocol.p2p`. The rendezvous never
 interprets them and they are not authenticated (the data plane authenticates
 identity by certificate pinning); the vocabulary is the canonical sync-direction
 set from :mod:`hsync_common.protocol.pairing`.
@@ -36,7 +36,7 @@ the node, so two peers that no inbound NAT mapping reaches can still run the
 names or credentials, and the peers keep authenticating each other by
 certificate pinning.
 
-Consumers: ``hsync-client`` (bootnode register/refresh/query and the data relay),
+Consumers: ``hsync-client`` (rendezvous register/refresh/query and the data relay),
 shared fixtures/tests.
 """
 
@@ -49,73 +49,73 @@ from typing import Literal, NotRequired, TypedDict
 from hsync_common.endpoint import is_valid_endpoint_host
 from hsync_common.models.event import CID_PATTERN, is_valid_cid
 from hsync_common.path_validation import is_valid_bucket_name
-from hsync_common.protocol.boot_tokens import (
-    BUCKET_TOKEN_LEN,
-    constant_time_equals,
-    derive_bucket_token,
-    is_valid_bucket_token,
-    verify_bucket_token,
-)
 from hsync_common.protocol.p2p import SYNC_DIRECTION_BIDIRECTIONAL
 from hsync_common.protocol.pairing import (
     SYNC_DIRECTION_DOWNLOAD_ONLY,
     SYNC_DIRECTION_UPLOAD_ONLY,
     parse_fingerprint,
 )
+from hsync_common.protocol.rdv_tokens import (
+    BUCKET_TOKEN_LEN,
+    constant_time_equals,
+    derive_bucket_token,
+    is_valid_bucket_token,
+    verify_bucket_token,
+)
 
 __all__ = [
-    "BOOT_ALPN",
+    "RDV_ALPN",
     "BUCKET_TOKEN_LEN",
     "CAPACITY_MAX",
     "CID_PATTERN",
-    "PROTOCOL_VERSION_BOOT",
+    "PROTOCOL_VERSION_RDV",
     "RELAY_ID_LEN",
-    "BootAck",
-    "BootError",
-    "BootFrame",
-    "BootLeave",
-    "BootPeer",
-    "BootQuery",
-    "BootRefresh",
-    "BootRegister",
-    "BootRelayAttach",
-    "BootRelayConnect",
-    "BootRelayError",
-    "BootRelayIncoming",
-    "BootRelayListen",
-    "BootRelayListening",
-    "BootRelayOk",
-    "BootRelayPing",
-    "BootResponse",
+    "RdvAck",
+    "RdvError",
+    "RdvFrame",
+    "RdvLeave",
+    "RdvPeer",
+    "RdvQuery",
+    "RdvRefresh",
+    "RdvRegister",
+    "RdvRelayAttach",
+    "RdvRelayConnect",
+    "RdvRelayError",
+    "RdvRelayIncoming",
+    "RdvRelayListen",
+    "RdvRelayListening",
+    "RdvRelayOk",
+    "RdvRelayPing",
+    "RdvResponse",
     "BucketProto",
     "Endpoint",
     "ObservedEndpoint",
     "constant_time_equals",
     "derive_bucket_token",
     "is_valid_bucket_token",
-    "validate_boot_ack",
-    "validate_boot_frame",
-    "validate_boot_relay_attach",
-    "validate_boot_relay_connect",
-    "validate_boot_relay_error",
-    "validate_boot_relay_incoming",
-    "validate_boot_relay_listen",
-    "validate_boot_relay_listening",
-    "validate_boot_relay_ok",
-    "validate_boot_relay_ping",
-    "validate_boot_response",
+    "validate_rdv_ack",
+    "validate_rdv_frame",
+    "validate_rdv_relay_attach",
+    "validate_rdv_relay_connect",
+    "validate_rdv_relay_error",
+    "validate_rdv_relay_incoming",
+    "validate_rdv_relay_listen",
+    "validate_rdv_relay_listening",
+    "validate_rdv_relay_ok",
+    "validate_rdv_relay_ping",
+    "validate_rdv_response",
     "verify_bucket_token",
 ]
 
 # Per-channel protocol version. Bump the suffix on any breaking change to the
-# bootstrap channel's wire shape; peers then hard-fail instead of drifting.
-PROTOCOL_VERSION_BOOT: Literal["boot/1"] = "boot/1"
+# rendezvous channel's wire shape; peers then hard-fail instead of drifting.
+PROTOCOL_VERSION_RDV: Literal["rdv/1"] = "rdv/1"
 
-# QUIC ALPN offered by the bootnode's TLS handshake.
-BOOT_ALPN = "hsync-boot/1"
+# QUIC ALPN offered by the rendezvous's TLS handshake.
+RDV_ALPN = "hsync-rdv/1"
 
 # hex(32 bytes) = 64 chars. Absent = open bucket. The token grammar and the
-# derivation live in ``protocol/boot_tokens.py`` (shared with the bootnode).
+# derivation live in ``protocol/rdv_tokens.py`` (shared with the rendezvous).
 BucketProto = Literal["tcp", "udp"]
 
 # Uniform refusal codes on a ``response``/``relay_error`` frame: ``token_required``
@@ -124,9 +124,9 @@ BucketProto = Literal["tcp", "udp"]
 # node is at its host-derived capacity ceiling; ``retry_after`` is advisory
 # backpressure, not a client abuse signal) and ``relay_unavailable`` (no data
 # relay: disabled on this node, no listener for the target CID, or the acceptor
-# did not attach in time). Mirrors ``hsync_bootnode.protocol.BootError``.
-BootError = Literal["token_required", "rate_limited", "overloaded", "relay_unavailable"]
-_BOOT_ERRORS = ("token_required", "rate_limited", "overloaded", "relay_unavailable")
+# did not attach in time). Mirrors ``hsync_rendezvous.protocol.RdvError``.
+RdvError = Literal["token_required", "rate_limited", "overloaded", "relay_unavailable"]
+_RDV_ERRORS = ("token_required", "rate_limited", "overloaded", "relay_unavailable")
 
 # Data-relay session identifier: hex(16 bytes) = 32 characters, chosen randomly
 # by the node per pairing. It is only meaningful to the two paired peers, so a
@@ -135,14 +135,14 @@ RELAY_ID_LEN = 32
 _RELAY_ID_PATTERN = f"^[0-9a-f]{{{RELAY_ID_LEN}}}$"
 
 # Advisory service-capacity hint domain (``0..32``; ``0`` = not a peer-download
-# seeder). Mirrors the authenticated ``serve_slots`` range (1..32); the bootnode
+# seeder). Mirrors the authenticated ``serve_slots`` range (1..32); the rendezvous
 # relays the value in ``query`` responses but never treats it as authoritative
 # (ADR-0030) — the authoritative value stays on the authenticated WSS handshake.
 CAPACITY_MAX = 32
 
 # Canonical sync-direction vocabulary (SSOT: :mod:`hsync_common.protocol.p2p`
 # and :mod:`hsync_common.protocol.pairing`). The election advertisement on
-# ``boot/1`` reuses the same values as the mDNS TXT record, so both discovery
+# ``rdv/1`` reuses the same values as the mDNS TXT record, so both rendezvous
 # plans feed the shared election algorithm one identical vocabulary.
 _SYNC_DIRECTIONS = frozenset(
     {
@@ -158,7 +158,7 @@ _SYNC_DIRECTIONS = frozenset(
 # as a last-resort ordering key before the CID tiebreaker.
 _MAX_STARTUP_TIME = float(2**53)
 
-# Wire bounds, mirrored from the bootnode models. Bucket names are bounded by
+# Wire bounds, mirrored from the rendezvous models. Bucket names are bounded by
 # ``is_valid_bucket_name`` (``MAX_BUCKET_NAME_LENGTH``), not by a length here.
 _MAX_GROUP_LEN = 128
 _MAX_CERT_FP_LEN = 256
@@ -186,25 +186,25 @@ class ObservedEndpoint(TypedDict):
     port: int
 
 
-class BootRegister(TypedDict):
+class RdvRegister(TypedDict):
     """Client announces presence in a bucket (first contact).
 
     ``capacity`` is the advisory service-capacity hint: the number of
     concurrent peer-download reads the peer declares it can serve right now
-    (``0`` = not a seeder). The bootnode relays it in ``query`` responses; the
+    (``0`` = not a seeder). The rendezvous relays it in ``query`` responses; the
     authoritative value is the authenticated ``serve_slots`` (ADR-0030).
 
     ``server_ready``/``prefer_master``/``never_master``/``startup_time``/
     ``sync_direction`` are the **election advertisement**, the same values the
-    mDNS TXT record carries. The bootnode relays them verbatim in ``query``
-    responses so a bootnode-discovered peer ranks exactly like an mDNS one; it
+    mDNS TXT record carries. The rendezvous relays them verbatim in ``query``
+    responses so a rendezvous-discovered peer ranks exactly like an mDNS one; it
     never interprets them and never treats them as authoritative (a peer can
     claim any value, and the data plane authenticates identity by certificate
     pinning). A changed advertisement requires a new ``register`` — ``refresh``
     never mutates them.
     """
 
-    protocol_version: Literal["boot/1"]
+    protocol_version: Literal["rdv/1"]
     type: Literal["register"]
     cid: str
     bucket: str
@@ -222,10 +222,10 @@ class BootRegister(TypedDict):
     sync_direction: NotRequired[str]
 
 
-class BootRefresh(TypedDict):
+class RdvRefresh(TypedDict):
     """Client renews its TTL (and/or connected count)."""
 
-    protocol_version: Literal["boot/1"]
+    protocol_version: Literal["rdv/1"]
     type: Literal["refresh"]
     cid: str
     bucket: str
@@ -234,20 +234,20 @@ class BootRefresh(TypedDict):
     connected: NotRequired[int]
 
 
-class BootLeave(TypedDict):
+class RdvLeave(TypedDict):
     """Client announces departure."""
 
-    protocol_version: Literal["boot/1"]
+    protocol_version: Literal["rdv/1"]
     type: Literal["leave"]
     cid: str
     bucket: str
     bucket_token: NotRequired[str]
 
 
-class BootQuery(TypedDict):
+class RdvQuery(TypedDict):
     """Client asks for a random sample of peers. Only generic — no file targeting."""
 
-    protocol_version: Literal["boot/1"]
+    protocol_version: Literal["rdv/1"]
     type: Literal["query"]
     bucket: str
     group: NotRequired[str]
@@ -255,10 +255,10 @@ class BootQuery(TypedDict):
     limit: NotRequired[int]
 
 
-class BootAck(TypedDict):
+class RdvAck(TypedDict):
     """Server reply to register/refresh: STUN-echo observed endpoint + TTL."""
 
-    protocol_version: Literal["boot/1"]
+    protocol_version: Literal["rdv/1"]
     type: Literal["ack"]
     observed_endpoint: ObservedEndpoint
     ttl: int
@@ -266,8 +266,8 @@ class BootAck(TypedDict):
     retry_after: NotRequired[int]
 
 
-class BootPeer(TypedDict):
-    """A single advertised peer in a BootResponse.
+class RdvPeer(TypedDict):
+    """A single advertised peer in a RdvResponse.
 
     ``endpoints`` is the peer's advertised candidate list, relayed in order and
     capped by the node (at most 4 entries; a register that advertised none is
@@ -304,30 +304,30 @@ class BootPeer(TypedDict):
     group: NotRequired[str]
 
 
-class BootResponse(TypedDict):
+class RdvResponse(TypedDict):
     """Server reply to query: random sample of peers (or a uniform refusal)."""
 
-    protocol_version: Literal["boot/1"]
+    protocol_version: Literal["rdv/1"]
     type: Literal["response"]
-    peers: list[BootPeer]
+    peers: list[RdvPeer]
     count: int
     ttl: int
-    error: NotRequired[BootError]
+    error: NotRequired[RdvError]
     retry_after: NotRequired[int]
 
 
-class BootRelayListen(TypedDict):
+class RdvRelayListen(TypedDict):
     """A serving peer asks the node to open a data relay (``relay_listen``).
 
     The stream carrying this frame becomes the **control** stream of one
     listener: the node answers ``relay_listening`` and then pushes one
     ``relay_incoming`` per requester, while the peer may answer with
     ``relay_ping`` lines. Registration is accepted only from the current owner
-    of the ``(cid, bucket, group)`` discovery record, so a peer cannot open a
+    of the ``(cid, bucket, group)`` rendezvous record, so a peer cannot open a
     relay in someone else's name.
     """
 
-    protocol_version: Literal["boot/1"]
+    protocol_version: Literal["rdv/1"]
     type: Literal["relay_listen"]
     cid: str
     bucket: str
@@ -335,23 +335,23 @@ class BootRelayListen(TypedDict):
     bucket_token: NotRequired[str]
 
 
-class BootRelayPing(TypedDict):
+class RdvRelayPing(TypedDict):
     """Keepalive on a listener's control stream (``relay_ping``, no reply)."""
 
-    protocol_version: Literal["boot/1"]
+    protocol_version: Literal["rdv/1"]
     type: Literal["relay_ping"]
     cid: str
     bucket: str
 
 
-class BootRelayConnect(TypedDict):
+class RdvRelayConnect(TypedDict):
     """A requester asks to be paired with a listening peer (``relay_connect``).
 
     Sent on a **fresh** stream. The node answers ``relay_ok`` — after which the
     rest of the stream is opaque TLS — or ``relay_error`` and a close.
     """
 
-    protocol_version: Literal["boot/1"]
+    protocol_version: Literal["rdv/1"]
     type: Literal["relay_connect"]
     cid: str
     bucket: str
@@ -360,7 +360,7 @@ class BootRelayConnect(TypedDict):
     bucket_token: NotRequired[str]
 
 
-class BootRelayAttach(TypedDict):
+class RdvRelayAttach(TypedDict):
     """A listener attaches the stream that carries one relayed session.
 
     Sent as the first (and only framed) line of a fresh stream; every following
@@ -368,7 +368,7 @@ class BootRelayAttach(TypedDict):
     listener that was told about ``relay_id``.
     """
 
-    protocol_version: Literal["boot/1"]
+    protocol_version: Literal["rdv/1"]
     type: Literal["relay_attach"]
     cid: str
     bucket: str
@@ -376,62 +376,62 @@ class BootRelayAttach(TypedDict):
     bucket_token: NotRequired[str]
 
 
-class BootRelayListening(TypedDict):
+class RdvRelayListening(TypedDict):
     """Server→listener: the relay listener is registered (``relay_listening``)."""
 
-    protocol_version: Literal["boot/1"]
+    protocol_version: Literal["rdv/1"]
     type: Literal["relay_listening"]
     ttl: int
 
 
-class BootRelayIncoming(TypedDict):
+class RdvRelayIncoming(TypedDict):
     """Server→listener: a requester wants a session (``relay_incoming``).
 
     ``cid`` is the requester's CID, so the listener can bound per-peer
     concurrency; ``expires_in`` is the seconds left to attach the session.
     """
 
-    protocol_version: Literal["boot/1"]
+    protocol_version: Literal["rdv/1"]
     type: Literal["relay_incoming"]
     relay_id: str
     cid: str
     expires_in: int
 
 
-class BootRelayOk(TypedDict):
+class RdvRelayOk(TypedDict):
     """Server→requester: the pairing exists and the stream is now opaque.
 
     Written before any relayed byte, so a requester that buffers pipelined input
     stays framed.
     """
 
-    protocol_version: Literal["boot/1"]
+    protocol_version: Literal["rdv/1"]
     type: Literal["relay_ok"]
     relay_id: str
 
 
-class BootRelayError(TypedDict):
+class RdvRelayError(TypedDict):
     """Server→client: the relay request was refused (``relay_error``)."""
 
-    protocol_version: Literal["boot/1"]
+    protocol_version: Literal["rdv/1"]
     type: Literal["relay_error"]
-    error: BootError
+    error: RdvError
     retry_after: NotRequired[int]
 
 
-# Client→server frames, dispatched on ``type``. ``BootResponse``/``BootAck``/
-# ``BootPeer`` and the ``relay_*`` server replies are server→client and
+# Client→server frames, dispatched on ``type``. ``RdvResponse``/``RdvAck``/
+# ``RdvPeer`` and the ``relay_*`` server replies are server→client and
 # deliberately excluded from the request union: they are never validated on the
 # input path.
-BootFrame = (
-    BootRegister
-    | BootRefresh
-    | BootLeave
-    | BootQuery
-    | BootRelayListen
-    | BootRelayPing
-    | BootRelayConnect
-    | BootRelayAttach
+RdvFrame = (
+    RdvRegister
+    | RdvRefresh
+    | RdvLeave
+    | RdvQuery
+    | RdvRelayListen
+    | RdvRelayPing
+    | RdvRelayConnect
+    | RdvRelayAttach
 )
 
 _REGISTER_REQUIRED = frozenset({"protocol_version", "type", "cid", "bucket", "cert_fp", "version"})
@@ -506,12 +506,12 @@ def _envelope_ok(
     """Validate the common frame envelope shared by every validator.
 
     Combines the exact-key check (:func:`_is_object`) with the mandatory
-    ``protocol_version``/``type`` match, so each ``validate_boot_*`` only states
+    ``protocol_version``/``type`` match, so each ``validate_rdv_*`` only states
     its window of required/optional keys instead of repeating the prologue.
     """
     if not isinstance(value, Mapping) or not _is_object(value, required, optional):
         return False
-    return value["protocol_version"] == PROTOCOL_VERSION_BOOT and value["type"] == frame_type
+    return value["protocol_version"] == PROTOCOL_VERSION_RDV and value["type"] == frame_type
 
 
 def _is_str(value: object, *, max_len: int, min_len: int = 1) -> bool:
@@ -588,7 +588,7 @@ def _is_sync_direction(value: object) -> bool:
 def _optional_flag(value: Mapping, clean: dict, key: str) -> bool:
     """Copy an optional boolean flag; return False when it is malformed.
 
-    Explicit ``null`` is rejected, like the bootnode's pydantic models (a
+    Explicit ``null`` is rejected, like the rendezvous's pydantic models (a
     ``bool`` field has no ``None`` variant): a client either advertises the flag
     or omits the key, in which case the documented default applies.
     """
@@ -606,7 +606,7 @@ def _read_election_advert(value: Mapping, clean: dict, *, optional: bool) -> boo
 
     The five keys are the same values the mDNS TXT record carries; ``optional``
     controls the register side (absent key → documented default) versus the
-    ``peers[]`` side (every key is required, the bootnode always relays them).
+    ``peers[]`` side (every key is required, the rendezvous always relays them).
     Returns False on any malformed value so the caller rejects the whole frame.
     """
     for key in ("server_ready", "prefer_master", "never_master"):
@@ -673,7 +673,7 @@ def _validate_observed(value: object) -> ObservedEndpoint | None:
     return ObservedEndpoint(proto=proto, ip=ip, port=port)
 
 
-def _validate_peer(value: object) -> BootPeer | None:
+def _validate_peer(value: object) -> RdvPeer | None:
     if not _is_object(value, _PEER_REQUIRED, _PEER_OPTIONAL):
         return None
     cid = value["cid"]
@@ -699,7 +699,7 @@ def _validate_peer(value: object) -> BootPeer | None:
         if clean_endpoint is None:
             return None
         clean_endpoints.append(clean_endpoint)
-    clean = BootPeer(
+    clean = RdvPeer(
         cid=cid,
         endpoints=clean_endpoints,
         cert_fp=cert_fp,
@@ -717,7 +717,7 @@ def _validate_peer(value: object) -> BootPeer | None:
     return clean
 
 
-def validate_boot_register(value: object) -> BootRegister | None:
+def validate_rdv_register(value: object) -> RdvRegister | None:
     """Strictly validate a ``register`` frame."""
     if not _envelope_ok(value, "register", _REGISTER_REQUIRED, _REGISTER_OPTIONAL):
         return None
@@ -727,7 +727,7 @@ def validate_boot_register(value: object) -> BootRegister | None:
     # well (defaults: not serving, no pin, unknown startup, bidirectional) and,
     # like capacity/endpoints, a changed value requires a new ``register``:
     # ``refresh`` never mutates it. Explicit ``null`` is still rejected, like the
-    # bootnode's pydantic models.
+    # rendezvous's pydantic models.
     capacity = value.get("capacity", 0)
     endpoints = value.get("endpoints", [])
     if (
@@ -747,8 +747,8 @@ def validate_boot_register(value: object) -> BootRegister | None:
         if clean_endpoint is None:
             return None
         clean_endpoints.append(clean_endpoint)
-    clean = BootRegister(
-        protocol_version=PROTOCOL_VERSION_BOOT,
+    clean = RdvRegister(
+        protocol_version=PROTOCOL_VERSION_RDV,
         type="register",
         cid=value["cid"],
         bucket=value["bucket"],
@@ -767,14 +767,14 @@ def validate_boot_register(value: object) -> BootRegister | None:
     return clean
 
 
-def validate_boot_refresh(value: object) -> BootRefresh | None:
+def validate_rdv_refresh(value: object) -> RdvRefresh | None:
     """Strictly validate a ``refresh`` frame."""
     if not _envelope_ok(value, "refresh", _REFRESH_REQUIRED, _REFRESH_OPTIONAL):
         return None
     if not is_valid_cid(value["cid"]) or not is_valid_bucket_name(value["bucket"]):
         return None
-    clean = BootRefresh(
-        protocol_version=PROTOCOL_VERSION_BOOT,
+    clean = RdvRefresh(
+        protocol_version=PROTOCOL_VERSION_RDV,
         type="refresh",
         cid=value["cid"],
         bucket=value["bucket"],
@@ -788,14 +788,14 @@ def validate_boot_refresh(value: object) -> BootRefresh | None:
     return clean
 
 
-def validate_boot_leave(value: object) -> BootLeave | None:
+def validate_rdv_leave(value: object) -> RdvLeave | None:
     """Strictly validate a ``leave`` frame."""
     if not _envelope_ok(value, "leave", _LEAVE_REQUIRED, _LEAVE_OPTIONAL):
         return None
     if not is_valid_cid(value["cid"]) or not is_valid_bucket_name(value["bucket"]):
         return None
-    clean = BootLeave(
-        protocol_version=PROTOCOL_VERSION_BOOT,
+    clean = RdvLeave(
+        protocol_version=PROTOCOL_VERSION_RDV,
         type="leave",
         cid=value["cid"],
         bucket=value["bucket"],
@@ -805,14 +805,14 @@ def validate_boot_leave(value: object) -> BootLeave | None:
     return clean
 
 
-def validate_boot_query(value: object) -> BootQuery | None:
+def validate_rdv_query(value: object) -> RdvQuery | None:
     """Strictly validate a ``query`` frame."""
     if not _envelope_ok(value, "query", _QUERY_REQUIRED, _QUERY_OPTIONAL):
         return None
     if not is_valid_bucket_name(value["bucket"]):
         return None
-    clean = BootQuery(
-        protocol_version=PROTOCOL_VERSION_BOOT,
+    clean = RdvQuery(
+        protocol_version=PROTOCOL_VERSION_RDV,
         type="query",
         bucket=value["bucket"],
     )
@@ -823,14 +823,14 @@ def validate_boot_query(value: object) -> BootQuery | None:
     return clean
 
 
-def validate_boot_relay_listen(value: object) -> BootRelayListen | None:
+def validate_rdv_relay_listen(value: object) -> RdvRelayListen | None:
     """Strictly validate a ``relay_listen`` frame."""
     if not _envelope_ok(value, "relay_listen", _RELAY_LISTEN_REQUIRED, _RELAY_LISTEN_OPTIONAL):
         return None
     if not is_valid_cid(value["cid"]) or not is_valid_bucket_name(value["bucket"]):
         return None
-    clean = BootRelayListen(
-        protocol_version=PROTOCOL_VERSION_BOOT,
+    clean = RdvRelayListen(
+        protocol_version=PROTOCOL_VERSION_RDV,
         type="relay_listen",
         cid=value["cid"],
         bucket=value["bucket"],
@@ -840,21 +840,21 @@ def validate_boot_relay_listen(value: object) -> BootRelayListen | None:
     return clean
 
 
-def validate_boot_relay_ping(value: object) -> BootRelayPing | None:
+def validate_rdv_relay_ping(value: object) -> RdvRelayPing | None:
     """Strictly validate a ``relay_ping`` frame."""
     if not _envelope_ok(value, "relay_ping", _RELAY_PING_REQUIRED, frozenset()):
         return None
     if not is_valid_cid(value["cid"]) or not is_valid_bucket_name(value["bucket"]):
         return None
-    return BootRelayPing(
-        protocol_version=PROTOCOL_VERSION_BOOT,
+    return RdvRelayPing(
+        protocol_version=PROTOCOL_VERSION_RDV,
         type="relay_ping",
         cid=value["cid"],
         bucket=value["bucket"],
     )
 
 
-def validate_boot_relay_connect(value: object) -> BootRelayConnect | None:
+def validate_rdv_relay_connect(value: object) -> RdvRelayConnect | None:
     """Strictly validate a ``relay_connect`` frame."""
     if not _envelope_ok(value, "relay_connect", _RELAY_CONNECT_REQUIRED, _RELAY_CONNECT_OPTIONAL):
         return None
@@ -864,8 +864,8 @@ def validate_boot_relay_connect(value: object) -> BootRelayConnect | None:
         or not is_valid_bucket_name(value["bucket"])
     ):
         return None
-    clean = BootRelayConnect(
-        protocol_version=PROTOCOL_VERSION_BOOT,
+    clean = RdvRelayConnect(
+        protocol_version=PROTOCOL_VERSION_RDV,
         type="relay_connect",
         cid=value["cid"],
         bucket=value["bucket"],
@@ -876,7 +876,7 @@ def validate_boot_relay_connect(value: object) -> BootRelayConnect | None:
     return clean
 
 
-def validate_boot_relay_attach(value: object) -> BootRelayAttach | None:
+def validate_rdv_relay_attach(value: object) -> RdvRelayAttach | None:
     """Strictly validate a ``relay_attach`` frame."""
     if not _envelope_ok(value, "relay_attach", _RELAY_ATTACH_REQUIRED, _RELAY_ATTACH_OPTIONAL):
         return None
@@ -886,8 +886,8 @@ def validate_boot_relay_attach(value: object) -> BootRelayAttach | None:
         or not _is_relay_id(value["relay_id"])
     ):
         return None
-    clean = BootRelayAttach(
-        protocol_version=PROTOCOL_VERSION_BOOT,
+    clean = RdvRelayAttach(
+        protocol_version=PROTOCOL_VERSION_RDV,
         type="relay_attach",
         cid=value["cid"],
         bucket=value["bucket"],
@@ -898,20 +898,20 @@ def validate_boot_relay_attach(value: object) -> BootRelayAttach | None:
     return clean
 
 
-def validate_boot_relay_listening(value: object) -> BootRelayListening | None:
+def validate_rdv_relay_listening(value: object) -> RdvRelayListening | None:
     """Strictly validate a ``relay_listening`` frame (server→client)."""
     if not _envelope_ok(value, "relay_listening", _RELAY_LISTENING_REQUIRED, frozenset()):
         return None
     if not _is_int(value["ttl"], minimum=_MIN_TTL, maximum=_MAX_TTL):
         return None
-    return BootRelayListening(
-        protocol_version=PROTOCOL_VERSION_BOOT,
+    return RdvRelayListening(
+        protocol_version=PROTOCOL_VERSION_RDV,
         type="relay_listening",
         ttl=value["ttl"],
     )
 
 
-def validate_boot_relay_incoming(value: object) -> BootRelayIncoming | None:
+def validate_rdv_relay_incoming(value: object) -> RdvRelayIncoming | None:
     """Strictly validate a ``relay_incoming`` frame (server→client)."""
     if not _envelope_ok(value, "relay_incoming", _RELAY_INCOMING_REQUIRED, frozenset()):
         return None
@@ -921,8 +921,8 @@ def validate_boot_relay_incoming(value: object) -> BootRelayIncoming | None:
         or not _is_int(value["expires_in"], minimum=1, maximum=_MAX_TTL)
     ):
         return None
-    return BootRelayIncoming(
-        protocol_version=PROTOCOL_VERSION_BOOT,
+    return RdvRelayIncoming(
+        protocol_version=PROTOCOL_VERSION_RDV,
         type="relay_incoming",
         relay_id=value["relay_id"],
         cid=value["cid"],
@@ -930,28 +930,28 @@ def validate_boot_relay_incoming(value: object) -> BootRelayIncoming | None:
     )
 
 
-def validate_boot_relay_ok(value: object) -> BootRelayOk | None:
+def validate_rdv_relay_ok(value: object) -> RdvRelayOk | None:
     """Strictly validate a ``relay_ok`` frame (server→client)."""
     if not _envelope_ok(value, "relay_ok", _RELAY_OK_REQUIRED, frozenset()):
         return None
     if not _is_relay_id(value["relay_id"]):
         return None
-    return BootRelayOk(
-        protocol_version=PROTOCOL_VERSION_BOOT,
+    return RdvRelayOk(
+        protocol_version=PROTOCOL_VERSION_RDV,
         type="relay_ok",
         relay_id=value["relay_id"],
     )
 
 
-def validate_boot_relay_error(value: object) -> BootRelayError | None:
+def validate_rdv_relay_error(value: object) -> RdvRelayError | None:
     """Strictly validate a ``relay_error`` frame (server→client)."""
     if not _envelope_ok(value, "relay_error", _RELAY_ERROR_REQUIRED, _RELAY_ERROR_OPTIONAL):
         return None
     error = value["error"]
-    if error not in _BOOT_ERRORS:
+    if error not in _RDV_ERRORS:
         return None
-    clean = BootRelayError(
-        protocol_version=PROTOCOL_VERSION_BOOT,
+    clean = RdvRelayError(
+        protocol_version=PROTOCOL_VERSION_RDV,
         type="relay_error",
         error=error,
     )
@@ -960,7 +960,7 @@ def validate_boot_relay_error(value: object) -> BootRelayError | None:
     return clean
 
 
-def validate_boot_ack(value: object) -> BootAck | None:
+def validate_rdv_ack(value: object) -> RdvAck | None:
     """Strictly validate an ``ack`` frame (server→client)."""
     if not _envelope_ok(value, "ack", _ACK_REQUIRED, _ACK_OPTIONAL):
         return None
@@ -971,8 +971,8 @@ def validate_boot_ack(value: object) -> BootAck | None:
         or not isinstance(value["server_time"], str)
     ):
         return None
-    clean = BootAck(
-        protocol_version=PROTOCOL_VERSION_BOOT,
+    clean = RdvAck(
+        protocol_version=PROTOCOL_VERSION_RDV,
         type="ack",
         observed_endpoint=observed,
         ttl=value["ttl"],
@@ -983,7 +983,7 @@ def validate_boot_ack(value: object) -> BootAck | None:
     return clean
 
 
-def validate_boot_response(value: object) -> BootResponse | None:
+def validate_rdv_response(value: object) -> RdvResponse | None:
     """Strictly validate a ``response`` frame (server→client)."""
     if not _envelope_ok(value, "response", _RESPONSE_REQUIRED, _RESPONSE_OPTIONAL):
         return None
@@ -994,7 +994,7 @@ def validate_boot_response(value: object) -> BootResponse | None:
         or not _is_int(value["ttl"], minimum=_MIN_TTL, maximum=_MAX_TTL)
     ):
         return None
-    clean_peers: list[BootPeer] = []
+    clean_peers: list[RdvPeer] = []
     for item in peers:
         clean_peer = _validate_peer(item)
         if clean_peer is None:
@@ -1003,10 +1003,10 @@ def validate_boot_response(value: object) -> BootResponse | None:
     if value["count"] != len(clean_peers):
         return None
     error = value.get("error")
-    if error is not None and error not in _BOOT_ERRORS:
+    if error is not None and error not in _RDV_ERRORS:
         return None
-    clean = BootResponse(
-        protocol_version=PROTOCOL_VERSION_BOOT,
+    clean = RdvResponse(
+        protocol_version=PROTOCOL_VERSION_RDV,
         type="response",
         peers=clean_peers,
         count=value["count"],
@@ -1019,25 +1019,25 @@ def validate_boot_response(value: object) -> BootResponse | None:
     return clean
 
 
-def validate_boot_frame(value: object) -> BootFrame | None:
+def validate_rdv_frame(value: object) -> RdvFrame | None:
     """Dispatch on ``type`` and strictly validate one client→server frame."""
     if not isinstance(value, Mapping):
         return None
     frame_type = value.get("type")
     if frame_type == "register":
-        return validate_boot_register(value)
+        return validate_rdv_register(value)
     if frame_type == "refresh":
-        return validate_boot_refresh(value)
+        return validate_rdv_refresh(value)
     if frame_type == "leave":
-        return validate_boot_leave(value)
+        return validate_rdv_leave(value)
     if frame_type == "query":
-        return validate_boot_query(value)
+        return validate_rdv_query(value)
     if frame_type == "relay_listen":
-        return validate_boot_relay_listen(value)
+        return validate_rdv_relay_listen(value)
     if frame_type == "relay_ping":
-        return validate_boot_relay_ping(value)
+        return validate_rdv_relay_ping(value)
     if frame_type == "relay_connect":
-        return validate_boot_relay_connect(value)
+        return validate_rdv_relay_connect(value)
     if frame_type == "relay_attach":
-        return validate_boot_relay_attach(value)
+        return validate_rdv_relay_attach(value)
     return None

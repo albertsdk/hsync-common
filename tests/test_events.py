@@ -41,14 +41,14 @@ class TestBuildEvent:
         ev2 = build_event(UiEventName.progress, transferred=0, total=10)
         assert ev2["transferred"] == 0  # type: ignore[reportTypedDictNotRequiredAccess]
 
-    def test_discovery_event_carries_the_active_plan(self):
-        ev = build_event(UiEventName.discovery, plan="bootnode", bootnode="boot.example.net")
-        assert ev["event"] == "discovery"
-        assert ev["plan"] == "bootnode"  # type: ignore[reportTypedDictNotRequiredAccess]
-        assert ev["bootnode"] == "boot.example.net"  # type: ignore[reportTypedDictNotRequiredAccess]
-        # The mDNS plan omits the bootnode field (None payload values are dropped).
-        mdns = build_event(UiEventName.discovery, plan="mdns")
-        assert "bootnode" not in mdns
+    def test_rendezvous_event_carries_the_active_plan(self):
+        ev = build_event(UiEventName.rendezvous, plan="rendezvous", rendezvous="boot.example.net")
+        assert ev["event"] == "rendezvous"
+        assert ev["plan"] == "rendezvous"  # type: ignore[reportTypedDictNotRequiredAccess]
+        assert ev["rendezvous"] == "boot.example.net"  # type: ignore[reportTypedDictNotRequiredAccess]
+        # The mDNS plan omits the rendezvous field (None payload values are dropped).
+        mdns = build_event(UiEventName.rendezvous, plan="mdns")
+        assert "rendezvous" not in mdns
 
     def test_folder_size_event_carries_aggregate_bytes(self):
         ev = build_event(UiEventName.folder_size, local_bytes=1024, total_bytes=4096)
@@ -151,7 +151,7 @@ class TestEventNameCoverage:
             "role",
             "bucket",
             "group",
-            "discovery",
+            "rendezvous",
             "session",
             "server",
             "transfer",

@@ -73,7 +73,7 @@ def compact_json_bytes(obj: Any) -> bytes:
     two transports.
 
     Consumers: ``hsync-server`` (streamed listing body), ``hsync-client`` (LAN
-    master responses, bootnode requests), ``hsync-common``
+    master responses, rendezvous requests), ``hsync-common``
     (``protocol.peer_download._fits_encoded_limit``), shared fixtures/tests.
     """
     return compact_json_str(obj).encode("utf-8")

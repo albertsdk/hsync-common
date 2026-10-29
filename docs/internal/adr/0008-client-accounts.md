@@ -50,7 +50,7 @@ bucket access via **explicit membership**:
 - **Hashing**: scrypt (N=2^17, r=8, p=1) PHC-style at rest; secret in clear only
   at emission. KDF cache (SHA-256(token) → account_id + generation) avoids
   re-hashing on every request; a DB SELECT re-checks status/generation/expiry.
-- **Bootstrap**: on first start (empty `clients`), an admin account is created
+- **Rendezvous**: on first start (empty `clients`), an admin account is created
   from `HSYNC_ADMIN_KEY` (64 hex, silent) or generated and printed once.
 - **Anti-enumeration**: unknown account_id triggers a dummy scrypt; disabled /
   expired / non-member all return the same wire response as "invalid key" (REST
@@ -83,7 +83,7 @@ Alternatives rejected:
 - **The token travels over HTTPS only** — the deployment guide mandates a reverse
   proxy terminating TLS; plain HTTP is for LAN/testing only.
 - **`HSYNC_API_KEY` (client-side)** remains the env var name that holds the
-  account token on the client; the server uses `HSYNC_ADMIN_KEY` for bootstrap only.
+  account token on the client; the server uses `HSYNC_ADMIN_KEY` for rendezvous only.
 
 ## See also
 
@@ -92,4 +92,4 @@ Alternatives rejected:
 - [ADR-0012](0012-rate-limiting.md) — rate limiting is per-IP; admin endpoints
   have a stricter limit.
 - [Deployment Guide](https://github.com/albertsdk/hsync-server/blob/main/docs/deployment.md) —
-  key generation and bootstrap instructions.
+  key generation and rendezvous instructions.

@@ -1,11 +1,11 @@
-# ADR 0038 — Bootnode relays the full endpoint candidate list
+# ADR 0038 — Rendezvous relays the full endpoint candidate list
 
 - **Status:** Accepted
 - **Date:** 2026-10-01
 
 ## Context
 
-`boot/1` discovery ([ADR-0032](0032-bootnode-discovery.md)) exists for peers that
+`rdv/1` rendezvous ([ADR-0032](0032-rendezvous-rendezvous.md)) exists for peers that
 are not on the same LAN: the client registers its data-plane listen endpoint(s),
 the node relays a peer sample, and the requester dials an address to reach the
 elected master. A peer's addresses are not interchangeable. The client knows
@@ -27,7 +27,7 @@ libp2p advertises multiaddrs, Tailscale falls back to a relay).
 
 We will relay the peer's **full candidate list** instead of a single endpoint:
 
-1. `BootPeer` carries `endpoints: list[Endpoint]` (1–16, each `proto`/`host`/
+1. `RdvPeer` carries `endpoints: list[Endpoint]` (1–16, each `proto`/`host`/
    `port`) as its only endpoint representation: no separate single-address
    field. The node relays `register.endpoints[]` **verbatim and in order**; only
    a register that carried no endpoint at all (the first STUN register) falls
@@ -45,19 +45,19 @@ We will relay the peer's **full candidate list** instead of a single endpoint:
    for the sync and WebSocket connection. A single-candidate peer (mDNS) skips
    the probe: its data-plane connection is its own reachability check, so the
    cost is unchanged. When no candidate is reachable the
-   slave returns to the discovery loop instead of failing the run.
+   slave returns to the rendezvous loop instead of failing the run.
 4. The candidate list is **advisory and unauthenticated**, exactly like the other
    relayed peer fields: the node never interprets or orders by it, and the data
    plane still authenticates identity by certificate pinning before any file is
    exchanged. Choosing the locally reachable candidate is a proximity preference,
    never proof of identity or authority.
-5. The Android mirror (`BootPeer.endpoints`) and the byte-identical fixtures move
+5. The Android mirror (`RdvPeer.endpoints`) and the byte-identical fixtures move
    with the contract; the drift/parity tests pin them.
 
 Alternatives rejected: keeping the single `ip`/`port` and special-casing
 same-public-IP peers at the node (the node would have to interpret
 topology-dependent, unauthenticated data, and it cannot know the requester's LAN
-address); running mDNS in parallel with the bootnode (a separate discovery-plane
+address); running mDNS in parallel with the rendezvous (a separate rendezvous-plane
 change that does not fix an mDNS-blocked network and leaves stale public
 endpoints unrecoverable).
 
@@ -69,11 +69,11 @@ endpoints unrecoverable).
   back to another candidate.
 - Symmetric NAT with no UPnP and no routable candidate is not reachable through a
   direct candidate: the fix adds candidate fallback, and the
-  [data plane relay](0047-p2p-relay-through-bootnode.md) covers the case where no
+  [data plane relay](0047-p2p-relay-through-rendezvous.md) covers the case where no
   candidate is dialable at all.
 - The probe adds one short TLS handshake per candidate for multi-candidate peers,
   bounded by the 3 s per-candidate budget and skipped entirely for mDNS peers.
-- Obligations: spec + fixtures + both `boot/1` implementations and the Kotlin
-  mirror in one change; the client discovery mapping, the dial-time ordering and
+- Obligations: spec + fixtures + both `rdv/1` implementations and the Kotlin
+  mirror in one change; the client rendezvous mapping, the dial-time ordering and
   the slave connect path; regression tests for the relayed list, the ordering and
   the selection; and the `docs/`/`llm-wiki` updates in every affected repository.

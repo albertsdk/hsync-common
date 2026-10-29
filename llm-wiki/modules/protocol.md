@@ -22,23 +22,23 @@ error / 426; peers disconnect / auth refused). Capabilities are feature flags
 within a version — intersection semantics, never cross-version negotiation
 (ADR-0024).
 
-## bootnode.py — `boot/1` bootstrap mirror (ADR-0032, ADR-0033)
+## rendezvous.py — `rdv/1` rendezvous mirror (ADR-0032, ADR-0033)
 
-Mirror of the canonical `boot/1` contract (`hsync-bootnode/protocol-spec/boot-1.md`
-+ `hsync-bootnode/fixtures/`). The daemon keeps its own frame models and does not
+Mirror of the canonical `rdv/1` contract (`hsync-rendezvous/protocol-spec/rdv-1.md`
++ `hsync-rendezvous/fixtures/`). The daemon keeps its own frame models and does not
 import this mirror; its Python v1 reuses only generic `hsync-common` utilities
 (`ssl_utils`, `CID_PATTERN`, `is_valid_bucket_name` — ADR-0033).
 
-- `PROTOCOL_VERSION_BOOT = "boot/1"` (`protocol/bootnode.py::PROTOCOL_VERSION_BOOT`), `BOOT_ALPN = "hsync-boot/1"`.
-  The default listener port is `BOOT_DEFAULT_PORT = 443`
-  (`hsync_common/constants.py`, next to `NTP_PORT`) — consumers: hsync-bootnode
+- `PROTOCOL_VERSION_RDV = "rdv/1"` (`protocol/rendezvous.py::PROTOCOL_VERSION_RDV`), `RDV_ALPN = "hsync-rdv/1"`.
+  The default listener port is `RDV_DEFAULT_PORT = 443`
+  (`hsync_common/constants.py`, next to `NTP_PORT`) — consumers: hsync-rendezvous
   CLI `--port` default and hsync-client bare-host default.
 - TypedDict frames + strict `validate_*` validators (dependency-free, like the
-  rest of the package): `BootRegister` / `BootRefresh` / `BootLeave` /
-  `BootQuery` (client→server) and `BootAck` / `BootResponse` / `BootPeer`
-  (server→client); `validate_boot_frame` dispatches on `type`.
+  rest of the package): `RdvRegister` / `RdvRefresh` / `RdvLeave` /
+  `RdvQuery` (client→server) and `RdvAck` / `RdvResponse` / `RdvPeer`
+  (server→client); `validate_rdv_frame` dispatches on `type`.
 - `CAPACITY_MAX = 32` bounds the advisory service-capacity hint (`0` = not a
-  seeder); `reachable` is derived from `bool(endpoints)`. `BootPeer.endpoints`
+  seeder); `reachable` is derived from `bool(endpoints)`. `RdvPeer.endpoints`
   mirrors the peer's candidate list as the node relays it (at most
   `MAX_RELAY_ENDPOINTS` entries, or a single-element observed-source fallback),
   so the client can prefer a host/LAN candidate over the NATed public one.
@@ -46,20 +46,20 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   `endpoints[].host` via `hsync_common.endpoint.is_valid_endpoint_host`, and
   `cert_fp` via `hsync_common.protocol.pairing.parse_fingerprint` (a full SHA-256
   digest — the value the data-plane pin compares).
-- Token helpers: `derive_bucket_token` (`HMAC-SHA256(key, "boot/1"||bucket)`),
+- Token helpers: `derive_bucket_token` (`HMAC-SHA256(key, "rdv/1"||bucket)`),
   `is_valid_bucket_token`, `constant_time_equals`, `verify_bucket_token`. The
   implementation (and the 64-hex grammar) is the protocol-neutral
-  `protocol/boot_tokens.py` (`boot_tokens.py::derive_bucket_token`), shared with
-  the bootnode daemon and re-exported here so the client import path is stable.
+  `protocol/rdv_tokens.py` (`rdv_tokens.py::derive_bucket_token`), shared with
+  the rendezvous daemon and re-exported here so the client import path is stable.
   `MIN_GROUP_KEY_CHARS` / `validate_group_key` in the same module are the single
   key-strength floor both ends enforce (the group key is the token's only
   entropy). A user-typed passphrase goes through `validate_group_passphrase` /
   `derive_group_key` (scrypt, fixed salt `hsync-p2p-group-key/v1`, at least 12
   chars) and is materialised as the same 64-hex key, so no downstream consumer
   changes.
-- Fixture mirror `protocol/fixtures/bootnode-*.json` is byte-checked against the
-  canonical bootnode fixtures by `tests/test_protocol_bootnode.py`.
-- Consumers: `hsync-client` (bootnode discovery), shared fixtures/tests.
+- Fixture mirror `protocol/fixtures/rendezvous-*.json` is byte-checked against the
+  canonical rendezvous fixtures by `tests/test_protocol_rendezvous.py`.
+- Consumers: `hsync-client` (rendezvous rendezvous), shared fixtures/tests.
 
 ## capabilities.py — `--capabilities-json` document
 
@@ -85,7 +85,7 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
 - `UiEventName` StrEnum (`protocol/events.py::UiEventName`) — the structured events emitted by the
   client and consumed by desktop/android (incl. `sync_paused`,
   `transfer_failed`, `fingerprint_changed`, `auth_required`, `pairing_needed`,
-  `duplicate_identity`, `security_rejected`, `discovery`, `no_master`, `no_peers`,
+  `duplicate_identity`, `security_rejected`, `rendezvous`, `no_master`, `no_peers`,
   `sync_pending`, `folder_size`, `ready`).
 - `ready` marks the end of startup validation: the client emits it once, after
   every fatal configuration check and before its run loop. A consumer treats an
@@ -122,11 +122,11 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   two facts a confirmation cannot derive: deletions the policy dropped before
   they reached the stream, and a plan the guard will pause (ADR 0043).
 - `warning` is the non-fatal counterpart of `error`: the run continues (a file
-  watcher degraded to polling, a bootnode unreachable), so a consumer must never
+  watcher degraded to polling, a rendezvous unreachable), so a consumer must never
   treat it as a failure. It carries `message` (a user-facing sentence) and
   `source` (`UiEventDict`,
   `protocol/events.py::UiEventDict`), a stable subsystem
-  identifier (`bootnode`, `watcher`, …) the front-end keys its dedup and
+  identifier (`rendezvous`, `watcher`, …) the front-end keys its dedup and
   notification category on. `reason` names the case class
   (`unreachable`, `polling_fallback`, `disk_reserve`, …), or the literal
   **`transient`** for a condition that heals itself (dropped real-time events, a
@@ -147,9 +147,9 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   upload). The client emits it once per distinct pair after fetching its
   listings; full-share runs only (scoped runs skip it), so a GUI can show the
   shared folder's size without a second disk walk.
-- `discovery` carries `plan` (`mdns` | `mdns+bootnode`) and, with the bootnode plan,
-  the `bootnode` host: the client emits it once at `hsync p2p` startup so a GUI
-  can surface the active discovery plan instead of silently degrading to mDNS.
+- `rendezvous` carries `plan` (`mdns` | `mdns+rendezvous`) and, with the rendezvous plan,
+  the `rendezvous` host: the client emits it once at `hsync p2p` startup so a GUI
+  can surface the active rendezvous plan instead of silently degrading to mDNS.
   The payload is a flat optional-field object; `parse_event_line` ignores
   unknown event names.
 - `progress` carries `file`, `transferred`, `total` and `op` (`download` |
@@ -202,11 +202,11 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
 
 - `PinDecision` StrEnum (`protocol/pairing.py::PinDecision`); `normalize_fingerprint`
   (`protocol/pairing.py::normalize_fingerprint`); `evaluate_pin` (`protocol/pairing.py::evaluate_pin`).
-- Bootnode trust primitives (ADR-0034): `parse_fingerprint` (`protocol/pairing.py::parse_fingerprint`)
+- Rendezvous trust primitives (ADR-0034): `parse_fingerprint` (`protocol/pairing.py::parse_fingerprint`)
   normalizes `sha256:<hex>` / bare hex to lowercase 64-char hex (rejects invalid),
   `fingerprint_matches` (`protocol/pairing.py::fingerprint_matches`) compares constant-time against a pin
   set, `FingerprintMismatch` (`protocol/pairing.py::FingerprintMismatch`) is the shared fatal-exception.
-  Consumers: `hsync-client` bootnode pinning; future C/Android parity.
+  Consumers: `hsync-client` rendezvous pinning; future C/Android parity.
 - P2P master trust is the `TrustPolicy` of the self-signed transports
   (`protocol/tls_trust.py::TrustPolicy`, ADR-0040): `evaluate_tls_trust`
   (`protocol/tls_trust.py::evaluate_tls_trust`) is the rule and
@@ -268,7 +268,7 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   `P2P_WSS_SCHEMA_PATH` (`protocol/__init__.py::P2P_WSS_SCHEMA_PATH`),
   `P2P_SOURCES_SCHEMA_PATH` (`protocol/__init__.py::P2P_SOURCES_SCHEMA_PATH`),
   `FIXTURES_DIR` (`protocol/__init__.py::FIXTURES_DIR`),
-  `BOOTNODE_FIXTURES_DIR` (`protocol/__init__.py::BOOTNODE_FIXTURES_DIR`),
+  `RENDEZVOUS_FIXTURES_DIR` (`protocol/__init__.py::RENDEZVOUS_FIXTURES_DIR`),
   `ANDROID_FIXTURES_DIR` (`protocol/__init__.py::ANDROID_FIXTURES_DIR`).
 - Canonical dump/load: `dump_contract`/`load_contract` (`protocol/__init__.py::dump_contract`),
   with `dump_openapi` (`protocol/__init__.py::dump_openapi`) reusing them.

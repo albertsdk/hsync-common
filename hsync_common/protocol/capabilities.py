@@ -12,7 +12,7 @@ bundles, in one versioned payload:
 * the supported CLI subcommands (``p2p``, ``server``, ``trust``),
 * the per-subcommand supported CLI option flags (introspected by the client
   from its own commands, so the lists can never drift from the real interface),
-* the per-channel ``protocol_version`` (REST/WS/p2p/boot) from the handshake SSOT,
+* the per-channel ``protocol_version`` (REST/WS/p2p/rdv) from the handshake SSOT,
 * the structured-events ``schema_version`` (the ``--events-json-fd`` channel),
 * the feature-flag ``capabilities`` registry (the same wire tokens used in the
   handshake).
@@ -27,7 +27,6 @@ import json
 from collections.abc import Iterable
 from typing import Any, TypedDict
 
-from .bootnode import PROTOCOL_VERSION_BOOT
 from .events import EVENTS_SCHEMA_VERSION
 from .handshake import (
     ALL_CAPABILITIES,
@@ -37,6 +36,7 @@ from .handshake import (
     Capability,
     encode_capabilities,
 )
+from .rendezvous import PROTOCOL_VERSION_RDV
 
 __all__ = [
     "CAPABILITIES_SCHEMA_VERSION",
@@ -59,7 +59,7 @@ class ProtocolVersions(TypedDict):
     rest: str
     ws: str
     p2p: str
-    boot: str
+    rdv: str
 
 
 class CapabilitiesDoc(TypedDict):
@@ -102,7 +102,7 @@ def build_capabilities(
             "rest": PROTOCOL_VERSION_REST,
             "ws": PROTOCOL_VERSION_WS,
             "p2p": PROTOCOL_VERSION_P2P,
-            "boot": PROTOCOL_VERSION_BOOT,
+            "rdv": PROTOCOL_VERSION_RDV,
         },
         "events_schema_version": EVENTS_SCHEMA_VERSION,
         "capabilities": encode_capabilities(caps),
@@ -154,7 +154,7 @@ def _field_types_valid(data: dict[str, Any]) -> bool:
     """
     protocol = data["protocol_version"]
     if not isinstance(protocol, dict) or not all(
-        isinstance(protocol.get(channel), str) for channel in ("rest", "ws", "p2p", "boot")
+        isinstance(protocol.get(channel), str) for channel in ("rest", "ws", "p2p", "rdv")
     ):
         return False
     if not isinstance(data["app_version"], str):

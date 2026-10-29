@@ -18,7 +18,7 @@ from hsync_common.endpoint import (
 
 
 class TestNormalizeBareEndpoint:
-    """The canonicalization used by the discovery-server field and the GUI."""
+    """The canonicalization used by the rendezvous-server field and the GUI."""
 
     @pytest.mark.parametrize(
         ("raw", "expected"),
@@ -216,7 +216,7 @@ class TestParsePortList:
 
 
 class TestEndpointHostGrammar:
-    """The dialable-host grammar of ``boot/1`` ``endpoints[].host``."""
+    """The dialable-host grammar of ``rdv/1`` ``endpoints[].host``."""
 
     @pytest.mark.parametrize(
         "host",
@@ -258,7 +258,7 @@ class TestEndpointHostGrammar:
 
 
 class TestParseEndpointList:
-    """The ordered multi-endpoint form (``HSYNC_DISCOVERY_SERVER_ENDPOINTS``)."""
+    """The ordered multi-endpoint form (``HSYNC_RENDEZVOUS_SERVER_ENDPOINTS``)."""
 
     def test_empty_is_empty(self):
         assert parse_endpoint_list(None) == ()

@@ -1,20 +1,20 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2025 Alberto Basso
 
-"""``boot/1`` bucket-token primitives shared by the bootnode and its clients.
+"""``rdv/1`` bucket-token primitives shared by the rendezvous and its clients.
 
 The bucket token is derived from the group key (the raw ``HSYNC_P2P_KEY``, or the
 64-hex key derived from ``HSYNC_P2P_PASSPHRASE``):
-``HMAC-SHA256(key, "boot/1" || bucket)[:32]``, hex-encoded (64 chars). The key
+``HMAC-SHA256(key, "rdv/1" || bucket)[:32]``, hex-encoded (64 chars). The key
 itself is never transported on the wire; only the derived token is.
 
 These primitives are protocol-neutral (no frame models), so both the canonical
-bootnode implementation and the dependency-free client mirror import them from
+rendezvous implementation and the dependency-free client mirror import them from
 here instead of copying the algorithms (ADR-0033 keeps the *models* separate,
 not the cryptography).
 
-Consumers: ``hsync-bootnode/python`` (``protocol.py`` / ``tokens.py``),
-``hsync_common.protocol.bootnode`` (client mirror), tests.
+Consumers: ``hsync-rendezvous/python`` (``protocol.py`` / ``tokens.py``),
+``hsync_common.protocol.rendezvous`` (client mirror), tests.
 """
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ __all__ = [
 BUCKET_TOKEN_LEN = 64
 
 # A group key is the ONLY entropy behind a bucket token
-# (``hex(HMAC-SHA256(key, "boot/1" || bucket)[:32])``): with a guessable key a
+# (``hex(HMAC-SHA256(key, "rdv/1" || bucket)[:32])``): with a guessable key a
 # token seen anywhere (an instrumented client, a process dump) can be brute
 # forced offline. 32 characters carries >=128 bits for any random or
 # passphrase-grade value, and is the single threshold both the node (key file)
@@ -53,7 +53,7 @@ MIN_GROUP_KEY_CHARS = 32
 _BUCKET_TOKEN_RE = re.compile(rf"^[0-9a-f]{{{BUCKET_TOKEN_LEN}}}$")
 
 # Domain separation: the same key derives different tokens per protocol channel.
-_TOKEN_DOMAIN = b"boot/1"
+_TOKEN_DOMAIN = b"rdv/1"
 
 
 def derive_bucket_token(key: bytes, bucket: str) -> str:
@@ -73,7 +73,7 @@ def validate_group_key(key: str) -> None:
     Raises:
         ValueError: when ``key`` is shorter than :data:`MIN_GROUP_KEY_CHARS`.
 
-    Consumers: ``hsync-bootnode`` (``cli._parse_keys``, the node's key source) and
+    Consumers: ``hsync-rendezvous`` (``cli._parse_keys``, the node's key source) and
     ``hsync-client`` (``config.get_p2p_key``, ``HSYNC_P2P_KEY``), so both ends of
     a bucket enforce one threshold.
     """

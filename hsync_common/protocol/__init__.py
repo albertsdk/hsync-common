@@ -38,12 +38,12 @@ P2P_SOURCES_SCHEMA_PATH = PROTOCOL_DIR / "p2p" / "sources-schema.json"
 # hsync_common.protocol.fixtures; consumed as cross-language test inputs).
 FIXTURES_DIR = PROTOCOL_DIR / "fixtures"
 
-# Canonical bootstrap-protocol fixtures live in the sibling hsync-bootnode repo
-# (the SSOT for ``boot/1``; the daemon keeps its own frame models and does not
+# Canonical rendezvous-protocol fixtures live in the sibling hsync-rendezvous repo
+# (the SSOT for ``rdv/1``; the daemon keeps its own frame models and does not
 # import this mirror, though its Python v1 reuses a few generic hsync-common
 # utilities — ADR-0033). The mirrored copies under FIXTURES_DIR are drift-checked
-# byte-for-byte against these by tests/test_protocol_bootnode.py.
-BOOTNODE_FIXTURES_DIR = FIXTURES_DIR.parents[3] / "hsync-bootnode" / "fixtures"
+# byte-for-byte against these by tests/test_protocol_rendezvous.py.
+RENDEZVOUS_FIXTURES_DIR = FIXTURES_DIR.parents[3] / "hsync-rendezvous" / "fixtures"
 
 # Sibling Android test-resource mirror of FIXTURES_DIR. The Android contract
 # test consumes byte-identical copies of the golden fixtures; resolved from the
@@ -85,7 +85,7 @@ def dump_openapi(schema: dict[str, Any]) -> str:
 # via ``load_contract``.
 __all__ = [
     "ANDROID_FIXTURES_DIR",
-    "BOOTNODE_FIXTURES_DIR",
+    "RENDEZVOUS_FIXTURES_DIR",
     "FIXTURES_DIR",
     "P2P_SOURCES_SCHEMA_PATH",
     "P2P_TXT_SCHEMA_PATH",

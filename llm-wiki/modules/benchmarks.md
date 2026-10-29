@@ -8,7 +8,7 @@ user-facing behaviour.
 
 `hsync-common` is a dependency-light library imported by the runtime projects
 and mirrored in Kotlin (`llm-wiki/architecture.md`): it has no process, no
-socket and no transport of its own. The bootnode tier split therefore does not
+socket and no transport of its own. The rendezvous tier split therefore does not
 map onto it — L2/L3 (spawn a binary over the wire) and L5 (node-process CPU
 saturation) have no subject here. L4 (profiling) is added only when a concrete
 anomaly needs a cost breakdown.

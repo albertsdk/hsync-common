@@ -30,8 +30,8 @@ android).
 - Wire content types SSOT: `CONTENT_TYPE_OCTET_STREAM` / `CONTENT_TYPE_JSON`
   (`hsync_common/constants.py::CONTENT_TYPE_OCTET_STREAM`) shared by client, server and Android.
 - Protocol versions SSOT: `hsync_common/protocol/handshake.py::PROTOCOL_VERSION_REST`
-  (REST `api/1`, WS `ws/1`, p2p `p2p/1`); bootstrap `boot/1` mirrors `hsync-bootnode` in
-  `hsync_common/protocol/bootnode.py::PROTOCOL_VERSION_BOOT`.
+  (REST `api/1`, WS `ws/1`, p2p `p2p/1`); rendezvous `rdv/1` mirrors `hsync-rendezvous` in
+  `hsync_common/protocol/rendezvous.py::PROTOCOL_VERSION_RDV`.
 - Consumed as a Poetry path dependency (`hsync-common = {path = "../hsync-common", develop = true}`) by client, server, desktop; mirrored in Kotlin by android.
 - Contract artifacts (committed snapshots, generated from Python SSOT and drift-tested): `protocol/rest/openapi.json`, `protocol/ws/ws-schema.json`, `protocol/p2p/txt-schema.json`, `protocol/p2p/wss-schema.json`, `protocol/p2p/sources-schema.json`, `protocol/fixtures/`.
 

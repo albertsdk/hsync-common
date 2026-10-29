@@ -8,8 +8,8 @@ the client CLI imports it at startup, where pulling the ``hsync_common.models``
 package would break the lightweight-import contract
 (``hsync-client/tests/test_startup_imports.py``).
 
-Consumers: ``hsync-client`` (device identity, server/bootnode trust stores, p2p
-pins, verbose PATHS dump), ``hsync-server`` (per-bucket state), ``hsync-bootnode``
+Consumers: ``hsync-client`` (device identity, server/rendezvous trust stores, p2p
+pins, verbose PATHS dump), ``hsync-server`` (per-bucket state), ``hsync-rendezvous``
 (identity path), tests.
 """
 
@@ -47,8 +47,8 @@ def state_path(*parts: str, override_env: str | None = None) -> Path:
     XDG-only fallback used to cause).
 
     Consumers: ``hsync-client`` (``identity.default_device_dir`` and the
-    ``server_trust`` / ``bootnode_trust`` / ``pinning`` default paths),
-    ``hsync-bootnode`` (``cli.default_identity_path``), tests.
+    ``server_trust`` / ``rendezvous_trust`` / ``pinning`` default paths),
+    ``hsync-rendezvous`` (``cli.default_identity_path``), tests.
     """
     if override_env:
         override = os.environ.get(override_env)

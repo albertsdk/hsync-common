@@ -20,7 +20,7 @@ The project maintains two distinct documentation environments. You must understa
 * **Read Before Exploring or Modifying Code**: Before exploring or modifying application code, you **MUST** first consult the internal wiki, starting from `llm-wiki/README.md`, and then drill down into the specific `llm-wiki/` file(s) relevant to the task. Administrative, repository-inspection, and documentation-only operations may use a proportionate subset of this workflow.
 * **Index-Driven Navigation**: Use `llm-wiki/README.md` as the map: identify which module/feature/data-model docs are relevant, read them, and follow their `path/to/file.py::symbol` references to reach the right code directly instead of blindly searching the whole repository.
 * **Docs Guide the Search**: Treat `llm-wiki/` as the first search surface. Codebase-wide exploration is a **fallback** for what the wiki does not yet cover.
-* **Bootstrap on Absence**: If a specific doc does not exist or lacks relevant content, note the gap and create/extend it as part of the task. A missing doc is never an excuse to skip the docs-first step.
+* **Rendezvous on Absence**: If a specific doc does not exist or lacks relevant content, note the gap and create/extend it as part of the task. A missing doc is never an excuse to skip the docs-first step.
 
 ### 2. Mandatory Dual-Synchronization
 * **Code & Docs Are One Change**: Whenever you **add, modify, or remove** any relevant element of the application, you **MUST** update the documentation **within the same task**.
@@ -104,7 +104,7 @@ The wiki must describe the code as it is **now**. Accumulated inaccuracies come 
 
 ## ⚠️ Domain-Critical Rules
 
-* **P2P Discovery & Master Election**
+* **P2P Rendezvous & Master Election**
   Before modifying any logic related to these mechanisms, you **MUST** read and follow the specifications outlined in `hsync-common/docs/p2p-protocol.md`.
 
 * **Packaging WD My Cloud OS5 (cross-repository)**

@@ -76,8 +76,8 @@ complete documentation index.
 | [Models](docs/models.md) | Shared data models reference |
 | [Utilities](docs/utilities.md) | Cross-cutting utilities guide |
 | [Protocol](docs/protocol.md) | Versioned wire protocol reference |
-| [p2p Protocol](docs/p2p-protocol.md) | Authoritative p2p discovery, master-election, pairing and security specification |
-| [Boot/1 Protocol](docs/bootnode-protocol.md) | The `boot/1` bootstrap channel as mirrored for the client |
+| [p2p Protocol](docs/p2p-protocol.md) | Authoritative p2p rendezvous, master-election, pairing and security specification |
+| [Rdv/1 Protocol](docs/rendezvous-protocol.md) | The `rdv/1` rendezvous channel as mirrored for the client |
 | [Authentication](docs/authentication.md) | Shared authentication contracts: CID format, message schema, version negotiation |
 | [Ignore file](docs/ignore-file.md) | `.hsyncignore` syntax, `IgnoreMatcher` layers, and API |
 | [Android Mirroring](docs/android-mirroring.md) | How Python models are mirrored in Kotlin |
@@ -95,7 +95,7 @@ The other components of the HSYNC ecosystem:
 - [HSYNC Desktop](https://github.com/albertsdk/hsync-desktop/blob/main/README.md) — Desktop GUI front-end.
 - [HSYNC Client](https://github.com/albertsdk/hsync-client/blob/main/README.md) — Reference client agent: the `hsync` CLI and its sync engine.
 - [HSYNC Server](https://github.com/albertsdk/hsync-server/blob/main/README.md) — Central sync hub: REST API, WebSocket relay, file storage.
-- [HSYNC Bootnode](https://github.com/albertsdk/hsync-bootnode/blob/main/README.md) — Optional Internet discovery node for P2P (`boot/1`, no-log, RAM-only).
+- [HSYNC Rendezvous](https://github.com/albertsdk/hsync-rendezvous/blob/main/README.md) — Optional Internet rendezvous node for P2P (`rdv/1`, no-log, RAM-only).
 - [HSYNC Android](https://github.com/albertsdk/hsync-android/blob/main/README.md) — Android client app. *(in development)*
 
 ## Security & Vulnerability Reporting

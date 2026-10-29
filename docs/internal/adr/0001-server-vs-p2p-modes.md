@@ -13,7 +13,7 @@ HSYNC must serve two very different deployments with one codebase:
   phone) should sync directly without standing up infrastructure.
 
 A single transport cannot satisfy both: the server case wants a stable URL,
-TLS and accounts; the p2p case wants zero-config discovery and a coordinator
+TLS and accounts; the p2p case wants zero-config rendezvous and a coordinator
 elected on the fly. Conflating them would push internet-only concerns (e.g. a
 mandatory server) onto p2p users and local-network concerns (e.g. mDNS) onto
 server deployments.
@@ -41,7 +41,7 @@ implicit default mode.
 - No node is authoritative over conflicts: every node resolves causally with
   vector clocks, so reconciliation rules are identical regardless of mode and
   regardless of which node serves as transport hub.
-- p2p mode carries discovery, election and trust concerns that do not exist in
+- p2p mode carries rendezvous, election and trust concerns that do not exist in
   server mode; these are isolated in `hsync_client.p2p_handler` and the
   `hsync_common.protocol.{p2p,pairing}` SSOT, not sprinkled through core sync.
 - The desktop UI must reflect which controls apply to which mode; it gates p2p

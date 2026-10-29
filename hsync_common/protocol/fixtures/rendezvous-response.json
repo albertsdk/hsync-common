@@ -1,5 +1,5 @@
 {
-  "protocol_version": "boot/1",
+  "protocol_version": "rdv/1",
   "type": "response",
   "peers": [
     {

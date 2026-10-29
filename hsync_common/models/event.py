@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 # before trusting them for echo suppression or logging.
 #
 # ``CID_PATTERN`` is the public regex string (consumed by protocol.schemas and
-# protocol.bootnode); :func:`is_valid_cid` deliberately does NOT use it at
+# protocol.rendezvous); :func:`is_valid_cid` deliberately does NOT use it at
 # runtime — the ``len``/``isascii``/``isalnum`` chain is exactly equivalent and
 # avoids the regex engine on the hot path (per vclock key, per event cid).
 CID_PATTERN = r"^[A-Za-z0-9]{21}$"

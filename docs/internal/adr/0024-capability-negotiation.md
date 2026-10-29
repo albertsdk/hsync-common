@@ -30,7 +30,7 @@ We will define one coherent capability-negotiation policy across every channel:
 3. **The authenticated transport is the authoritative capability source.**
    The slave adopts the master's capabilities from the auth reply into the
    transfer gates (`SERVER_COMPRESSION_ENABLED` / `SERVER_DELTA_ENABLED`). The
-   TXT record is a discovery-time hint only.
+   TXT record is a rendezvous-time hint only.
 4. **Intersection semantics, never negotiation**: a feature is used only when
    both sides advertise it; an absent capability degrades the feature (delta →
    full transfer, compression → raw, no clocks → empty clock), never an error.
@@ -51,7 +51,7 @@ We will define one coherent capability-negotiation policy across every channel:
 Alternatives rejected: negotiating across protocol versions (contradicts
 ADR-0005 — versions hard-fail, only capabilities are flags); trusting the TXT
 record at connection time (it is unauthenticated and staleable — the security
-model treats discovery data as "hint, never proof").
+model treats rendezvous data as "hint, never proof").
 
 ## Consequences
 

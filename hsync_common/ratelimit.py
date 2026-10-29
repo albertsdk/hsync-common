@@ -6,7 +6,7 @@ at most ``capacity`` tokens (the burst) and is refilled at ``refill`` tokens per
 clock. Expired state is pruned lazily too; nothing is ever written to disk.
 
 Declared consumers: ``hsync-client`` (P2P listener new-connection limiting) and
-``hsync-bootnode/python`` (admission/query/register limits).
+``hsync-rendezvous/python`` (admission/query/register limits).
 """
 
 from __future__ import annotations

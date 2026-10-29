@@ -1,12 +1,12 @@
-# ADR 0047 — Data plane relay through the bootnode
+# ADR 0047 — Data plane relay through the rendezvous
 
 - **Status:** Accepted
 - **Date:** 2026-10-29
 
 ## Context
 
-`boot/1` discovery ([ADR-0032](0032-bootnode-discovery.md)) plus the candidate
-list ([ADR-0038](0038-bootnode-endpoint-candidate-list.md)) gets two peers
+`rdv/1` rendezvous ([ADR-0032](0032-rendezvous-rendezvous.md)) plus the candidate
+list ([ADR-0038](0038-rendezvous-endpoint-candidate-list.md)) gets two peers
 together **as long as one of them accepts an inbound TCP connection**. Behind
 carrier-grade NAT — a phone hotspot, a router with a data SIM — neither peer has
 a dialable endpoint: the carrier's NAT holds the only public address, forwards
@@ -19,14 +19,14 @@ mobile links, a laptop tethered to a phone, a remote site on LTE. TCP hole
 punching does not solve it (symmetric NAT, and it would require simultaneous
 open), and moving the data plane to UDP/QUIC to make UDP hole punching possible
 means rewriting `p2p/1`. The one element that is always publicly reachable — and
-already authenticated, authorized and rate-limited — is the bootnode.
+already authenticated, authorized and rate-limited — is the rendezvous.
 
 ## Decision
 
-The bootnode can relay the data plane, **opt-in per node** (`--relay`), carrying
+The rendezvous can relay the data plane, **opt-in per node** (`--relay`), carrying
 the peers' TLS **verbatim**:
 
-1. Four new `boot/1` frames (`relay_listen`, `relay_ping`, `relay_connect`,
+1. Four new `rdv/1` frames (`relay_listen`, `relay_ping`, `relay_connect`,
    `relay_attach`) plus their replies (`relay_listening`, `relay_incoming`,
    `relay_ok`, `relay_error`), added to the same protocol version. The listener
    (master) holds a control stream; a requester pairs with `relay_connect`; the

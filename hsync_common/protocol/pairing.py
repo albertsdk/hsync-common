@@ -82,7 +82,7 @@ class PinDecision(StrEnum):
 class FingerprintMismatch(Exception):
     """The observed certificate fingerprint matches none of the accepted pins.
 
-    Raised by the consuming client when a bootnode presents a certificate whose
+    Raised by the consuming client when a rendezvous presents a certificate whose
     SHA-256 DER fingerprint is not in the accepted set (explicit pins or the TOFU
     store). It is fatal: the connection is closed before any frame is sent.
     """
@@ -102,14 +102,14 @@ def normalize_fingerprint(fingerprint: str | None) -> str | None:
 
 
 def parse_fingerprint(value: str | None) -> str | None:
-    """Parse a bootnode certificate fingerprint into canonical lowercase hex.
+    """Parse a rendezvous certificate fingerprint into canonical lowercase hex.
 
     Accepts the canonical ``sha256:<hex>`` form and bare hex (optionally
     colon- or space-separated), and returns the normalized 64-char lowercase hex
     digest. Returns ``None`` when the value is missing, blank, or not a full
     SHA-256 hex digest — an invalid pin never becomes a silent match.
 
-    Consumers: ``hsync-client`` (bootnode fingerprint pinning), the bootnode
+    Consumers: ``hsync-client`` (rendezvous fingerprint pinning), the rendezvous
     CLI ``identity show``, and the language-neutral parity test.
     """
     if not value:
@@ -161,7 +161,7 @@ def fingerprint_matches(observed: str, pins: Sequence[str]) -> bool:
     :func:`hmac.compare_digest`, so an attacker cannot time the comparison. An
     invalid observed fingerprint or an invalid pin never matches.
 
-    Consumers: ``hsync-client`` (bootnode fingerprint pinning).
+    Consumers: ``hsync-client`` (rendezvous fingerprint pinning).
     """
     observed_norm = parse_fingerprint(observed)
     if observed_norm is None:

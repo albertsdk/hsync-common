@@ -14,7 +14,7 @@ HSYNC comprises six distinct components:
 - `hsync-desktop` — PySide6 GUI that drives the client as a subprocess
   (Python).
 - `hsync-android` — Kotlin Android app (mirrors the client logic).
-- `hsync-bootnode` — bootstrap node for cross-network discovery (`boot/1`),
+- `hsync-rendezvous` — rendezvous node for cross-network rendezvous (`rdv/1`),
   with a standalone daemon (Python today, C port planned) and its own wire
   specification.
 

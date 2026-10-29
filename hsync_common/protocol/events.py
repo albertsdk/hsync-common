@@ -60,7 +60,7 @@ class UiEventName(StrEnum):
     role = "role"  # this client became master / client
     bucket = "bucket"  # bucket name detected
     group = "group"  # p2p group name detected
-    discovery = "discovery"  # active discovery plan(s) ("mdns" | "mdns+bootnode") at startup
+    rendezvous = "rendezvous"  # active rendezvous plan(s) ("mdns" | "mdns+rendezvous") at startup
     session = "session"  # session CID established
     server = "server"  # server / master URL detected
     transfer = "transfer"  # a file was downloaded / uploaded / deleted
@@ -73,7 +73,7 @@ class UiEventName(StrEnum):
     folder_size = "folder_size"  # local bytes + sync-set total (aggregate, per cycle)
     error = "error"  # generic error
     # A non-fatal condition the user must eventually see (a degraded watcher, an
-    # unreachable bootnode). Distinct from ``error``: the run continues, so the
+    # unreachable rendezvous). Distinct from ``error``: the run continues, so the
     # front-end surfaces it as a warning and must not treat it as a failure.
     warning = "warning"
     auth_error = "auth_error"  # authentication error (invalid/missing API key)
@@ -150,12 +150,12 @@ class UiEventDict(TypedDict):
     state: NotRequired[str]
     elapsed: NotRequired[int]
     fingerprint: NotRequired[str]
-    # fingerprint_changed / pairing_needed: "master" | "bootnode" | "server"
+    # fingerprint_changed / pairing_needed: "master" | "rendezvous" | "server"
     scope: NotRequired[str]
     conflict_copy: NotRequired[str]  # path of the preserved local copy (conflict_resolved)
     winner: NotRequired[str]  # which side won: "remote" (master) or "local"
     source_cid: NotRequired[str]  # verified peer source for a successful full-file transfer
-    # warning: stable identifier of the subsystem that reported it ("bootnode",
+    # warning: stable identifier of the subsystem that reported it ("rendezvous",
     # "watcher", …). The front-end keys its dedup and its notification category
     # on it, so it is an identifier, never a user-facing sentence.
     source: NotRequired[str]
@@ -181,8 +181,8 @@ class UiEventDict(TypedDict):
     local: NotRequired[int]  # sync_paused: local files considered by the guard
     local_bytes: NotRequired[int]  # folder_size: files present on this device
     total_bytes: NotRequired[int]  # folder_size: remote listing + local-only files
-    plan: NotRequired[str]  # discovery event: "mdns" | "mdns+bootnode"
-    bootnode: NotRequired[str]  # discovery event: bootnode host (empty without one)
+    plan: NotRequired[str]  # rendezvous event: "mdns" | "mdns+rendezvous"
+    rendezvous: NotRequired[str]  # rendezvous event: rendezvous host (empty without one)
     # sync_complete: what the cycle applied, reported by the engine itself (a
     # rename or delete moves no bytes, so the byte-transfer events cannot
     # describe the outcome).

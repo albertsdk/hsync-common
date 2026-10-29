@@ -38,7 +38,7 @@ that stops being the elected master **yields immediately**:
    `connected` presence count),
 3. it logs a parsable `[MASTER YIELD]` marker (mirrored in Android).
 
-The yield is driven by the discovery loop, which re-checks `is_master()` on
+The yield is driven by the rendezvous loop, which re-checks `is_master()` on
 every wake and revokes incumbency on the wire when the node stops being the
 elected master.
 

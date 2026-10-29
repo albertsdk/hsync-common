@@ -99,7 +99,7 @@ memory and allows the server to stream the data efficiently.
 
 Delta transfer is advertised as a **capability token** (`delta`) in the REST
 handshake ([ADR-0005](0005-protocol-versioning.md)) and as a **TXT record key** (`delta=true`) in p2p mDNS
-discovery. Peers only attempt delta transfer when **both** sides support it.
+rendezvous. Peers only attempt delta transfer when **both** sides support it.
 
 ### Size thresholds
 

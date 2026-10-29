@@ -29,11 +29,11 @@ _REGEN_HINT = "Regenerate with: poetry run python scripts/export_protocol_schema
 
 _FIXTURES = build_fixtures()
 _FIXTURE_NAMES = sorted(_FIXTURES)
-# The Android mirror additionally carries the ``bootnode-*`` contract fixtures
-# (mirrors of the canonical hsync-bootnode ones, not built from this source);
+# The Android mirror additionally carries the ``rendezvous-*`` contract fixtures
+# (mirrors of the canonical hsync-rendezvous ones, not built from this source);
 # the Android parity tests must cover them too.
 _ANDROID_FIXTURE_NAMES = sorted(
-    set(_FIXTURES) | {p.stem for p in FIXTURES_DIR.glob("bootnode-*.json")}
+    set(_FIXTURES) | {p.stem for p in FIXTURES_DIR.glob("rendezvous-*.json")}
 )
 
 
@@ -51,10 +51,10 @@ class TestFixtureDrift:
         assert dump_contract(_FIXTURES[name]) == committed, f"Fixture '{name}' drift. {_REGEN_HINT}"
 
     def test_no_orphan_snapshots(self):
-        # ``bootnode-*`` are a mirror of the canonical hsync-bootnode fixtures
-        # (guarded by tests/test_protocol_bootnode.py), not built from source.
+        # ``rendezvous-*`` are a mirror of the canonical hsync-rendezvous fixtures
+        # (guarded by tests/test_protocol_rendezvous.py), not built from source.
         committed = {
-            p.stem for p in FIXTURES_DIR.glob("*.json") if not p.stem.startswith("bootnode-")
+            p.stem for p in FIXTURES_DIR.glob("*.json") if not p.stem.startswith("rendezvous-")
         }
         assert committed == set(_FIXTURE_NAMES), f"Orphan/missing fixtures. {_REGEN_HINT}"
 

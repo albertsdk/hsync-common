@@ -6,7 +6,7 @@
 ## Context
 
 Three HSYNC components own a long-lived, self-signed **service identity**: the
-`boot/1` bootstrap node (its QUIC/TLS node key, ADR-0034), the sync server (its
+`rdv/1` rendezvous node (its QUIC/TLS node key, ADR-0034), the sync server (its
 HTTPS/WSS certificate), and the P2P master (its LAN/WSS certificate, ADR-0020).
 All three are authenticated by **pinning the certificate fingerprint** — the SSH
 `known_hosts` model (ADR-0035/0036) — not through WebPKI: the certificates are
@@ -42,20 +42,20 @@ consumer.
    for exactly this pinned-identity case. `NotBefore` is backdated by one day so a
    freshly generated certificate is still valid on a peer whose clock lags.
 4. **Rotation and expiry are explicit.** Each component can regenerate its
-   identity and print the new fingerprint (`hsync-bootnode identity rotate`,
+   identity and print the new fingerprint (`hsync-rendezvous identity rotate`,
    `hsync-server admin tls rotate`; the P2P master rotates by deleting its
    keypair and keeping the device ID); rotation is announced out of band and
    clients accept two pins during the window (ADR-0035/0036). Startup warns when
    a persisted certificate is near or past expiry.
 5. **Persistence is the default; ephemeral is the opt-out.** A service identity
    is kept on disk (created on first run, reused afterwards) so its fingerprint
-   is stable and pin-able across restarts; `hsync-bootnode run --ephemeral`
+   is stable and pin-able across restarts; `hsync-rendezvous run --ephemeral`
    keeps the identity in memory for read-only filesystems or throwaway nodes
    (ADR-0034).
 
 ## Consequences
 
-- The bootnode node key, the server TLS certificate and the P2P master
+- The rendezvous node key, the server TLS certificate and the P2P master
   certificate are generated, stored, validated and rotated identically, so
   operators learn one procedure and the documentation stays consistent across
   the repositories.
@@ -64,5 +64,5 @@ consumer.
   short-validity auto-recovery), which the pin-rotation window and the `rotate`
   commands cover.
 - The shared model lives only in `hsync_common.ssl_utils`; consumers
-  (`hsync-bootnode`, `hsync-server`, `hsync-client`) reuse it rather than
+  (`hsync-rendezvous`, `hsync-server`, `hsync-client`) reuse it rather than
   re-declaring key type, file permissions or validity.

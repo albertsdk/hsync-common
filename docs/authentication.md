@@ -192,7 +192,7 @@ previous shared-key model — clients treat the token as an opaque string.
 - Only admin or the bucket owner can grant/revoke membership and transfer ownership.
 - Bucket deletion is admin-only.
 
-### Bootstrap
+### Rendezvous
 
 On first start (empty account store), an admin account is created:
 - If `HSYNC_ADMIN_KEY` (64 hex) is set: used silently as the admin secret.

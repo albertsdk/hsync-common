@@ -363,7 +363,7 @@ def _pairing_scenarios() -> dict[str, Any]:
 # shared ``evaluate_tls_trust`` so Python, the desktop subprocess contract and the
 # Android mirror agree on when an unknown host is prompted/pinned, when a changed
 # one is refused, and when ``chain`` (standard CA validation, no pinning) proceeds.
-_BOOTNODE_TRUST_SCENARIOS: tuple[tuple[str, TrustPolicy, str | None, str | None], ...] = (
+_RENDEZVOUS_TRUST_SCENARIOS: tuple[tuple[str, TrustPolicy, str | None, str | None], ...] = (
     ("ask-unknown-prompts", TrustPolicy.ask, None, _TRUST_FP_A),
     ("ask-matched-proceeds", TrustPolicy.ask, _TRUST_FP_A, _TRUST_FP_A_COLON),
     ("ask-changed-refused", TrustPolicy.ask, _TRUST_FP_A, _TRUST_FP_B),
@@ -385,7 +385,7 @@ _BOOTNODE_TRUST_SCENARIOS: tuple[tuple[str, TrustPolicy, str | None, str | None]
 )
 
 
-def _bootnode_trust_scenarios() -> dict[str, Any]:
+def _rendezvous_trust_scenarios() -> dict[str, Any]:
     """Serialized TLS trust scenarios with expectations from the source."""
     return {
         "trust_scenarios": [
@@ -396,7 +396,7 @@ def _bootnode_trust_scenarios() -> dict[str, Any]:
                 "observed": observed,
                 "expected_action": evaluate_tls_trust(policy, stored, observed),
             }
-            for name, policy, stored, observed in _BOOTNODE_TRUST_SCENARIOS
+            for name, policy, stored, observed in _RENDEZVOUS_TRUST_SCENARIOS
         ]
     }
 
@@ -769,7 +769,7 @@ def build_fixtures() -> dict[str, dict[str, Any]]:
         ),
         "p2p-election-scenarios": _election_scenarios(),
         "p2p-pairing-scenarios": _pairing_scenarios(),
-        "p2p-bootnode-trust-scenarios": _bootnode_trust_scenarios(),
+        "p2p-rendezvous-trust-scenarios": _rendezvous_trust_scenarios(),
         "causal-resolution-scenarios": _causal_resolution_scenarios(),
         "causal-tombstone-scenarios": _causal_tombstone_scenarios(),
         "ntp-targets-scenarios": _ntp_targets_scenarios(),

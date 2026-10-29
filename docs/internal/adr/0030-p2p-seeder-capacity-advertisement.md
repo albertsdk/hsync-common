@@ -65,7 +65,7 @@ requester discovers by being refused:
    files from the peer and 121 of 168 full downloads from the master, against
    24 of 24 and 0 of 168 while waiting.
 8. There is no `seed` TXT hint. Whether a peer can serve is decided by its
-   authenticated session with the master, so a discovery-time copy of that fact
+   authenticated session with the master, so a rendezvous-time copy of that fact
    can only ever be stale and could exclude a seeder that is in fact serving. A
    serving slave still advertises `https`/`cert_fp` (endpoint material) from the
    same "endpoint bound" state, so no requester loses the route to a seeder.

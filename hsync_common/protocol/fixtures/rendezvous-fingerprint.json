@@ -1,5 +1,5 @@
 {
-  "description": "Bootnode TLS trust fingerprint contract (ADR-0034): SHA-256 of the leaf certificate DER, lowercase hex, canonical form 'sha256:<hex>'. The scenario vectors below are replayed by a language-neutral parity test; every implementation must normalize and match these inputs identically.",
+  "description": "Rendezvous TLS trust fingerprint contract (ADR-0034): SHA-256 of the leaf certificate DER, lowercase hex, canonical form 'sha256:<hex>'. The scenario vectors below are replayed by a language-neutral parity test; every implementation must normalize and match these inputs identically.",
   "hex": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
   "canonical": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
   "parse_scenarios": [

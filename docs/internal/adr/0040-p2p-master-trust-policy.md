@@ -17,7 +17,7 @@ terminal, in the desktop app and on Android) and "refuse until the fingerprint i
 pinned out of band" (the only workable behaviour for a daemon). A single flag also
 left the default at *silent auto-trust*, so the secure behaviour required an
 opt-in, and it diverged from the `TrustPolicy` vocabulary already used for the
-bootnode (ADR-0035) and the sync server (ADR-0036).
+rendezvous (ADR-0035) and the sync server (ADR-0036).
 
 ## Decision
 
@@ -26,7 +26,7 @@ self-signed transports, restricted to the three values that actually pin:
 `ask`, `accept-new` and `strict`.
 
 - `evaluate_tls_trust(policy, stored, observed)` (`hsync_common/protocol/tls_trust.py`)
-  is the canonical rule, as for the bootnode and the server.
+  is the canonical rule, as for the rendezvous and the server.
 - `resolve_self_signed_policy` resolves the effective policy: the `--p2p-trust`
   flag wins over `HSYNC_P2P_TRUST`, which wins over `DEFAULT_SELF_SIGNED_POLICY`
   (`ask`). `chain` and `none` are rejected: they never pin, so they would disable
@@ -52,7 +52,7 @@ a master are authorized by the shared p2p key (ADR-0029), not by this policy.
 - **Unattended deployments must declare their policy**: a host with no operator
   (service unit, container, NAS) either runs `strict` and pins peers out of band
   or opts into `accept-new` knowingly. The WD OS5 appliance, whose web UI cannot
-  prompt during discovery, ships `accept-new` explicitly.
+  prompt during rendezvous, ships `accept-new` explicitly.
 - The boolean flag and its environment variable are removed; the vocabulary,
   fixtures (`master_trust_scenarios`) and the Kotlin mirror follow the policy.
 - Tests must lock the default: a default that no test defends drifts at the first

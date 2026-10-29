@@ -62,7 +62,7 @@ _HSYNC_PROJECTS = {
     "hsync-server",
     "hsync-desktop",
     "hsync-android",
-    "hsync-bootnode",
+    "hsync-rendezvous",
 }
 
 # Projects whose wiki symbol anchors are enforced (all migrated to
@@ -70,7 +70,7 @@ _HSYNC_PROJECTS = {
 _ENFORCED_PROJECTS = {
     "hsync-common",
     "hsync-server",
-    "hsync-bootnode",
+    "hsync-rendezvous",
     "hsync-client",
     "hsync-desktop",
     "hsync-android",

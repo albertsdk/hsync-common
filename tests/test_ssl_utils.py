@@ -130,7 +130,7 @@ class TestBuildSelfSignedCertificate:
         assert cert.not_valid_before_utc >= datetime.now(UTC) - timedelta(days=2)
 
     def test_service_validity_constant_is_twenty_years(self):
-        # SSOT: 20 years, shared by the bootnode and the server (ADR-0037).
+        # SSOT: 20 years, shared by the rendezvous and the server (ADR-0037).
         assert SERVICE_CERT_VALIDITY_DAYS == 7305
 
 

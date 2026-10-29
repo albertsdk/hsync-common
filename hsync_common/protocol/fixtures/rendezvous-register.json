@@ -1,5 +1,5 @@
 {
-  "protocol_version": "boot/1",
+  "protocol_version": "rdv/1",
   "type": "register",
   "cid": "A1b2C3d4E5f6G7h8I9j0K",
   "bucket": "shared",

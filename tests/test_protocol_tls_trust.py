@@ -5,7 +5,7 @@
 
 The decision is pure so the Python client, the desktop subprocess contract and
 the Android mirror share one provably consistent rule set (validated against the
-shared ``p2p-bootnode-trust-scenarios`` fixture).
+shared ``p2p-rendezvous-trust-scenarios`` fixture).
 """
 
 import pytest

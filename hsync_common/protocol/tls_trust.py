@@ -4,7 +4,7 @@
 """TLS trust policy (SSH ``known_hosts``-style), language-neutral.
 
 Three transports authenticate with a certificate whose fingerprint may be pinned:
-the ``boot/1`` node (self-signed by contract), the P2P master (self-signed, mDNS),
+the ``rdv/1`` node (self-signed by contract), the P2P master (self-signed, mDNS),
 and the sync server (built-in self-signed TLS or a reverse proxy with a public CA).
 This module owns the *policy* that decides what to do with an observed fingerprint,
 mirroring the SSH ``StrictHostKeyChecking`` model, plus the ``chain`` policy for the
@@ -27,9 +27,9 @@ Persistence (the known-hosts / known-peers stores) and I/O live in the consumers
 never here: :func:`evaluate_tls_trust` is pure so the Python client, the desktop
 subprocess contract and the Android mirror cannot drift.
 
-Consumers: ``hsync-client`` (bootnode connect path, P2P master pin, server connect
-path), the Android mirror (``BootnodeTrust``, validated against the shared
-``p2p-bootnode-trust-scenarios`` fixture), and the shared fixtures/parity tests.
+Consumers: ``hsync-client`` (rendezvous connect path, P2P master pin, server connect
+path), the Android mirror (``RendezvousTrust``, validated against the shared
+``p2p-rendezvous-trust-scenarios`` fixture), and the shared fixtures/parity tests.
 """
 
 from __future__ import annotations
@@ -60,12 +60,12 @@ class TrustPolicy(StrEnum):
     none = "none"  # no verification (tests/loopback only)
 
 
-# The default for a self-signed transport (P2P master, bootnode): confirm an
+# The default for a self-signed transport (P2P master, rendezvous): confirm an
 # unknown fingerprint on a terminal and fail closed when there is no terminal.
 DEFAULT_SELF_SIGNED_POLICY = TrustPolicy.ask
 
 # Policies that actually pin a self-signed transport. ``chain``/``none`` never
-# pin, so they cannot express trust for a P2P master or a bootnode.
+# pin, so they cannot express trust for a P2P master or a rendezvous.
 PINNING_POLICIES: tuple[TrustPolicy, ...] = (
     TrustPolicy.ask,
     TrustPolicy.accept_new,
@@ -103,8 +103,8 @@ def evaluate_tls_trust(
         chain validation accordingly and never pins. Otherwise an unknown host
         follows the policy and a changed fingerprint is always refused.
 
-    Consumers: ``hsync-client`` (bootnode/P2P/server connect paths) and the Android
-    mirror, both fed by the shared ``p2p-bootnode-trust-scenarios`` fixture.
+    Consumers: ``hsync-client`` (rendezvous/P2P/server connect paths) and the Android
+    mirror, both fed by the shared ``p2p-rendezvous-trust-scenarios`` fixture.
     """
     if policy is TrustPolicy.chain or policy is TrustPolicy.none:
         return TrustAction.proceed
@@ -140,7 +140,7 @@ def resolve_trust_policy(
 ) -> TrustPolicy:
     """Resolve the effective :class:`TrustPolicy` from CLI flags and the environment.
 
-    One precedence for every pinned transport (bootnode, P2P master, sync server),
+    One precedence for every pinned transport (rendezvous, P2P master, sync server),
     so the transports cannot drift: ``--insecure`` (``none``) > an explicit
     ``--*-fingerprint`` pin (``strict``) > ``--*-tofu`` (``accept-new``) > the
     ``--*-trust`` flag > the ``HSYNC_*_TRUST`` env default > *fallback*.
@@ -158,7 +158,7 @@ def resolve_trust_policy(
         ValueError: *policy* or *env_default* is not a :class:`TrustPolicy` member.
 
     Consumers: ``hsync-client`` (``server_trust.resolve_server_trust`` and
-    ``main_logic._resolve_bootnode_trust``); the Android mirror resolves defaults
+    ``main_logic._resolve_rendezvous_trust``); the Android mirror resolves defaults
     from the shared fixtures instead of this flag/env helper.
     """
     if not verify_ssl:
@@ -175,7 +175,7 @@ def ensure_pinning_policy(policy: TrustPolicy) -> TrustPolicy:
     """Return *policy* when it pins a self-signed transport; raise otherwise.
 
     ``chain`` and ``none`` never pin, so they can never be the policy of a P2P
-    master or a bootnode: silently proceeding without a pin would disable the
+    master or a rendezvous: silently proceeding without a pin would disable the
     identity check entirely.
 
     Raises:
@@ -196,7 +196,7 @@ def resolve_self_signed_policy(
 ) -> TrustPolicy:
     """Resolve the policy of a self-signed transport (flag > env > default).
 
-    One precedence for the P2P master and the bootnode, so the two cannot drift:
+    One precedence for the P2P master and the rendezvous, so the two cannot drift:
     an explicit ``--*-trust`` value wins over the ``HSYNC_*_TRUST`` environment
     default, which wins over :data:`DEFAULT_SELF_SIGNED_POLICY`.
 

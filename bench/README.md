@@ -1,7 +1,7 @@
 # Benchmarks — hsync-common
 
 One tier, **L1: pure in-process micro-benchmarks**. `hsync-common` is a library
-with no process, no socket and no transport of its own, so the bootnode tier
+with no process, no socket and no transport of its own, so the rendezvous tier
 split does not map onto it:
 
 | Tier | Status here | Why |

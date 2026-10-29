@@ -1,8 +1,6 @@
 """Tests for hsync_common.constants."""
 
 from hsync_common.constants import (
-    BOOT_DEFAULT_PORT,
-    BOOT_PORT_SET,
     CHUNK_SIZE_LARGE,
     CHUNK_SIZE_MEDIUM,
     CHUNK_SIZE_SMALL,
@@ -17,6 +15,8 @@ from hsync_common.constants import (
     HEADER_SERVER_VERSION,
     HSYNC_VERSION,
     HSYNCKEEP_FILENAME,
+    RDV_DEFAULT_PORT,
+    RDV_PORT_SET,
     is_valid_client_name,
 )
 
@@ -124,14 +124,14 @@ class TestFileSizeThresholds:
         assert 50_000_000 < FILE_SIZE_MEDIUM < 200_000_000
 
 
-class TestBootDefaultPort:
+class TestRdvDefaultPort:
     def test_pins_the_spec_value(self):
-        """The boot/1 default UDP port matches boot-1.md §Transport."""
-        assert BOOT_DEFAULT_PORT == 443
+        """The rdv/1 default UDP port matches rdv-1.md §Transport."""
+        assert RDV_DEFAULT_PORT == 443
 
 
-class TestBootPortSet:
+class TestRdvPortSet:
     def test_recommended_set_and_order(self):
         """Ordered recommended set: canonical QUIC (443) then DNS (53)."""
-        assert BOOT_PORT_SET == (443, 53)
-        assert BOOT_PORT_SET[0] == BOOT_DEFAULT_PORT
+        assert RDV_PORT_SET == (443, 53)
+        assert RDV_PORT_SET[0] == RDV_DEFAULT_PORT

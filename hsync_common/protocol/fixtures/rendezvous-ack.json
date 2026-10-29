@@ -1,5 +1,5 @@
 {
-  "protocol_version": "boot/1",
+  "protocol_version": "rdv/1",
   "type": "ack",
   "observed_endpoint": {"proto": "udp", "ip": "198.51.100.7", "port": 54321},
   "ttl": 60,

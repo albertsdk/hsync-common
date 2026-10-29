@@ -42,7 +42,7 @@ boundaries:
    lookup, and seeder semantics. A master advertises optional TXT
    `peer_download=true` when its source endpoint is available; a serving master
    or seeder also publishes `https` and `cert_fp` endpoint material. Whether a
-   slave can serve *now* is deliberately not a discovery fact: it is decided by
+   slave can serve *now* is deliberately not a rendezvous fact: it is decided by
    its authenticated WSS session and the `serve_slots` capacity it advertises
    there (ADR-0030), so a stale TXT record can never exclude a live seeder.
 5. We will keep `p2p/1`. The WSS capability is authoritative after an
@@ -61,7 +61,7 @@ boundaries:
    `default_device_dir()/lan-index/<sha256(bucket UTF-8)>.sqlite3` (with an
    app-private equivalent on Android). Master activation transactionally clears
    crash leftovers and rebuilds state from publisher snapshots. Endpoint
-   material is resolved from live discovery at lookup time rather than persisted
+   material is resolved from live rendezvous at lookup time rather than persisted
    in the index.
 8. Seeder inventory uses additive WSS `inventory` and `inventory_ack` frames.
    Frames carry non-boolean signed-64-bit `gen`/`seq`, `snapshot|delta` mode,
@@ -105,6 +105,6 @@ download decision.
   machinery; publishers gain snapshot/delta lifecycle and reconnect handling.
 - Every slave seeder adds a read-only network surface, certificate pin, bounded
   concurrent-read cost, and descriptor-safe serving obligation.
-- Source selection is an optimization only: stale discovery, missing inventory,
+- Source selection is an optimization only: stale rendezvous, missing inventory,
   TLS/pin failure, overload, content mismatch, or unsupported peers cannot make
   synchronization depend on a seeder.

@@ -55,25 +55,25 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0029](0029-explicit-opt-in-unauthenticated-p2p-writes.md) | Explicit opt-in for unauthenticated p2p writes | Accepted |
 | [0030](0030-p2p-seeder-capacity-advertisement.md) | p2p seeder capacity advertisement and requester admission | Accepted |
 | [0031](0031-p2p-peer-offload-lane-cost.md) | p2p peer-offload lane cost: attribution and accepted trade-off | Accepted |
-| [0032](0032-bootnode-discovery.md) | Bootnode discovery (`boot/1`) and the hsync-common mirror | Accepted |
-| [0033](0033-bootnode-python-reuses-hsync-common.md) | The bootnode Python v1 reuses hsync-common utilities | Accepted |
-| [0034](0034-bootnode-tls-trust.md) | Bootnode TLS trust: fingerprint pinning and opt-in TOFU | Accepted |
-| [0035](0035-bootnode-trust-policy.md) | Bootnode trust policy: SSH-like `ask` and `known_hosts` | Accepted |
+| [0032](0032-rendezvous-rendezvous.md) | Rendezvous rendezvous (`rdv/1`) and the hsync-common mirror | Accepted |
+| [0033](0033-rendezvous-python-reuses-hsync-common.md) | The rendezvous Python v1 reuses hsync-common utilities | Accepted |
+| [0034](0034-rendezvous-tls-trust.md) | Rendezvous TLS trust: fingerprint pinning and opt-in TOFU | Accepted |
+| [0035](0035-rendezvous-trust-policy.md) | Rendezvous trust policy: SSH-like `ask` and `known_hosts` | Accepted |
 | [0036](0036-server-tls-trust-unification.md) | Unified SSH-style TLS trust for the sync server (`chain`, `hsync trust`) | Accepted |
 | [0037](0037-shared-service-identity-model.md) | Shared self-signed service identity model (ECDSA, unencrypted key, 20-year validity) | Accepted |
-| [0038](0038-bootnode-endpoint-candidate-list.md) | Bootnode relays the full endpoint candidate list | Accepted |
-| [0039](0039-combined-discovery.md) | Combined mDNS and bootnode discovery | Accepted |
+| [0038](0038-rendezvous-endpoint-candidate-list.md) | Rendezvous relays the full endpoint candidate list | Accepted |
+| [0039](0039-combined-rendezvous.md) | Combined mDNS and rendezvous rendezvous | Accepted |
 | [0040](0040-p2p-master-trust-policy.md) | P2P master trust policy: `ask` by default | Accepted |
 | [0041](0041-serving-side-status-pass-events.md) | Serving-side status-pass events: two comparison marker pairs | Accepted |
 | [0042](0042-per-device-serving-status.md) | The serving-side sync status is per device | Accepted |
 | [0043](0043-preview-confirmation-contract.md) | The preview confirmation reports the plan | Accepted |
 | [0044](0044-rename-propagates-as-a-move.md) | A rename propagates as a move, never as a re-upload | Accepted |
-| [0045](0045-discovery-source-degradation.md) | A discovery source failure degrades discovery, it never fails the run | Accepted |
+| [0045](0045-rendezvous-source-degradation.md) | A rendezvous source failure degrades rendezvous, it never fails the run | Accepted |
 | [0046](0046-one-log-line-grammar.md) | One log-line grammar for every HSYNC producer | Accepted |
-| [0047](0047-p2p-relay-through-bootnode.md) | Data plane relay through the bootnode (`--relay`, opaque TLS) | Accepted |
+| [0047](0047-p2p-relay-through-rendezvous.md) | Data plane relay through the rendezvous (`--relay`, opaque TLS) | Accepted |
 | [0048](0048-desktop-update-check.md) | The desktop release check is opt-in and never self-installs | Accepted |
 
 ## Related documents
 
 - [HSYNC Common Architecture](../architecture.md)
-- [p2p Discovery & Master Election](../../p2p-protocol.md)
+- [p2p Rendezvous & Master Election](../../p2p-protocol.md)
