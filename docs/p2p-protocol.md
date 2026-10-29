@@ -81,6 +81,13 @@ is configured. Both feed **one** peer state, so a peer seen through both updates
 single entry (the election sees one candidate set) and the local network needs no
 round trip through the node.
 
+A source that stops for good is **disabled on its own** (ADR-0045): the bootnode
+source that cannot confirm the node's identity stops its lease loop and is never
+contacted again, while the remaining sources keep feeding the shared peer state,
+so discovery degrades instead of failing. Identity is established on the data
+plane by certificate pinning, never by the discovery layer, so a refused source
+costs reachability and never trust.
+
 The registering peer's `endpoints[]` are relayed in full as each `query` peer's
 candidate list (`BootPeer.endpoints`), so the requester can prefer a host/LAN
 candidate over the NATed public one and fall back to the next (ICE-lite). This is

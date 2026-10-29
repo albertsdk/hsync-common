@@ -38,12 +38,15 @@ shared** peer state:
    candidate set and presence is never double-counted.
 3. `wait_for_discovery` blocks on the shared condition once. The mDNS child owns
    the presence pair (extracted as `emit_discovery_status`), the bootnode child
-   owns the discovery log and the terminal trust check (`check_fatal`), so the
-   combined wait reports presence exactly once and still aborts on a bootnode
-   pin mismatch.
-4. `endpoint_published()` is the **AND** of the sources: with a bootnode the node
-   is "ready" only once its endpoint is registered with the node (mDNS has no
-   separate step), preserving the bounded readiness wait.
+   owns the discovery log, so the combined wait reports presence exactly once.
+   A source that stops for good — the bootnode refusing trust — is disabled on
+   its own ([ADR-0045](0045-discovery-source-degradation.md)): the remaining
+   sources keep the group discoverable, so a failure in one source is never a
+   failure of the plan.
+4. `endpoint_published()` is the **AND** of the sources that can still carry
+   traffic: with a bootnode the node is "ready" only once its endpoint is
+   registered with the node (mDNS has no separate step), preserving the bounded
+   readiness wait; a disabled source, which can never publish, is not waited on.
 5. Merging a peer seen through both sources prefers the information each source
    actually has: the non-empty candidate list wins (`BootPeer.endpoints` is the
    full list; mDNS supplies one address), and `Peer.capabilities_known` stops the
@@ -71,7 +74,9 @@ through the bootnode (the node is a registry, not a relay).
   rate budget.
 - Obligations: the single `PeerManager` construction and injection, the presence
   and readiness composition, the source-aware peer merge, the
-  `discovery`-event value, and their tests and documentation.
+  `discovery`-event value, the per-source failure isolation
+  ([ADR-0045](0045-discovery-source-degradation.md)), and their tests and
+  documentation.
 - The local source is best-effort like any mDNS deployment: where mDNS is blocked
   (AP isolation) the local path is simply absent and the bootnode path carries
   the group, as before.

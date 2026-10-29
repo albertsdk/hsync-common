@@ -68,6 +68,7 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0042](0042-per-device-serving-status.md) | The serving-side sync status is per device | Accepted |
 | [0043](0043-preview-confirmation-contract.md) | The preview confirmation reports the plan | Accepted |
 | [0044](0044-rename-propagates-as-a-move.md) | A rename propagates as a move, never as a re-upload | Accepted |
+| [0045](0045-discovery-source-degradation.md) | A discovery source failure degrades discovery, it never fails the run | Accepted |
 
 ## Related documents
 
