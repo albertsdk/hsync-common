@@ -1,5 +1,10 @@
 # ADR 0036 — Unified SSH-style TLS trust for the sync server
 
+> **Renamed since (2026-10-29)**: `HSYNC_SERVER` is now `HSYNC_SERVER_URL`,
+> `HSYNC_SERVER_FINGERPRINT` is `HSYNC_SERVER_FINGERPRINTS`, the discovery-server
+> store is `discovery_server_known_hosts.json` and the CLI takes
+> `HOST[:PORT]` (no `--port`). The decision itself is unchanged.
+
 - **Status:** Accepted
 - **Date:** 2026-09-30
 

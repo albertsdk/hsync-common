@@ -31,6 +31,7 @@ import hmac
 from collections.abc import Sequence
 from enum import StrEnum
 
+from hsync_common.endpoint import format_authority, parse_host_port
 from hsync_common.hashing import is_sha256_hex
 
 from .p2p import SYNC_DIRECTION_BIDIRECTIONAL
@@ -40,12 +41,16 @@ __all__ = [
     "SYNC_DIRECTION_UPLOAD_ONLY",
     "FingerprintMismatch",
     "PinDecision",
+    "FingerprintPins",
+    "UNSCOPED_PIN_KEY",
+    "endpoint_pin_key",
     "evaluate_pin",
     "fingerprint_matches",
     "is_write_direction",
     "normalize_fingerprint",
     "p2p_write_requires_key",
     "parse_fingerprint",
+    "parse_pin_map",
 ]
 
 # Sync-direction vocabulary that, together with ``SYNC_DIRECTION_BIDIRECTIONAL``,
@@ -192,3 +197,101 @@ def p2p_write_requires_key(
         ``True`` when the run is write-capable without the explicit opt-in.
     """
     return is_write_direction(sync_direction) and not allow_unauthenticated_writes
+
+
+# A fingerprint pin keyed by endpoint (``host`` or ``host:port``): one tuple per
+# endpoint with up to two digests — the accepted one plus the next one during a
+# rotation window. Pinning per endpoint is the contract when a client talks to
+# several independent servers: a single shared pin would tie unrelated
+# identities together and would disable every server at once when one rotates.
+FingerprintPins = dict[str, tuple[str, ...]]
+
+# Map key for a pin that names no endpoint (the single-endpoint shorthand).
+# Callers decide whether that shorthand is allowed for their endpoint count.
+UNSCOPED_PIN_KEY = ""
+
+_PIN_SEPARATOR = "|"
+_MAX_PINS_PER_ENDPOINT = 2
+
+
+def endpoint_pin_key(host: str, port: int | None) -> str:
+    """Canonical key of an endpoint in a :data:`FingerprintPins` map.
+
+    ``host`` when the endpoint carries no port, ``[IPv6]:port``/``host:port``
+    otherwise — the same form the configuration string uses, so a pin and the
+    endpoint it belongs to compare as strings.
+    """
+    return format_authority(host, port) if port is not None else host
+
+
+def parse_pin_map(raw: str | None, *, strict: bool = False) -> FingerprintPins:
+    """Parse ``ENDPOINT=FINGERPRINT[|FINGERPRINT][,…]`` into a keyed pin map.
+
+    ``|`` separates the fingerprints accepted for one endpoint (the rotation
+    window), ``,`` separates entries, and an entry without ``=`` is the
+    single-endpoint shorthand stored under :data:`UNSCOPED_PIN_KEY`. Each digest
+    is normalized by :func:`parse_fingerprint`, so a value that could never match
+    a certificate is rejected here rather than silently compared later.
+
+    ``strict=True`` raises on the first malformed entry (operator input: the CLI
+    and the env loader), while ``strict=False`` drops it (lenient readers).
+    """
+    value = (raw or "").strip()
+    if not value:
+        return {}
+    pins: FingerprintPins = {}
+    for entry in value.split(","):
+        token = entry.strip()
+        if not token:
+            if strict:
+                raise ValueError("empty entry in the fingerprint list")
+            continue
+        key = UNSCOPED_PIN_KEY
+        fingerprint_text = token
+        if "=" in token:
+            endpoint_text, fingerprint_text = token.split("=", 1)
+            try:
+                endpoint = parse_host_port(endpoint_text.strip())
+            except ValueError as exc:
+                if strict:
+                    raise ValueError(f"invalid endpoint in {token!r}: {exc}") from exc
+                continue
+            key = endpoint_pin_key(endpoint.host, endpoint.port)
+        normalized: list[str] = []
+        invalid = False
+        declared = fingerprint_text.split(_PIN_SEPARATOR)
+        if len(declared) > _MAX_PINS_PER_ENDPOINT:
+            if strict:
+                raise ValueError(
+                    f"at most {_MAX_PINS_PER_ENDPOINT} fingerprints per endpoint "
+                    "are allowed (rotation window)"
+                )
+            continue
+        for part in declared:
+            candidate = part.strip()
+            if not candidate:
+                invalid = True
+                break
+            digest = parse_fingerprint(candidate)
+            if digest is None:
+                invalid = True
+                break
+            if digest not in normalized:
+                normalized.append(digest)
+        if invalid or not normalized:
+            if strict:
+                raise ValueError(f"invalid fingerprint in {token!r}")
+            continue
+        if len(normalized) > _MAX_PINS_PER_ENDPOINT:
+            if strict:
+                raise ValueError(
+                    f"at most {_MAX_PINS_PER_ENDPOINT} fingerprints per endpoint "
+                    "are allowed (rotation window)"
+                )
+            continue
+        if key in pins:
+            if strict:
+                raise ValueError(f"duplicate endpoint {key!r} in the fingerprint list")
+            continue
+        pins[key] = tuple(normalized)
+    return pins

@@ -1,5 +1,12 @@
 # ADR 0035 — Bootnode trust policy: SSH-like `ask` and `known_hosts`
 
+> **Renamed since (2026-10-29, zero backward compatibility)**: the current
+> names are `HSYNC_DISCOVERY_SERVER_TRUST` / `HSYNC_DISCOVERY_SERVER_TRUST_FILE`,
+> `discovery_server_known_hosts.json`, `hsync trust discovery-server` and a pin
+> per endpoint (`HSYNC_DISCOVERY_SERVER_FINGERPRINTS="host:port=fp[|fp]"`), so
+> that several independent servers keep separate identities. The decision below
+> is unchanged; only the vocabulary and the pin scope moved.
+
 - **Status:** Accepted
 - **Date:** 2026-09-29
 

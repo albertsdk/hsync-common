@@ -14,6 +14,7 @@ import pytest
 from hsync_common.protocol.pairing import (
     SYNC_DIRECTION_DOWNLOAD_ONLY,
     SYNC_DIRECTION_UPLOAD_ONLY,
+    UNSCOPED_PIN_KEY,
     FingerprintMismatch,
     PinDecision,
     evaluate_pin,
@@ -22,6 +23,7 @@ from hsync_common.protocol.pairing import (
     normalize_fingerprint,
     p2p_write_requires_key,
     parse_fingerprint,
+    parse_pin_map,
 )
 
 
@@ -136,3 +138,57 @@ class TestWritePolicy:
 
     def test_download_only_never_requires_key(self):
         assert p2p_write_requires_key(SYNC_DIRECTION_DOWNLOAD_ONLY) is False
+
+
+_PIN_FP = "a" * 64
+_PIN_FP2 = "b" * 64
+
+
+class TestParsePinMap:
+    """``ENDPOINT=FINGERPRINT[|FINGERPRINT][,…]`` — the per-endpoint pin grammar."""
+
+    FP = _PIN_FP
+    FP2 = _PIN_FP2
+
+    def test_empty_is_empty(self):
+        assert parse_pin_map(None) == {}
+        assert parse_pin_map("   ") == {}
+
+    def test_a_pin_is_keyed_by_its_endpoint(self):
+        assert parse_pin_map(f"a.example:443={self.FP},b.example={self.FP2}") == {
+            "a.example:443": (self.FP,),
+            "b.example": (self.FP2,),
+        }
+
+    def test_rotation_pins_use_the_pipe_separator(self):
+        assert parse_pin_map(f"a.example={self.FP}|sha256:{self.FP2}") == {
+            "a.example": (self.FP, self.FP2),
+        }
+
+    def test_ipv6_keys_are_bracketed(self):
+        assert parse_pin_map(f"[2001:db8::1]:443={self.FP}") == {
+            "[2001:db8::1]:443": (self.FP,),
+        }
+
+    def test_a_bare_fingerprint_is_the_unscoped_shorthand(self):
+        assert parse_pin_map(self.FP) == {UNSCOPED_PIN_KEY: (self.FP,)}
+
+    @pytest.mark.parametrize(
+        "raw",
+        [
+            "nope",
+            "a.example=zzz",
+            f"a.example={_PIN_FP}|{_PIN_FP2}|{_PIN_FP}",
+            f"a.example={_PIN_FP},a.example={_PIN_FP2}",
+            "https://a.example=" + _PIN_FP,
+            "a.example=,b.example=" + _PIN_FP,
+        ],
+    )
+    def test_strict_rejects_bad_input(self, raw: str):
+        with pytest.raises(ValueError):
+            parse_pin_map(raw, strict=True)
+
+    def test_lenient_drops_bad_entries(self):
+        assert parse_pin_map(f"a.example=zzz,b.example={self.FP}") == {
+            "b.example": (self.FP,),
+        }
