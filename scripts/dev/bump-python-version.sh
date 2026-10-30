@@ -15,11 +15,18 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 
+# Python projects bumped through their Poetry pyproject. ``hsync-rendezvous``
+# hosts its Poetry project in the ``python/`` subdirectory (in-project virtualenv,
+# ``src/`` layout) so its pyproject is addressed explicitly below.
+# ``hsync-wd-os5`` is intentionally absent: it ships no Python package (its
+# pyproject is tooling-only) and the packaged artifact version is the
+# hsync-client version it freezes.
 PROJECTS=(
     "hsync-common"
     "hsync-client"
     "hsync-server"
     "hsync-desktop"
+    "hsync-rendezvous"
 )
 
 DRY_RUN=false
@@ -53,18 +60,24 @@ Updates:
     - hsync-client/pyproject.toml
     - hsync-server/pyproject.toml
     - hsync-desktop/pyproject.toml
+    - hsync-rendezvous/python/pyproject.toml
     - hsync-common/hsync_common/constants.py (HSYNC_VERSION)
+    - hsync-rendezvous/python/src/hsync_rendezvous/__init__.py (__version__)
     - hsync-android/app/build.gradle.kts (versionName + versionCode), unless
       --no-android is passed.
 
 Notes:
     hsync-common.constants.HSYNC_VERSION is the runtime/protocol version consumed
-    by client, server and desktop. Per-project constants modules re-export it, so
-    they must not be edited independently. Android shares the same semantic
-    versionName and gets a monotonically incremented versionCode. A prerelease
-    suffix (X.Y.Z-<prerelease>) is propagated verbatim to pyproject.toml,
-    HSYNC_VERSION and Android versionName; the .deb build translates it to the
-    Debian form (X.Y.Z~<prerelease>) via hsync-client/compile.sh.
+    by client, server and desktop, whose constants modules re-export it and must
+    not be edited independently. hsync-rendezvous keeps a literal package
+    __version__ (its project and virtualenv live under python/) and is bumped
+    here too. hsync-wd-os5 is NOT listed: it ships no Python package and its
+    artifact version is the hsync-client version it freezes at build time.
+    Android shares the same semantic versionName and gets a monotonically
+    incremented versionCode. A prerelease suffix (X.Y.Z-<prerelease>) is
+    propagated verbatim to pyproject.toml, HSYNC_VERSION and Android versionName;
+    the .deb build translates it to the Debian form (X.Y.Z~<prerelease>) via
+    hsync-client/compile.sh.
 EOF
 }
 
@@ -136,14 +149,17 @@ extract_common_dependency_version() {
 
 update_pyproject() {
     local project="$1"
-    local file="${ROOT_DIR}/${project}/pyproject.toml"
+    # hsync-rendezvous hosts its Poetry project in python/ (src layout).
+    local relative="pyproject.toml"
+    [[ "${project}" == "hsync-rendezvous" ]] && relative="python/pyproject.toml"
+    local file="${ROOT_DIR}/${project}/${relative}"
     [[ -f "${file}" ]] || { err "missing file: ${file}"; exit 1; }
 
     local current
     current="$(extract_pyproject_version "${file}")"
     [[ -n "${current}" ]] || { err "cannot read version from ${file}"; exit 1; }
 
-    log "${project}/pyproject.toml: ${current} -> ${NEW_VERSION}"
+    log "${project}/${relative}: ${current} -> ${NEW_VERSION}"
     if [[ "${DRY_RUN}" == false ]]; then
         sed_in_place "${file}" \
             '^version[[:space:]]*=[[:space:]]*"[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?"$' \
@@ -155,7 +171,7 @@ update_pyproject() {
         common_dependency="$(extract_common_dependency_version "${file}")"
         [[ -n "${common_dependency}" ]] || { err "cannot read hsync-common dependency from ${file}"; exit 1; }
 
-        log "${project}/pyproject.toml hsync-common: ${common_dependency} -> ${NEW_VERSION}"
+        log "${project}/${relative} hsync-common: ${common_dependency} -> ${NEW_VERSION}"
         if [[ "${DRY_RUN}" == false ]]; then
             sed_in_place "${file}" \
                 '"hsync-common==[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?",' \
@@ -177,6 +193,25 @@ update_runtime_version() {
         sed_in_place "${file}" \
             '^HSYNC_VERSION[[:space:]]*=[[:space:]]*"[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?"$' \
             "HSYNC_VERSION = \"${NEW_VERSION}\""
+    fi
+}
+
+update_rendezvous_package_version() {
+    local file="${ROOT_DIR}/hsync-rendezvous/python/src/hsync_rendezvous/__init__.py"
+    [[ -f "${file}" ]] || { err "missing file: ${file}"; exit 1; }
+
+    # Package __version__ mirrors the ecosystem version but is a literal copy
+    # (hsync-rendezvous is the only Python project that does not re-export
+    # HSYNC_VERSION from hsync-common).
+    local current
+    current="$(sed -nE 's/^__version__[[:space:]]*=[[:space:]]*"([0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?)"$/\1/p' "${file}" | head -n 1)"
+    [[ -n "${current}" ]] || { err "cannot read __version__ from ${file}"; exit 1; }
+
+    log "hsync-rendezvous/__init__.py: ${current} -> ${NEW_VERSION}"
+    if [[ "${DRY_RUN}" == false ]]; then
+        sed_in_place "${file}" \
+            '^__version__[[:space:]]*=[[:space:]]*"[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?"$' \
+            "__version__ = \"${NEW_VERSION}\""
     fi
 }
 
@@ -215,6 +250,7 @@ main() {
         update_pyproject "${project}"
     done
     update_runtime_version
+    update_rendezvous_package_version
 
     if [[ "${BUMP_ANDROID}" == true ]]; then
         update_android_version
