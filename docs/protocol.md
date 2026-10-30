@@ -23,7 +23,7 @@ The `rdv/1` rendezvous channel (QUIC/UDP, ALPN `hsync-rdv/1`) is specified
 canonically in `hsync-rendezvous` and mirrored for the client in
 `hsync_common/protocol/rendezvous.py` (`PROTOCOL_VERSION_RDV`); it is advertised
 alongside the others as `protocol_version.rdv` in the capabilities document.
-See [Rdv/1 rendezvous protocol](rendezvous-protocol.md).
+See [Rdv/1 rendezvous protocol](rdv-protocol.md).
 
 ## Capabilities
 

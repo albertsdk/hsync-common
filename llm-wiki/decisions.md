@@ -37,7 +37,7 @@ each ADR to the code it governs.
 | [0034 rendezvous-tls-trust](../docs/internal/adr/0034-rendezvous-tls-trust.md) | `protocol/pairing.py` (`parse_fingerprint`, `fingerprint_matches`, `FingerprintMismatch`); `ssl_utils.py` (self-signed service identity); `hsync-rendezvous` (persistent `--identity` by default, `--ephemeral` opt-out) + `hsync-client` (`rendezvous_trust.py` pin/TOFU) |
 | [0037 shared-service-identity-model](../docs/internal/adr/0037-shared-service-identity-model.md) | `ssl_utils.py` (ECDSA P-256, `SERVICE_CERT_VALIDITY_DAYS`, unencrypted key, backdated `NotBefore`); `hsync-rendezvous` + `hsync-server` identities |
 | [0036 server-tls-trust-unification](../docs/internal/adr/0036-server-tls-trust-unification.md) | `protocol/tls_trust.py` (`TrustPolicy.chain`, `evaluate_tls_trust`); client `server_trust.py`/`known_hosts.py` + `hsync trust` namespace; desktop `TrustedKeysDialog` servers tab; Android `RendezvousTrust` mirror |
-| [0038 rendezvous-endpoint-candidate-list](../docs/internal/adr/0038-rendezvous-endpoint-candidate-list.md) | `protocol/rendezvous.py` (`RdvPeer.endpoints`, strict `_validate_peer`); hsync-rendezvous (`_to_peer` relays the full candidate list, fixtures); client `p2p_rendezvous_rendezvous.py` (`_peer_from_wire`) + `p2p_peers.py` (`dial_candidates`) + `p2p_handler.py` (`_select_master_endpoint`, bounded probe + fallback) |
+| [0038 rendezvous-endpoint-candidate-list](../docs/internal/adr/0038-rendezvous-endpoint-candidate-list.md) | `protocol/rendezvous.py` (`RdvPeer.endpoints`, strict `_validate_peer`); hsync-rendezvous (`_to_peer` relays the full candidate list, fixtures); client `p2p_rendezvous_rdv.py` (`_peer_from_wire`) + `p2p_peers.py` (`dial_candidates`) + `p2p_handler.py` (`_select_master_endpoint`, bounded probe + fallback) |
 | [0039 combined-rendezvous](../docs/internal/adr/0039-combined-rendezvous.md) | client `p2p_rendezvous_hybrid.py` (`HybridRendezvous`) + `p2p_rendezvous.py` (`build_rendezvous_plan` returns it, `RendezvousPlanState.create_peer_manager`) + `p2p_peers.py` (source-aware merge via `Peer.capabilities_known`); `protocol/events.py` (`rendezvous` plan `mdns`/`mdns+rendezvous`) |
 | [0040 p2p-master-trust-policy](../docs/internal/adr/0040-p2p-master-trust-policy.md) | `protocol/tls_trust.py` (`DEFAULT_SELF_SIGNED_POLICY`, `PINNING_POLICIES`, `ensure_pinning_policy`, `resolve_self_signed_policy`, `evaluate_tls_trust`); fixture `master_trust_scenarios`; client `p2p_handler._evaluate_master_pin`; Android `Pairing.kt` |
 | [0044 rename-propagates-as-a-move](../docs/internal/adr/0044-rename-propagates-as-a-move.md) | REST contract artifact `protocol/rest/openapi.json` (regenerated from the server's `PATCH .../files`); causal state stays in the per-repo stores (`hsync-server/hsync_server/versions.py::move_version`, `hsync-client/hsync_client/sync_state.py::move_base`) |
@@ -80,7 +80,7 @@ live in [`../docs/p2p-protocol.md`](../docs/p2p-protocol.md) and map to
   survives only as a technology name (mDNS/Zeroconf/local area network) and in
   prose.
 - **Capabilities**: `CAPABILITIES_SCHEMA_VERSION = 1`; `ProtocolVersions`
-  includes `boot`; `parse_capabilities` requires all four channels. The desktop
+  includes `rdv`; `parse_capabilities` requires all four channels. The desktop
   accepts only this schema version, so the boundary is strict.
 - **`rdv/1` mirror**: canonical spec/fixtures stay in `hsync-rendezvous`;
   `hsync_common/protocol/rendezvous.py` mirrors the frames (TypedDicts + strict

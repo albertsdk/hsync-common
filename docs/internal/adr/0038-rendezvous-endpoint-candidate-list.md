@@ -5,7 +5,7 @@
 
 ## Context
 
-`rdv/1` rendezvous ([ADR-0032](0032-rendezvous-rendezvous.md)) exists for peers that
+`rdv/1` rendezvous ([ADR-0032](0032-rdv-protocol.md)) exists for peers that
 are not on the same LAN: the client registers its data-plane listen endpoint(s),
 the node relays a peer sample, and the requester dials an address to reach the
 elected master. A peer's addresses are not interchangeable. The client knows

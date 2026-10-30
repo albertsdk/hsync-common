@@ -59,13 +59,13 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   changes.
 - Fixture mirror `protocol/fixtures/rendezvous-*.json` is byte-checked against the
   canonical rendezvous fixtures by `tests/test_protocol_rendezvous.py`.
-- Consumers: `hsync-client` (rendezvous rendezvous), shared fixtures/tests.
+- Consumers: `hsync-client` (rdv rendezvous), shared fixtures/tests.
 
 ## capabilities.py — `--capabilities-json` document
 
 - `CAPABILITIES_SCHEMA_VERSION = 1` (`protocol/capabilities.py::CAPABILITIES_SCHEMA_VERSION`); the desktop accepts
   only this version.
-- `ProtocolVersions` (`protocol/capabilities.py::ProtocolVersions`) carries `rest`, `ws`, `p2p`, `boot`;
+- `ProtocolVersions` (`protocol/capabilities.py::ProtocolVersions`) carries `rest`, `ws`, `p2p`, `rdv`;
   `CapabilitiesDoc` (`protocol/capabilities.py::CapabilitiesDoc`) is the document TypedDict.
 - `build_capabilities` (`protocol/capabilities.py::build_capabilities`) aggregates the supported subcommands, the
   per-subcommand CLI option flags, the protocol versions and the events schema

@@ -312,12 +312,12 @@ def normalize_bare_endpoint(raw: str | None) -> str | None:
     unchanged; invalid input raises :class:`ValueError` (from
     :func:`parse_host_port`).
 
-    Used for channels that are not URLs (QUIC/UDP rendezvous server) and
+    Used for channels that are not URLs (QUIC/UDP discovery servers) and
     therefore must not gain a scheme or a default port.
 
     Consumers: ``hsync-client`` (``HSYNC_RENDEZVOUS_SERVER_TRUST`` file keys and
     the single-endpoint trust commands), ``hsync-desktop`` (settings and wizard
-    "rendezvous server" field), shared tests.
+    "discovery servers" field), shared tests.
     """
     value = (raw or "").strip()
     if not value:

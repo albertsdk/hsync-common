@@ -127,7 +127,7 @@ rendezvous's `run --listen-ports`) and silently drops them in lenient mode (the
 client's `HSYNC_RENDEZVOUS_SERVER_EXTRA_PORTS` dial fallback).
 
 `parse_endpoint_list` parses the ordered comma-separated **list** of scheme-less
-endpoints that names the rendezvous servers (`HSYNC_RENDEZVOUS_SERVER_ENDPOINTS`,
+endpoints that names the discovery servers (`HSYNC_RENDEZVOUS_SERVER_ENDPOINTS`,
 lenient) or the repeatable `--rendezvous-server` option (strict). Duplicates
 collapse case-insensitively, and `default_port` fills the entries that carry no
 port so `a` and `a:443` are one destination instead of two leases.

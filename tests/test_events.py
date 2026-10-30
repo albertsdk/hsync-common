@@ -42,10 +42,10 @@ class TestBuildEvent:
         assert ev2["transferred"] == 0  # type: ignore[reportTypedDictNotRequiredAccess]
 
     def test_rendezvous_event_carries_the_active_plan(self):
-        ev = build_event(UiEventName.rendezvous, plan="rendezvous", rendezvous="boot.example.net")
+        ev = build_event(UiEventName.rendezvous, plan="rendezvous", rendezvous="rdv.example.net")
         assert ev["event"] == "rendezvous"
         assert ev["plan"] == "rendezvous"  # type: ignore[reportTypedDictNotRequiredAccess]
-        assert ev["rendezvous"] == "boot.example.net"  # type: ignore[reportTypedDictNotRequiredAccess]
+        assert ev["rendezvous"] == "rdv.example.net"  # type: ignore[reportTypedDictNotRequiredAccess]
         # The mDNS plan omits the rendezvous field (None payload values are dropped).
         mdns = build_event(UiEventName.rendezvous, plan="mdns")
         assert "rendezvous" not in mdns

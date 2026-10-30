@@ -23,7 +23,7 @@ snippet.
 - **Check a canonical value or constant?** → [Constants reference](constants.md) (Reference)
 - **Speak or extend the wire protocol?** → [Protocol guide](protocol.md) (Reference)
 - **Implement or debug p2p?** → [p2p Protocol spec](p2p-protocol.md) (Specification, authoritative)
-- **Discover peers across networks?** → [Rdv/1 rendezvous protocol](rendezvous-protocol.md) (Reference, mirror of the canonical spec)
+- **Discover peers across networks?** → [Rdv/1 rendezvous protocol](rdv-protocol.md) (Reference, mirror of the canonical spec)
 - **Understand authentication contracts?** → [Authentication](authentication.md) (Specification)
 - **Understand delta transfer?** → [Delta transfer guide](delta.md) (Explanation)
 - **Configure ignore rules?** → [Ignore file guide](ignore-file.md) (Reference)
@@ -38,7 +38,7 @@ snippet.
 | -------- | -------------- |
 | [usage.md](usage.md) | How to integrate hsync-common as a dependency, import paths, versioning. |
 | [models.md](models.md) | The shared data models: File, Dir, Symlink, Event, SyncAction, TombstoneStore, SyncStateStore, delta models. |
-| [rendezvous-protocol.md](rendezvous-protocol.md) | The `rdv/1` rendezvous channel as mirrored for the client: frames, `capacity`/`reachable`, bucket tokens. |
+| [rdv-protocol.md](rdv-protocol.md) | The `rdv/1` rendezvous channel as mirrored for the client: frames, `capacity`/`reachable`, bucket tokens. |
 | [utilities.md](utilities.md) | Cross-cutting utilities: compression, hashing, path validation, SSL, logging, clock, formatting, runtime detection. |
 | [protocol.md](protocol.md) | Versioned wire protocol: handshake, capabilities, p2p election, pairing, JSON-Schemas, fixtures. |
 | [authentication.md](authentication.md) | Shared authentication contracts: CID format, message schema, protocol version negotiation, cross-language enforcement. |

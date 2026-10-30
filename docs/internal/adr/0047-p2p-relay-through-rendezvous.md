@@ -5,7 +5,7 @@
 
 ## Context
 
-`rdv/1` rendezvous ([ADR-0032](0032-rendezvous-rendezvous.md)) plus the candidate
+`rdv/1` rendezvous ([ADR-0032](0032-rdv-protocol.md)) plus the candidate
 list ([ADR-0038](0038-rendezvous-endpoint-candidate-list.md)) gets two peers
 together **as long as one of them accepts an inbound TCP connection**. Behind
 carrier-grade NAT — a phone hotspot, a router with a data SIM — neither peer has

@@ -1,4 +1,4 @@
-# ADR 0032 — Rendezvous rendezvous (`rdv/1`)
+# ADR 0032 — The rdv/1 rendezvous protocol
 
 - **Status:** Accepted
 - **Date:** 2026-10-09

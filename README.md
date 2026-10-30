@@ -77,7 +77,7 @@ complete documentation index.
 | [Utilities](docs/utilities.md) | Cross-cutting utilities guide |
 | [Protocol](docs/protocol.md) | Versioned wire protocol reference |
 | [p2p Protocol](docs/p2p-protocol.md) | Authoritative p2p rendezvous, master-election, pairing and security specification |
-| [Rdv/1 Protocol](docs/rendezvous-protocol.md) | The `rdv/1` rendezvous channel as mirrored for the client |
+| [Rdv/1 Protocol](docs/rdv-protocol.md) | The `rdv/1` rendezvous channel as mirrored for the client |
 | [Authentication](docs/authentication.md) | Shared authentication contracts: CID format, message schema, version negotiation |
 | [Ignore file](docs/ignore-file.md) | `.hsyncignore` syntax, `IgnoreMatcher` layers, and API |
 | [Android Mirroring](docs/android-mirroring.md) | How Python models are mirrored in Kotlin |

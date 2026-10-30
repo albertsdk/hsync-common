@@ -55,14 +55,14 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0029](0029-explicit-opt-in-unauthenticated-p2p-writes.md) | Explicit opt-in for unauthenticated p2p writes | Accepted |
 | [0030](0030-p2p-seeder-capacity-advertisement.md) | p2p seeder capacity advertisement and requester admission | Accepted |
 | [0031](0031-p2p-peer-offload-lane-cost.md) | p2p peer-offload lane cost: attribution and accepted trade-off | Accepted |
-| [0032](0032-rendezvous-rendezvous.md) | Rendezvous rendezvous (`rdv/1`) and the hsync-common mirror | Accepted |
+| [0032](0032-rdv-protocol.md) | The rdv/1 rendezvous protocol and the hsync-common mirror | Accepted |
 | [0033](0033-rendezvous-python-reuses-hsync-common.md) | The rendezvous Python v1 reuses hsync-common utilities | Accepted |
 | [0034](0034-rendezvous-tls-trust.md) | Rendezvous TLS trust: fingerprint pinning and opt-in TOFU | Accepted |
 | [0035](0035-rendezvous-trust-policy.md) | Rendezvous trust policy: SSH-like `ask` and `known_hosts` | Accepted |
 | [0036](0036-server-tls-trust-unification.md) | Unified SSH-style TLS trust for the sync server (`chain`, `hsync trust`) | Accepted |
 | [0037](0037-shared-service-identity-model.md) | Shared self-signed service identity model (ECDSA, unencrypted key, 20-year validity) | Accepted |
 | [0038](0038-rendezvous-endpoint-candidate-list.md) | Rendezvous relays the full endpoint candidate list | Accepted |
-| [0039](0039-combined-rendezvous.md) | Combined mDNS and rendezvous rendezvous | Accepted |
+| [0039](0039-combined-rendezvous.md) | Combined mDNS and rendezvous discovery | Accepted |
 | [0040](0040-p2p-master-trust-policy.md) | P2P master trust policy: `ask` by default | Accepted |
 | [0041](0041-serving-side-status-pass-events.md) | Serving-side status-pass events: two comparison marker pairs | Accepted |
 | [0042](0042-per-device-serving-status.md) | The serving-side sync status is per device | Accepted |

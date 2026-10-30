@@ -52,7 +52,7 @@ class TestNormalizeBareEndpoint:
     ("raw", "host", "port"),
     [
         ("example.com", "example.com", None),
-        ("boot.example.net", "boot.example.net", None),
+        ("rdv.example.net", "rdv.example.net", None),
         ("192.168.1.102", "192.168.1.102", None),
         ("example.com:443", "example.com", 443),
         ("192.168.1.102:443", "192.168.1.102", 443),

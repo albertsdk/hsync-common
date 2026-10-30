@@ -6,7 +6,7 @@
 The canonical specification and the canonical golden fixtures live in the
 ``hsync-rendezvous`` repository (``protocol-spec/rdv-1.md`` and ``fixtures/``);
 this module is a *mirror* of that contract for the consumers that live in this
-monorepo — today the ``hsync-client`` rendezvous rendezvous and the
+monorepo — today the ``hsync-client`` rdv rendezvous and the
 shared fixtures/drift tests. The daemon keeps its own frame models and never
 imports this mirror (the fixtures are the cross-language contract), but its
 Python v1 does reuse a small set of generic ``hsync-common`` utilities

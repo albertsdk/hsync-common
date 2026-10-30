@@ -17,7 +17,7 @@ across networks through a rendezvous node.
 | Frame models + validators | `hsync_common/protocol/rendezvous.py` |
 | Mirrored golden fixtures | `hsync_common/protocol/fixtures/rendezvous-*.json` |
 | Drift test (bytes vs the canonical fixtures) | `tests/test_protocol_rendezvous.py` |
-| Consumer | `hsync-client` (`hsync p2p`, rendezvous rendezvous plan) |
+| Consumer | `hsync-client` (`hsync p2p`, rdv rendezvous plan) |
 
 The rendezvous daemon keeps its own model of the frames (it does not import this
 mirror); its Python v1 reuses only generic `hsync-common` utilities — the TLS

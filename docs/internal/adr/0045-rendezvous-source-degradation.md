@@ -59,7 +59,7 @@ peers stopped appearing); contacting the untrusted node again to test it (the
 
 ## Consequences
 
-- A device with an unreachable or unpinned rendezvous server syncs on its local
+- A device with an unreachable or unpinned discovery servers syncs on its local
   network from the first run, and joins the group across networks once the node
   is reachable and trusted.
 - Degrading never weakens authentication: a refused node is never contacted, and
@@ -67,7 +67,7 @@ peers stopped appearing); contacting the untrusted node again to test it (the
 - The failure is observable on the structured channel and in the log (source +
   reason), so a front-end can surface it without scraping prose.
 - Obligations: the per-source disabled state and its warning
-  (`p2p_rendezvous_rendezvous.py`), the readiness composition
+  (`p2p_rendezvous_rdv.py`), the readiness composition
   (`p2p_rendezvous_hybrid.py`), the removal of the fatal rendezvous branch from
   `p2p_handler.run_p2p_mode`, the desktop pre-flight rule
   (`main_window/trust.py`), and their tests and user documentation.

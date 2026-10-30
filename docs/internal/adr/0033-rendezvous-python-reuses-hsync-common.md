@@ -5,7 +5,7 @@
 
 ## Context
 
-[ADR-0032](0032-rendezvous-rendezvous.md) defines the `rdv/1` rendezvous protocol
+[ADR-0032](0032-rdv-protocol.md) defines the `rdv/1` rendezvous protocol
 and keeps the daemon's wire contract standalone and portable to C. The Python
 v1 nevertheless declares `hsync-common==1.0.0` as a main dependency
 (`hsync-rendezvous/python/pyproject.toml`) and imports `hsync_common.ssl_utils` in
@@ -45,7 +45,7 @@ same rules without any Python dependency.
   rule — which a conforming client never sends — are invalid, so no
   `protocol_version` bump is required. `protocol-spec/rdv-1.md` states the
   bucket domain explicitly.
-- [ADR-0032](0032-rendezvous-rendezvous.md) governs the `rdv/1` contract and the
+- [ADR-0032](0032-rdv-protocol.md) governs the `rdv/1` contract and the
   portability goal; this record governs which `hsync-common` utilities the
   Python daemon reuses.
 - Follow-up obligation: any further shared constant or validator the daemon needs

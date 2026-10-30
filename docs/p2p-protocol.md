@@ -1,4 +1,4 @@
-# P2P Rendezvous & Master Election
+# P2P Discovery & Master Election
 
 This document is the human-readable companion to the machine-checked sources of
 truth for the p2p channel. It exists so the Python client (`hsync_client`,
@@ -51,7 +51,7 @@ lookup, and read-only seeder semantics. A serving master publishes it when its
 one-shot lookup before WSS. After an authenticated handshake the WSS capability is
 authoritative, and so is the seeder's live capacity advertisement (ADR-0030):
 whether a peer can serve *right now* is decided only by its authenticated session
-with the master, never by a rendezvous-time hint. A stale or spoofed hint can at
+with the master, never by a discovery-time hint. A stale or spoofed hint can at
 worst cause a failed source lookup or peer attempt, followed by the mandatory
 master fallback.
 
@@ -67,8 +67,9 @@ The same election inputs reach the election through the `rdv/1` rendezvous
 channel (SSOT: `hsync-rendezvous/protocol-spec/rdv-1.md`): `register` carries
 `server_ready`, `prefer_master`, `never_master`, `startup_time` and
 `sync_direction` (optional; defaults `false`/`false`/`false`/`0.0`/
-`bidirectional`) and every `query` peer echoes them, so a rendezvous-discovered
-peer ranks exactly like an mDNS-discovered one. A changed value requires a new
+`bidirectional`) and every `query` peer echoes them, so a
+peer discovered through the rendezvous channel ranks exactly like an mDNS
+discovered one. A changed value requires a new
 `register`. They are **unauthenticated claims**, like the advisory `capacity`
 hint: the rendezvous never interprets them, and the data plane authenticates
 identity by certificate pinning. The client mirror and the canonical fixtures
@@ -104,7 +105,7 @@ no endpoint that accepts an inbound connection. The rendezvous then carries the
 data plane itself, pairing the elected master with the requester over the same
 `rdv/1` channel (`relay_listen` / `relay_incoming` / `relay_connect` /
 `relay_attach`; frames and bounds in
-[`rendezvous-protocol.md`](rendezvous-protocol.md#data-relay)).
+[`rdv-protocol.md`](rdv-protocol.md#data-relay)).
 
 - **Last resort only.** Direct candidates are always tried first, in the shared
   host/LAN-first order; the relay is opened only after every one of them failed
@@ -178,7 +179,7 @@ Semantics:
 
 - **The authenticated reply is the authoritative capability source.** The slave
   adopts the master's advertised set from the auth reply into its transfer
-  gates; the TXT values are a rendezvous-time hint only. mDNS data is
+  gates; the TXT values are a discovery-time hint only. mDNS data is
   unauthenticated and can be stale, so it never decides the session.
 - **Intersection, never negotiation.** A feature is used only when both sides
   advertise it; an absent capability degrades the feature (delta → full
@@ -423,9 +424,9 @@ conflicts**: every node resolves concurrently with vector clocks
 ([ADR-0022](internal/adr/0022-causal-vector-clock-conflict-model.md)), so the
 elected master never wins a divergence by role.
 
-Election runs on every rendezvous change (peer added, updated, removed), when the
+Election runs on every discovery change (peer added, updated, removed), when the
 local `server_ready` state changes, and on a **periodic staleness sweep**: every
-rendezvous wake (and every slave WebSocket drop) re-evaluates each peer's
+discovery wake (and every slave WebSocket drop) re-evaluates each peer's
 heartbeat, expires peers whose announce has not been seen within the configured
 peer timeout, and re-runs the election. A peer that crashes hard sends no
 goodbye and no further announce, so without this sweep the surviving peers would
@@ -503,7 +504,7 @@ immediately, but only demotes a master whose record is already stale: a
 transient local-link blip leaves the incumbent in place, so the surviving peers
 do not split-brain.
 
-**Cross-network liveness floor.** A rendezvous-discovered peer is only re-seen
+**Cross-network liveness floor.** A peer discovered through the rendezvous channel is only re-seen
 when its CID is drawn in the node's random sample, and samples arrive at the
 rendezvous lease cadence (`HSYNC_RENDEZVOUS_SERVER_REFRESH_INTERVAL`, default 30 s). The
 shared liveness window must therefore span at least two rendezvous query cycles
@@ -680,8 +681,9 @@ The p2p channel is designed for a **trusted network** — a home/office LAN, or 
 group reached through a `rdv/1` rendezvous — and degrades safely on an
 **untrusted network** (shared/public Wi-Fi):
 
-- Rendezvous (mDNS/TXT on a LAN, or the rendezvous) is **unauthenticated**:
-  any host can advertise any `cid`, `bucket` or flag. Rendezvous data is
+
+- Discovery (mDNS/TXT on a LAN, or the rendezvous channel) is **unauthenticated**:
+  any host can advertise any `cid`, `bucket` or flag. Discovery data is
   therefore a hint, never proof.
 - The p2p transport is **HTTPS/WSS only**: there is no plain-HTTP path. A master
   serves over TLS and advertises its certificate fingerprint in `cert_fp`. TLS
@@ -735,7 +737,7 @@ raises. `evaluate_pin` classifies every (present) later sighting:
 
 A `changed` fingerprint is treated as a possible man-in-the-middle: the client
 logs a parsable `[FINGERPRINT CHANGED]` line, emits the structured event, and
-stays in rendezvous instead of connecting. Re-trusting a legitimately rotated
+stays in discovery instead of connecting. Re-trusting a legitimately rotated
 certificate requires removing the stale pin out of band.
 
 The pin is enforced **at the connection level**, on the very TLS connection that
@@ -795,7 +797,7 @@ pure function the Android mirror replays from the shared fixture. `chain` and
 master identity check entirely.
 
 Under `ask` the client renders an SSH-style prompt on an interactive terminal and
-otherwise emits `pairing_needed` and stays in rendezvous without connecting; the
+otherwise emits `pairing_needed` and stays in discovery without connecting; the
 desktop and Android raise their own confirmation dialog. The operator confirms the
 peer's fingerprint out of band and pins it with
 `hsync trust peer add DEVICE_ID sha256:FINGERPRINT --bucket BUCKET_NAME`, after

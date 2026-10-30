@@ -1,4 +1,4 @@
-# ADR 0039 — Combined mDNS and rendezvous rendezvous
+# ADR 0039 — Combined mDNS and rendezvous discovery
 
 - **Status:** Accepted
 - **Date:** 2026-10-01
@@ -8,7 +8,7 @@
 A p2p group needs two rendezvous scopes at once: devices on the local network must
 find each other with no external dependency, and devices on different networks
 must find each other through the `rdv/1` rendezvous node
-([ADR-0032](0032-rendezvous-rendezvous.md)). A client is frequently in both
+([ADR-0032](0032-rdv-protocol.md)). A client is frequently in both
 situations at the same time — for example a laptop on the home LAN that also
 needs to reach a peer elsewhere. Rendezvous was selected as one of two
 **mutually exclusive** plans: with a rendezvous configured the mDNS plan did not
@@ -28,7 +28,7 @@ We will run both sources together when a rendezvous is configured, over **one
 shared** peer state:
 
 1. `build_rendezvous_plan` returns `MdnsRendezvous` when no rendezvous is set, and a
-   new `HybridRendezvous` (mDNS + `RendezvousRendezvous`) when one is — the single
+   new `HybridRendezvous` (mDNS + `RdvRendezvous`) when one is — the single
    decision point, unchanged in shape for the sync core, which still sees only
    the `RendezvousPlan` surface.
 2. Both plans run over **one** `PeerManager`: `RendezvousPlanState.create_peer_manager`
@@ -69,7 +69,7 @@ through the rendezvous (the node is a registry, not a relay).
   route through the node.
 - Presence is emitted once and the election is single, because peer state is
   shared rather than duplicated.
-- The rendezvous rendezvous cadence (spec `rdv-1.md`: refresh every 30 s) is
+- The rendezvous lease cadence (spec `rdv-1.md`: refresh every 30 s) is
   unchanged; mDNS adds only local broadcast, which does not consume the node's
   rate budget.
 - Obligations: the single `PeerManager` construction and injection, the presence
