@@ -234,7 +234,8 @@ For protocol/API contracts, authentication, secrets, destructive sync, persisten
   (`llm-wiki/`), and the user documentation (`docs/`) MUST be written in
   English, regardless of the language used in the task.
 * Commit messages follow Conventional Commits: `type(scope): description`
-  (feat, fix, docs, style, refactor, test, chore, perf, ci, build).
+  (feat, fix, docs, style, refactor, test, chore, perf, ci, build). Keep the
+  message concise: precise, but no elaboration.
 
 ---
 
@@ -244,6 +245,9 @@ Before completing any task that introduces a user-facing change, bug fix, or
 notable internal improvement, evaluate whether the change warrants an entry in
 `CHANGELOG.md` following the [Keep a Changelog](https://keepachangelog.com/)
 format. Add an entry under an `## [Unreleased]` section when relevant.
+
+* **Concise entries**: one short, precise line per change, without
+  elaboration.
 
 * **Explicit User Confirmation Required**: Do not edit `CHANGELOG.md` unless the
   user has explicitly confirmed the update for the current task. If an entry
