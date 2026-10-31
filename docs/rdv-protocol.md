@@ -146,4 +146,5 @@ produce it).
 
 - [p2p Protocol spec](p2p-protocol.md) — the data plane (`p2p/1`).
 - [`hsync-client` — Sync across networks (rendezvous)](https://github.com/albertsdk/hsync-client/blob/main/docs/p2p-rendezvous.md) — the operator how-to.
+- [`hsync-rendezvous` — Usage: Group keys](https://github.com/albertsdk/hsync-rendezvous/blob/main/docs/usage.md#group-keys---keys-fd----keys-file) — the node-side keys file (one `bucket=<hex-key>` line per bucket) and the `--protected-bucket`/`--private` flags.
 - [Protocol guide](protocol.md) — the versioned channels at a glance.
