@@ -13,6 +13,12 @@ htmlcov/
 # Kilo
 .kilo
 
+# AI Agents
+AGENTS.md
+
+# HSYNC
+.hsynckeep
+
  # Cache
  .mypy_cache
  .ruff_cache
