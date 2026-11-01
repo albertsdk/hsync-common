@@ -530,15 +530,24 @@ immediately, but only demotes a master whose record is already stale: a
 transient local-link blip leaves the incumbent in place, so the surviving peers
 do not split-brain.
 
-**Cross-network liveness floor.** A peer discovered through the rendezvous channel is only re-seen
-when its CID is drawn in the node's random sample, and samples arrive at the
-rendezvous lease cadence (`HSYNC_RENDEZVOUS_SERVER_REFRESH_INTERVAL`, default 30 s). The
-shared liveness window must therefore span at least two rendezvous query cycles
-whenever a rendezvous is configured: the client raises the effective
-`HSYNC_PEER_TIMEOUT` to at least `2 ×` the rendezvous refresh interval (default
-60 s), mirroring the mDNS `≥ 2 × heartbeat` rule, while preserving an explicitly
-larger value. Without this floor the mDNS-derived window (default 15 s) would
-expire live cross-network peers between two samples and churn the election.
+**Cross-network liveness.** A peer discovered through the rendezvous channel is
+only re-seen when its CID is drawn in the node's random sample, and samples
+arrive at the rendezvous lease cadence
+(`HSYNC_RENDEZVOUS_SERVER_REFRESH_INTERVAL`, default 30 s; a client samples faster
+in a start-up burst and while it has no master, staying inside the node's query
+budget). Such a peer is therefore judged in the unit of that channel —
+**answered samples** — with a window of `RENDEZVOUS_MISSED_SAMPLES`: a sample that
+does not draw it is a miss, and a query the node refuses or never answers moves
+nothing at all, because it carries no information about any peer. The window is
+bounded on the other side by the source's own lease
+(`RENDEZVOUS_SOURCE_LEASE_S`): evidence that can no longer be refreshed does not
+hold a peer either, so a node that went away — or was distrusted and disabled —
+cannot keep a dead master alive. The heartbeat window (`HSYNC_PEER_TIMEOUT`,
+`≥ 2 × HSYNC_HEARTBEAT_INTERVAL`) keeps judging the peers mDNS announces and never
+the ones a discovery server reported, so a live cross-network peer cannot be
+expired by a clock that knows nothing about its discovery cadence. Losing the
+elected master this way is what the election churns on, so the sweep reports it
+explicitly.
 
 ### Leadership lease and yield (ADR-0027)
 
