@@ -118,6 +118,12 @@ data plane itself, pairing the elected master with the requester over the same
   own `listen_port` (`RelayAcceptor`, started and stopped with the serving role).
   Logs and UI keep showing the master's real address: only the transport is
   loopback.
+- **Session idle, not directional.** Both client sides treat a relayed session
+  as idle only when no byte moves in *either* direction for the idle timeout: a
+  long unidirectional upload — whose HTTP reply arrives only once the request
+  ends — is never dropped by its silent reply leg. The requester also pings the
+  node on a dedicated control stream so the node's QUIC idle never expires the
+  tunnel between sessions.
 - **Node shape.** Opt-in (`--relay`), with host-derived session ceilings plus an
   operator-set aggregate byte rate and idle/per-session limits. Without the flag
   every relay frame is answered `relay_unavailable` and no state is created.
