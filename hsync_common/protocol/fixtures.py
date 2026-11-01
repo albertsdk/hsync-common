@@ -56,6 +56,7 @@ from .peer_download import (
     build_p2p_sources_response,
 )
 from .tls_trust import TrustPolicy, evaluate_tls_trust
+from .transfer_progress import build_p2p_file_progress
 
 __all__ = ["FIXTURE_APP_VERSION", "FIXTURE_TOKEN", "build_fixtures"]
 
@@ -167,6 +168,13 @@ def _p2p_sources_response() -> dict[str, Any]:
                 )
             ]
         )
+    )
+
+
+def _p2p_file_progress() -> dict[str, Any]:
+    """The master's report for a file a peer is part-way through uploading."""
+    return dict(
+        build_p2p_file_progress(file="docs/report.bin", transferred=1_048_576, total=4_194_304)
     )
 
 
@@ -767,6 +775,7 @@ def build_fixtures() -> dict[str, dict[str, Any]]:
         "p2p-wss-inventory-ack-rejected": dict(
             build_p2p_inventory_ack(gen=1, seq=1, status="rejected", reason="quota")
         ),
+        "p2p-wss-file-progress": _p2p_file_progress(),
         "p2p-election-scenarios": _election_scenarios(),
         "p2p-pairing-scenarios": _pairing_scenarios(),
         "p2p-rendezvous-trust-scenarios": _rendezvous_trust_scenarios(),

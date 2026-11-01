@@ -136,7 +136,7 @@ def _p2p_sha256() -> dict[str, Any]:
 
 
 def _p2p_wire_int() -> dict[str, Any]:
-    """Non-negative signed 64-bit integer used by inventory frames."""
+    """Non-negative signed 64-bit integer used by the p2p control frames."""
     return {"type": "integer", "minimum": 0, "maximum": P2P_WIRE_INT_MAX}
 
 
@@ -678,6 +678,22 @@ def _p2p_inventory_ack(status: str) -> dict[str, Any]:
     }
 
 
+def _p2p_file_progress() -> dict[str, Any]:
+    """Master's received-byte report for a file a peer is uploading."""
+    return {
+        "type": "object",
+        "title": "P2PFileProgress",
+        "properties": {
+            "type": {"const": "file_progress"},
+            "file": {"type": "string"},
+            "transferred": _p2p_wire_int(),
+            "total": _p2p_wire_int(),
+        },
+        "required": ["type", "file", "transferred", "total"],
+        "additionalProperties": False,
+    }
+
+
 def build_p2p_wss_schema() -> dict[str, Any]:
     """Build the LAN WebSocket JSON Schema from the Python SSOT.
 
@@ -729,6 +745,7 @@ def build_p2p_wss_schema() -> dict[str, Any]:
                     {"$ref": "#/$defs/inventoryAckRejected"},
                 ]
             },
+            "fileProgress": _p2p_file_progress(),
         },
         "masterToSlave": {
             "oneOf": [
@@ -738,6 +755,7 @@ def build_p2p_wss_schema() -> dict[str, Any]:
                 {"$ref": "#/$defs/hello"},
                 {"$ref": "#/$defs/fileEvent"},
                 {"$ref": "#/$defs/inventoryAck"},
+                {"$ref": "#/$defs/fileProgress"},
             ]
         },
         "slaveToMaster": {

@@ -323,6 +323,35 @@
       "title": "FileEvent",
       "type": "object"
     },
+    "fileProgress": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "string"
+        },
+        "total": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "transferred": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "type": {
+          "const": "file_progress"
+        }
+      },
+      "required": [
+        "type",
+        "file",
+        "transferred",
+        "total"
+      ],
+      "title": "P2PFileProgress",
+      "type": "object"
+    },
     "hello": {
       "additionalProperties": false,
       "properties": {
@@ -723,6 +752,9 @@
       },
       {
         "$ref": "#/$defs/inventoryAck"
+      },
+      {
+        "$ref": "#/$defs/fileProgress"
       }
     ]
   },

@@ -158,6 +158,15 @@ class TestP2PWssSchemaSource:
         assert {"$ref": "#/$defs/inventoryAck"} in schema["masterToSlave"]["oneOf"]
         assert {"$ref": "#/$defs/fileEvent"} in schema["slaveToMaster"]["oneOf"]
 
+    def test_file_progress_is_a_master_to_slave_frame(self):
+        """The receiver publishes the delivery progress, so the master sends it."""
+        schema = build_p2p_wss_schema()
+
+        assert {"$ref": "#/$defs/fileProgress"} in schema["masterToSlave"]["oneOf"]
+        frame = self._defs()["fileProgress"]
+        assert frame["properties"]["type"]["const"] == "file_progress"
+        assert set(frame["required"]) == {"type", "file", "transferred", "total"}
+
     def test_inventory_limits_and_modes(self):
         defs = self._defs()
         snapshot = defs["inventorySnapshot"]

@@ -415,6 +415,26 @@ peer-served, fully verified full transfer. Master downloads, delta downloads,
 and failed peer attempts followed by master success omit it. URLs and
 fingerprints never appear in structured events; no new event names are added.
 
+### Delivery progress
+
+An upload's progress belongs to the **receiver**: the sender knows only what it
+handed to its transport (the socket, TLS, a relay's buffers), while the master
+knows what it stored. While a peer uploads a file, the master reports its stored
+bytes on **that peer's own session** — unicast, never broadcast, since no other
+slave is part of that transfer:
+
+```json
+{"type":"file_progress","file":"docs/report.bin","transferred":1048576,"total":4194304}
+```
+
+`file` is the bucket-relative path the peer declared, `transferred` the bytes the
+master has written (the decompressed bytes when the peer sent zstd) and `total`
+the file size the peer declared, or `0` when it declared none — the sender keeps
+its own total then. Counts are non-boolean integers in `0..2^63-1` and a known
+`total` bounds `transferred`. The frame is informational: a sender renders the
+samples it receives and falls back to its own counter when none arrive, so a
+master that never sends it changes nothing else.
+
 ## Group partitioning
 
 `group` is a strict partition key: a peer is visible only when its group is
