@@ -366,6 +366,20 @@ class TestFindBrokenAnchors:
 
         assert len(errors) == 1
 
+    def test_hsync_desktop_attribute_anchor_resolves(self, tmp_path: Path):
+        # The desktop mixins declare the attributes they expect the composed
+        # window to own with a bare annotation (``_link_down: bool``); the wiki
+        # anchors that declaration as ``Class.attribute``.
+        _, wiki, pkg = self._make_py_wiki(tmp_path, "hsync-desktop", "hsync_desktop")
+        (pkg / "events.py").write_text("class EventsMixin:\n    _link_down: bool\n")
+        (wiki / "README.md").write_text("v `events.py::EventsMixin._link_down`")
+
+        errors, warnings, checked = cdl.find_broken_anchors(tmp_path)
+
+        assert errors == []
+        assert warnings == []
+        assert checked == 1
+
     def test_suffix_resolution_prefers_main_over_test(self, tmp_path: Path):
         # Android sources live under app/src/main/java/<package>/; a
         # package-relative anchor resolves there, preferring main over test.
@@ -405,3 +419,46 @@ class TestFindBrokenAnchors:
         errors, _, _ = cdl.find_broken_anchors(tmp_path)
 
         assert len(errors) == 1
+
+
+class TestSymbolPresent:
+    """The definition shapes accepted for a ``file.py::symbol`` anchor."""
+
+    def test_def_and_class_declarations(self, tmp_path: Path):
+        src = tmp_path / "mod.py"
+        src.write_text("class Widget:\n    def build(self) -> None:\n        pass\n")
+
+        assert cdl._symbol_present(src, "Widget") is True
+        assert cdl._symbol_present(src, "Widget.build") is True
+        assert cdl._symbol_present(src, "Widget.GONE") is False
+
+    def test_module_and_class_assignments(self, tmp_path: Path):
+        src = tmp_path / "mod.py"
+        src.write_text("VERSION = '1.0'\n\n\nclass Widget:\n    retries: int = 3\n")
+
+        assert cdl._symbol_present(src, "VERSION") is True
+        assert cdl._symbol_present(src, "Widget.retries") is True
+
+    def test_bare_annotated_attribute_declaration(self, tmp_path: Path):
+        # How the desktop mixins declare the window attributes they compose.
+        src = tmp_path / "events.py"
+        src.write_text(
+            "class EventsMixin:\n    _link_down: bool\n    _last_check_at: QTime | None\n"
+        )
+
+        assert cdl._symbol_present(src, "EventsMixin._link_down") is True
+        assert cdl._symbol_present(src, "EventsMixin._last_check_at") is True
+
+    def test_instance_and_class_attribute_assignment(self, tmp_path: Path):
+        src = tmp_path / "mod.py"
+        src.write_text("class Widget:\n    def __init__(self):\n        self._rows = []\n")
+
+        assert cdl._symbol_present(src, "Widget._rows") is True
+
+    def test_annotation_target_does_not_define_the_type(self, tmp_path: Path):
+        # ``field: Widget`` annotates with Widget, it does not define it.
+        src = tmp_path / "mod.py"
+        src.write_text("class Holder:\n    field: Widget\n")
+
+        assert cdl._symbol_present(src, "Widget") is False
+        assert cdl._symbol_present(src, "Holder.field") is True

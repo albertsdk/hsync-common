@@ -289,8 +289,15 @@ def _symbol_present(path: Path, symbol: str) -> bool:
     """Return True when *symbol* is defined in *path*.
 
     Only the final dotted component is matched (``File.get`` -> ``get``), and a
-    definition-shaped occurrence is required (``def``/``class`` or an assignment)
-    so a mention in a comment/docstring does not count as the definition.
+    definition-shaped occurrence is required so a mention in a comment or
+    docstring does not count as the definition:
+
+    * ``def``/``class`` declarations (``async`` included),
+    * module- or class-level assignments, annotated or not (``X = 1``,
+      ``X: int = 1``),
+    * bare annotated declarations (``X: bool``): how the mixin classes declare
+      the attributes they expect the composed window to own,
+    * instance/class attribute assignments (``self.X = 1``, ``cls.X = 1``).
     """
     if path.suffix != ".py":
         return True
@@ -301,11 +308,17 @@ def _symbol_present(path: Path, symbol: str) -> bool:
     token = symbol.split(".")[-1]
     if not token:
         return False
-    def_re = re.compile(
-        rf"(?:^|\n)\s*(?:(?:async\s+)?def\s+{re.escape(token)}\b|class\s+{re.escape(token)}\b)"
+    escaped = re.escape(token)
+    def_re = re.compile(rf"(?:^|\n)\s*(?:(?:async\s+)?def\s+{escaped}\b|class\s+{escaped}\b)")
+    assign_re = re.compile(rf"(?:^|\n)\s*{escaped}\s*(?::[^=\n]+)?=")
+    annotation_re = re.compile(rf"(?:^|\n)\s*{escaped}\s*:[^=\n]*(?:\n|$)")
+    attribute_re = re.compile(rf"(?:^|\n)\s*(?:self|cls)\.{escaped}\s*(?::[^=\n]+)?=")
+    return bool(
+        def_re.search(text)
+        or assign_re.search(text)
+        or annotation_re.search(text)
+        or attribute_re.search(text)
     )
-    assign_re = re.compile(rf"(?:^|\n)\s*{re.escape(token)}\s*(?::[^=\n]+)?=")
-    return bool(def_re.search(text) or assign_re.search(text))
 
 
 def find_broken_anchors(
