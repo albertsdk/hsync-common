@@ -32,7 +32,9 @@ HEADER_CLIENT_VERSION: Final[Literal["X-Client-Version"]] = "X-Client-Version"
 # Requesting node's CID. The P2P master keys its per-peer rate/in-flight buckets
 # on it, because relayed peers all reach it from the loopback address; carrying
 # it on every request (not only those whose URL has a ``cid`` query parameter)
-# keeps the buckets separate. Sent only in P2P mode; mirrored by hsync-android.
+# keeps the buckets separate. Sent only in P2P mode. Not mirrored by
+# hsync-android yet: it does not implement the relay, so it never dials a master
+# from the loopback address.
 HEADER_CLIENT_ID: Final[Literal["X-Client-Id"]] = "X-Client-Id"
 HEADER_SERVER_VERSION: Final[Literal["X-Server-Version"]] = "X-Server-Version"
 HEADER_PROTOCOL_VERSION: Final[Literal["X-Protocol-Version"]] = "X-Protocol-Version"
