@@ -54,8 +54,10 @@ boundaries:
    the requester and master are omitted. The complete HTTPS download endpoint,
    candidate CID, fingerprint, and compression support are returned. Request and
    response objects are strict and bounded to 2 MiB at the transport. Candidates
-   require exact indexed-hash membership, current session ownership, and current
-   liveness. Ranking biases same-subnet peers first (IPv4 `/24`, IPv6 `/64`) and
+   require exact indexed-hash membership, current session ownership (the session
+   arrived from one of the endpoints the peer announced, so a multi-homed peer
+   qualifies from any of them), and current liveness. Ranking biases same-subnet
+   peers first (IPv4 `/24`, IPv6 `/64`) and
    randomizes within each partition; proximity is never authority.
 7. The master stores holder inventory in the role-local SQLite database
    `default_device_dir()/lan-index/<sha256(bucket UTF-8)>.sqlite3` (with an
