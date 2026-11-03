@@ -24,7 +24,7 @@ already authenticated, authorized and rate-limited — is the rendezvous.
 ## Decision
 
 The rendezvous can relay the data plane, **opt-in per node** (`--relay`), carrying
-the peers' TLS **verbatim**:
+the peers' bytes **verbatim**:
 
 1. Four new `rdv/1` frames (`relay_listen`, `relay_ping`, `relay_connect`,
    `relay_attach`) plus their replies (`relay_listening`, `relay_incoming`,
@@ -32,11 +32,14 @@ the peers' TLS **verbatim**:
    (master) holds a control stream; a requester pairs with `relay_connect`; the
    listener attaches one fresh stream per announced session; the node bridges the
    two streams with a fixed 64 KiB buffer and `drain()` on both sides.
-2. **Opaque relay.** The node never terminates or inspects the TLS: content,
+2. **Opaque relay.** The node never terminates or inspects the payload: content,
    names and credentials stay invisible, and the peers keep authenticating each
    other by certificate pinning. The node does observe the pairing
    (`cid` ↔ `cid`) and the byte volume, which the operator documentation states
-   plainly.
+   plainly. Within the paired stream the two peers multiplex their several
+   loopback connections (REST + WSS) over the **one** session with a private
+   per-stream framing layer the node never parses; one `relay_connect` therefore
+   serves a whole sync cycle instead of one token per connection.
 3. **Last resort on the client.** Direct candidates keep priority in the shared
    host/LAN-first order; the relay is opened only when every candidate failed.
    The requester dials a loopback endpoint bridged to the relayed stream, and the

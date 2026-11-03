@@ -9,6 +9,7 @@ from hsync_common.constants import (
     FILE_SIZE_MEDIUM,
     FILE_SIZE_SMALL,
     HEADER_CHECKSUM_SHA256,
+    HEADER_CLIENT_ID,
     HEADER_CLIENT_NAME,
     HEADER_CLIENT_VERSION,
     HEADER_PROTOCOL_VERSION,
@@ -39,6 +40,7 @@ class TestWireHeaders:
         for header in (
             HEADER_CLIENT_NAME,
             HEADER_CLIENT_VERSION,
+            HEADER_CLIENT_ID,
             HEADER_CHECKSUM_SHA256,
             HEADER_SERVER_VERSION,
             HEADER_PROTOCOL_VERSION,
@@ -49,11 +51,12 @@ class TestWireHeaders:
         headers = {
             HEADER_CLIENT_NAME,
             HEADER_CLIENT_VERSION,
+            HEADER_CLIENT_ID,
             HEADER_CHECKSUM_SHA256,
             HEADER_SERVER_VERSION,
             HEADER_PROTOCOL_VERSION,
         }
-        assert len(headers) == 5
+        assert len(headers) == 6
 
     def test_checksum_header_is_canonical(self):
         assert HEADER_CHECKSUM_SHA256 == "X-Checksum-SHA256"

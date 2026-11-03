@@ -110,11 +110,15 @@ ready, the client sends a **second `register`** that publishes `endpoints[]`
 
 The relay gets two peers that no inbound NAT mapping reaches (carrier-grade NAT,
 a hotspot behind a carrier) onto the `p2p/1` data plane. The node pairs them and
-forwards their bytes, which stay **opaque TLS**: it never terminates or inspects
-that TLS, so it sees no content, file name or credential, and the peers keep
-authenticating each other by certificate pinning. The pairing (`cid` ↔ `cid`) and
-the volume are visible to the node; the feature is opt-in per node (`--relay`)
-and bounded by host-derived session caps plus an operator-set byte rate.
+forwards their bytes, which stay **opaque**: it never terminates or inspects the
+payload, so it sees no content, file name or credential, and the peers keep
+authenticating each other by certificate pinning. Inside the paired stream the
+two peers multiplex their several loopback connections (REST + WSS) over the one
+session with a private per-stream framing layer the node never parses, so a whole
+sync cycle costs one `relay_connect` rather than one per connection. The pairing
+(`cid` ↔ `cid`) and the volume are visible to the node; the feature is opt-in per
+node (`--relay`) and bounded by host-derived session caps plus an operator-set
+byte rate.
 
 - The serving peer (the master) holds a **control** stream: `relay_listen` →
   `relay_listening`, then one `relay_incoming` per requester and a `relay_ping`

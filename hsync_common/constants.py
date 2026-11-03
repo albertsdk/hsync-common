@@ -29,6 +29,11 @@ HSYNC_VERSION = "1.0.17"
 # mirrored by hsync-android (Protocol.kt).
 HEADER_CLIENT_NAME: Final[Literal["X-Client-Name"]] = "X-Client-Name"
 HEADER_CLIENT_VERSION: Final[Literal["X-Client-Version"]] = "X-Client-Version"
+# Requesting node's CID. The P2P master keys its per-peer rate/in-flight buckets
+# on it, because relayed peers all reach it from the loopback address; carrying
+# it on every request (not only those whose URL has a ``cid`` query parameter)
+# keeps the buckets separate. Sent only in P2P mode; mirrored by hsync-android.
+HEADER_CLIENT_ID: Final[Literal["X-Client-Id"]] = "X-Client-Id"
 HEADER_SERVER_VERSION: Final[Literal["X-Server-Version"]] = "X-Server-Version"
 HEADER_PROTOCOL_VERSION: Final[Literal["X-Protocol-Version"]] = "X-Protocol-Version"
 # Canonical response checksum header for full-file downloads. Consumers:

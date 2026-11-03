@@ -7,11 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The `X-Client-Id` request header constant (`HEADER_CLIENT_ID`), carrying the
+  requester CID so the P2P master can bucket relayed peers (which all arrive
+  from the loopback address) by identity.
+
 ### Changed
 
 - The master election prefers a node that confirms an externally dialable
   endpoint (`inbound`); the mDNS TXT schema and the `rdv/1` register/peer
   mirrors carry it, and a reachable node out-ranks a relay-only one.
+- The data-relay docs (ADR-0047, `rdv-protocol.md`) state that the peers
+  multiplex their loopback connections inside the opaque relay stream, which the
+  node never parses.
 
 ### Fixed
 
