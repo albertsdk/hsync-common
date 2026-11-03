@@ -25,7 +25,8 @@ eligible candidate with the smallest sort key, prioritised:
 3. `inbound` (a node with a confirmed externally dialable endpoint, so it
    serves every peer without the relay, over a relay-only one),
 4. bidirectional `sync_direction` over upload/download-only,
-5. earliest `startup_time`,
+5. earliest `startup_time` (SNTP-corrected, so the tie-break does not depend on
+   each host's raw clock),
 6. lowest `cid` lexicographically (final deterministic tiebreaker).
 
 `never_master` nodes are excluded; if no candidate is eligible, **no master is

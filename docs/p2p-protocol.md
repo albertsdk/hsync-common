@@ -499,7 +499,9 @@ than the winner (successor, conflict reports) use the same ranked list:
    other forces them all onto the relay.
 4. **bidirectional `sync_direction`** — a fully bidirectional peer is preferred
    over an upload-/download-only one (it can serve every other peer).
-5. **earliest `startup_time`** — the node that started first wins.
+5. **earliest `startup_time`** — the node that started first wins (on the
+   SNTP-corrected clock, `hsync_common.clock.now_corrected`, so a host whose
+   clock runs behind cannot win it by accident).
 6. **lowest `cid`** lexicographically — a deterministic final tiebreaker.
 
 If no candidate is eligible (every node is `never_master`) **no master is
