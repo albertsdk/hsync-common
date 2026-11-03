@@ -22,9 +22,11 @@ eligible candidate with the smallest sort key, prioritised:
 
 1. `server_ready` (an already-serving incumbent — avoids needless takeover),
 2. `prefer_master` (operator-preferred),
-3. bidirectional `sync_direction` over upload/download-only,
-4. earliest `startup_time`,
-5. lowest `cid` lexicographically (final deterministic tiebreaker).
+3. `inbound` (a node with a confirmed externally dialable endpoint, so it
+   serves every peer without the relay, over a relay-only one),
+4. bidirectional `sync_direction` over upload/download-only,
+5. earliest `startup_time`,
+6. lowest `cid` lexicographically (final deterministic tiebreaker).
 
 `never_master` nodes are excluded; if no candidate is eligible, **no master is
 elected** (`NO_MASTER`) rather than a wrong one. Parity is enforced by golden

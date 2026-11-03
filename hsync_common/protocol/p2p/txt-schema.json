@@ -45,6 +45,13 @@
       ],
       "type": "string"
     },
+    "inbound": {
+      "description": "This node has a confirmed externally dialable data-plane endpoint (e.g. a successful UPnP mapping), so it can serve without the relay. Part of the election: a reachable node out-ranks a relay-only one, after server_ready/prefer_master.",
+      "enum": [
+        "true"
+      ],
+      "type": "string"
+    },
     "never_master": {
       "enum": [
         "true"

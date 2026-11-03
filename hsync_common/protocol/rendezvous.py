@@ -22,8 +22,9 @@ rendezvous's ``extra="forbid"`` models provide).
 
 Besides the advisory ``capacity`` hint, ``register`` and ``peers[]`` carry the
 **election advertisement** (``server_ready``/``prefer_master``/``never_master``/
-``startup_time``/``sync_direction``) — the same values the mDNS TXT record
-carries, relayed verbatim by the rendezvous so both rendezvous plans feed the one
+``inbound``/``startup_time``/``sync_direction``) — the same values the mDNS TXT
+record carries, relayed verbatim by the rendezvous so both rendezvous plans feed
+the one
 shared election algorithm in :mod:`hsync_common.protocol.p2p`. The rendezvous never
 interprets them and they are not authenticated (the data plane authenticates
 identity by certificate pinning); the vocabulary is the canonical sync-direction
@@ -194,8 +195,9 @@ class RdvRegister(TypedDict):
     (``0`` = not a seeder). The rendezvous relays it in ``query`` responses; the
     authoritative value is the authenticated ``serve_slots`` (ADR-0030).
 
-    ``server_ready``/``prefer_master``/``never_master``/``startup_time``/
-    ``sync_direction`` are the **election advertisement**, the same values the
+    ``server_ready``/``prefer_master``/``never_master``/``inbound``/
+    ``startup_time``/``sync_direction`` are the **election advertisement**, the
+    same values the
     mDNS TXT record carries. The rendezvous relays them verbatim in ``query``
     responses so a rendezvous-discovered peer ranks exactly like an mDNS one; it
     never interprets them and never treats them as authoritative (a peer can
@@ -218,6 +220,7 @@ class RdvRegister(TypedDict):
     server_ready: NotRequired[bool]
     prefer_master: NotRequired[bool]
     never_master: NotRequired[bool]
+    inbound: NotRequired[bool]
     startup_time: NotRequired[float]
     sync_direction: NotRequired[str]
 
@@ -283,7 +286,8 @@ class RdvPeer(TypedDict):
     The election-advertisement fields are relayed verbatim from the peer's
     ``register`` (defaults when it advertised none): ``server_ready`` (it is
     currently serving as master), ``prefer_master``/``never_master`` (operator
-    pins), ``startup_time`` (unix seconds, ``0.0`` = unknown) and
+    pins), ``inbound`` (it has a confirmed externally dialable endpoint),
+    ``startup_time`` (unix seconds, ``0.0`` = unknown) and
     ``sync_direction``. They feed the shared election algorithm exactly like
     the mDNS TXT values; none of them is authenticated.
     """
@@ -299,6 +303,7 @@ class RdvPeer(TypedDict):
     server_ready: bool
     prefer_master: bool
     never_master: bool
+    inbound: bool
     startup_time: float
     sync_direction: str
     group: NotRequired[str]
@@ -445,6 +450,7 @@ _REGISTER_OPTIONAL = frozenset(
         "server_ready",
         "prefer_master",
         "never_master",
+        "inbound",
         "startup_time",
         "sync_direction",
     }
@@ -483,6 +489,7 @@ _PEER_REQUIRED = frozenset(
         "server_ready",
         "prefer_master",
         "never_master",
+        "inbound",
         "startup_time",
         "sync_direction",
     }
@@ -604,12 +611,12 @@ def _optional_flag(value: Mapping, clean: dict, key: str) -> bool:
 def _read_election_advert(value: Mapping, clean: dict, *, optional: bool) -> bool:
     """Validate and copy the election advertisement (register / query peer).
 
-    The five keys are the same values the mDNS TXT record carries; ``optional``
+    These keys are the same values the mDNS TXT record carries; ``optional``
     controls the register side (absent key → documented default) versus the
     ``peers[]`` side (every key is required, the rendezvous always relays them).
     Returns False on any malformed value so the caller rejects the whole frame.
     """
-    for key in ("server_ready", "prefer_master", "never_master"):
+    for key in ("server_ready", "prefer_master", "never_master", "inbound"):
         if key not in value:
             if optional:
                 clean[key] = False

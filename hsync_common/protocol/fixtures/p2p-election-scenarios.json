@@ -4,6 +4,7 @@
       "candidates": [
         {
           "cid": "local",
+          "inbound": false,
           "never_master": false,
           "prefer_master": true,
           "server_ready": false,
@@ -12,6 +13,7 @@
         },
         {
           "cid": "incumbent",
+          "inbound": false,
           "never_master": false,
           "prefer_master": false,
           "server_ready": true,
@@ -26,6 +28,7 @@
       "candidates": [
         {
           "cid": "plain",
+          "inbound": false,
           "never_master": false,
           "prefer_master": false,
           "server_ready": false,
@@ -34,6 +37,7 @@
         },
         {
           "cid": "forced",
+          "inbound": false,
           "never_master": false,
           "prefer_master": true,
           "server_ready": false,
@@ -48,6 +52,7 @@
       "candidates": [
         {
           "cid": "aaa",
+          "inbound": false,
           "never_master": false,
           "prefer_master": false,
           "server_ready": false,
@@ -56,6 +61,7 @@
         },
         {
           "cid": "bbb",
+          "inbound": false,
           "never_master": false,
           "prefer_master": false,
           "server_ready": false,
@@ -70,6 +76,7 @@
       "candidates": [
         {
           "cid": "late",
+          "inbound": false,
           "never_master": false,
           "prefer_master": false,
           "server_ready": false,
@@ -78,6 +85,7 @@
         },
         {
           "cid": "early",
+          "inbound": false,
           "never_master": false,
           "prefer_master": false,
           "server_ready": false,
@@ -92,6 +100,7 @@
       "candidates": [
         {
           "cid": "zzz",
+          "inbound": false,
           "never_master": false,
           "prefer_master": false,
           "server_ready": false,
@@ -100,6 +109,7 @@
         },
         {
           "cid": "aaa",
+          "inbound": false,
           "never_master": false,
           "prefer_master": false,
           "server_ready": false,
@@ -114,6 +124,7 @@
       "candidates": [
         {
           "cid": "early",
+          "inbound": false,
           "never_master": false,
           "prefer_master": false,
           "server_ready": false,
@@ -122,6 +133,7 @@
         },
         {
           "cid": "later",
+          "inbound": false,
           "never_master": false,
           "prefer_master": false,
           "server_ready": false,
@@ -136,6 +148,7 @@
       "candidates": [
         {
           "cid": "never",
+          "inbound": false,
           "never_master": true,
           "prefer_master": false,
           "server_ready": false,
@@ -144,6 +157,7 @@
         },
         {
           "cid": "eligible",
+          "inbound": false,
           "never_master": false,
           "prefer_master": false,
           "server_ready": false,
@@ -158,6 +172,7 @@
       "candidates": [
         {
           "cid": "a",
+          "inbound": false,
           "never_master": true,
           "prefer_master": false,
           "server_ready": false,
@@ -166,6 +181,7 @@
         },
         {
           "cid": "b",
+          "inbound": false,
           "never_master": true,
           "prefer_master": false,
           "server_ready": false,
@@ -175,6 +191,78 @@
       ],
       "expected_master": null,
       "name": "all-never-master-no-master"
+    },
+    {
+      "candidates": [
+        {
+          "cid": "relay-only",
+          "inbound": false,
+          "never_master": false,
+          "prefer_master": false,
+          "server_ready": false,
+          "startup_time": 100.0,
+          "sync_direction": "bidirectional"
+        },
+        {
+          "cid": "reachable",
+          "inbound": true,
+          "never_master": false,
+          "prefer_master": false,
+          "server_ready": false,
+          "startup_time": 200.0,
+          "sync_direction": "bidirectional"
+        }
+      ],
+      "expected_master": "reachable",
+      "name": "inbound-beats-relay-only"
+    },
+    {
+      "candidates": [
+        {
+          "cid": "relay-only",
+          "inbound": false,
+          "never_master": false,
+          "prefer_master": false,
+          "server_ready": false,
+          "startup_time": 100.0,
+          "sync_direction": "bidirectional"
+        },
+        {
+          "cid": "reachable",
+          "inbound": true,
+          "never_master": false,
+          "prefer_master": false,
+          "server_ready": false,
+          "startup_time": 200.0,
+          "sync_direction": "bidirectional"
+        }
+      ],
+      "expected_master": "reachable",
+      "name": "inbound-beats-bidirectional"
+    },
+    {
+      "candidates": [
+        {
+          "cid": "forced",
+          "inbound": false,
+          "never_master": false,
+          "prefer_master": true,
+          "server_ready": false,
+          "startup_time": 300.0,
+          "sync_direction": "bidirectional"
+        },
+        {
+          "cid": "reachable",
+          "inbound": true,
+          "never_master": false,
+          "prefer_master": false,
+          "server_ready": false,
+          "startup_time": 100.0,
+          "sync_direction": "bidirectional"
+        }
+      ],
+      "expected_master": "forced",
+      "name": "prefer-master-beats-inbound"
     }
   ]
 }

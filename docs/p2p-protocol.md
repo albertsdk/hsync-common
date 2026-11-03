@@ -36,7 +36,11 @@ lives in `P2P_TXT_KEYS`; do not introduce keys outside it.
 
 **Optional keys** (present only when meaningful/true): `group`, `https`,
 `cert_fp`, `compression`, `delta`, `server_ready`, `prefer_master`,
-`never_master`, `connected`, `heartbeat`, `peer_download`.
+`never_master`, `inbound`, `connected`, `heartbeat`, `peer_download`.
+
+`inbound` marks a node that confirms an externally dialable data-plane endpoint
+(e.g. a successful UPnP mapping): it can serve every peer without the relay, so
+it out-ranks a relay-only node in the election.
 
 `compression` and `delta` are advertised only when the feature is enabled on
 that node. Per the canonical rule, a boolean flag is advertised only when
@@ -65,8 +69,8 @@ invalid and must not be contacted. Non-serving slaves need not advertise either.
 
 The same election inputs reach the election through the `rdv/1` rendezvous
 channel (SSOT: `hsync-rendezvous/protocol-spec/rdv-1.md`): `register` carries
-`server_ready`, `prefer_master`, `never_master`, `startup_time` and
-`sync_direction` (optional; defaults `false`/`false`/`false`/`0.0`/
+`server_ready`, `prefer_master`, `never_master`, `inbound`, `startup_time` and
+`sync_direction` (optional; defaults `false`/`false`/`false`/`false`/`0.0`/
 `bidirectional`) and every `query` peer echoes them, so a
 peer discovered through the rendezvous channel ranks exactly like an mDNS
 discovered one. A changed value requires a new
@@ -490,10 +494,13 @@ than the winner (successor, conflict reports) use the same ranked list:
 1. **`server_ready`** — an already-serving incumbent wins, so a newcomer never
    triggers a needless takeover/split-brain for the same bucket.
 2. **`prefer_master`** — an operator-preferred master wins over ordinary peers.
-3. **bidirectional `sync_direction`** — a fully bidirectional peer is preferred
+3. **`inbound`** — a node with a confirmed externally dialable endpoint is
+   preferred over a relay-only one: it serves every peer directly, while the
+   other forces them all onto the relay.
+4. **bidirectional `sync_direction`** — a fully bidirectional peer is preferred
    over an upload-/download-only one (it can serve every other peer).
-4. **earliest `startup_time`** — the node that started first wins.
-5. **lowest `cid`** lexicographically — a deterministic final tiebreaker.
+5. **earliest `startup_time`** — the node that started first wins.
+6. **lowest `cid`** lexicographically — a deterministic final tiebreaker.
 
 If no candidate is eligible (every node is `never_master`) **no master is
 elected**: `elect_master` returns `None`, the role becomes `NONE`, and a parsable

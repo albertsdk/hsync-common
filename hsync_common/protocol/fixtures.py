@@ -118,6 +118,7 @@ def _p2p_txt_record() -> dict[str, Any]:
         "cert_fp": _FIXTURE_CERT_FP,
         "peer_download": "true",
         "server_ready": "true",
+        "inbound": "true",
         "connected": "3",
         "heartbeat": "7",
     }
@@ -135,6 +136,7 @@ def _p2p_txt_seeder_record() -> dict[str, Any]:
         "https": "true",
         "cert_fp": _FIXTURE_CERT_FP,
         "peer_download": "true",
+        "inbound": "true",
         "heartbeat": "8",
     }
 
@@ -263,6 +265,27 @@ _ELECTION_SCENARIOS: tuple[tuple[str, tuple[ElectionCandidate, ...]], ...] = (
         (
             ElectionCandidate(cid="a", startup_time=100.0, never_master=True),
             ElectionCandidate(cid="b", startup_time=200.0, never_master=True),
+        ),
+    ),
+    (
+        "inbound-beats-relay-only",
+        (
+            ElectionCandidate(cid="relay-only", startup_time=100.0),
+            ElectionCandidate(cid="reachable", startup_time=200.0, inbound=True),
+        ),
+    ),
+    (
+        "inbound-beats-bidirectional",
+        (
+            ElectionCandidate(cid="relay-only", startup_time=100.0, sync_direction="bidirectional"),
+            ElectionCandidate(cid="reachable", startup_time=200.0, inbound=True),
+        ),
+    ),
+    (
+        "prefer-master-beats-inbound",
+        (
+            ElectionCandidate(cid="forced", startup_time=300.0, prefer_master=True),
+            ElectionCandidate(cid="reachable", startup_time=100.0, inbound=True),
         ),
     ),
 )

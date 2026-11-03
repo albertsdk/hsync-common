@@ -4,6 +4,7 @@
   "cid": "TestClientA1234567890",
   "heartbeat": "8",
   "https": "true",
+  "inbound": "true",
   "peer_download": "true",
   "protocol": "p2p/1",
   "startup_time": "1700000001",

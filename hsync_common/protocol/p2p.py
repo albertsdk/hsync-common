@@ -15,10 +15,13 @@ Ordering (highest priority first):
 1. ``server_ready`` — an already-serving incumbent wins, so a newcomer never
    triggers a takeover/split-brain for the same bucket.
 2. ``prefer_master`` — an operator-preferred master wins over ordinary peers.
-3. bidirectional ``sync_direction`` — a fully bidirectional peer is preferred
+3. ``inbound`` — a node with a confirmed externally dialable endpoint is
+   preferred over a relay-only one: it serves every peer directly, while the
+   other forces them all onto the relay.
+4. bidirectional ``sync_direction`` — a fully bidirectional peer is preferred
    over an upload-only/download-only one (it can serve every other peer).
-4. earliest ``startup_time`` — the node that started first wins.
-5. lowest ``cid`` lexicographically — a deterministic final tiebreaker.
+5. earliest ``startup_time`` — the node that started first wins.
+6. lowest ``cid`` lexicographically — a deterministic final tiebreaker.
 
 Nodes flagged ``never_master`` are excluded from candidacy entirely; if every
 candidate is excluded no master is elected (``elect_master`` returns ``None``).
@@ -84,9 +87,10 @@ class ElectionCandidate:
     sync_direction: str = SYNC_DIRECTION_BIDIRECTIONAL
     server_ready: bool = False
     never_master: bool = False
+    inbound: bool = False
 
 
-def election_sort_key(candidate: ElectionCandidate) -> tuple[bool, bool, bool, float, str]:
+def election_sort_key(candidate: ElectionCandidate) -> tuple[bool, bool, bool, bool, float, str]:
     """Return the canonical sort key; the smallest key wins the election.
 
     Booleans are negated so that ``True`` (e.g. ``server_ready``) sorts before
@@ -95,6 +99,7 @@ def election_sort_key(candidate: ElectionCandidate) -> tuple[bool, bool, bool, f
     return (
         not candidate.server_ready,
         not candidate.prefer_master,
+        not candidate.inbound,
         candidate.sync_direction != SYNC_DIRECTION_BIDIRECTIONAL,
         candidate.startup_time,
         candidate.cid,

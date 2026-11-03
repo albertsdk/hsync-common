@@ -76,6 +76,7 @@ P2P_TXT_OPTIONAL_KEYS: tuple[str, ...] = (
     "server_ready",
     "prefer_master",
     "never_master",
+    "inbound",
     "connected",
     "heartbeat",
     "peer_download",
@@ -790,6 +791,15 @@ def build_p2p_txt_schema() -> dict[str, Any]:
         "server_ready": _TXT_BOOL_FLAG,
         "prefer_master": _TXT_BOOL_FLAG,
         "never_master": _TXT_BOOL_FLAG,
+        "inbound": {
+            **_TXT_BOOL_FLAG,
+            "description": (
+                "This node has a confirmed externally dialable data-plane "
+                "endpoint (e.g. a successful UPnP mapping), so it can serve "
+                "without the relay. Part of the election: a reachable node "
+                "out-ranks a relay-only one, after server_ready/prefer_master."
+            ),
+        },
         "peer_download": {
             **_TXT_BOOL_FLAG,
             "description": (

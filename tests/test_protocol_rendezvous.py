@@ -223,6 +223,7 @@ def test_response_peer_requires_the_election_advert():
         "server_ready": False,
         "prefer_master": False,
         "never_master": True,
+        "inbound": True,
         "startup_time": 1760000000.0,
         "sync_direction": "bidirectional",
     }
@@ -231,12 +232,14 @@ def test_response_peer_requires_the_election_advert():
     relayed = validated["peers"][0]
     assert relayed["never_master"] is True
     assert relayed["server_ready"] is False
+    assert relayed["inbound"] is True
     assert relayed["startup_time"] == 1760000000.0
 
     for key in (
         "server_ready",
         "prefer_master",
         "never_master",
+        "inbound",
         "startup_time",
         "sync_direction",
     ):
@@ -267,6 +270,7 @@ def test_response_peer_requires_a_non_empty_endpoints_list():
         "server_ready": False,
         "prefer_master": False,
         "never_master": True,
+        "inbound": True,
         "startup_time": 1760000000.0,
         "sync_direction": "bidirectional",
     }
