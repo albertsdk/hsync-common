@@ -27,6 +27,11 @@ A preview additionally reports the two facts only the client knows:
 ``preview_warning`` (a plan the mass-deletion guard will pause). A front-end
 never infers either: a plan with no ``to_delete`` row can mean "nothing to delete"
 or "deletions kept", and the two need different wording.
+
+An empty directory is synchronised as its internal ``.hsynckeep`` sentinel, which
+never reaches this stream (it is not user content): ``dir_status`` carries the
+directory's own verdict under its bucket-relative path instead, so a front-end
+renders the folder row's own verdict.
 """
 
 from __future__ import annotations
@@ -66,6 +71,11 @@ class UiEventName(StrEnum):
     transfer = "transfer"  # a file was downloaded / uploaded / deleted
     rename = "rename"  # a file or directory was renamed
     dir_created = "dir_created"  # a directory was created
+    # An empty directory is synchronised as its internal ``.hsynckeep`` sentinel,
+    # which never becomes a file row: this reports the directory itself, under
+    # its bucket-relative path (state: synced|to_upload|to_download|to_delete),
+    # so a front-end renders the folder row's own verdict.
+    dir_status = "dir_status"
     progress = "progress"  # in-flight transfer progress (op: download|upload)
     # a full sync cycle finished; carries the per-action counters
     # (downloaded/uploaded/deleted/renamed/skipped/failed/conflicts)
@@ -140,6 +150,8 @@ class UiEventDict(TypedDict):
     size: NotRequired[int]
     src: NotRequired[str]
     dst: NotRequired[str]
+    # dir_created (absolute local directory), dir_status (bucket-relative
+    # directory), path_not_found (shared path).
     path: NotRequired[str]
     transferred: NotRequired[int]
     total: NotRequired[int]  # peers event (clients in the share) / progress event (bytes)
@@ -147,6 +159,7 @@ class UiEventDict(TypedDict):
     conflict_type: NotRequired[str]
     peer_cid: NotRequired[str]
     peer_address: NotRequired[str]
+    # file_status / dir_status verdict: synced|to_upload|to_download|to_delete.
     state: NotRequired[str]
     elapsed: NotRequired[int]
     fingerprint: NotRequired[str]

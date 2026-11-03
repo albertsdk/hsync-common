@@ -157,6 +157,7 @@ class TestEventNameCoverage:
             "transfer",
             "rename",
             "dir_created",
+            "dir_status",
             "progress",
             "sync_complete",
             "error",

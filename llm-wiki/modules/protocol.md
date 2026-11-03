@@ -117,6 +117,13 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   out of the devices compared); `sync_pending` carries `devices` / `expected`
   while a connected device has not committed its inventory snapshot — a pass
   never classifies a partial group.
+- `dir_status` (`protocol/events.py::UiEventName.dir_status`) reports a
+  **directory’s own verdict**: `path` is the bucket-relative directory (no
+  sentinel, no trailing slash) and `state` is `synced` / `to_upload` /
+  `to_download` / `to_delete`. An empty directory travels as its internal
+  `.hsynckeep` sentinel, which never reaches the stream (it is not user
+  content), so this is the signal that names the directory a front-end renders.
+  A consumer must not count it as a file (ADR 0049).
 - `preview_skipped` (`reason="deletion_policy"`, `count`, `size`) and
   `preview_warning` (`reason="mass_delete_guard"`, `deletes`, `local`) carry the
   two facts a confirmation cannot derive: deletions the policy dropped before

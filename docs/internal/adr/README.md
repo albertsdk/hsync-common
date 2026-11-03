@@ -72,6 +72,7 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0046](0046-one-log-line-grammar.md) | One log-line grammar for every HSYNC producer | Accepted |
 | [0047](0047-p2p-relay-through-rendezvous.md) | Data plane relay through the rendezvous (`--relay`, opaque relay) | Accepted |
 | [0048](0048-desktop-update-check.md) | The desktop release check is opt-in and never self-installs | Accepted |
+| [0049](0049-empty-directory-status.md) | An empty directory reports its own sync status | Accepted |
 
 ## Related documents
 
