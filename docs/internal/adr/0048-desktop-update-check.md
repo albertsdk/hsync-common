@@ -42,9 +42,14 @@ The desktop app performs an **update check only**, never a self-update.
 - Failures are silent: offline, timeout and malformed redirects produce no
   warning during the automatic path.
 - The result is a dialog that reports the release and offers **Download**, which
-  opens the release page in the browser. The app never downloads or executes an
-  artifact; the upgrade itself stays with the platform's own process (snapd,
-  the Windows installer, `apt`/`dnf`).
+  opens in the browser the page that carries this installation's artifact: the
+  direct download of the file its packaging channel publishes (fixed-name alias
+  from RELEASES.md §5.8), or the release's **tag** page when one file cannot be
+  named (a snap, an architecture with no build, an unknown distribution). The
+  releases *index* is not the target: it renders only its first ten assets
+  behind a "Show all N assets" toggle, so the `.deb`/`.rpm`/`.snap` looks missing
+  there. The app never downloads or executes an artifact; the upgrade itself stays
+  with the platform's own process (snapd, the Windows installer, `apt`/`dnf`).
 - The automatic path reminds once per release: a dismissed version is not
   reported again.
 
