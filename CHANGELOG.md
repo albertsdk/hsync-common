@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The master election prefers a node that confirms an externally dialable
+  endpoint (`inbound`); the mDNS TXT schema and the `rdv/1` register/peer
+  mirrors carry it, and a reachable node out-ranks a relay-only one.
+
 ### Fixed
 
 - The wiki anchor checker accepts a `file.py::Class.attribute` anchor that
