@@ -122,7 +122,8 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   sentinel, no trailing slash) and `state` is `synced` / `to_upload` /
   `to_download` / `to_delete`. An empty directory travels as its internal
   `.hsynckeep` sentinel, which never reaches the stream (it is not user
-  content), so this is the signal that names the directory a front-end renders.
+  content): the verdict is derived from the sentinel identity the peer side
+  holds, so it is the signal that names the directory a front-end renders.
   A consumer must not count it as a file (ADR 0049).
 - `preview_skipped` (`reason="deletion_policy"`, `count`, `size`) and
   `preview_warning` (`reason="mass_delete_guard"`, `deletes`, `local`) carry the
