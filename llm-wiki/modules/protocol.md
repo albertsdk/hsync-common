@@ -147,6 +147,14 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   condition ran into (inotify watches, open descriptors): they are integers, not
   text, so a front-end can localize "needs N, limit M" and name the remedy for
   its own platform instead of translating English prose.
+- `warning_cleared` is the other edge of `warning`: it carries the same `source`
+  and says the condition that source reported no longer holds (the watcher was
+  restored to inotify, an election gave the group a primary, the rendezvous
+  answered again). A front-end keys its problems list on `source`, so this is
+  what retracts the entry — without it a warning outlives the problem it
+  described. Only the transition is published (the client tracks the standing
+  sources), so a consumer never has to guard against a retraction that was never
+  raised.
 - Invariant: every `file_status` / `rename_status` burst is bracketed by exactly
   one of the two pairs, so no consumer has to infer the end of a burst (no
   quiet-period timers).

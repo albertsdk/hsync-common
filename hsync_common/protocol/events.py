@@ -86,6 +86,10 @@ class UiEventName(StrEnum):
     # unreachable rendezvous). Distinct from ``error``: the run continues, so the
     # front-end surfaces it as a warning and must not treat it as a failure.
     warning = "warning"
+    # The condition a previous ``warning`` reported no longer holds (same
+    # ``source``): the front-end retracts it, so it never reports a problem that
+    # is gone. A warning is a state, and this is its other edge.
+    warning_cleared = "warning_cleared"
     auth_error = "auth_error"  # authentication error (invalid/missing API key)
     path_not_found = "path_not_found"  # shared path does not exist
     master_conflict = "master_conflict"  # master conflict / takeover
@@ -168,9 +172,10 @@ class UiEventDict(TypedDict):
     conflict_copy: NotRequired[str]  # path of the preserved local copy (conflict_resolved)
     winner: NotRequired[str]  # which side won: "remote" (master) or "local"
     source_cid: NotRequired[str]  # verified peer source for a successful full-file transfer
-    # warning: stable identifier of the subsystem that reported it ("rendezvous",
-    # "watcher", …). The front-end keys its dedup and its notification category
-    # on it, so it is an identifier, never a user-facing sentence.
+    # warning / warning_cleared: stable identifier of the subsystem that reported
+    # the condition ("rendezvous", "watcher", …). The front-end keys its dedup,
+    # its notification category and its retraction on it, so it is an identifier,
+    # never a user-facing sentence.
     source: NotRequired[str]
     # warning: how much of a bounded resource the condition needs versus the
     # maximum in force (inotify watches, open descriptors). Numbers, not text, so
