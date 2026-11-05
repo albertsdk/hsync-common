@@ -9,6 +9,12 @@ android).
 > is the **first search surface**: start here, follow the `path::symbol`
 > references to reach code directly.
 
+**Source references.** Local paths are relative to this repository root and use
+`path/to/file.ext::Symbol`. Cross-repo references are relative to the `hsync/`
+workspace root and start with the sibling repo directory (`hsync-common/…`,
+`hsync-client/…`, `hsync-server/…`, `hsync-rendezvous/…`, `hsync-desktop/…`);
+they are code spans, not hyperlinks.
+
 ## Map
 
 | Doc | Scope |
