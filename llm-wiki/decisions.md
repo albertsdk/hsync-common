@@ -8,10 +8,10 @@ each ADR to the code it governs.
 | ADR | Governs (code) |
 | --- | -------------- |
 | [0001 server-vs-p2p-modes](../docs/internal/adr/0001-server-vs-p2p-modes.md) | client run modes; p2p stack vs REST stack |
-| [0002 p2p-master-election](../docs/internal/adr/0002-p2p-master-election.md) | `protocol/p2p.py::election_sort_key` (`election_sort_key`, `elect_master`) |
+| [0002 p2p-master-election](../docs/internal/adr/0002-p2p-master-election.md) | `hsync_common/protocol/p2p.py::election_sort_key` (`election_sort_key`, `elect_master`) |
 | [0003 tombstone-gossip](../docs/internal/adr/0003-tombstone-gossip.md) | `models/tombstone.py` (`tombstone_merge_decision`, hashed keys, TTL 90 storage GC) + `models/tombstone_store.py` (`TombstoneStore` causal merge) |
 | [0004 desktop-subprocess-contract](../docs/internal/adr/0004-desktop-subprocess-contract.md) | `protocol/events.py` event stream; `protocol/capabilities.py` |
-| [0005 protocol-versioning](../docs/internal/adr/0005-protocol-versioning.md) | `protocol/handshake.py::PROTOCOL_VERSION_REST` (versions + hard-fail handshake) |
+| [0005 protocol-versioning](../docs/internal/adr/0005-protocol-versioning.md) | `hsync_common/protocol/handshake.py::PROTOCOL_VERSION_REST` (versions + hard-fail handshake) |
 | [0007 content-addressed-storage](../docs/internal/adr/0007-content-addressed-storage.md) | `hsync_server/hashes.py` (`FILE_HASHES`: `SHA256(filepath)→SHA256(content)`, idempotent upload detection); `models/file.py` (content hash model) |
 | [0008 client-accounts](../docs/internal/adr/0008-client-accounts.md) | `hsync_server/auth.py` + `auth_store/` package (account tokens, roles, bucket membership); server-only, common defines no auth code |
 | [0009 rest-websocket-transport](../docs/internal/adr/0009-rest-websocket-transport.md) | `protocol/schemas.py` (REST schema SSOT); `protocol/ws/ws-schema.json` (WS schema); `hsync_server` implements endpoints |
@@ -41,7 +41,7 @@ each ADR to the code it governs.
 | [0039 combined-rendezvous](../docs/internal/adr/0039-combined-rendezvous.md) | client `p2p_rendezvous_hybrid.py` (`HybridRendezvous`) + `p2p_rendezvous.py` (`build_rendezvous_plan` returns it, `RendezvousPlanState.create_peer_manager`) + `p2p_peers.py` (source-aware merge via `Peer.capabilities_known`); `protocol/events.py` (`rendezvous` plan `mdns`/`mdns+rendezvous`) |
 | [0040 p2p-master-trust-policy](../docs/internal/adr/0040-p2p-master-trust-policy.md) | `protocol/tls_trust.py` (`DEFAULT_SELF_SIGNED_POLICY`, `PINNING_POLICIES`, `ensure_pinning_policy`, `resolve_self_signed_policy`, `evaluate_tls_trust`); fixture `master_trust_scenarios`; client `p2p_handler._evaluate_master_pin`; Android `Pairing.kt` |
 | [0044 rename-propagates-as-a-move](../docs/internal/adr/0044-rename-propagates-as-a-move.md) | REST contract artifact `protocol/rest/openapi.json` (regenerated from the server's `PATCH .../files`); causal state stays in the per-repo stores (`hsync-server/hsync_server/versions.py::move_version`, `hsync-client/hsync_client/sync_state.py::move_base`) |
-| [0046 one-log-line-grammar](../docs/internal/adr/0046-one-log-line-grammar.md) | `logger.py::LOG_LINE_RE` / `logger.py::format_log_line` / `logger.py::LOG_LEVELS` (the one `<ts> - [pid] [fields] LEVEL: msg` grammar, UTC timestamps); consumers: `hsync-desktop` (renders via `hsync-desktop/hsync_desktop/main_window/ui.py::UiBuildMixin._append_desktop_log`, parses via `hsync-desktop/hsync_desktop/log_style.py::_fallback_runs` and `hsync-desktop/hsync_desktop/engine/process.py::HsyncEngine._on_stdout`) |
+| [0046 one-log-line-grammar](../docs/internal/adr/0046-one-log-line-grammar.md) | `hsync_common/logger.py::LOG_LINE_RE` / `hsync_common/logger.py::format_log_line` / `hsync_common/logger.py::LOG_LEVELS` (the one `<ts> - [pid] [fields] LEVEL: msg` grammar, UTC timestamps); consumers: `hsync-desktop` (renders via `hsync-desktop/hsync_desktop/main_window/ui.py::UiBuildMixin._append_desktop_log`, parses via `hsync-desktop/hsync_desktop/log_style.py::_fallback_runs` and `hsync-desktop/hsync_desktop/engine/process.py::HsyncEngine._on_stdout`) |
 
 p2p transport/security specifics (TOFU pinning, p2p-key policy, threat model)
 live in [`../docs/p2p-protocol.md`](../docs/p2p-protocol.md) and map to

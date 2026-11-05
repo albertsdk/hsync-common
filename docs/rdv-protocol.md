@@ -27,16 +27,16 @@ byte-for-byte with the canonical ones.
 
 ## Transport
 
-- QUIC over UDP, TLS 1.3, ALPN **`hsync-rdv/1`**
+- **QUIC/UDP** and **TLS/TCP**, both with TLS 1.3 and ALPN **`hsync-rdv/1`**
   (`RDV_ALPN`).
-- The QUIC/TLS listener presents a **self-signed** certificate: the client
+- Both listeners present a **self-signed** certificate: the client
   authenticates its SHA-256 DER fingerprint against an explicit pin, the opt-in
   TOFU store or an SSH-style confirmation prompt (the default), and never sends a
   frame to a node it has not authenticated. The full rule lives in the canonical
   spec's *Trust & identity* section; the operator procedure is
   [`hsync-client` — Sync across networks](https://github.com/albertsdk/hsync-client/blob/main/docs/p2p-rendezvous.md).
-- One bidirectional stream per request; frames are **newline-terminated JSON**
-  (NDJSON).
+- QUIC: one bidirectional stream per request; TLS/TCP: one connection per session
+  (frames may be pipelined). Frames are **newline-terminated JSON** (NDJSON).
 - A refusal is a uniform `response` with `error` — `token_required`
   (authorization), `rate_limited` (per-source limit; `retry_after` = limiter
   refill) or `overloaded` (node capacity backpressure; `retry_after` advisory);
@@ -75,7 +75,7 @@ ready, the client sends a **second `register`** that publishes `endpoints[]`
 
 - `host` is the observed public IP and/or the local/LAN address;
 - `port` is the master's **TCP** listen port (`--listen-port` /
-  `HSYNC_P2P_LISTEN_PORT`) — never the QUIC/UDP source port;
+  `HSYNC_P2P_LISTEN_PORT`) — never the observed source port (QUIC/UDP or TLS/TCP);
 - `proto` is `tcp`.
 
 `refresh` renews the TTL and the `connected` count only: it never carries

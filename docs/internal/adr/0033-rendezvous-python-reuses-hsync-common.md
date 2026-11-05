@@ -27,7 +27,7 @@ We will let the rendezvous's Python v1 reuse **generic** `hsync-common` utilitie
 while the `rdv/1` wire contract itself stays canonical in `hsync-rendezvous`:
 
 - `hsync_common.ssl_utils` for the TLS identity;
-- `hsync_common.models.event.CID_PATTERN` for the CID shape;
+- `hsync_common.ids.CID_PATTERN` for the CID shape;
 - `hsync_common.path_validation.is_valid_bucket_name` for the wire `bucket`
   domain (the canonical bucket name shared by client, server and desktop).
 

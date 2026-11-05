@@ -7,15 +7,15 @@ constants in consumers.
 
 | Symbol | Location | Purpose |
 | ------ | -------- | ------- |
-| `PROTOCOL_VERSION_REST/WS/P2P` | `protocol/handshake.py::PROTOCOL_VERSION_REST` | `api/1`, `ws/1`, `p2p/1` |
-| `Capability` (StrEnum) | `protocol/handshake.py::Capability` | feature tokens; `ALL_CAPABILITIES` `protocol/handshake.py::ALL_CAPABILITIES`; includes `delta`, `vector_clocks`, `index` (publishes a read-only inventory) and p2p `peer_download` (serves blocks, ADR-0028) |
-| `encode_capabilities` / `decode_capabilities` | `protocol/handshake.py::encode_capabilities` | tokens ⇄ enum set |
-| `WsAuthRequest` / `WsAuthResponse` TypedDicts | `protocol/handshake.py::WsAuthRequest` | WS auth frames |
-| `WsPresenceFrame` / `build_ws_presence` | `protocol/handshake.py::WsPresenceFrame` | server → client presence frame (connected/total) |
-| `build_ws_auth_request` | `protocol/handshake.py::build_ws_auth_request` | client/android → server (protocol_version, app_version, capabilities, token) |
-| `build_ws_auth_ok` / `build_ws_auth_error` | `protocol/handshake.py::build_ws_auth_ok` | server → client (ok lists server caps; error carries client_protocol_version) |
-| `P2PAuthRequiredFrame` / `P2PAuthFrame` / `P2PAuthResultFrame` / `P2PHelloFrame` | `protocol/handshake.py::P2PAuthRequiredFrame` | p2p master⇄slave handshake TypedDicts (ADR-0024) |
-| `build_p2p_auth_required` / `build_p2p_auth` / `build_p2p_auth_ok` / `build_p2p_auth_failed` / `build_p2p_hello` | `protocol/handshake.py::build_p2p_auth_required` | p2p-WSS frame builders: greeting, auth frame (+token/cid), ok/failed replies, hello (both directions) |
+| `PROTOCOL_VERSION_REST/WS/P2P` | `hsync_common/protocol/handshake.py::PROTOCOL_VERSION_REST` | `api/1`, `ws/1`, `p2p/1` |
+| `Capability` (StrEnum) | `hsync_common/protocol/handshake.py::Capability` | feature tokens; `ALL_CAPABILITIES` `hsync_common/protocol/handshake.py::ALL_CAPABILITIES`; includes `delta`, `vector_clocks`, `index` (publishes a read-only inventory) and p2p `peer_download` (serves blocks, ADR-0028) |
+| `encode_capabilities` / `decode_capabilities` | `hsync_common/protocol/handshake.py::encode_capabilities` | tokens ⇄ enum set |
+| `WsAuthRequest` / `WsAuthResponse` TypedDicts | `hsync_common/protocol/handshake.py::WsAuthRequest` | WS auth frames |
+| `WsPresenceFrame` / `build_ws_presence` | `hsync_common/protocol/handshake.py::WsPresenceFrame` | server → client presence frame (connected/total) |
+| `build_ws_auth_request` | `hsync_common/protocol/handshake.py::build_ws_auth_request` | client/android → server (protocol_version, app_version, capabilities, token) |
+| `build_ws_auth_ok` / `build_ws_auth_error` | `hsync_common/protocol/handshake.py::build_ws_auth_ok` | server → client (ok lists server caps; error carries client_protocol_version) |
+| `P2PAuthRequiredFrame` / `P2PAuthFrame` / `P2PAuthResultFrame` / `P2PHelloFrame` | `hsync_common/protocol/handshake.py::P2PAuthRequiredFrame` | p2p master⇄slave handshake TypedDicts (ADR-0024) |
+| `build_p2p_auth_required` / `build_p2p_auth` / `build_p2p_auth_ok` / `build_p2p_auth_failed` / `build_p2p_hello` | `hsync_common/protocol/handshake.py::build_p2p_auth_required` | p2p-WSS frame builders: greeting, auth frame (+token/cid), ok/failed replies, hello (both directions) |
 
 Strict policy: a protocol-version mismatch is a **hard fail** (server replies
 error / 426; peers disconnect / auth refused). Capabilities are feature flags
@@ -27,9 +27,9 @@ within a version — intersection semantics, never cross-version negotiation
 Mirror of the canonical `rdv/1` contract (`hsync-rendezvous/protocol-spec/rdv-1.md`
 + `hsync-rendezvous/fixtures/`). The daemon keeps its own frame models and does not
 import this mirror; its Python v1 reuses only generic `hsync-common` utilities
-(`ssl_utils`, `CID_PATTERN`, `is_valid_bucket_name` — ADR-0033).
+(`ssl_utils`, `ids` for `CID_PATTERN`, `is_valid_bucket_name` — ADR-0033).
 
-- `PROTOCOL_VERSION_RDV = "rdv/1"` (`protocol/rendezvous.py::PROTOCOL_VERSION_RDV`), `RDV_ALPN = "hsync-rdv/1"`.
+- `PROTOCOL_VERSION_RDV = "rdv/1"` (`hsync_common/protocol/rendezvous.py::PROTOCOL_VERSION_RDV`), `RDV_ALPN = "hsync-rdv/1"`.
   The default listener port is `RDV_DEFAULT_PORT = 443`
   (`hsync_common/constants.py`, next to `NTP_PORT`) — consumers: hsync-rendezvous
   CLI `--port` default and hsync-client bare-host default.
@@ -49,7 +49,7 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
 - Token helpers: `derive_bucket_token` (`HMAC-SHA256(key, "rdv/1"||bucket)`),
   `is_valid_bucket_token`, `constant_time_equals`, `verify_bucket_token`. The
   implementation (and the 64-hex grammar) is the protocol-neutral
-  `protocol/rdv_tokens.py` (`rdv_tokens.py::derive_bucket_token`), shared with
+  `hsync_common/protocol/rdv_tokens.py::derive_bucket_token`, shared with
   the rendezvous daemon and re-exported here so the client import path is stable.
   `MIN_GROUP_KEY_CHARS` / `validate_group_key` in the same module are the single
   key-strength floor both ends enforce (the group key is the token's only
@@ -63,26 +63,26 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
 
 ## capabilities.py — `--capabilities-json` document
 
-- `CAPABILITIES_SCHEMA_VERSION = 1` (`protocol/capabilities.py::CAPABILITIES_SCHEMA_VERSION`); the desktop accepts
+- `CAPABILITIES_SCHEMA_VERSION = 1` (`hsync_common/protocol/capabilities.py::CAPABILITIES_SCHEMA_VERSION`); the desktop accepts
   only this version.
-- `ProtocolVersions` (`protocol/capabilities.py::ProtocolVersions`) carries `rest`, `ws`, `p2p`, `rdv`;
-  `CapabilitiesDoc` (`protocol/capabilities.py::CapabilitiesDoc`) is the document TypedDict.
-- `build_capabilities` (`protocol/capabilities.py::build_capabilities`) aggregates the supported subcommands, the
+- `ProtocolVersions` (`hsync_common/protocol/capabilities.py::ProtocolVersions`) carries `rest`, `ws`, `p2p`, `rdv`;
+  `CapabilitiesDoc` (`hsync_common/protocol/capabilities.py::CapabilitiesDoc`) is the document TypedDict.
+- `build_capabilities` (`hsync_common/protocol/capabilities.py::build_capabilities`) aggregates the supported subcommands, the
   per-subcommand CLI option flags, the protocol versions and the events schema
   version.
-- `parse_capabilities` (`protocol/capabilities.py::parse_capabilities`) accepts only the current schema version and rejects missing keys
-  **and** wrong field types (`_field_types_valid` `protocol/capabilities.py::_field_types_valid`; the document crosses a
+- `parse_capabilities` (`hsync_common/protocol/capabilities.py::parse_capabilities`) accepts only the current schema version and rejects missing keys
+  **and** wrong field types (`_field_types_valid` `hsync_common/protocol/capabilities.py::_field_types_valid`; the document crosses a
   process boundary, so a malformed `subcommands`/`cli_options`/`capabilities`
   must be refused, not mis-parsed).
-- `supports_cli_option` (`protocol/capabilities.py::supports_cli_option`, scoped to one subcommand or on the union of
-  all) and `supports_subcommand` (`protocol/capabilities.py::supports_subcommand`) back the desktop gating. Emitted by
+- `supports_cli_option` (`hsync_common/protocol/capabilities.py::supports_cli_option`, scoped to one subcommand or on the union of
+  all) and `supports_subcommand` (`hsync_common/protocol/capabilities.py::supports_subcommand`) back the desktop gating. Emitted by
   the client `--capabilities-json` global flag, consumed by desktop to
   enable/disable controls.
 
 ## events.py — UI/telemetry event stream
 
-- `EVENTS_SCHEMA_VERSION = 1` (`protocol/events.py::EVENTS_SCHEMA_VERSION`).
-- `UiEventName` StrEnum (`protocol/events.py::UiEventName`) — the structured events emitted by the
+- `EVENTS_SCHEMA_VERSION = 1` (`hsync_common/protocol/events.py::EVENTS_SCHEMA_VERSION`).
+- `UiEventName` StrEnum (`hsync_common/protocol/events.py::UiEventName`) — the structured events emitted by the
   client and consumed by desktop/android (incl. `sync_paused`,
   `transfer_failed`, `fingerprint_changed`, `auth_required`, `pairing_needed`,
   `duplicate_identity`, `security_rejected`, `rendezvous`, `no_master`, `no_peers`,
@@ -98,17 +98,17 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   yet: `reason="no_device"` (nothing connected) or `reason="awaiting_inventory"`
   (a device is connected but has not published its inventory). It is never a
   verdict on the files, and a consumer shows a waiting/unknown state.
-- `preview_start` / `preview_end` (`protocol/events.py::UiEventName.preview_start`)
+- `preview_start` / `preview_end` (`hsync_common/protocol/events.py::UiEventName.preview_start`)
   bracket the comparison **this front-end asked for**: only `preview_end`
   satisfies the confirmation state that leads to a sync request.
 - `status_pass_start` / `status_pass_end`
-  (`protocol/events.py::UiEventName.status_pass_start`) bracket a **serving
+  (`hsync_common/protocol/events.py::UiEventName.status_pass_start`) bracket a **serving
   device's** classification pass — emitted around every pass of
   `hsync-client/hsync_client/master_status.py::MasterSyncStatus.run_now`, whatever
   triggered the pass. They are the serving-side counterpart of the preview
   pair: a consumer renders a comparison in progress on either start and settles
   its summary on either end, but a pass never confirms a pending sync.
-- `device_status` (`protocol/events.py::UiEventName.device_status`) is emitted
+- `device_status` (`hsync_common/protocol/events.py::UiEventName.device_status`) is emitted
   inside that bracket, one row per live device: `held` (identities it published),
   `pending_here` (its identities the share lacks) and `pending_there` (share
   identities it does not hold). It lets a consumer report the **worst device**
@@ -117,7 +117,7 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   out of the devices compared); `sync_pending` carries `devices` / `expected`
   while a connected device has not committed its inventory snapshot — a pass
   never classifies a partial group.
-- `dir_status` (`protocol/events.py::UiEventName.dir_status`) reports a
+- `dir_status` (`hsync_common/protocol/events.py::UiEventName.dir_status`) reports a
   **directory’s own verdict**: `path` is the bucket-relative directory (no
   sentinel, no trailing slash) and `state` is `synced` / `to_upload` /
   `to_download` / `to_delete`. An empty directory travels as its internal
@@ -133,7 +133,7 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   watcher degraded to polling, a rendezvous unreachable), so a consumer must never
   treat it as a failure. It carries `message` (a user-facing sentence) and
   `source` (`UiEventDict`,
-  `protocol/events.py::UiEventDict`), a stable subsystem
+  `hsync_common/protocol/events.py::UiEventDict`), a stable subsystem
   identifier (`rendezvous`, `watcher`, …) the front-end keys its dedup and
   notification category on. `reason` names the case class
   (`unreachable`, `polling_fallback`, `disk_reserve`, …), or the literal
@@ -172,26 +172,26 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   `upload`). The throttled progress of every in-flight transfer — received
   files included — is how a GUI learns about a file that is not on disk yet;
   consumers must use `op` to decide the direction instead of assuming one.
-- `UiEventDict` (`protocol/events.py::UiEventDict`) includes optional `source_cid` only for a
+- `UiEventDict` (`hsync_common/protocol/events.py::UiEventDict`) includes optional `source_cid` only for a
   successful verified peer-served full download; build/serialize/parse:
-  `build_event` (`protocol/events.py::build_event`), `serialize_event` (`protocol/events.py::serialize_event`),
-  `parse_event_line` (`protocol/events.py::parse_event_line`).
+  `build_event` (`hsync_common/protocol/events.py::build_event`), `serialize_event` (`hsync_common/protocol/events.py::serialize_event`),
+  `parse_event_line` (`hsync_common/protocol/events.py::parse_event_line`).
 
 ## p2p.py — p2p wire SSOT (master election + p2p-only paths)
 
-- Realtime control-plane path: `P2P_WS_EVENTS_PATH` (`protocol/p2p.py::P2P_WS_EVENTS_PATH`) template and
-  `p2p_ws_events_path(bucket, cid)` (`protocol/p2p.py::p2p_ws_events_path`); the master registers the
+- Realtime control-plane path: `P2P_WS_EVENTS_PATH` (`hsync_common/protocol/p2p.py::P2P_WS_EVENTS_PATH`) template and
+  `p2p_ws_events_path(bucket, cid)` (`hsync_common/protocol/p2p.py::p2p_ws_events_path`); the master registers the
   template, the client builds the concrete path, and the Android mirror
   (`PeerDownloadContracts.kt`) matches it. The bucket prefix comes from
   `protocol.rest`.
-- p2p-only endpoint `P2P_FILES_SOURCES_SUFFIX` (`protocol/p2p.py::P2P_FILES_SOURCES_SUFFIX`): source resolution
+- p2p-only endpoint `P2P_FILES_SOURCES_SUFFIX` (`hsync_common/protocol/p2p.py::P2P_FILES_SOURCES_SUFFIX`): source resolution
   has no hsync-server counterpart; its concrete path is built with
   `rest_bucket_path`.
-- `ElectionCandidate` dataclass (`protocol/p2p.py::ElectionCandidate`).
-- Ordering key `election_sort_key` (`protocol/p2p.py::election_sort_key`); SSOT ranking
-  `rank_election_candidates` (`protocol/p2p.py::rank_election_candidates`) returns the full ranked list
-  (never_master filtered out); `elect_master` (`protocol/p2p.py::elect_master`) is its
-  winner-only projection; `SYNC_DIRECTION_BIDIRECTIONAL` (`protocol/p2p.py::SYNC_DIRECTION_BIDIRECTIONAL`).
+- `ElectionCandidate` dataclass (`hsync_common/protocol/p2p.py::ElectionCandidate`).
+- Ordering key `election_sort_key` (`hsync_common/protocol/p2p.py::election_sort_key`); SSOT ranking
+  `rank_election_candidates` (`hsync_common/protocol/p2p.py::rank_election_candidates`) returns the full ranked list
+  (never_master filtered out); `elect_master` (`hsync_common/protocol/p2p.py::elect_master`) is its
+  winner-only projection; `SYNC_DIRECTION_BIDIRECTIONAL` (`hsync_common/protocol/p2p.py::SYNC_DIRECTION_BIDIRECTIONAL`).
 - The client `hsync_client/p2p_peers.py` consumes `rank_election_candidates` for
   master, successor and the prefer_master conflict subset; android
   `Election.kt` mirrors the ordering; parity is pinned by the
@@ -199,16 +199,16 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
 
 ## rest.py — REST surface SSOT (paths shared with hsync-server)
 
-- `REST_API_PREFIX` (`protocol/rest.py::REST_API_PREFIX`), service paths (`REST_HEALTH_PATH`
-  `protocol/rest.py::REST_HEALTH_PATH`,
+- `REST_API_PREFIX` (`hsync_common/protocol/rest.py::REST_API_PREFIX`), service paths (`REST_HEALTH_PATH`
+  `hsync_common/protocol/rest.py::REST_HEALTH_PATH`,
   `REST_METRICS_PATH`, `REST_TIME_PATH`) and the admin surface.
-- `REST_BUCKETS_PREFIX` (`protocol/rest.py::REST_BUCKETS_PREFIX`) plus the `REST_*_SUFFIX` constants
-  (`protocol/rest.py::REST_BUCKETS_PREFIX`), with `rest_bucket_base` (`protocol/rest.py::rest_bucket_base`),
-  `rest_bucket_path` (`protocol/rest.py::rest_bucket_path`),
-  `rest_bucket_template` (`protocol/rest.py::rest_bucket_template`) and `rest_delta_data_path`
-  (`protocol/rest.py::rest_delta_data_path`).
-- `REST_PATH_TEMPLATES` (`protocol/rest.py::REST_PATH_TEMPLATES`) is the whole named surface, compared
-  **byte-for-byte** with the committed OpenAPI snapshot (`protocol/__init__.py::REST_OPENAPI_PATH`) by
+- `REST_BUCKETS_PREFIX` (`hsync_common/protocol/rest.py::REST_BUCKETS_PREFIX`) plus the `REST_*_SUFFIX` constants
+  (`hsync_common/protocol/rest.py::REST_BUCKETS_PREFIX`), with `rest_bucket_base` (`hsync_common/protocol/rest.py::rest_bucket_base`),
+  `rest_bucket_path` (`hsync_common/protocol/rest.py::rest_bucket_path`),
+  `rest_bucket_template` (`hsync_common/protocol/rest.py::rest_bucket_template`) and `rest_delta_data_path`
+  (`hsync_common/protocol/rest.py::rest_delta_data_path`).
+- `REST_PATH_TEMPLATES` (`hsync_common/protocol/rest.py::REST_PATH_TEMPLATES`) is the whole named surface, compared
+  **byte-for-byte** with the committed OpenAPI snapshot (`hsync_common/protocol/__init__.py::REST_OPENAPI_PATH`) by
   `tests/test_protocol_rest.py`; a server route change fails that test until
   this module is updated, so clients cannot drift.
 - Consumers: `hsync-client` (server API requests, peer-download mirror) and the
@@ -216,21 +216,21 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
 
 ## pairing.py — TOFU pin + p2p-key policy
 
-- `PinDecision` StrEnum (`protocol/pairing.py::PinDecision`); `normalize_fingerprint`
-  (`protocol/pairing.py::normalize_fingerprint`); `evaluate_pin` (`protocol/pairing.py::evaluate_pin`).
-- Rendezvous trust primitives (ADR-0034): `parse_fingerprint` (`protocol/pairing.py::parse_fingerprint`)
+- `PinDecision` StrEnum (`hsync_common/protocol/pairing.py::PinDecision`); `normalize_fingerprint`
+  (`hsync_common/protocol/pairing.py::normalize_fingerprint`); `evaluate_pin` (`hsync_common/protocol/pairing.py::evaluate_pin`).
+- Rendezvous trust primitives (ADR-0034): `parse_fingerprint` (`hsync_common/protocol/pairing.py::parse_fingerprint`)
   normalizes `sha256:<hex>` / bare hex to lowercase 64-char hex (rejects invalid),
-  `fingerprint_matches` (`protocol/pairing.py::fingerprint_matches`) compares constant-time against a pin
-  set, `FingerprintMismatch` (`protocol/pairing.py::FingerprintMismatch`) is the shared fatal-exception.
+  `fingerprint_matches` (`hsync_common/protocol/pairing.py::fingerprint_matches`) compares constant-time against a pin
+  set, `FingerprintMismatch` (`hsync_common/protocol/pairing.py::FingerprintMismatch`) is the shared fatal-exception.
   Consumers: `hsync-client` rendezvous pinning; future C/Android parity.
 - P2P master trust is the `TrustPolicy` of the self-signed transports
-  (`protocol/tls_trust.py::TrustPolicy`, ADR-0040): `evaluate_tls_trust`
-  (`protocol/tls_trust.py::evaluate_tls_trust`) is the rule and
-  `resolve_self_signed_policy` (`protocol/tls_trust.py::resolve_self_signed_policy`)
-  resolves flag > env > `DEFAULT_SELF_SIGNED_POLICY` (`protocol/tls_trust.py::DEFAULT_SELF_SIGNED_POLICY`,
+  (`hsync_common/protocol/tls_trust.py::TrustPolicy`, ADR-0040): `evaluate_tls_trust`
+  (`hsync_common/protocol/tls_trust.py::evaluate_tls_trust`) is the rule and
+  `resolve_self_signed_policy` (`hsync_common/protocol/tls_trust.py::resolve_self_signed_policy`)
+  resolves flag > env > `DEFAULT_SELF_SIGNED_POLICY` (`hsync_common/protocol/tls_trust.py::DEFAULT_SELF_SIGNED_POLICY`,
   `ask`), rejecting the non-pinning `chain`/`none`.
-- `is_write_direction` (`protocol/pairing.py::is_write_direction`) + `p2p_write_requires_key`
-  (`protocol/pairing.py::p2p_write_requires_key`); write directions set `protocol/pairing.py::_WRITE_DIRECTIONS`. ADR-0029 makes every
+- `is_write_direction` (`hsync_common/protocol/pairing.py::is_write_direction`) + `p2p_write_requires_key`
+  (`hsync_common/protocol/pairing.py::p2p_write_requires_key`); write directions set `hsync_common/protocol/pairing.py::_WRITE_DIRECTIONS`. ADR-0029 makes every
   write-capable run require a key unless the explicit dangerous
   `allow_unauthenticated_writes` opt-in is set.
 
@@ -238,32 +238,32 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
 
 - Payload TypedDicts cover batch source request/response candidates,
   snapshot/delta inventory entries and frames, and cumulative ACKs
-  (`protocol/peer_download.py::validate_p2p_sources_request`).
+  (`hsync_common/protocol/peer_download.py::validate_p2p_sources_request`).
 - `validate_p2p_sources_request` / `validate_p2p_sources_response` and matching
   builders enforce exact keys, canonical normalized paths, lowercase hashes,
   CID/candidate uniqueness, IP-literal HTTPS endpoints, 500-file/8-candidate
-  limits, and the 2 MiB compact-payload ceiling (`protocol/peer_download.py::validate_p2p_sources_request`).
+  limits, and the 2 MiB compact-payload ceiling (`hsync_common/protocol/peer_download.py::validate_p2p_sources_request`).
 - `validate_p2p_inventory_frame` / `validate_p2p_inventory_ack` and matching
   builders enforce mode-specific entries, non-boolean signed-64-bit counters,
   duplicate-path rejection, terminal empty snapshots, strict ACK reasons, and
-  the shared 2 MiB/500-entry bounds (`protocol/peer_download.py::validate_p2p_inventory_frame`).
+  the shared 2 MiB/500-entry bounds (`hsync_common/protocol/peer_download.py::validate_p2p_inventory_frame`).
 
 ## schemas.py — JSON-Schema builders (draft 2020-12)
 
-- Dialect const `protocol/schemas.py::JSON_SCHEMA_DIALECT`; p2p TXT key sets
-  `protocol/schemas.py::P2P_TXT_REQUIRED_KEYS`/`protocol/schemas.py::P2P_TXT_OPTIONAL_KEYS`/`protocol/schemas.py::P2P_TXT_KEYS` include the
+- Dialect const `hsync_common/protocol/schemas.py::JSON_SCHEMA_DIALECT`; p2p TXT key sets
+  `hsync_common/protocol/schemas.py::P2P_TXT_REQUIRED_KEYS`/`hsync_common/protocol/schemas.py::P2P_TXT_OPTIONAL_KEYS`/`hsync_common/protocol/schemas.py::P2P_TXT_KEYS` include the
   optional `peer_download` implementation flag. Live seeder capacity is not a TXT
   fact: it travels on the authenticated handshake (ADR-0030).
-- `build_ws_schema` (`protocol/schemas.py::build_ws_schema`), `build_p2p_wss_schema` (`protocol/schemas.py::build_p2p_wss_schema`; pins
+- `build_ws_schema` (`hsync_common/protocol/schemas.py::build_ws_schema`), `build_p2p_wss_schema` (`hsync_common/protocol/schemas.py::build_p2p_wss_schema`; pins
   auth/hello plus inventory/ACK frames, ADR-0024/0028),
-  `build_p2p_sources_schema` (`protocol/schemas.py::build_p2p_sources_schema`), and `build_p2p_txt_schema`
-  (`protocol/schemas.py::build_p2p_txt_schema`) derive
+  `build_p2p_sources_schema` (`hsync_common/protocol/schemas.py::build_p2p_sources_schema`), and `build_p2p_txt_schema`
+  (`hsync_common/protocol/schemas.py::build_p2p_txt_schema`) derive
   enums/objects and bounds from `handshake`, `peer_download`, `events`, and the
   `models/` types. Shared capabilities-array schema is `_capabilities_array`.
 
 ## fixtures.py — cross-language golden fixtures
 
-- `build_fixtures` (`protocol/fixtures.py::build_fixtures`) assembles file-event, master/seeder p2p TXT,
+- `build_fixtures` (`hsync_common/protocol/fixtures.py::build_fixtures`) assembles file-event, master/seeder p2p TXT,
   peer source request/response, inventory/ACK, election, pin/write-policy,
   pairing and causal scenarios from the SSOT builders.
 - The **delta fixtures** (`delta-signatures`, `delta-instructions`,
@@ -278,16 +278,16 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
 
 ## __init__.py — paths & (de)serialization
 
-- Artifact path constants: `REST_OPENAPI_PATH` (`protocol/__init__.py::REST_OPENAPI_PATH`),
-  `WS_SCHEMA_PATH` (`protocol/__init__.py::WS_SCHEMA_PATH`),
-  `P2P_TXT_SCHEMA_PATH` (`protocol/__init__.py::P2P_TXT_SCHEMA_PATH`),
-  `P2P_WSS_SCHEMA_PATH` (`protocol/__init__.py::P2P_WSS_SCHEMA_PATH`),
-  `P2P_SOURCES_SCHEMA_PATH` (`protocol/__init__.py::P2P_SOURCES_SCHEMA_PATH`),
-  `FIXTURES_DIR` (`protocol/__init__.py::FIXTURES_DIR`),
-  `RENDEZVOUS_FIXTURES_DIR` (`protocol/__init__.py::RENDEZVOUS_FIXTURES_DIR`),
-  `ANDROID_FIXTURES_DIR` (`protocol/__init__.py::ANDROID_FIXTURES_DIR`).
-- Canonical dump/load: `dump_contract`/`load_contract` (`protocol/__init__.py::dump_contract`),
-  with `dump_openapi` (`protocol/__init__.py::dump_openapi`) reusing them.
+- Artifact path constants: `REST_OPENAPI_PATH` (`hsync_common/protocol/__init__.py::REST_OPENAPI_PATH`),
+  `WS_SCHEMA_PATH` (`hsync_common/protocol/__init__.py::WS_SCHEMA_PATH`),
+  `P2P_TXT_SCHEMA_PATH` (`hsync_common/protocol/__init__.py::P2P_TXT_SCHEMA_PATH`),
+  `P2P_WSS_SCHEMA_PATH` (`hsync_common/protocol/__init__.py::P2P_WSS_SCHEMA_PATH`),
+  `P2P_SOURCES_SCHEMA_PATH` (`hsync_common/protocol/__init__.py::P2P_SOURCES_SCHEMA_PATH`),
+  `FIXTURES_DIR` (`hsync_common/protocol/__init__.py::FIXTURES_DIR`),
+  `RENDEZVOUS_FIXTURES_DIR` (`hsync_common/protocol/__init__.py::RENDEZVOUS_FIXTURES_DIR`),
+  `ANDROID_FIXTURES_DIR` (`hsync_common/protocol/__init__.py::ANDROID_FIXTURES_DIR`).
+- Canonical dump/load: `dump_contract`/`load_contract` (`hsync_common/protocol/__init__.py::dump_contract`),
+  with `dump_openapi` (`hsync_common/protocol/__init__.py::dump_openapi`) reusing them.
 
 ## Change checklist
 

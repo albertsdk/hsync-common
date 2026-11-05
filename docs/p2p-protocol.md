@@ -126,8 +126,8 @@ data plane itself, pairing the elected master with the requester over the same
   as idle only when no byte moves in *either* direction for the idle timeout: a
   long unidirectional upload — whose HTTP reply arrives only once the request
   ends — is never dropped by its silent reply leg. The requester also pings the
-  node on a dedicated control stream so the node's QUIC idle never expires the
-  tunnel between sessions.
+  node on a dedicated control stream so the node's idle timeout (QUIC/UDP or
+  TLS/TCP) never expires the tunnel between sessions.
 - **Node shape.** Opt-in (`--relay`), with host-derived session ceilings plus an
   operator-set aggregate byte rate and idle/per-session limits. Without the flag
   every relay frame is answered `relay_unavailable` and no state is created.
@@ -864,7 +864,7 @@ confirmation).
 
 Every client-ID received from a remote peer (WebSocket auth/hello message, HTTP
 query parameter `?cid=`, delta token metadata) **MUST** pass `is_valid_cid()`
-(`hsync_common.models.event`, pattern `^[A-Za-z0-9]{21}$`, `fullmatch`) before
+(`hsync_common.ids`, pattern `^[A-Za-z0-9]{21}$`, `fullmatch`) before
 it is trusted for log lines, echo suppression, or event attribution.  A CID that
 fails validation is rejected at the transport level (WebSocket close / HTTP 4xx)
 rather than silently falling back to `"unknown"`.  This prevents log injection

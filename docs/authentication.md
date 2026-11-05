@@ -64,7 +64,7 @@ can advertise any CID. See the table in [CID propagation](#cid-propagation).
 ## CID format
 
 Every HSYNC peer is identified by a **CID** — a strictly alphanumeric
-string. The canonical pattern is enforced by `hsync_common.models.event.is_valid_cid`:
+string. The canonical pattern is enforced by `hsync_common.ids.is_valid_cid`:
 
 ```text
 ^[A-Za-z0-9]{21}$
@@ -76,7 +76,7 @@ string. The canonical pattern is enforced by `hsync_common.models.event.is_valid
 | Length | 21 (fixed) |
 | Match mode | **fullmatch** (not `match` — trailing `\n` is rejected) |
 | Entropy | ~125 bits (log₂(62²¹)) |
-| Python validator | `hsync_common.models.event.is_valid_cid(value)` (`^[A-Za-z0-9]{21}$`) |
+| Python validator | `hsync_common.ids.is_valid_cid(value)` (`^[A-Za-z0-9]{21}$`) |
 | Kotlin validator | `CID_PATTERN.matcher(value).matches()` in `P2PWebSocketServer` / `P2PServer` (`^[A-Za-z0-9]{21}$`) |
 
 A CID that fails validation **must be rejected at the transport level** (WebSocket
@@ -154,7 +154,7 @@ Both the Python (`hsync_common`) and Kotlin (`hsync-android`) codebases enforce
 the same CID pattern and validation logic. The pattern and its rationale are
 documented in:
 
-- Python: `hsync_common/models/event.py` — `CID_PATTERN`, `is_valid_cid()`
+- Python: `hsync_common/ids.py` — `CID_PATTERN`, `is_valid_cid()`
 - Kotlin: `P2PWebSocketServer.kt` — `CID_PATTERN`, `isValidCid()` (companion object)
 - Kotlin: `P2PServer.kt` — `CID_PATTERN`, `isValidCidFormat()` (companion object)
 

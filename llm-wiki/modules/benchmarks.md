@@ -38,25 +38,25 @@ anomaly needs a cost breakdown.
 | `compress_data` / `decompress_data` | `hsync_common/compression.py::compress_data`, `hsync_common/compression.py::decompress_data` (capped streaming read) |
 | `compress_file_to_file` | `hsync_common/compression.py::compress_file_to_file` (streaming upload path) |
 | `decompress_stream` | `hsync_common/compression.py::decompress_stream` (anti decompression-bomb cap) |
-| `signatures(...)`, `sig_for_data(...)` | `delta/rolling_checksum.py::compute_signatures`, `delta/rolling_checksum.py::signatures_for_data` |
-| `build_index(4096 sigs)` | `delta/rolling_checksum.py::build_signature_index` |
-| `match_file(size,chg%,bs)` | `delta/rolling_checksum.py::find_matches_file` → `find_matches` (`delta/rolling_checksum.py::find_matches`) |
-| `apply_delta(1MB,lit=N%)` | `delta/rolling_checksum.py::apply_delta` |
-| `optimal_block_size`, `changed_block_ratio`, `is_delta_worthwhile` | `delta/decision.py::optimal_block_size`, `delta/decision.py::changed_block_ratio`, `delta/decision.py::is_delta_worthwhile` |
+| `signatures(...)`, `sig_for_data(...)` | `hsync_common/delta/rolling_checksum.py::compute_signatures`, `hsync_common/delta/rolling_checksum.py::signatures_for_data` |
+| `build_index(4096 sigs)` | `hsync_common/delta/rolling_checksum.py::build_signature_index` |
+| `match_file(size,chg%,bs)` | `hsync_common/delta/rolling_checksum.py::find_matches_file` → `find_matches` (`hsync_common/delta/rolling_checksum.py::find_matches`) |
+| `apply_delta(1MB,lit=N%)` | `hsync_common/delta/rolling_checksum.py::apply_delta` |
+| `optimal_block_size`, `changed_block_ratio`, `is_delta_worthwhile` | `hsync_common/delta/decision.py::optimal_block_size`, `hsync_common/delta/decision.py::changed_block_ratio`, `hsync_common/delta/decision.py::is_delta_worthwhile` |
 | `matcher_ctor(extra=N)` | `ignore.IgnoreMatcher.__init__` / `reload` (`hsync_common/ignore.py::IgnoreMatcher.__init__`, `hsync_common/ignore.py::IgnoreMatcher.reload`) |
 | `matches(single path)` | `hsync_common/ignore.py::IgnoreMatcher.matches` |
 | `should_skip(...)` | `hsync_common/ignore.py::should_skip` (active matcher → fallback) |
 | `sweep(N paths,bucket\|defaults)` | full-scan cost with bucket rules vs. default-only fallback |
-| `file_to_dict` / `file_from_dict(strip\|prepend\|rel_strip)` | `models/file.py::File.to_dict`, `models/file.py::File.from_dict` via `models/_util.py::_resolve_prefixed_path` |
-| `dir_*`, `symlink_*` | `models/dir.py::Dir.to_dict`/`models/dir.py::Dir.from_dict`, `models/symlink.py::Symlink.to_dict`/`models/symlink.py::Symlink.from_dict` |
-| `event_ctor(rename)`, `event_to_dict` | `models/event.py::Event.__init__`, `models/event.py::Event.to_dict` |
-| `is_valid_cid`, `is_partial_file` | `ids.py::is_valid_cid`, `models/file.py::is_partial_file` |
+| `file_to_dict` / `file_from_dict(strip\|prepend\|rel_strip)` | `hsync_common/models/file.py::File.to_dict`, `hsync_common/models/file.py::File.from_dict` via `hsync_common/models/_util.py::_resolve_prefixed_path` |
+| `dir_*`, `symlink_*` | `hsync_common/models/dir.py::Dir.to_dict`/`hsync_common/models/dir.py::Dir.from_dict`, `hsync_common/models/symlink.py::Symlink.to_dict`/`hsync_common/models/symlink.py::Symlink.from_dict` |
+| `event_ctor(rename)`, `event_to_dict` | `hsync_common/models/event.py::Event.__init__`, `hsync_common/models/event.py::Event.to_dict` |
+| `is_valid_cid`, `is_partial_file` | `hsync_common/ids.py::is_valid_cid`, `hsync_common/models/file.py::is_partial_file` |
 | `validate_remote_relpath(valid\|escape)` | `path_validation.validate_remote_relpath` (`hsync_common/path_validation.py::validate_remote_relpath`) |
 | `resolve_within(valid\|escape)` | `path_validation.resolve_within` (`hsync_common/path_validation.py::resolve_within`) |
 | `wire_relpaths(2-key)` | `path_validation.wire_relpaths` (`hsync_common/path_validation.py::wire_relpaths`) |
-| `SyncStateStore.record` / `get` / `retain` | `models/version_store.py::SyncStateStore`, `models/_store_base.py::CausalStoreBase`, `models/version_store.py::SyncStateStore` |
-| `SyncStateStore.save+load` | `models/_store_base.py::CausalStoreBase` persistence skeleton (SQLite WAL) |
-| `TombstoneStore.merge(dominant)` | `models/tombstone_store.py::TombstoneStore` (untrusted-payload sanitize + causal adopt) |
+| `SyncStateStore.record` / `get` / `retain` | `hsync_common/models/version_store.py::SyncStateStore`, `hsync_common/models/_store_base.py::CausalStoreBase`, `hsync_common/models/version_store.py::SyncStateStore` |
+| `SyncStateStore.save+load` | `hsync_common/models/_store_base.py::CausalStoreBase` persistence skeleton (SQLite WAL) |
+| `TombstoneStore.merge(dominant)` | `hsync_common/models/tombstone_store.py::TombstoneStore` (untrusted-payload sanitize + causal adopt) |
 
 ## Methodology (must-read before trusting a number)
 
@@ -94,7 +94,7 @@ anomaly needs a cost breakdown.
 * Delta `find_matches` (A2 + B1): identical-file 1 MB at ~1.01 ms; 10 %
   changed at ~25.90 ms (was ~27.53 ms, −5.9 %: B1 replaced the two per-byte
   `%` divisions with conditional corrections + a 256-entry `(n*byte)%MOD`
-  table, `delta/rolling_checksum.py::_block_byte_penalty`); 50 % changed at ~114.29 ms
+  table, `hsync_common/delta/rolling_checksum.py::_block_byte_penalty`); 50 % changed at ~114.29 ms
   (was ~122.62 ms, −6.8 %); 4 MB 10 % at ~97.52 ms (was ~102.07 ms, −4.5 %);
   the front-insertion case (`10%+4KB`, ~27.12 ms) costs no more than plain
   10 % because the window re-synchronises after the shift.
@@ -108,7 +108,7 @@ anomaly needs a cost breakdown.
 * Path prepend: `file_from_dict(prepend)` at ~1.0 µs (was ~4.0 µs, **~4x**),
   `dir_from_dict(prepend)` at ~0.6 µs (was ~3.1 µs, **~5x**),
   `symlink_from_dict` at ~0.8 µs (was ~3.3 µs, **~4x**) —
-  `_resolve_prefixed_path` (`models/_util.py::_resolve_prefixed_path`)
+  `_resolve_prefixed_path` (`hsync_common/models/_util.py::_resolve_prefixed_path`)
   now uses string concat instead of `Path(prefix) / rel` on the prepend
   branch (pinned by `test_prepend_matches_pathlib_join` in
   `tests/test_models_file.py`). `file_from_dict(strip)` unchanged at ~2.1 µs
@@ -122,12 +122,12 @@ anomaly needs a cost breakdown.
 * Steady-state reconcide micro-opts: a `hsync-client` cProfile of the
   in-sync reconcile showed the per-file cost spread flatly across the shared
   model/validation layer, so four behavior-preserving fast paths were added
-  here — `to_epoch` returns an int verbatim (`time_utils.py::to_epoch`),
-  `File.get` uses `os.stat` instead of `Path(...).stat()` (`models/file.py::File.get`,
+  here — `to_epoch` returns an int verbatim (`hsync_common/time_utils.py::to_epoch`),
+  `File.get` uses `os.stat` instead of `Path(...).stat()` (`hsync_common/models/file.py::File.get`,
   test switched to patch `os.stat`), `_resolve_prefixed_path` returns an
   already-relative path verbatim when the prefix is absolute
-  (`models/_util.py::_resolve_prefixed_path`), and `validate_remote_relpath` guards the NFC
-  normalize with `is_normalized` (`path_validation.py::validate_remote_relpath`). Measured effect:
+  (`hsync_common/models/_util.py::_resolve_prefixed_path`), and `validate_remote_relpath` guards the NFC
+  normalize with `is_normalized` (`hsync_common/path_validation.py::validate_remote_relpath`). Measured effect:
   `file_round_trip` ~2.1→1.3 µs, `file_from_dict(strip)` ~2.1→1.9 µs,
   `file_ctor` ~0.7→0.6 µs; the production decode shape (relative listing path +
   strip) is now a dedicated `file_from_dict(rel_strip)` scenario at ~0.9 µs,
@@ -160,7 +160,7 @@ anomaly needs a cost breakdown.
   `File.__init__` returns a plain-`int` `ctime`/`mtime` verbatim instead of
   routing it through `_parse_time` → `to_epoch` (the wire shape is epoch
   seconds), and `validate_remote_relpath` measures the path with `len()` when it
-  is ASCII instead of allocating its UTF-8 bytes (`path_validation.py::validate_remote_relpath`).
+  is ASCII instead of allocating its UTF-8 bytes (`hsync_common/path_validation.py::validate_remote_relpath`).
   Measured A/B on this machine (`--count 5000`, stash/restore):
   `file_from_dict(prepend)` 1.2→1.0 µs (+14.8 %),
   `file_from_dict(rel_strip)` 1.1→1.0 µs (+14.3 %), `file_ctor` 0.6→0.5 µs
