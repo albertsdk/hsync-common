@@ -32,6 +32,7 @@ PROJECTS=(
 DRY_RUN=false
 NEW_VERSION=""
 BUMP_ANDROID=true
+REFRESH_LOCK=true
 ANDROID_BUILD_GRADLE="${ROOT_DIR}/hsync-android/app/build.gradle.kts"
 
 # Strict semver or semver + prerelease. The prerelease part may contain
@@ -43,7 +44,7 @@ show_help() {
 HSYNC Python Version Bump
 
 Usage:
-    hsync-common/scripts/dev/bump-python-version.sh [--dry-run] [--no-android] <new_version>
+    hsync-common/scripts/dev/bump-python-version.sh [--dry-run] [--no-android] [--no-lock] <new_version>
 
 Examples:
     hsync-common/scripts/dev/bump-python-version.sh --dry-run 1.1.0
@@ -54,6 +55,7 @@ Examples:
 Options:
     --dry-run     Preview changes without touching files.
     --no-android  Skip the Android versionName/versionCode bump.
+    --no-lock     Skip the per-project poetry.lock refresh (see Updates).
 
 Updates:
     - hsync-common/pyproject.toml
@@ -65,6 +67,9 @@ Updates:
     - hsync-rendezvous/python/src/hsync_rendezvous/__init__.py (__version__)
     - hsync-android/app/build.gradle.kts (versionName + versionCode), unless
       --no-android is passed.
+    - <project>/poetry.lock for every listed project, regenerated with
+      `poetry lock` so the recorded content hash matches the bumped
+      pyproject.toml, unless --no-lock is passed.
 
 Notes:
     hsync-common.constants.HSYNC_VERSION is the runtime/protocol version consumed
@@ -92,6 +97,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --no-android)
             BUMP_ANDROID=false
+            shift
+            ;;
+        --no-lock)
+            REFRESH_LOCK=false
             shift
             ;;
         -h|--help)
@@ -238,6 +247,38 @@ update_android_version() {
     fi
 }
 
+# Regenerate each project's poetry.lock so its recorded content hash matches the
+# bumped pyproject.toml. A stale lock makes `poetry install` abort in CI with
+# "pyproject.toml changed significantly since poetry.lock was last generated".
+# Requires poetry on PATH plus the sibling path dependencies (../hsync-common,
+# ../hsync-server) next to each project, which the monorepo layout provides.
+refresh_locks() {
+    if [[ "${REFRESH_LOCK}" == false ]]; then
+        log "Skipping poetry.lock refresh (--no-lock)."
+        return
+    fi
+    if [[ "${DRY_RUN}" == true ]]; then
+        log "Would refresh poetry.lock for: ${PROJECTS[*]}"
+        return
+    fi
+    if ! command -v poetry >/dev/null 2>&1; then
+        err "poetry not found on PATH; cannot refresh lock files (use --no-lock to skip)"
+        exit 1
+    fi
+
+    local project dir
+    for project in "${PROJECTS[@]}"; do
+        dir="${ROOT_DIR}/${project}"
+        # hsync-rendezvous hosts its Poetry project in python/ (src layout).
+        [[ "${project}" == "hsync-rendezvous" ]] && dir="${dir}/python"
+        log "${project}: refreshing poetry.lock"
+        if ! (cd "${dir}" && poetry lock --no-interaction); then
+            err "poetry lock failed in ${dir}"
+            exit 1
+        fi
+    done
+}
+
 main() {
     local mode=""
     [[ "${DRY_RUN}" == true ]] && mode=" (dry-run)"
@@ -249,6 +290,7 @@ main() {
     for project in "${PROJECTS[@]}"; do
         update_pyproject "${project}"
     done
+    refresh_locks
     update_runtime_version
     update_rendezvous_package_version
 
@@ -263,6 +305,11 @@ main() {
         log "Dry-run complete. No files changed."
     else
         log "Version bump complete. Review changes with: git diff"
+        if [[ "${REFRESH_LOCK}" == true ]]; then
+            log "poetry.lock refreshed for every project; commit it with the bump."
+        else
+            log "poetry.lock NOT refreshed (--no-lock): run 'poetry lock' in each project before pushing."
+        fi
         log "Recommended validation per project: poetry check --lock && poetry run pytest -q"
     fi
 }
