@@ -58,6 +58,7 @@ __all__ = [
     "HttpGet",
     "TimeResponse",
     "clamp_incoming_corrected_mtime",
+    "clamp_incoming_raw_mtime",
     "clamp_wire_corrected_mtime",
     "compute_clock_offset",
     "correct_mtime",
@@ -477,3 +478,19 @@ def clamp_incoming_corrected_mtime(value: float) -> float:
     if value <= 0:
         return 0.0
     return clamp_wire_corrected_mtime(value, now_corrected())
+
+
+def clamp_incoming_raw_mtime(value: float, now: float | None = None) -> float:
+    """Clamp a peer-supplied *raw* filesystem mtime to a sane upper bound.
+
+    Sibling of :func:`clamp_incoming_corrected_mtime` for the uncorrected mtime
+    a peer advertises alongside the content (the ``os.utime`` apply sites): a
+    far-future value must not win every mtime tie-break (ADR-0023). ``now``
+    defaults to the local wall clock; unlike the corrected-mtime helper there is
+    no ``0`` pass-through — callers decide whether an unknown mtime applies.
+
+    Consumers: ``hsync-client`` LAN apply paths (rename, upload finalize,
+    delta apply).
+    """
+    reference = time.time() if now is None else now
+    return min(value, reference + CORRECTED_MTIME_MAX_FUTURE_SKEW)
