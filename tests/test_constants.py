@@ -1,5 +1,7 @@
 """Tests for hsync_common.constants."""
 
+import re
+
 from hsync_common.constants import (
     CHUNK_SIZE_LARGE,
     CHUNK_SIZE_MEDIUM,
@@ -25,17 +27,22 @@ from hsync_common.constants import (
     is_valid_client_name,
 )
 
+# SemVer core plus the documented optional prerelease suffix (RELEASES.md §5.1).
+_SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$")
+
 
 class TestVersion:
     def test_version_is_string(self):
         assert isinstance(HSYNC_VERSION, str)
 
-    def test_version_has_three_parts(self):
-        parts = HSYNC_VERSION.split(".")
-        assert len(parts) == 3, f"Expected semver X.Y.Z, got '{HSYNC_VERSION}'"
+    def test_version_is_a_semver(self):
+        """`X.Y.Z` or the documented prerelease form `X.Y.Z-<prerelease>`."""
+        assert _SEMVER_RE.match(HSYNC_VERSION), (
+            f"Expected semver X.Y.Z[-pre], got '{HSYNC_VERSION}'"
+        )
 
-    def test_version_parts_are_numeric(self):
-        for part in HSYNC_VERSION.split("."):
+    def test_version_core_has_three_numeric_parts(self):
+        for part in HSYNC_VERSION.split("-", 1)[0].split("."):
             assert part.isdigit(), f"Version part '{part}' is not numeric"
 
 
