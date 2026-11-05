@@ -141,7 +141,10 @@ writes back into its field.
 `is_valid_endpoint_host` is the dialable-host grammar used on the wire: an
 IPv4/IPv6 literal (bracketed or bare) or an LDH hostname, and nothing else —
 control characters, path separators, empty labels, over-long labels and
-IPv4-shaped values that are not real addresses are rejected. It is what the
+IPv4-shaped values that are not real addresses are rejected. Non-routable IP
+literals (unspecified, loopback, link-local, multicast, reserved) are rejected
+too, so an advertised endpoint can never point another peer at its own loopback
+or at link-local metadata; private LAN ranges stay valid. It is what the
 `rdv/1` `endpoints[].host` field accepts, in the daemon and in the mirror.
 
 `normalize_server_url(raw, default_port=…)` is the `HSYNC_SERVER_URL` grammar:

@@ -251,6 +251,16 @@ class TestEndpointHostGrammar:
             "a" * 254,
             "[::1",
             "http://peer.example",
+            # Non-routable literals a remote peer can never dial.
+            "127.0.0.1",
+            "::1",
+            "[::1]",
+            "0.0.0.0",
+            "::",
+            "169.254.169.254",
+            "fe80::1",
+            "224.0.0.1",
+            "255.255.255.255",
         ],
     )
     def test_rejects_non_dialable_values(self, host: str):

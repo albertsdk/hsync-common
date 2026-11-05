@@ -98,7 +98,9 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
 - `is_valid_endpoint_host(host) -> bool` (`endpoint.py::is_valid_endpoint_host`) —
   the dialable-host grammar of the wire: IPv4/IPv6 literal (bracketed or bare) or
   LDH hostname, rejecting control characters, path/authority separators, empty
-  labels, labels > 63 chars and IPv4-shaped non-addresses. Consumed by the
+  labels, labels > 63 chars, IPv4-shaped non-addresses and non-routable IP
+  literals (unspecified, loopback, link-local, multicast, reserved; private LAN
+  ranges remain valid). Consumed by the
   rendezvous `protocol.Endpoint` model and by this mirror's `_validate_endpoint`,
   so an advertised `endpoints[].host` is the same grammar on both ends.
 - Consumers: `hsync-client` `cli.py` (rendezvous-server/server/trust host args),

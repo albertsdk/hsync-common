@@ -182,8 +182,10 @@ def is_valid_endpoint_host(value: str) -> bool:
 
     Accepted: an IPv4/IPv6 literal (bracketed or bare) or an LDH hostname.
     Rejected: everything else — empty values, control characters, path or
-    authority separators, empty labels, labels longer than 63 characters, and
-    values that look like an IPv4 literal without being one.
+    authority separators, empty labels, labels longer than 63 characters,
+    values that look like an IPv4 literal without being one, and IP literals a
+    remote peer can never dial (unspecified, loopback, link-local, multicast,
+    reserved). Private ranges stay accepted for normal LAN peers.
 
     Stricter than :func:`parse_host_port`, which parses operator input that a
     human immediately sees fail: this is the grammar of a value a *remote*
@@ -199,10 +201,21 @@ def is_valid_endpoint_host(value: str) -> bool:
     if not host or len(host) > 253:
         return False
     try:
-        ipaddress.ip_address(host)
-        return True
+        address = ipaddress.ip_address(host)
     except ValueError:
-        pass
+        address = None
+    if address is not None:
+        # A remote peer can never dial these literal ranges; accepting them turns
+        # an advertised endpoint into a client-side SSRF/pivot primitive
+        # (loopback services, cloud metadata at 169.254.169.254, multicast).
+        # Private ranges stay accepted: they are the normal LAN peers.
+        return not (
+            address.is_unspecified
+            or address.is_loopback
+            or address.is_link_local
+            or address.is_multicast
+            or address.is_reserved
+        )
     # All-digits-and-dots is an IPv4 attempt; it must be a *valid* one.
     if all(char.isdigit() or char == "." for char in host):
         return False
