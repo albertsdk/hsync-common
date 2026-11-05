@@ -22,7 +22,8 @@ from __future__ import annotations
 from typing import Any
 
 from hsync_common.constants import CONTENT_TYPE_JSON
-from hsync_common.models.event import CID_PATTERN, EventName
+from hsync_common.ids import CID_PATTERN
+from hsync_common.models.event import EventName
 from hsync_common.models.file import FileDict
 from hsync_common.path_validation import MAX_REMOTE_RELPATH_BYTES
 

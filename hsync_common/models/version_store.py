@@ -16,8 +16,7 @@ crashing startup or poisoning the merge base.
 
 Consumers: ``hsync-client`` (``sync_state`` store wrapper), ``hsync-server``
 (``versions.py`` per-bucket stores), ``hsync-android`` (``Version.kt``
-``SyncStateStore`` mirror). Re-exported from :mod:`.version` for the historic
-import path.
+``SyncStateStore`` mirror). Re-exported from :mod:`.version`.
 """
 
 import sqlite3

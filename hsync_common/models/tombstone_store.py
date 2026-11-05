@@ -11,7 +11,7 @@ SQLite database (``state DB``, ADR-0025), keyed by a folder UUID.
 
 Consumers: ``hsync-server`` / ``hsync-client`` (``tombstones.py`` wrappers and
 gossip endpoints), ``hsync-android`` (``Tombstones.kt`` mirror). Re-exported
-from :mod:`.tombstone` for the historic import path.
+from :mod:`.tombstone`.
 """
 
 import sqlite3

@@ -17,26 +17,6 @@ from .symlink import Symlink
 if TYPE_CHECKING:
     from .file import FileDict
 
-# Canonical shape of a client ID on the wire: strictly alphanumeric (ASCII
-# letters and digits only, no separators), exactly 21 characters, so a cid
-# always starts with a letter or digit — never ``-`` or ``_``. Applied to cid
-# values received from remote peers (form fields, WS paths, event payloads)
-# before trusting them for echo suppression or logging.
-#
-# ``CID_PATTERN`` is the public regex string (consumed by protocol.schemas and
-# protocol.rendezvous); :func:`is_valid_cid` deliberately does NOT use it at
-# runtime — the ``len``/``isascii``/``isalnum`` chain is exactly equivalent and
-# avoids the regex engine on the hot path (per vclock key, per event cid).
-CID_PATTERN = r"^[A-Za-z0-9]{21}$"
-_CID_LENGTH = 21
-
-
-def is_valid_cid(value: object) -> bool:
-    """Return True when *value* is a well-formed client ID (see CID_PATTERN)."""
-    return (
-        isinstance(value, str) and len(value) == _CID_LENGTH and value.isascii() and value.isalnum()
-    )
-
 
 class EventDict(TypedDict):
     """Type-safe dictionary representation of an Event."""

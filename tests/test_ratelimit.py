@@ -53,6 +53,23 @@ def test_evict_stale_drops_fully_refilled_buckets() -> None:
     assert limiter.has_tokens("k", now=101.0) is True
 
 
+def test_refund_returns_one_token_and_caps_at_capacity() -> None:
+    """``refund`` is the inverse of ``allow`` (the TCP relay exemption seam)."""
+    limiter = TokenBucketLimiter(capacity=1, refill=0.001, window=1.0)
+    assert limiter.allow("k", now=0.0) is True
+    assert limiter.allow("k", now=0.0) is False  # burst spent, no refill yet
+    limiter.refund("k")
+    assert limiter.allow("k", now=0.0) is True  # the token came back
+    # A refund can never raise the bucket above capacity.
+    limiter.refund("k")
+    limiter.refund("k")
+    assert limiter.allow("k", now=0.0) is True
+    assert limiter.allow("k", now=0.0) is False  # still exactly one token
+    # An unknown key is a no-op (no bucket is created).
+    limiter.refund("missing")
+    assert "missing" not in limiter._buckets
+
+
 def test_invalid_parameters_are_rejected() -> None:
     with pytest.raises(ValueError):
         TokenBucketLimiter(capacity=0, refill=1.0)

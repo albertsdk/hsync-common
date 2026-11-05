@@ -310,6 +310,19 @@ SERVER_DEFAULT_PORT = 9753
 # and the hsync-client `HSYNC_RENDEZVOUS_PORTS`; both sides must agree on the set.
 RDV_PORT_SET = (RDV_DEFAULT_PORT, 53)
 
+# Transport selection vocabulary for a `rdv/1` client (hsync-client /
+# hsync-desktop policy, NOT wire contract): `auto` races QUIC and TLS/TCP
+# (QUIC preferred), `quic`/`tcp` use one transport only. Declared consumers:
+# hsync-client (config.py, rdv_client.py), hsync-desktop (settings/wizard).
+RDV_TRANSPORTS = ("auto", "quic", "tcp")
+RDV_TRANSPORT_DEFAULT = "auto"
+# A TLS/TCP winner of an `auto` race is memoized only this long, so QUIC regains
+# priority (RFC 8305 happy-eyeballs spirit) when it becomes reachable again.
+RDV_TCP_FALLBACK_TTL_S = 300
+# `auto` start offset for the second transport (RFC 8305): TCP starts this
+# many seconds after QUIC unless QUIC has already won.
+RDV_TRANSPORT_STAGGER_S = 0.25
+
 # Seconds to wait for a single SNTP probe before moving to the next host.
 NTP_TIMEOUT_SECONDS = 3.0
 

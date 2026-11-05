@@ -21,6 +21,7 @@ mirrors) and the ``hsync-android`` mirror.
 from __future__ import annotations
 
 __all__ = [
+    "PROMETHEUS_CONTENT_TYPE",
     "REST_ADMIN_BUCKETS_PATH",
     "REST_ADMIN_CLIENTS_PATH",
     "REST_ADMIN_CLIENT_DISABLE_PATH",
@@ -64,6 +65,11 @@ REST_API_PREFIX = "/api/v1"
 REST_HEALTH_PATH = "/health"
 REST_METRICS_PATH = "/metrics"
 REST_TIME_PATH = f"{REST_API_PREFIX}/time"
+
+# Prometheus text exposition content type, shared by every ``/metrics`` surface
+# (the FastAPI server and the framework-free rendezvous responder) so the two
+# cannot advertise different formats for the same body.
+PROMETHEUS_CONTENT_TYPE = "text/plain; version=0.0.4; charset=utf-8"
 
 # Admin surface.
 REST_ADMIN_BUCKETS_PATH = f"{REST_API_PREFIX}/admin/buckets"

@@ -15,10 +15,59 @@ import time
 
 __all__ = [
     "RateLimitKey",
+    "TokenBucket",
     "TokenBucketLimiter",
 ]
 
 RateLimitKey = str
+
+
+class TokenBucket:
+    """Single-bucket token limiter for one fixed policy (no per-key map).
+
+    ``charge(size)`` consumes *size* tokens and returns ``None`` when they fit,
+    or the seconds to wait until they do; tokens are **not** consumed on the
+    failure path. ``acquire()`` is the one-token sugar for the common
+    per-message case. State refills lazily on a monotonic clock and ``now`` is
+    injectable for deterministic tests.
+
+    This is the standalone sibling of :class:`TokenBucketLimiter`: use it when a
+    component has exactly one bucket (a WebSocket message budget, a relay
+    byte-rate shaper) instead of one bucket per IP/key. A zero capacity or refill
+    is allowed and yields a bucket that never admits work.
+    """
+
+    def __init__(self, capacity: float, refill: float, window: float = 1.0) -> None:
+        if capacity < 0 or refill < 0 or window <= 0:
+            raise ValueError("capacity/refill must be non-negative and window positive")
+        self._capacity = float(capacity)
+        self._rate = refill / window
+        self._tokens = float(capacity)
+        self._stamp = time.monotonic()
+
+    def _refill(self, now: float) -> None:
+        elapsed = now - self._stamp
+        if elapsed < 0.0:
+            elapsed = 0.0
+        self._tokens = min(self._capacity, self._tokens + elapsed * self._rate)
+        self._stamp = now
+
+    def charge(self, size: float, now: float | None = None) -> float | None:
+        """Consume *size* tokens; ``None`` when they fit, else seconds to wait."""
+        if size < 0:
+            raise ValueError("size must be non-negative")
+        now = now if now is not None else time.monotonic()
+        self._refill(now)
+        if self._tokens >= size:
+            self._tokens -= size
+            return None
+        if self._rate <= 0:
+            return float("inf")
+        return (size - self._tokens) / self._rate
+
+    def acquire(self, now: float | None = None) -> bool:
+        """Consume one token, returning True, or False when the bucket is empty."""
+        return self.charge(1.0, now) is None
 
 
 class TokenBucketLimiter:
@@ -99,6 +148,25 @@ class TokenBucketLimiter:
         elapsed = max(0.0, now - entry[1])
         tokens = min(self._capacity, entry[0] + elapsed * self._rate)
         return tokens >= 1.0
+
+    def refund(self, key: RateLimitKey) -> None:
+        """Return one consumed token to ``key`` (never above ``capacity``).
+
+        The inverse of a consumed :meth:`allow`, for a caller that admitted work
+        and then found it should not have been charged against this budget. Used
+        by the rendezvous node's TLS/TCP relay fan-out exemption: an admitted
+        connection that turns out to be a relay ``relay_attach`` returns the
+        handshake token its admission consumed, so a listener's fan-out is
+        bounded by the relay session quotas instead of the generic per-IP
+        handshake budget. An unknown key is a no-op, and the count never exceeds
+        ``capacity`` (the value a first-use bucket starts from), so a refund can
+        never grant more budget than a fresh bucket would.
+        """
+        entry = self._buckets.get(key)
+        if entry is None:
+            return
+        tokens, ts = entry
+        self._buckets[key] = (min(self._capacity, tokens + 1.0), ts)
 
     def _make_room(self) -> None:
         """Evict the least-recently-used key when the population ceiling is reached."""

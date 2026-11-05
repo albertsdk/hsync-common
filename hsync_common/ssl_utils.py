@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -30,6 +31,8 @@ from pathlib import Path
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519, rsa
+
+from hsync_common.fs import atomic_write_bytes
 
 # Default RSA key size in bits (good security/performance balance).
 DEFAULT_KEY_SIZE = 2048
@@ -321,6 +324,99 @@ def verify_keypair_matches(
     """
     if not public_keys_match(certificate, private_key):
         raise ValueError(f"{who} private key does not match its certificate")
+
+
+# --- Combined single-file service identity ---------------------------------
+# The rendezvous node keeps its service identity in one ``identity.pem`` holding
+# the certificate followed by the unencrypted PKCS#8 key (the SSH host-key
+# model). These primitives are the shared implementation of that layout; the
+# caller keeps only its own policy (warning wording, rotation SAN handling).
+
+_CERT_PEM_RE = re.compile(rb"-----BEGIN CERTIFICATE-----.+?-----END CERTIFICATE-----", re.DOTALL)
+_KEY_PEM_RE = re.compile(rb"-----BEGIN PRIVATE KEY-----.+?-----END PRIVATE KEY-----", re.DOTALL)
+
+
+class IdentityPemError(ValueError):
+    """A combined service-identity PEM payload is malformed."""
+
+
+class IdentityPemMissingError(IdentityPemError):
+    """The payload lacks a certificate or a PKCS#8 private-key PEM block."""
+
+
+class IdentityPemInvalidError(IdentityPemError):
+    """A PEM block is present but cannot be parsed."""
+
+
+class IdentityKeyTypeError(IdentityPemError):
+    """The private key is not an ECDSA P-256 key (ADR-0037)."""
+
+
+def serialize_identity_pem(cert_pem: bytes, key_pem: bytes) -> bytes:
+    """Combine *cert_pem* and *key_pem* into the single-file identity payload."""
+    return cert_pem.rstrip(b"\n") + b"\n" + key_pem
+
+
+def parse_identity_pem(data: bytes) -> tuple[x509.Certificate, PrivateKey]:
+    """Parse a combined cert+key PEM payload.
+
+    Raises :class:`IdentityPemMissingError` when a block is absent,
+    :class:`IdentityPemInvalidError` when a block is corrupt, and
+    :class:`IdentityKeyTypeError` when the key is not ECDSA P-256.
+    """
+    cert_match = _CERT_PEM_RE.search(data)
+    key_match = _KEY_PEM_RE.search(data)
+    if cert_match is None or key_match is None:
+        raise IdentityPemMissingError("a certificate and a PKCS#8 private key are required")
+    try:
+        certificate = x509.load_pem_x509_certificate(cert_match.group(0))
+        private_key = serialization.load_pem_private_key(key_match.group(0), password=None)
+    except ValueError as exc:
+        raise IdentityPemInvalidError(str(exc)) from exc
+    if not isinstance(private_key, ec.EllipticCurvePrivateKey):
+        raise IdentityKeyTypeError("the private key must be ECDSA P-256")
+    return certificate, private_key
+
+
+def identity_san_names(certificate: x509.Certificate) -> list[str]:
+    """Return the certificate's DNS and IP SANs as strings.
+
+    Other GeneralName types (URI, email, …) are never produced by a service
+    identity, so they are intentionally ignored. Used to preserve every
+    reachable name across a rotation.
+    """
+    try:
+        san = certificate.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
+    except x509.ExtensionNotFound:
+        return []
+    return [
+        *san.get_values_for_type(x509.DNSName),
+        *(str(address) for address in san.get_values_for_type(x509.IPAddress)),
+    ]
+
+
+def ensure_identity_dir(path: str | os.PathLike[str]) -> None:
+    """Create the identity file's parent directory ``0700`` when it is missing.
+
+    An existing directory is never re-permissioned: the path may be a shared
+    state tree or a bind-mounted volume this process does not own.
+    """
+    parent = Path(path).parent
+    if not parent.exists():
+        parent.mkdir(parents=True, exist_ok=True, mode=IDENTITY_DIR_MODE)
+        os.chmod(parent, IDENTITY_DIR_MODE)
+
+
+def write_identity_file(
+    path: str | os.PathLike[str],
+    cert_pem: bytes,
+    key_pem: bytes,
+    *,
+    mode: int = KEY_FILE_MODE,
+) -> None:
+    """Write a combined cert+key PEM atomically, owner-only, creating the dir."""
+    ensure_identity_dir(path)
+    atomic_write_bytes(path, serialize_identity_pem(cert_pem, key_pem), mode=mode)
 
 
 @dataclass(frozen=True, slots=True)

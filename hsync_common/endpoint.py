@@ -37,6 +37,7 @@ __all__ = [
     "is_valid_endpoint_host",
     "normalize_bare_endpoint",
     "normalize_endpoint_list",
+    "normalize_server_url",
     "parse_endpoint_list",
     "parse_host_port",
     "parse_https_url",
@@ -326,6 +327,28 @@ def normalize_bare_endpoint(raw: str | None) -> str | None:
     if endpoint.port is None:
         return endpoint.host
     return format_authority(endpoint.host, endpoint.port)
+
+
+def normalize_server_url(raw: str | None, *, default_port: int) -> str | None:
+    """Canonicalize an ``https://…`` URL or a bare ``HOST[:PORT]`` server field.
+
+    The single definition of the ``HSYNC_SERVER_URL`` grammar: a full
+    ``https://…`` URL is validated as-is; a bare host / ``host:port`` /
+    ``[IPv6]`` / ``[IPv6]:port`` value gets the ``https://`` scheme and, when
+    portless, *default_port*. Empty input yields ``None``; a non-HTTPS scheme or
+    a malformed value raises :class:`ValueError`.
+
+    Consumers: ``hsync-client`` (``HSYNC_SERVER_URL`` validator),
+    ``hsync-desktop`` (settings server field).
+    """
+    value = (raw or "").strip()
+    if not value:
+        return None
+    if value.lower().startswith("https://"):
+        return parse_https_url(value)
+    if "://" in value:
+        raise ValueError("Server URL must use HTTPS")
+    return build_https_url(parse_host_port(value), default_port)
 
 
 def _endpoint_key(endpoint: HostPort) -> tuple[str, int | None]:

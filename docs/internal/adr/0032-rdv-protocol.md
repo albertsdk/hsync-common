@@ -45,9 +45,10 @@ Two fields are defined as follows:
   no priority.
 - **`reachable`** is derived from `bool(endpoints)` at `register` time: a peer
   is advertised as reachable only if it published at least one listen endpoint.
-  A register with no endpoint (the first STUN register) is advertised with
-  `reachable=false` and its observed UDP source as the fallback endpoint;
-  `refresh` never changes it.
+   A register with no endpoint (the first STUN register) is advertised with
+   `reachable=false` and its observed source endpoint (`proto` of the transport
+   that delivered the register) as the fallback endpoint;
+   `refresh` never changes it.
 
 The rendezvous document is advertised in `--capabilities-json` as
 `protocol_version.rdv` (capabilities schema v3), alongside `rest`, `ws` and

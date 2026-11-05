@@ -10,7 +10,8 @@ conform to the published contract.
 
 import pytest
 
-from hsync_common.models.event import CID_PATTERN, Event, EventName
+from hsync_common.ids import CID_PATTERN
+from hsync_common.models.event import Event, EventName
 from hsync_common.models.file import File, FileDict
 from hsync_common.protocol import (
     P2P_SOURCES_SCHEMA_PATH,

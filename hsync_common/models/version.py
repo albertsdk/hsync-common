@@ -28,16 +28,17 @@ consulted for any *causal* decision; it enters only the chronological tie-break
 through the offset-corrected ``corrected_mtime`` (ADR-0023).
 
 The persistence layer (:class:`SyncStateStore`) lives in
-:mod:`.version_store` and is re-exported here for the historic import path;
-the wire form is :class:`VersionInfo`.
+:mod:`.version_store` and is re-exported here; the wire form is
+:class:`VersionInfo`.
 """
 
 import secrets
 from enum import StrEnum
 from typing import TypedDict
 
-from ._util import _parse_wire_timestamp, relpath_in_bucket
-from .event import is_valid_cid
+from hsync_common.ids import is_valid_cid
+
+from ._util import _parse_stored_vclock, _parse_wire_timestamp, relpath_in_bucket
 
 __all__ = [
     "VCLOCK_MAX_ENTRIES",
@@ -212,6 +213,17 @@ def merge_vclocks(a: dict[str, int] | None, b: dict[str, int] | None) -> dict[st
     return {k: max(a.get(k, 0), b.get(k, 0)) for k in a.keys() | b.keys()}
 
 
+def decode_wire_vclock(raw: object) -> object:
+    """Decode a wire/stored ``vclock`` value (JSON string, dict or ``None``).
+
+    A JSON string is parsed, a dict passes through, ``None``/malformed JSON
+    yields ``None``. The single seam every wire handler uses before handing the
+    value to :func:`parse_vclock` / ``decide_arbitration``, so a lenient REST
+    handler and a strict one cannot decode the same field differently.
+    """
+    return _parse_stored_vclock(raw)
+
+
 def parse_vclock(raw: object) -> dict[str, int] | None:
     """Strictly parse a vector clock from an untrusted payload or storage row.
 
@@ -349,7 +361,7 @@ def resolve_three_way(
     return SyncDecision.conflict_download
 
 
-# Re-export the SQLite-backed store for the historic import path
+# Re-export the SQLite-backed store
 # (``from hsync_common.models.version import SyncStateStore``). Imported last:
 # ``version_store`` imports the pure helpers above, so this module must be fully
 # defined before the line below runs.

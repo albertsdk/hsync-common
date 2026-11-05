@@ -27,6 +27,7 @@ from pathlib import Path
 
 from loguru import logger as log
 
+from hsync_common.constants import HSYNCKEEP_FILENAME
 from hsync_common.labels import ActionLabel
 from hsync_common.models.dir import Dir, is_hidden_dir
 from hsync_common.models.file import File, is_hidden_file
@@ -37,11 +38,32 @@ from hsync_common.text import compact_json_bytes
 
 __all__ = [
     "file_entry",
+    "folder_has_user_content",
     "iter_bucket_entries",
     "iter_dir_entries",
     "iter_json_array",
     "symlink_entry",
 ]
+
+
+def folder_has_user_content(path: str) -> bool:
+    """Return True when *path* holds user data a delete could remove.
+
+    Entries the engine ignores — the built-in ignore patterns, hidden files and
+    the ``.hsynckeep`` sentinel — are not user content, so an all-artefact folder
+    counts as empty. A folder that cannot be read reports no content. Shared by
+    the client's deletion-risk guard and the desktop's pre-flight window so both
+    agree on what "the folder is not empty" means.
+    """
+    try:
+        for _root, dirs, files in walk(path):
+            dirs[:] = [name for name in dirs if not is_hidden_dir(name)]
+            for name in files:
+                if name != HSYNCKEEP_FILENAME and not is_hidden_file(name):
+                    return True
+    except OSError:
+        return False
+    return False
 
 
 def iter_json_array(items: Iterable[dict]) -> Iterator[bytes]:

@@ -36,8 +36,9 @@ from common import (
     print_table,
 )
 
+from hsync_common.ids import is_valid_cid
 from hsync_common.models.dir import Dir
-from hsync_common.models.event import Event, EventName, is_valid_cid
+from hsync_common.models.event import Event, EventName
 from hsync_common.models.file import File, is_partial_file
 from hsync_common.models.symlink import Symlink
 from hsync_common.models.tombstone import relpath_in_bucket

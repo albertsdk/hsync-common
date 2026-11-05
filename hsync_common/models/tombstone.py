@@ -25,29 +25,37 @@ Persistence is the installation SQLite database (``state DB``, ADR-0025),
 keyed by folder UUID. The wire shape (``to_payload()``) is unchanged.
 
 Path helpers (``tombstone_key`` / ``relpath_in_bucket``) and the wire-timestamp
-parser are re-exported from ``._util`` for the historic consumers. The
-persistence layer (:class:`TombstoneStore`) lives in :mod:`.tombstone_store`
-and is re-exported here for the historic import path.
+parser are re-exported from ``._util``. The persistence layer
+(:class:`TombstoneStore`) lives in :mod:`.tombstone_store` and is re-exported
+here.
 """
 
+from collections.abc import Callable
+from pathlib import Path
 from typing import TypedDict, TypeGuard, cast
 
 from hsync_common.hashing import is_lower_sha256_hex
+from hsync_common.ids import is_valid_cid
 
 from ._util import _parse_wire_timestamp, relpath_in_bucket, tombstone_key
-from .event import is_valid_cid
 from .version import VClockOrder, compare_vclocks, parse_vclock
 
 __all__ = [
     "TOMBSTONE_MAX_CLOCK_SKEW_SECONDS",
     "TOMBSTONE_MAX_ENTRIES",
     "TOMBSTONE_TTL_DAYS_DEFAULT",
+    "MarkerSnapshot",
     "TombstoneEntry",
     "TombstoneStore",
+    "destination_mutated",
+    "marker_snapshot",
     "relpath_in_bucket",
     "tombstone_key",
     "tombstone_merge_decision",
 ]
+
+# Opaque comparison key for a deletion marker: ``(version_id, sorted vclock)``.
+MarkerSnapshot = tuple[str, tuple[tuple[str, int], ...]]
 
 # Default retention window before a tombstone is garbage-collected. This is
 # purely a *storage* bound: correctness never depends on it, because deletion
@@ -182,7 +190,50 @@ def tombstone_merge_decision(existing: TombstoneEntry | None, incoming: Tombston
     return "adopt" if _prefer_incoming(existing, incoming) else "keep"
 
 
-# Re-export the SQLite-backed store for the historic import path
+def marker_snapshot(
+    relpath: str,
+    lookup: Callable[[str], TombstoneEntry | None],
+) -> MarkerSnapshot | None:
+    """Opaque ``(version_id, vclock)`` snapshot of a path's deletion marker.
+
+    *lookup* resolves the store entry for a bucket-relative path under the
+    caller's own lock/store (server: per-bucket registry; client: the local
+    store). Every mint, merge and clear changes the marker's
+    ``(version_id, vclock)``, so holding the snapshot across an operation and
+    comparing it afterwards detects that the path was deleted, renamed away or
+    re-created while the operation ran (ADR-0003). Returns ``None`` when the
+    path is not in the bucket or carries no marker.
+
+    Consumers: ``hsync-server`` and ``hsync-client`` (``destination_mutation_since``).
+    """
+    if not relpath:
+        return None
+    entry = lookup(relpath)
+    if entry is None:
+        return None
+    return (entry["version_id"], tuple(sorted(entry["vclock"].items())))
+
+
+def destination_mutated(
+    abs_path: str,
+    existed_at_start: bool,
+    snapshot: MarkerSnapshot | None,
+    snapshot_of: Callable[[str], MarkerSnapshot | None],
+) -> bool:
+    """True when *abs_path* was removed or replaced since *snapshot* was taken.
+
+    The destination changed under a transfer that is about to commit over it: a
+    delete or rename-away is caught by the presence check (the case even a run
+    without a watcher can see), any deletion-marker change — including a
+    delete-and-recreate — by the snapshot comparison. Consumers:
+    ``hsync-server`` / ``hsync-client`` (upload and delta commit guards).
+    """
+    if existed_at_start and not Path(abs_path).exists():
+        return True
+    return snapshot_of(abs_path) != snapshot
+
+
+# Re-export the SQLite-backed store
 # (``from hsync_common.models.tombstone import TombstoneStore``). Imported last:
 # ``tombstone_store`` imports the helpers above, so this module must be fully
 # defined before the line below runs.

@@ -18,6 +18,10 @@ from hsync_common.constants import (
     HSYNCKEEP_FILENAME,
     RDV_DEFAULT_PORT,
     RDV_PORT_SET,
+    RDV_TCP_FALLBACK_TTL_S,
+    RDV_TRANSPORT_DEFAULT,
+    RDV_TRANSPORT_STAGGER_S,
+    RDV_TRANSPORTS,
     is_valid_client_name,
 )
 
@@ -138,3 +142,15 @@ class TestRdvPortSet:
         """Ordered recommended set: canonical QUIC (443) then DNS (53)."""
         assert RDV_PORT_SET == (443, 53)
         assert RDV_PORT_SET[0] == RDV_DEFAULT_PORT
+
+
+class TestRdvTransport:
+    def test_vocabulary_and_default(self):
+        """The client transport selector vocabulary and its default (HSYNC policy)."""
+        assert RDV_TRANSPORTS == ("auto", "quic", "tcp")
+        assert RDV_TRANSPORT_DEFAULT == "auto"
+
+    def test_fallback_ttl_and_stagger_are_sane(self):
+        """A TCP winner loses priority after a finite TTL; the race stagger is small."""
+        assert RDV_TCP_FALLBACK_TTL_S > 0
+        assert 0 < RDV_TRANSPORT_STAGGER_S < 5

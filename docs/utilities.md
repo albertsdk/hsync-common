@@ -67,7 +67,10 @@ rationale and consequences.
 ## SSL utilities (`hsync_common.ssl_utils`)
 
 Self-signed certificate generation and fingerprint helpers. Used by p2p mode
-for persistent master identity.
+for persistent master identity. The certificate-free client contexts
+(`unverified_ssl_context`, `disable_certificate_verification`) live in the
+stdlib-only `hsync_common.tls_context`, so a startup fast path (the CLI) can
+skip verification without importing `cryptography`.
 
 ## Logger (`hsync_common.logger`)
 
@@ -121,7 +124,7 @@ port. Helpers: `build_https_url`, `parse_https_url`, `build_url` and
 `format_authority` produce the canonical HTTPS URL, validate an explicit
 `https://…[/path]` URL, and build/bracket `scheme://host:port` composites.
 
-`parse_port_list` parses a comma-separated UDP port list (order preserved,
+`parse_port_list` parses a comma-separated port list (order preserved,
 `1–65535`); it raises on an invalid or duplicate entry in strict mode (the
 rendezvous's `run --listen-ports`) and silently drops them in lenient mode (the
 client's `HSYNC_RENDEZVOUS_SERVER_EXTRA_PORTS` dial fallback).
@@ -141,6 +144,13 @@ control characters, path separators, empty labels, over-long labels and
 IPv4-shaped values that are not real addresses are rejected. It is what the
 `rdv/1` `endpoints[].host` field accepts, in the daemon and in the mirror.
 
+`normalize_server_url(raw, default_port=…)` is the `HSYNC_SERVER_URL` grammar:
+a full `https://…` URL, or a bare `host` / `host:port` / `[IPv6]` /
+`[IPv6]:port` value that gets the `https://` scheme and *default_port*. Empty
+input yields `None`; a non-HTTPS scheme raises `ValueError`. Consumers: the
+client's config validator and the desktop Settings/wizard server field — one
+definition so the two interpret the field identically.
+
 ## Runtime (`hsync_common.runtime`)
 
 Runtime environment detection shared across HSYNC projects:
@@ -153,6 +163,7 @@ Runtime environment detection shared across HSYNC projects:
 | `get_memory_limit_bytes` | Effective RAM limit for this process in bytes (cgroup v2 then v1) |
 | `get_cpu_quota_cores` | Effective CPU quota in cores (cgroup v2 then v1) |
 | `runtime_summary` | One-line human-readable summary of the runtime environment for startup logs |
+| `platform_tag` | `<os>-<arch>` release-artifact tag (e.g. `linux-amd64`), matching the directory the `compile.sh` scripts emit under `dist/` |
 
 ## Text (`hsync_common.text`)
 
@@ -183,6 +194,38 @@ Consumers: `hsync-client` (`UpnpMapper`) and `hsync-rendezvous/python`
 monotonic clock and never persisting state. `allow`, `has_tokens`, `retry_after`,
 `evict_stale`. Consumers: `hsync-client` (P2P listener new-request admission) and
 `hsync-rendezvous/python` (admission/query/register limits).
+
+`TokenBucket` — the single-bucket sibling for one fixed policy: `charge(size)`
+returns `None` when it fits or the seconds to wait, `acquire()` is the one-token
+sugar, and a zero capacity/refill yields a bucket that never admits work.
+Consumers: `hsync-server` (WebSocket message budget) and `hsync-rendezvous/python`
+(relay byte-rate shaper).
+
+## Identifiers (`hsync_common.ids`)
+
+Stdlib-only SSOT for the alphanumeric identifiers: `CID_ALPHABET`,
+`CID_LENGTH` (21), `CID_PATTERN`, `is_valid_cid` and `mint_cid` (unbiased
+`secrets.choice`). Deliberately separate from the model layer so the CLI startup
+path and the server account ids can mint/validate a CID without importing
+`cryptography`.
+
+## Durable writes (`hsync_common.fs`)
+
+`atomic_write_bytes` / `atomic_write_text` — write a small state file through a
+temp file in the destination directory, `fsync`, then `os.replace`, owner-only
+(`0o600`) by default. `fsync_dir=True` also fsyncs the parent for crash
+durability; a unique temp name avoids a stale-``SIGKILL`` leftover blocking a
+later write, while `unique_temp=False` + `nofollow=True` is the fixed-temp /
+`O_NOFOLLOW` form. Consumers: the client ready file and trust stores, the
+rendezvous node identity and stats file.
+
+## Other shared helpers
+
+| Helper | Description |
+|--------|-------------|
+| `hsync_common.listing.folder_has_user_content` | True when a folder holds user data a deletion could remove (hidden files, engine artefacts and the `.hsynckeep` sentinel do not count; an unreadable folder reports no content) — shared by the client deletion-risk guard and the desktop pre-flight window |
+| `hsync_common.models.version.decode_wire_vclock` | Decode a wire/stored `vclock` value (JSON string, dict or `None`) before `parse_vclock` / `decide_arbitration` |
+| `hsync_common.protocol.rest.PROMETHEUS_CONTENT_TYPE` | Prometheus text-exposition content type shared by the server and rendezvous `/metrics` surfaces |
 
 ## See also
 

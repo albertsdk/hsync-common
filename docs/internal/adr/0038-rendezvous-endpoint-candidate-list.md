@@ -31,7 +31,8 @@ We will relay the peer's **full candidate list** instead of a single endpoint:
    `port`) as its only endpoint representation: no separate single-address
    field. The node relays `register.endpoints[]` **verbatim and in order**; only
    a register that carried no endpoint at all (the first STUN register) falls
-   back to a single-element list with the observed UDP source
+   back to a single-element list with the observed source endpoint (`proto` of
+   the transport that delivered the register)
    (`reachable=false`). Every implementation, fixture and mirror carries the
    same shape atomically, and the node never interprets or orders by it.
 2. The requester keeps the whole list on the peer and **orders it host/LAN-first**

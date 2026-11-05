@@ -48,7 +48,7 @@ from collections.abc import Mapping
 from typing import Literal, NotRequired, TypedDict
 
 from hsync_common.endpoint import is_valid_endpoint_host
-from hsync_common.models.event import CID_PATTERN, is_valid_cid
+from hsync_common.ids import CID_PATTERN, is_valid_cid
 from hsync_common.path_validation import is_valid_bucket_name
 from hsync_common.protocol.p2p import SYNC_DIRECTION_BIDIRECTIONAL
 from hsync_common.protocol.pairing import (
@@ -66,6 +66,7 @@ from hsync_common.protocol.rdv_tokens import (
 
 __all__ = [
     "RDV_ALPN",
+    "RDV_IDLE_TIMEOUT",
     "BUCKET_TOKEN_LEN",
     "CAPACITY_MAX",
     "CID_PATTERN",
@@ -114,6 +115,10 @@ PROTOCOL_VERSION_RDV: Literal["rdv/1"] = "rdv/1"
 
 # QUIC ALPN offered by the rendezvous's TLS handshake.
 RDV_ALPN = "hsync-rdv/1"
+
+# Spec: a rendezvous connection with no frame activity for this long is dropped.
+# Shared by the node and the client so both sides of the idle contract agree.
+RDV_IDLE_TIMEOUT = 30.0
 
 # hex(32 bytes) = 64 chars. Absent = open bucket. The token grammar and the
 # derivation live in ``protocol/rdv_tokens.py`` (shared with the rendezvous).

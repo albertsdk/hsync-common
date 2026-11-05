@@ -19,6 +19,7 @@ are designed to be called once at process startup.
 from __future__ import annotations
 
 import os
+import platform
 import sys
 from dataclasses import dataclass
 from enum import StrEnum
@@ -26,6 +27,33 @@ from pathlib import Path
 from typing import IO, Final
 
 from hsync_common.format import format_bytes
+
+# ``<os>-<arch>`` release-artifact tag fragments, keyed by ``platform.machine()``.
+_ARCH_TAG_MAP = {
+    "x86_64": "amd64",
+    "amd64": "amd64",
+    "aarch64": "arm64",
+    "arm64": "arm64",
+    "armv7l": "armv7",
+    "armv7": "armv7",
+    "i386": "x86",
+    "i686": "x86",
+}
+
+
+def platform_tag() -> str:
+    """Return the ``<os>-<arch>`` release-artifact tag (e.g. ``linux-amd64``).
+
+    Matches the directory name both ``compile.sh`` scripts emit under ``dist/``,
+    so the runtime that locates a bundled binary and the build that produced it
+    cannot disagree. Windows shells report ``mingw``/``cygwin``/``msys`` as the
+    system name; they are folded to ``windows`` here.
+    """
+    system = platform.system().lower()
+    if system.startswith(("mingw", "cygwin", "msys")):
+        system = "windows"
+    machine = platform.machine().lower()
+    return f"{system}-{_ARCH_TAG_MAP.get(machine, machine)}"
 
 
 class ColorMode(StrEnum):

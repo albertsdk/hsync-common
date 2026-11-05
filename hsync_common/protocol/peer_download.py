@@ -23,7 +23,7 @@ from urllib.parse import urlsplit
 
 from hsync_common.constants import WS_MAX_MESSAGE_BYTES
 from hsync_common.hashing import is_lower_sha256_hex
-from hsync_common.models.event import is_valid_cid
+from hsync_common.ids import is_valid_cid
 from hsync_common.path_validation import is_valid_bucket_name, validate_remote_relpath
 from hsync_common.text import compact_json_bytes
 

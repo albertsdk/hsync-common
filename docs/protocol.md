@@ -19,7 +19,7 @@ from hsync_common.protocol.handshake import (
 Consumers advertise their supported version during connection setup. A mismatch
 causes the connection to be refused.
 
-The `rdv/1` rendezvous channel (QUIC/UDP, ALPN `hsync-rdv/1`) is specified
+The `rdv/1` rendezvous channel (QUIC/UDP and TLS/TCP, ALPN `hsync-rdv/1`) is specified
 canonically in `hsync-rendezvous` and mirrored for the client in
 `hsync_common/protocol/rendezvous.py` (`PROTOCOL_VERSION_RDV`); it is advertised
 alongside the others as `protocol_version.rdv` in the capabilities document.
