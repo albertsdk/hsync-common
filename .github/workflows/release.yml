@@ -55,7 +55,7 @@ jobs:
           PY
 
       - name: Install Poetry
-        run: pipx install poetry
+        run: pipx install poetry==2.4.1
 
       - name: Build sdist and wheel
         run: poetry build
