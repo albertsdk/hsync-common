@@ -10,7 +10,7 @@ wire shape. Re-exported from `hsync_common/models/__init__.py`.
 | `File` | `models/file.py::File` | `FileDict` (`models/file.py::FileDict`) | sync metadata + content hash |
 | `Dir` | `models/dir.py::Dir` | — | `path`, octal `permissions` |
 | `Symlink` | `models/symlink.py::Symlink` | — | `filepath`, `target`, `name`, times |
-| `Event` | `models/event.py::Event` | `EventDict` (`models/event.py::EventDict`) | FS change; `EventName` enum `models/event.py::EventName`; `is_valid_cid` wire validator `models/event.py::is_valid_cid` |
+| `Event` | `models/event.py::Event` | `EventDict` (`models/event.py::EventDict`) | FS change; `EventName` enum `models/event.py::EventName`; `is_valid_cid` wire validator `ids.py::is_valid_cid` |
 | `SyncAction` | `models/sync_action.py::SyncAction` | — | decision; `SyncActionName` enum `models/sync_action.py::SyncActionName` |
 | `TombstoneStore` | `models/tombstone_store.py::TombstoneStore` | `TombstoneEntry` (`models/tombstone.py::TombstoneEntry`) | causal deletion markers (vclock merge); SQLite-backed; re-exported from `models/tombstone.py`; inherits `CausalStoreBase` (`models/_store_base.py::CausalStoreBase`) |
 | `SyncStateStore` / `FileVersion` | `models/version_store.py::SyncStateStore` / `models/version.py::FileVersion` | `FileVersion` TypedDict | 3-way merge state; SQLite-backed; `SyncStateStore` re-exported from `models/version.py`; inherits `CausalStoreBase` |
@@ -48,7 +48,7 @@ wire shape. Re-exported from `hsync_common/models/__init__.py`.
 ## Event / SyncAction
 
 - `EventName` (`models/event.py::EventName`): `added, modified, renamed, deleted, symlink`.
-- `is_valid_cid` (`models/event.py::is_valid_cid`): strictly-alphanumeric client-ID check
+- `is_valid_cid` (`ids.py::is_valid_cid`): strictly-alphanumeric client-ID check
   (`^[A-Za-z0-9]{21}$`) for peer-supplied client IDs — no `-`/`_`, so a cid
   always starts with a letter/digit (`fullmatch` — a trailing `\n` is rejected).
 - `Event.__init__` normalizes src/dst paths **in place** (the caller's objects

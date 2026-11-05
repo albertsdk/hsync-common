@@ -50,7 +50,7 @@ anomaly needs a cost breakdown.
 | `file_to_dict` / `file_from_dict(strip\|prepend\|rel_strip)` | `models/file.py::File.to_dict`, `models/file.py::File.from_dict` via `models/_util.py::_resolve_prefixed_path` |
 | `dir_*`, `symlink_*` | `models/dir.py::Dir.to_dict`/`models/dir.py::Dir.from_dict`, `models/symlink.py::Symlink.to_dict`/`models/symlink.py::Symlink.from_dict` |
 | `event_ctor(rename)`, `event_to_dict` | `models/event.py::Event.__init__`, `models/event.py::Event.to_dict` |
-| `is_valid_cid`, `is_partial_file` | `models/event.py::is_valid_cid`, `models/file.py::is_partial_file` |
+| `is_valid_cid`, `is_partial_file` | `ids.py::is_valid_cid`, `models/file.py::is_partial_file` |
 | `validate_remote_relpath(valid\|escape)` | `path_validation.validate_remote_relpath` (`hsync_common/path_validation.py::validate_remote_relpath`) |
 | `resolve_within(valid\|escape)` | `path_validation.resolve_within` (`hsync_common/path_validation.py::resolve_within`) |
 | `wire_relpaths(2-key)` | `path_validation.wire_relpaths` (`hsync_common/path_validation.py::wire_relpaths`) |
