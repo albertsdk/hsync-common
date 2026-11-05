@@ -278,11 +278,12 @@ class RdvPeer(TypedDict):
     """A single advertised peer in a RdvResponse.
 
     ``endpoints`` is the peer's advertised candidate list, relayed in order and
-    capped by the node (at most 4 entries; a register that advertised none is
-    relayed as a single-element list with the observed source endpoint). A
-    requester tries the candidates, preferring a host/LAN one reachable from its
-    own network, so peers behind the same NAT — where the public endpoint has no
-    hairpin route — still connect locally.
+    capped by the node (at most 4 entries). A register that advertised none is
+    relayed with an **empty** list and ``reachable=false``: there is no address a
+    third party can dial, so a requester must not try to reach it directly. A
+    requester tries the candidates of a reachable peer, preferring a host/LAN
+    one reachable from its own network, so peers behind the same NAT — where the
+    public endpoint has no hairpin route — still connect locally.
 
     ``capacity`` is the peer's advisory service-capacity hint as relayed from
     its ``register`` (``0`` = not a seeder); ``reachable`` is derived from
@@ -659,6 +660,14 @@ def _is_relay_id(value: object) -> bool:
 
 
 def _validate_endpoint(value: object) -> Endpoint | None:
+    """Validate one ``endpoints[]`` item (same grammar in both directions).
+
+    A candidate is an address a *remote* peer may dial, so it is a dialable
+    host: an IPv4/IPv6 literal that is routable, or an LDH name. Loopback,
+    link-local, multicast, unspecified and reserved literals are refused
+    wherever they appear, so neither a peer nor the node can point a client at
+    its own local services.
+    """
     if not _is_object(value, _ENDPOINT_KEYS, frozenset()):
         return None
     proto = value["proto"]
@@ -696,7 +705,7 @@ def _validate_peer(value: object) -> RdvPeer | None:
     if (
         not is_valid_cid(cid)
         or not isinstance(endpoints, list)
-        or not 1 <= len(endpoints) <= _MAX_ENDPOINTS
+        or len(endpoints) > _MAX_ENDPOINTS
         or not _is_str(cert_fp, max_len=_MAX_CERT_FP_LEN)
         or parse_fingerprint(cert_fp) is None
         or not is_valid_bucket_name(bucket)

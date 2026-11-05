@@ -46,8 +46,8 @@ Two fields are defined as follows:
 - **`reachable`** is derived from `bool(endpoints)` at `register` time: a peer
   is advertised as reachable only if it published at least one listen endpoint.
    A register with no endpoint (the first STUN register) is advertised with
-   `reachable=false` and its observed source endpoint (`proto` of the transport
-   that delivered the register) as the fallback endpoint;
+   `reachable=false` and an empty `endpoints` list: the node knows only that
+   peer's source port, which is not a listen port a third party could dial.
    `refresh` never changes it.
 
 The rendezvous document is advertised in `--capabilities-json` as

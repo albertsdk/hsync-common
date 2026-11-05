@@ -252,12 +252,12 @@ def test_response_peer_requires_the_election_advert():
     assert validate_rdv_response(_response_with_peer({**peer, "startup_time": None})) is None
 
 
-def test_response_peer_requires_a_non_empty_endpoints_list():
-    """A relayed peer always carries at least one endpoint candidate.
+def test_response_peer_endpoints_list_is_bounded_and_optional():
+    """A relayed peer carries 0..16 candidates; a missing/non-list field is malformed.
 
-    The node relays the peer's full advertised list, or a single-element list
-    with the observed source endpoint when the peer advertised none, so an
-    empty or missing list is malformed and rejected by the mirror.
+    An endpoint-less peer (a register that advertised nothing) is relayed with an
+    empty list and ``reachable=false``: the node knows only that peer's source
+    port, which is not a listen port a third party could dial.
     """
     peer = {
         "cid": "A1b2C3d4E5f6G7h8I9j0K",
@@ -275,12 +275,18 @@ def test_response_peer_requires_a_non_empty_endpoints_list():
         "sync_direction": "bidirectional",
     }
     assert validate_rdv_response(_response_with_peer(peer)) is not None
-    assert validate_rdv_response(_response_with_peer({**peer, "endpoints": []})) is None
+    unreachable = validate_rdv_response(
+        _response_with_peer({**peer, "endpoints": [], "reachable": False})
+    )
+    assert unreachable is not None
+    assert unreachable["peers"][0]["endpoints"] == []
     assert validate_rdv_response(_response_with_peer({**peer, "endpoints": None})) is None
     too_many = [{"proto": "tcp", "host": "198.51.100.7", "port": 443}] * 17
     assert validate_rdv_response(_response_with_peer({**peer, "endpoints": too_many})) is None
     bad_port = [{"proto": "tcp", "host": "198.51.100.7", "port": 0}]
     assert validate_rdv_response(_response_with_peer({**peer, "endpoints": bad_port})) is None
+    loopback = [{"proto": "tcp", "host": "127.0.0.1", "port": 443}]
+    assert validate_rdv_response(_response_with_peer({**peer, "endpoints": loopback})) is None
 
 
 def test_response_refusal_error_domain():

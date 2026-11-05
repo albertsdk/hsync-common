@@ -30,11 +30,11 @@ We will relay the peer's **full candidate list** instead of a single endpoint:
 1. `RdvPeer` carries `endpoints: list[Endpoint]` (1–16, each `proto`/`host`/
    `port`) as its only endpoint representation: no separate single-address
    field. The node relays `register.endpoints[]` **verbatim and in order**; only
-   a register that carried no endpoint at all (the first STUN register) falls
-   back to a single-element list with the observed source endpoint (`proto` of
-   the transport that delivered the register)
-   (`reachable=false`). Every implementation, fixture and mirror carries the
-   same shape atomically, and the node never interprets or orders by it.
+   a register that carried no endpoint at all (the first STUN register) is
+   relayed with an empty list and `reachable=false`, because the node only knows
+   that peer's source port — not a listen port a third party could dial. Every
+   implementation, fixture and mirror carries the same shape atomically, and the
+   node never interprets or orders by it.
 2. The requester keeps the whole list on the peer and **orders it host/LAN-first**
    at dial time (`dial_candidates`): loopback and same-subnet candidates (IPv4
    `/24`, IPv6 `/64`) before the externally advertised ones, which keep their

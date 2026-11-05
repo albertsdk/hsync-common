@@ -96,9 +96,9 @@ ready, the client sends a **second `register`** that publishes `endpoints[]`
   (which only says it advertised an endpoint, even a speculative one). It is part
   of the election advertisement and is relayed verbatim.
 - **`endpoints`** is the peer's candidate list, relayed in order and capped at
-  **four** entries per peer (a single-element observed-source fallback when the
-  peer advertised none); each `host` must be an IP literal or a DNS name, so a
-  peer cannot hand other peers an undialable or internal-looking target. Try the
+  **four** entries per peer (empty when the peer advertised none, with
+  `reachable=false`); each `host` must be a dialable IP literal or DNS name, so
+  a peer cannot hand other peers an undialable or internal-looking target. Try the
   candidates host/LAN-first and fall back to the next, so two peers behind the
   same NAT connect over the local path even when the public endpoint has no
   hairpin route ([ADR-0038](internal/adr/0038-rendezvous-endpoint-candidate-list.md)).
