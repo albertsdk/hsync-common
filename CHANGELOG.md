@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The `rdv/1` rendezvous channel is transport-neutral in the shared code:
+  `RDV_TRANSPORTS`, `RDV_TRANSPORT_DEFAULT`, `RDV_TRANSPORT_STAGGER_S` and
+  `RDV_TCP_FALLBACK_TTL_S` name the QUIC/UDP and TLS/TCP options, and
+  `hsync_common.tls_context` provides the certificate-free client TLS context
+  without pulling `cryptography` into the CLI startup path.
 - The `X-Client-Id` request header constant (`HEADER_CLIENT_ID`), carrying the
   requester CID so the P2P master can bucket relayed peers (which all arrive
   from the loopback address) by identity.
