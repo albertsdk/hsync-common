@@ -11,6 +11,7 @@ a server route change cannot silently diverge the clients.
 
 import json
 
+from hsync_common.constants import HSYNC_VERSION
 from hsync_common.protocol import REST_OPENAPI_PATH
 from hsync_common.protocol.rest import (
     REST_API_PREFIX,
@@ -59,3 +60,20 @@ class TestRestPathSnapshotAlignment:
     def test_templates_match_the_snapshot_paths(self):
         snapshot = json.loads(REST_OPENAPI_PATH.read_text(encoding="utf-8"))
         assert set(snapshot["paths"]) == set(REST_PATH_TEMPLATES)
+
+
+class TestRestSnapshotVersion:
+    """The snapshot stamps the app version, so a release bump must re-export it.
+
+    This repository owns both the constant and the artifact but cannot derive the
+    schema (only ``hsync-server/scripts/export_openapi.py`` can, from the live app),
+    so the check lives here to fail the bump, not the server's pipeline.
+    """
+
+    def test_it_stamps_the_version_ssot(self):
+        snapshot = json.loads(REST_OPENAPI_PATH.read_text(encoding="utf-8"))
+        assert snapshot["info"]["version"] == HSYNC_VERSION, (
+            "The committed REST snapshot stamps a version other than "
+            "constants.HSYNC_VERSION: regenerate it with "
+            "`cd ../hsync-server && python scripts/export_openapi.py`."
+        )

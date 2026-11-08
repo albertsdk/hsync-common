@@ -297,5 +297,12 @@ Editing any of the above ⇒ rerun `scripts/export_protocol_schemas.py`
 `tests/test_protocol_schemas.py` / `test_capabilities.py` stay green. Update the
 Kotlin mirrors (`Protocol.kt`, `Election.kt`, `Pairing.kt`) in the same change.
 
+A **release bump** touches the same artifact: the REST snapshot's `info.version`
+*is* `hsync_common/constants.py::HSYNC_VERSION`, and only the server can re-derive
+it, so re-run `hsync-server/scripts/export_openapi.py` after
+`scripts/dev/bump-python-version.sh`.
+`tests/test_protocol_rest.py::TestRestSnapshotVersion` fails until the snapshot is
+re-stamped, so the gap surfaces here instead of in the server pipeline.
+
 > Decision rationale (versioning, election, tombstones, conflict model):
 > [../decisions.md](../decisions.md) → `../../docs/internal/adr/`.
