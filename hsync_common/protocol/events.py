@@ -145,6 +145,11 @@ class UiEventDict(TypedDict):
     status: NotRequired[str]
     connected: NotRequired[int]  # peers event: clients currently connected (self included)
     is_master: NotRequired[bool]
+    # ``sync_complete`` on an upload-only p2p cycle: devices that will receive the
+    # files (the master always does) and devices that ignore them because they
+    # are upload-only themselves. Absent when the direction is not upload-only.
+    send_accepted: NotRequired[int]
+    send_ignored: NotRequired[int]
     bucket: NotRequired[str]
     group: NotRequired[str]
     cid: NotRequired[str]
