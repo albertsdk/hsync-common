@@ -5,7 +5,7 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
 
 ## constants.py
 
-- `HSYNC_VERSION = "1.1.0"` (`hsync_common/constants.py::HSYNC_VERSION`) — ecosystem version SSOT.
+- `HSYNC_VERSION = "1.1.0-rc.1"` (`hsync_common/constants.py::HSYNC_VERSION`) — ecosystem version SSOT.
 - Wire headers `HEADER_CLIENT_NAME/CLIENT_VERSION/SERVER_VERSION/PROTOCOL_VERSION`
   plus `HEADER_CHECKSUM_SHA256` (`hsync_common/constants.py::HEADER_CLIENT_NAME`) — REST header names shared
   by client, server and the Android mirror; the checksum header is canonical for

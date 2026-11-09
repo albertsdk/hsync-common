@@ -73,7 +73,8 @@ Updates:
     - hsync-common/llm-wiki/README.md and
       hsync-common/llm-wiki/modules/utilities.md (the HSYNC_VERSION line).
     - hsync-desktop/install.sh (DEFAULT_VERSION, the release it downloads).
-    - hsync-server/packaging/deb/usr/share/man/man1/hsync-server.1 and
+    - hsync-server/packaging/deb/usr/share/man/man1/hsync-server.1,
+      hsync-client/packaging/deb/usr/share/man/man1/hsync.1 and
       hsync-rendezvous/packaging/deb/usr/share/man/man1/hsync-rendezvous.1
       (the version field of .TH; the manual date is left alone).
     - <project>/poetry.lock for every listed project, regenerated with
@@ -269,11 +270,12 @@ update_release_metadata() {
     local wiki_utilities="${ROOT_DIR}/hsync-common/llm-wiki/modules/utilities.md"
     local installer="${ROOT_DIR}/hsync-desktop/install.sh"
     local man_server="${ROOT_DIR}/hsync-server/packaging/deb/usr/share/man/man1/hsync-server.1"
+    local man_client="${ROOT_DIR}/hsync-client/packaging/deb/usr/share/man/man1/hsync.1"
     local man_rendezvous="${ROOT_DIR}/hsync-rendezvous/packaging/deb/usr/share/man/man1/hsync-rendezvous.1"
 
     local file
     for file in "${openapi}" "${wiki_readme}" "${wiki_utilities}" "${installer}" \
-        "${man_server}" "${man_rendezvous}"; do
+        "${man_server}" "${man_client}" "${man_rendezvous}"; do
         [[ -f "${file}" ]] || { err "missing file: ${file}"; exit 1; }
     done
 
@@ -316,7 +318,7 @@ update_release_metadata() {
     # The man page carries the version in the .TH header; its date is the manual
     # revision date and is intentionally untouched.
     local man program
-    for man in "${man_server}" "${man_rendezvous}"; do
+    for man in "${man_server}" "${man_client}" "${man_rendezvous}"; do
         program="$(basename "${man}" .1)"
         current="$(sed -nE "s/.*\"${program} ([0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?)\" .*/\1/p" "${man}" | head -n 1)"
         [[ -n "${current}" ]] || { err "cannot read the version from ${man}"; exit 1; }
@@ -343,6 +345,7 @@ verify_release_metadata() {
         "${ROOT_DIR}/hsync-common/llm-wiki/modules/utilities.md"
         "${ROOT_DIR}/hsync-desktop/install.sh"
         "${ROOT_DIR}/hsync-server/packaging/deb/usr/share/man/man1/hsync-server.1"
+        "${ROOT_DIR}/hsync-client/packaging/deb/usr/share/man/man1/hsync.1"
         "${ROOT_DIR}/hsync-rendezvous/packaging/deb/usr/share/man/man1/hsync-rendezvous.1"
         "${ROOT_DIR}/hsync-rendezvous/python/src/hsync_rendezvous/__init__.py"
     )
