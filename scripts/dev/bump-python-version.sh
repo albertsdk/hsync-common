@@ -31,6 +31,8 @@ PROJECTS=(
 
 DRY_RUN=false
 NEW_VERSION=""
+# Version being replaced, captured before the first write (final consistency check).
+PREVIOUS_VERSION=""
 BUMP_ANDROID=true
 REFRESH_LOCK=true
 ANDROID_BUILD_GRADLE="${ROOT_DIR}/hsync-android/app/build.gradle.kts"
@@ -67,9 +69,19 @@ Updates:
     - hsync-rendezvous/python/src/hsync_rendezvous/__init__.py (__version__)
     - hsync-android/app/build.gradle.kts (versionName + versionCode), unless
       --no-android is passed.
+    - hsync-common/hsync_common/protocol/rest/openapi.json (info.version).
+    - hsync-common/llm-wiki/README.md and
+      hsync-common/llm-wiki/modules/utilities.md (the HSYNC_VERSION line).
+    - hsync-desktop/install.sh (DEFAULT_VERSION, the release it downloads).
+    - hsync-server/packaging/deb/usr/share/man/man1/hsync-server.1 and
+      hsync-rendezvous/packaging/deb/usr/share/man/man1/hsync-rendezvous.1
+      (the version field of .TH; the manual date is left alone).
     - <project>/poetry.lock for every listed project, regenerated with
       `poetry lock` so the recorded content hash matches the bumped
       pyproject.toml, unless --no-lock is passed.
+
+    Every carrier above is checked again at the end: a leftover of the previous
+    version makes the script exit non-zero instead of leaving a mixed tree.
 
 Notes:
     hsync-common.constants.HSYNC_VERSION is the runtime/protocol version consumed
@@ -247,6 +259,120 @@ update_android_version() {
     fi
 }
 
+# The release metadata that does not live in a pyproject.toml. These are exactly
+# the files a manual bump forgets: they are not package metadata, so nothing
+# fails loudly when they go stale — the published OpenAPI document, the man
+# pages and the installer would simply advertise the previous version.
+update_release_metadata() {
+    local openapi="${ROOT_DIR}/hsync-common/hsync_common/protocol/rest/openapi.json"
+    local wiki_readme="${ROOT_DIR}/hsync-common/llm-wiki/README.md"
+    local wiki_utilities="${ROOT_DIR}/hsync-common/llm-wiki/modules/utilities.md"
+    local installer="${ROOT_DIR}/hsync-desktop/install.sh"
+    local man_server="${ROOT_DIR}/hsync-server/packaging/deb/usr/share/man/man1/hsync-server.1"
+    local man_rendezvous="${ROOT_DIR}/hsync-rendezvous/packaging/deb/usr/share/man/man1/hsync-rendezvous.1"
+
+    local file
+    for file in "${openapi}" "${wiki_readme}" "${wiki_utilities}" "${installer}" \
+        "${man_server}" "${man_rendezvous}"; do
+        [[ -f "${file}" ]] || { err "missing file: ${file}"; exit 1; }
+    done
+
+    # ``info.version`` is the only "version" key in the document; the OpenAPI
+    # specification revision lives under "openapi".
+    local current
+    current="$(sed -nE 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"([0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?)".*/\1/p' "${openapi}" | head -n 1)"
+    [[ -n "${current}" ]] || { err "cannot read info.version from ${openapi}"; exit 1; }
+    log "hsync-common/openapi.json: ${current} -> ${NEW_VERSION}"
+    if [[ "${DRY_RUN}" == false ]]; then
+        sed_in_place "${openapi}" \
+            '(^[[:space:]]*"version"[[:space:]]*:[[:space:]]*")[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(")' \
+            "\1${NEW_VERSION}\3"
+    fi
+
+    # The wiki quotes the SSOT value; replace the quoted string only, so the
+    # surrounding sentence and the source anchor stay as they are.
+    for file in "${wiki_readme}" "${wiki_utilities}"; do
+        current="$(sed -nE 's/.*HSYNC_VERSION = "([0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?)".*/\1/p' "${file}" | head -n 1)"
+        [[ -n "${current}" ]] || { err "cannot read HSYNC_VERSION line from ${file}"; exit 1; }
+        log "${file#"${ROOT_DIR}/"}: ${current} -> ${NEW_VERSION}"
+        if [[ "${DRY_RUN}" == false ]]; then
+            sed_in_place "${file}" \
+                '(HSYNC_VERSION = ")[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(")' \
+                "\1${NEW_VERSION}\3"
+        fi
+    done
+
+    # The installer downloads the release named here, so it must match the tag
+    # cut from this bump.
+    current="$(sed -nE 's/.*DEFAULT_VERSION="v([0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?)".*/\1/p' "${installer}" | head -n 1)"
+    [[ -n "${current}" ]] || { err "cannot read DEFAULT_VERSION from ${installer}"; exit 1; }
+    log "hsync-desktop/install.sh: ${current} -> ${NEW_VERSION}"
+    if [[ "${DRY_RUN}" == false ]]; then
+        sed_in_place "${installer}" \
+            '(DEFAULT_VERSION="v)[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(")' \
+            "\1${NEW_VERSION}\3"
+    fi
+
+    # The man page carries the version in the .TH header; its date is the manual
+    # revision date and is intentionally untouched.
+    local man program
+    for man in "${man_server}" "${man_rendezvous}"; do
+        program="$(basename "${man}" .1)"
+        current="$(sed -nE "s/.*\"${program} ([0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?)\" .*/\1/p" "${man}" | head -n 1)"
+        [[ -n "${current}" ]] || { err "cannot read the version from ${man}"; exit 1; }
+        log "${man#"${ROOT_DIR}/"}: ${current} -> ${NEW_VERSION}"
+        if [[ "${DRY_RUN}" == false ]]; then
+            sed_in_place "${man}" \
+                "(${program} )[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?" \
+                "\1${NEW_VERSION}"
+        fi
+    done
+}
+
+# Catch a mixed tree before it is committed: every carrier must hold the new
+# version and none of them may still hold the previous one. A stale OpenAPI
+# document or man page is invisible in tests, which is why this check exists.
+verify_release_metadata() {
+    if [[ "${DRY_RUN}" == true || "${PREVIOUS_VERSION}" == "${NEW_VERSION}" ]]; then
+        return
+    fi
+    local carriers=(
+        "${ROOT_DIR}/hsync-common/hsync_common/constants.py"
+        "${ROOT_DIR}/hsync-common/hsync_common/protocol/rest/openapi.json"
+        "${ROOT_DIR}/hsync-common/llm-wiki/README.md"
+        "${ROOT_DIR}/hsync-common/llm-wiki/modules/utilities.md"
+        "${ROOT_DIR}/hsync-desktop/install.sh"
+        "${ROOT_DIR}/hsync-server/packaging/deb/usr/share/man/man1/hsync-server.1"
+        "${ROOT_DIR}/hsync-rendezvous/packaging/deb/usr/share/man/man1/hsync-rendezvous.1"
+        "${ROOT_DIR}/hsync-rendezvous/python/src/hsync_rendezvous/__init__.py"
+    )
+    local file failures=0
+    # Match the previous version as a whole token, not as a substring: bumping
+    # 1.1.0 -> 1.1.0-beta.1 would otherwise report the new value as a leftover
+    # (the new version literally contains the old one). The optional "v" covers
+    # ``DEFAULT_VERSION="vX.Y.Z"``.
+    local previous_token
+    previous_token="(^|[^0-9A-Za-z.-])v?${PREVIOUS_VERSION//./\\.}([^0-9A-Za-z.-]|$)"
+    for file in "${carriers[@]}"; do
+        if [[ -n "${PREVIOUS_VERSION}" ]] && grep -qE "${previous_token}" "${file}"; then
+            err "still at ${PREVIOUS_VERSION}: ${file#"${ROOT_DIR}/"}"
+            failures=$((failures + 1))
+        fi
+        # The new value is checked as a substring: it may be prefixed ("v1.2.0")
+        # or embedded in a sentence, and either way it proves the file was
+        # rewritten.
+        if ! grep -qF "${NEW_VERSION}" "${file}"; then
+            err "does not carry ${NEW_VERSION}: ${file#"${ROOT_DIR}/"}"
+            failures=$((failures + 1))
+        fi
+    done
+    if (( failures > 0 )); then
+        err "release metadata is inconsistent after the bump; fix the files above."
+        exit 1
+    fi
+    log "Release metadata consistent at ${NEW_VERSION}."
+}
+
 # Regenerate each project's poetry.lock so its recorded content hash matches the
 # bumped pyproject.toml. A stale lock makes `poetry install` abort in CI with
 # "pyproject.toml changed significantly since poetry.lock was last generated".
@@ -284,6 +410,10 @@ main() {
     [[ "${DRY_RUN}" == true ]] && mode=" (dry-run)"
     local scope="Python projects"
     [[ "${BUMP_ANDROID}" == true ]] && scope="Python projects + Android"
+    # Captured before any write: the closing check reports a carrier that still
+    # holds this value.
+    PREVIOUS_VERSION="$(extract_runtime_version "${ROOT_DIR}/hsync-common/hsync_common/constants.py")"
+
     log "Bumping HSYNC ${scope} to ${NEW_VERSION}${mode}"
     log ""
 
@@ -293,12 +423,19 @@ main() {
     refresh_locks
     update_runtime_version
     update_rendezvous_package_version
+    update_release_metadata
 
     if [[ "${BUMP_ANDROID}" == true ]]; then
         update_android_version
     else
-        log "Skipping Android version bump (--no-android)."
+        # Android is not a Python package, so it is skipped on request — but the
+        # ecosystem then ships two different versions, which is easy to miss.
+        local android_current
+        android_current="$(sed -nE 's/.*versionName[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' "${ANDROID_BUILD_GRADLE}" | head -n 1)"
+        log "Skipping Android version bump (--no-android): hsync-android stays at ${android_current:-unknown}."
     fi
+
+    verify_release_metadata
 
     log ""
     if [[ "${DRY_RUN}" == true ]]; then

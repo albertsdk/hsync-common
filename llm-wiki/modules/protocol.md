@@ -298,11 +298,13 @@ Editing any of the above ⇒ rerun `scripts/export_protocol_schemas.py`
 Kotlin mirrors (`Protocol.kt`, `Election.kt`, `Pairing.kt`) in the same change.
 
 A **release bump** touches the same artifact: the REST snapshot's `info.version`
-*is* `hsync_common/constants.py::HSYNC_VERSION`, and only the server can re-derive
-it, so re-run `hsync-server/scripts/export_openapi.py` after
-`scripts/dev/bump-python-version.sh`.
-`tests/test_protocol_rest.py::TestRestSnapshotVersion` fails until the snapshot is
-re-stamped, so the gap surfaces here instead of in the server pipeline.
+*is* `hsync_common/constants.py::HSYNC_VERSION`. `scripts/dev/bump-python-version.sh`
+stamps it directly — a version-only bump changes nothing else in the snapshot, so
+re-running the generator is unnecessary — and re-checks the file at the end.
+`hsync-server/scripts/export_openapi.py` stays the only way to regenerate the
+snapshot after an **API** change, and
+`tests/test_protocol_rest.py::TestRestSnapshotVersion` plus
+`tests/test_openapi_contract.py` keep the two in step.
 
 > Decision rationale (versioning, election, tombstones, conflict model):
 > [../decisions.md](../decisions.md) → `../../docs/internal/adr/`.
