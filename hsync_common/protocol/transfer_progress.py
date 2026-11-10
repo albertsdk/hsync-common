@@ -3,16 +3,21 @@
 
 """Delivery-progress frame of the p2p control plane.
 
-An upload's progress belongs to the **receiver**: the sender hands bytes to its
+A transfer's progress belongs to the **receiver**: the sender hands bytes to its
 transport (the socket, TLS, a relay's buffers), which says nothing about what the
-peer holds. The master therefore publishes the bytes it actually received for a
-file a peer is pushing — unicast on that peer's WebSocket session, as the
-``masterToSlave`` ``file_progress`` frame — and the uploading side renders them
-instead of its own transport counter.
+peer holds. The ``file_progress`` frame carries the receiver's delivered bytes
+and is bidirectional on ``p2p/1``:
 
-Consumers: ``hsync-client`` (the master's receive path and the uploading slave's
-event loop), the Android protocol mirror, the generated JSON Schema and golden
-fixtures, and the shared protocol contract tests.
+- ``masterToSlave``: the master publishes the bytes it stored for a file a peer
+  is **uploading**, unicast on that peer's WebSocket session; the uploading side
+  renders them instead of its own transport counter.
+- ``slaveToMaster``: the slave publishes the bytes it received for a file the
+  master is **serving**; the serving side renders them instead of its own
+  transport counter.
+
+Consumers: ``hsync-client`` (the master's receive/serve paths and the slave's
+event loop and download path), the Android protocol mirror, the generated JSON
+Schema and golden fixtures, and the shared protocol contract tests.
 """
 
 from __future__ import annotations
@@ -36,9 +41,9 @@ _FILE_PROGRESS_KEYS = frozenset({"type", "file", "transferred", "total"})
 
 
 class P2PFileProgressFrame(TypedDict):
-    """Bytes the master has received for a file a peer is uploading.
+    """Bytes the receiver holds for a file crossing the peer link.
 
-    ``total`` is the *wire* total the sender declared, or ``0`` when the receiver
+    ``total`` is the *file* total the receiver can measure, or ``0`` when it
     cannot know it (a streamed body carries no per-part length): the sender keeps
     its own total then.
     """

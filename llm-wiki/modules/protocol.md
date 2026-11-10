@@ -249,6 +249,19 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   duplicate-path rejection, terminal empty snapshots, strict ACK reasons, and
   the shared 2 MiB/500-entry bounds (`hsync_common/protocol/peer_download.py::validate_p2p_inventory_frame`).
 
+## transfer_progress.py — p2p delivery-progress frame
+
+- The `file_progress` frame carries the **receiver's** delivered bytes for a
+  transfer crossing the peer link, so a sender never renders the bytes it handed
+  to its transport as if they had arrived
+  (`hsync_common/protocol/transfer_progress.py::build_p2p_file_progress`,
+  `validate_p2p_file_progress`; keys `type`, `file`, `transferred`, `total`).
+- It is **bidirectional** on `p2p/1`: `masterToSlave` carries the master's stored
+  bytes for a peer's upload, `slaveToMaster` the slave's received bytes for a file
+  the master is serving (`hsync_common/protocol/schemas.py::build_p2p_wss_schema`).
+  `file` is a canonical bucket-relative path; the counts are non-negative wire
+  integers and a known `total` bounds `transferred`.
+
 ## schemas.py — JSON-Schema builders (draft 2020-12)
 
 - Dialect const `hsync_common/protocol/schemas.py::JSON_SCHEMA_DIALECT`; p2p TXT key sets
@@ -256,7 +269,8 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   optional `peer_download` implementation flag. Live seeder capacity is not a TXT
   fact: it travels on the authenticated handshake (ADR-0030).
 - `build_ws_schema` (`hsync_common/protocol/schemas.py::build_ws_schema`), `build_p2p_wss_schema` (`hsync_common/protocol/schemas.py::build_p2p_wss_schema`; pins
-  auth/hello plus inventory/ACK frames, ADR-0024/0028),
+  auth/hello plus inventory/ACK and the bidirectional `file_progress` frame,
+  ADR-0024/0028),
   `build_p2p_sources_schema` (`hsync_common/protocol/schemas.py::build_p2p_sources_schema`), and `build_p2p_txt_schema`
   (`hsync_common/protocol/schemas.py::build_p2p_txt_schema`) derive
   enums/objects and bounds from `handshake`, `peer_download`, `events`, and the

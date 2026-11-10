@@ -681,7 +681,13 @@ def _p2p_inventory_ack(status: str) -> dict[str, Any]:
 
 
 def _p2p_file_progress() -> dict[str, Any]:
-    """Master's received-byte report for a file a peer is uploading."""
+    """Receiver's delivered-byte report for a file crossing the peer link.
+
+    Bidirectional on ``p2p/1``: ``masterToSlave`` carries the master's stored
+    bytes for a peer's upload; ``slaveToMaster`` carries the slave's received
+    bytes for a file the master is serving. See
+    :mod:`hsync_common.protocol.transfer_progress`.
+    """
     return {
         "type": "object",
         "title": "P2PFileProgress",
@@ -766,6 +772,7 @@ def build_p2p_wss_schema() -> dict[str, Any]:
                 {"$ref": "#/$defs/hello"},
                 {"$ref": "#/$defs/fileEvent"},
                 {"$ref": "#/$defs/inventory"},
+                {"$ref": "#/$defs/fileProgress"},
             ]
         },
     }

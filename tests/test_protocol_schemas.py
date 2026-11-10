@@ -159,11 +159,13 @@ class TestP2PWssSchemaSource:
         assert {"$ref": "#/$defs/inventoryAck"} in schema["masterToSlave"]["oneOf"]
         assert {"$ref": "#/$defs/fileEvent"} in schema["slaveToMaster"]["oneOf"]
 
-    def test_file_progress_is_a_master_to_slave_frame(self):
-        """The receiver publishes the delivery progress, so the master sends it."""
+    def test_file_progress_is_a_bidirectional_frame(self):
+        """The receiver publishes the delivery progress, in either direction."""
         schema = build_p2p_wss_schema()
 
         assert {"$ref": "#/$defs/fileProgress"} in schema["masterToSlave"]["oneOf"]
+        # A slave reports the bytes it received for a file the master is serving.
+        assert {"$ref": "#/$defs/fileProgress"} in schema["slaveToMaster"]["oneOf"]
         frame = self._defs()["fileProgress"]
         assert frame["properties"]["type"]["const"] == "file_progress"
         assert set(frame["required"]) == {"type", "file", "transferred", "total"}

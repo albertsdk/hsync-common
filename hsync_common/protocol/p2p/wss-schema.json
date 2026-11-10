@@ -771,6 +771,9 @@
       },
       {
         "$ref": "#/$defs/inventory"
+      },
+      {
+        "$ref": "#/$defs/fileProgress"
       }
     ]
   },
