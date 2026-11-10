@@ -88,6 +88,12 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   `transfer_failed`, `fingerprint_changed`, `auth_required`, `pairing_needed`,
   `duplicate_identity`, `security_rejected`, `rendezvous`, `no_master`, `no_peers`,
   `sync_pending`, `folder_size`, `ready`).
+- `ConnectionErrorCode` StrEnum (`hsync_common/protocol/events.py::ConnectionErrorCode`) — the
+  stable transport-failure cause attached to an `error` event with
+  `reason="connection"` (`dns|refused|timeout|tls|unreachable|proxy|unknown`), optional
+  `code` on `UiEventDict` (`hsync_common/protocol/events.py::UiEventDict`). Additive: an
+  older reader ignores it, and a missing code means the reader falls back to its generic
+  reason.
 - One fact per event (ADR 0050): `status` carries the link state only
   (`disconnected|connecting|connected|waiting|error`) and `activity` the
   data-movement phase (`syncing|idle`), each published by a single funnel in the

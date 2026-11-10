@@ -145,6 +145,24 @@ class UiEventName(StrEnum):
     security_rejected = "security_rejected"  # unsafe remote path rejected
 
 
+class ConnectionErrorCode(StrEnum):
+    """Stable transport-failure reason attached to an ``error`` event.
+
+    Sent with ``reason="connection"``; the client classifies the failure where the
+    exception is still available so a front-end can show a localized, non-technical
+    reason instead of the raw exception. Additive on the UI event stream: a reader
+    that does not know the field ignores it.
+    """
+
+    dns = "dns"
+    refused = "refused"
+    timeout = "timeout"
+    tls = "tls"
+    unreachable = "unreachable"
+    proxy = "proxy"
+    unknown = "unknown"
+
+
 class UiEventDict(TypedDict):
     """Type-safe shape of a single serialized UI event line."""
 
@@ -199,6 +217,9 @@ class UiEventDict(TypedDict):
     needed: NotRequired[int]
     limit: NotRequired[int]
     reason: NotRequired[str]  # sync_paused: human-readable guard reason
+    # error (reason="connection"): stable transport-failure code, see
+    # ConnectionErrorCode. Additive; absent from older clients.
+    code: NotRequired[str]
     # device_status: the device's backlog against the share it is compared with.
     pending_here: NotRequired[int]  # identities the device holds, missing here
     pending_there: NotRequired[int]  # local identities the device does not hold
