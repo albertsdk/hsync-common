@@ -27,7 +27,7 @@ import re
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
-from hsync_common.constants import HOSTNAME_PATTERN
+from hsync_common.constants import HOSTNAME_PATTERN, SERVER_DEFAULT_PORT, SERVER_FALLBACK_PORT
 
 __all__ = [
     "HostPort",
@@ -272,6 +272,27 @@ def build_https_url(hp: HostPort, default_port: int) -> str:
     """
     port = hp.port if hp.port is not None else default_port
     return f"https://{_authority_of(hp.host)}:{port}"
+
+
+def server_fallback_url(server_url: str) -> str | None:
+    """The ``:443`` URL for a server left on the default port, or ``None``.
+
+    A bare address normalizes to ``https://host:9753`` (``SERVER_DEFAULT_PORT``),
+    but a deployment often terminates TLS on 443 behind a reverse proxy. Callers
+    probe this URL only when the configured one carries the default port; an
+    explicit non-default port is never second-guessed, and the scheme stays HTTPS
+    (this module refuses anything else).
+    """
+    parsed = urlsplit(server_url)
+    try:
+        port = parsed.port
+    except ValueError:
+        return None
+    if port != SERVER_DEFAULT_PORT or not parsed.hostname:
+        return None
+    return build_https_url(
+        HostPort(host=parsed.hostname, port=SERVER_FALLBACK_PORT), SERVER_FALLBACK_PORT
+    )
 
 
 # URL-like HTTPS base accepted for ``HSYNC_SERVER_URL``: scheme + (IPv6-aware)

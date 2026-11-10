@@ -14,6 +14,7 @@ from hsync_common.endpoint import (
     parse_host_port,
     parse_https_url,
     parse_port_list,
+    server_fallback_url,
 )
 
 
@@ -345,3 +346,24 @@ class TestNormalizeEndpointList:
     def test_strict_raises(self):
         with pytest.raises(ValueError):
             normalize_endpoint_list("a.example,a.example", strict=True)
+
+
+class TestServerFallbackUrl:
+    """A server left on the default port also offers its 443 reverse-proxy URL."""
+
+    def test_a_default_port_url_falls_back_to_443(self):
+        assert server_fallback_url("https://h.example.com:9753") == "https://h.example.com:443"
+
+    def test_an_ipv6_default_port_url_is_bracketed(self):
+        assert server_fallback_url("https://[2001:db8::1]:9753") == "https://[2001:db8::1]:443"
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://h.example.com:9000",
+            "https://h.example.com:443",
+            "not-a-url",
+        ],
+    )
+    def test_only_the_default_port_gets_a_fallback(self, url):
+        assert server_fallback_url(url) is None

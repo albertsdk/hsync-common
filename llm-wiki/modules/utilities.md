@@ -5,7 +5,7 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
 
 ## constants.py
 
-- `HSYNC_VERSION = "1.1.0-rc.1"` (`hsync_common/constants.py::HSYNC_VERSION`) — ecosystem version SSOT.
+- `HSYNC_VERSION = "1.1.0-rc.2"` (`hsync_common/constants.py::HSYNC_VERSION`) — ecosystem version SSOT.
 - Wire headers `HEADER_CLIENT_NAME/CLIENT_VERSION/SERVER_VERSION/PROTOCOL_VERSION`
   plus `HEADER_CHECKSUM_SHA256` (`hsync_common/constants.py::HEADER_CLIENT_NAME`) — REST header names shared
   by client, server and the Android mirror; the checksum header is canonical for
@@ -40,10 +40,13 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
 - `PARTIAL_DOWNLOAD_SUFFIX = ".part"` (`hsync_common/constants.py::PARTIAL_DOWNLOAD_SUFFIX`).
 - `HOSTNAME_PATTERN` (`hsync_common/constants.py::HOSTNAME_PATTERN`) — bare hostname/IPv4 charset SSOT, consumed by
   `endpoint.py` and re-exported by `hsync_client.constants`.
-- Network defaults: `RDV_DEFAULT_PORT` (`hsync_common/constants.py::RDV_DEFAULT_PORT`, rdv/1 UDP)
-  and `SERVER_DEFAULT_PORT` (`hsync_common/constants.py::SERVER_DEFAULT_PORT`, sync server TCP)
-  are the single defaults for every consumer (server `Settings.port`, client
-  bare-host CLI, desktop endpoint grammar/trust pre-flight).
+- Network defaults: `RDV_DEFAULT_PORT` (`hsync_common/constants.py::RDV_DEFAULT_PORT`, rdv/1 UDP),
+  `SERVER_DEFAULT_PORT` (`hsync_common/constants.py::SERVER_DEFAULT_PORT`, sync server TCP)
+  and `SERVER_FALLBACK_PORT` (`hsync_common/constants.py::SERVER_FALLBACK_PORT`, 443) are the
+  single defaults for every consumer (server `Settings.port`, client bare-host CLI and
+  startup port resolution, desktop endpoint grammar/trust pre-flight/probe). The fallback
+  port is tried only for an address left on the default port; the
+  `hsync_common/endpoint.py::server_fallback_url` helper builds it.
 - Far-future mtime clamp: `CORRECTED_MTIME_MAX_FUTURE_SKEW`
   (`hsync_common/constants.py::CORRECTED_MTIME_MAX_FUTURE_SKEW`, ADR-0023) is the only
   definition; the client and server import it (their local

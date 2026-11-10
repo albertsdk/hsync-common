@@ -302,6 +302,12 @@ RDV_DEFAULT_PORT = 443
 # grammar / trust pre-flight.
 SERVER_DEFAULT_PORT = 9753
 
+# Second HTTPS port tried for a server address that carried no explicit
+# (non-default) port: a deployment often terminates TLS on 443 behind a reverse
+# proxy while the server itself listens on SERVER_DEFAULT_PORT. Shared by the
+# hsync-client startup resolution and the desktop pre-flight probe.
+SERVER_FALLBACK_PORT = 443
+
 # Recommended ordered UDP port set for the rdv/1 listener (opt-in multi-port;
 # the default remains the single RDV_DEFAULT_PORT). First = canonical QUIC/HTTP3
 # (443, usually allowed); second = DNS (53, the most permissive UDP port, but
