@@ -88,6 +88,12 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   `transfer_failed`, `fingerprint_changed`, `auth_required`, `pairing_needed`,
   `duplicate_identity`, `security_rejected`, `rendezvous`, `no_master`, `no_peers`,
   `sync_pending`, `folder_size`, `ready`).
+- One fact per event (ADR 0050): `status` carries the link state only
+  (`disconnected|connecting|connected|waiting|error`) and `activity` the
+  data-movement phase (`syncing|idle`), each published by a single funnel in the
+  client (`hsync_client/events.py::set_link_status` and
+  `hsync_client/events.py::begin_activity` / `hsync_client/events.py::end_activity`),
+  so a cycle running on a live link leaves the link `connected`.
 - `ready` marks the end of startup validation: the client emits it once, after
   every fatal configuration check and before its run loop. A consumer treats an
   exit before it as a **startup failure** (the Desktop engine's safety net), and

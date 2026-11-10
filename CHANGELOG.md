@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The `activity` UI event reports the data-movement phase (`syncing`/`idle`)
+  on its own axis: `status` carries the link state only, so a cycle running on
+  a live link leaves it `connected`.
 - The `rdv/1` rendezvous channel is transport-neutral in the shared code:
   `RDV_TRANSPORTS`, `RDV_TRANSPORT_DEFAULT`, `RDV_TRANSPORT_STAGGER_S` and
   `RDV_TCP_FALLBACK_TTL_S` name the QUIC/UDP and TLS/TCP options, and

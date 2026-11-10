@@ -105,6 +105,10 @@ class TestParseEventLine:
         ev = build_event(UiEventName.status, status="connected")
         assert parse_event_line(serialize_event(ev)) == ev
 
+    def test_parses_an_activity_event(self):
+        ev = build_event(UiEventName.activity, activity="syncing")
+        assert parse_event_line(serialize_event(ev)) == ev
+
     def test_tolerates_surrounding_whitespace(self):
         ev = build_event(UiEventName.sync_complete, ts="t")
         assert parse_event_line("  " + serialize_event(ev) + "  \n") == ev
@@ -146,6 +150,7 @@ class TestEventNameCoverage:
         names = {m.value for m in UiEventName}
         expected = {
             "status",
+            "activity",
             "ready",
             "peers",
             "role",

@@ -4,8 +4,8 @@
 """
 Structured UI-event contract emitted by the client over ``--events-json-fd``.
 
-This is the single source of truth for the JSON-Lines status channel that
-replaces the Desktop's fragile log-regex parsing.
+This is the single source of truth for the JSON-Lines status channel every
+front-end consumes instead of parsing log wording.
 Each line on the events fd is one JSON object validated against this schema:
 a ``schema_version``, an ISO-8601 ``ts``, an ``event`` discriminator and a flat
 set of optional payload fields (only the ones relevant to the event are set).
@@ -15,12 +15,19 @@ consumes structured events instead of matching log wording. The text log stays
 purely diagnostic.
 
 Each per-file status burst is bracketed by one marker pair: ``preview_start`` /
-``preview_end`` around the comparison a front-end requested, ``status_pass_start``
-/ ``status_pass_end`` around the classification pass of the device that serves
-the share. A consumer therefore never has to infer the end of a burst, and a
-serving pass can never confirm a pending sync. A serving pass also carries one
-``device_status`` row per live device, so a consumer reports a per-device verdict
-(worst case plus attribution) instead of a union that hides which device lags.
+``preview_end`` around the comparison a front-end requested, and
+``status_pass_start`` / ``status_pass_end`` around the classification pass of the
+device that serves the share. A consumer therefore never has to infer the end of
+a burst, and a serving pass can never confirm a pending sync. A serving pass also
+carries one ``device_status`` row per live device, so a consumer reports a
+per-device verdict (worst case plus attribution) instead of a union that hides
+which device lags.
+
+One fact per event: the link state (``status``) and the data-movement phase
+(``activity``) are independent axes, published by independent transitions. A
+link stays ``connected`` while a cycle moves bytes and returns to being idle, so
+a consumer never derives one axis from the other and no publisher can overwrite
+the other's state.
 
 A preview additionally reports the two facts only the client knows:
 ``preview_skipped`` (deletions the policy drops before they reach the stream) and
@@ -59,7 +66,10 @@ EVENTS_SCHEMA_VERSION = 1
 class UiEventName(StrEnum):
     """Discriminator for a structured UI event (1:1 with Desktop signals)."""
 
-    status = "status"  # connection status: disconnected|connecting|connected|waiting|error
+    status = "status"  # link state: disconnected|connecting|connected|waiting|error
+    # Data-movement phase: syncing|idle. Published around every sync cycle in
+    # every mode (remote, p2p lan, p2p rendezvous) and orthogonal to ``status``.
+    activity = "activity"
     ready = "ready"  # startup validation passed; the engine is entering its run loop
     peers = "peers"  # client presence changed (connected / total clients in the share)
     role = "role"  # this client became master / client
@@ -142,7 +152,8 @@ class UiEventDict(TypedDict):
     ts: str
     event: str
     # ── optional payload (only the fields relevant to ``event`` are present) ──
-    status: NotRequired[str]
+    status: NotRequired[str]  # status event: the link state (see UiEventName.status)
+    activity: NotRequired[str]  # activity event: syncing|idle (see UiEventName.activity)
     connected: NotRequired[int]  # peers event: clients currently connected (self included)
     is_master: NotRequired[bool]
     # ``sync_complete`` on an upload-only p2p cycle: devices that will receive the
