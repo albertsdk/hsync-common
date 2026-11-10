@@ -71,7 +71,8 @@ Updates:
       --no-android is passed.
     - hsync-common/hsync_common/protocol/rest/openapi.json (info.version).
     - hsync-common/llm-wiki/README.md and
-      hsync-common/llm-wiki/modules/utilities.md (the HSYNC_VERSION line).
+      hsync-common/llm-wiki/modules/utilities.md (the HSYNC_VERSION line), when
+      the local-only wiki is present; a clean checkout skips them.
     - hsync-desktop/install.sh (DEFAULT_VERSION, the release it downloads).
     - hsync-server/packaging/deb/usr/share/man/man1/hsync-server.1,
       hsync-client/packaging/deb/usr/share/man/man1/hsync.1 and
@@ -274,7 +275,9 @@ update_release_metadata() {
     local man_rendezvous="${ROOT_DIR}/hsync-rendezvous/packaging/deb/usr/share/man/man1/hsync-rendezvous.1"
 
     local file
-    for file in "${openapi}" "${wiki_readme}" "${wiki_utilities}" "${installer}" \
+    # ``llm-wiki/`` is local-only (not versioned): it is updated when present but
+    # must not fail a clean checkout that does not have the directory.
+    for file in "${openapi}" "${installer}" \
         "${man_server}" "${man_client}" "${man_rendezvous}"; do
         [[ -f "${file}" ]] || { err "missing file: ${file}"; exit 1; }
     done
@@ -292,8 +295,10 @@ update_release_metadata() {
     fi
 
     # The wiki quotes the SSOT value; replace the quoted string only, so the
-    # surrounding sentence and the source anchor stay as they are.
+    # surrounding sentence and the source anchor stay as they are. The wiki is
+    # local-only (not versioned), so a clean checkout simply has nothing to update.
     for file in "${wiki_readme}" "${wiki_utilities}"; do
+        [[ -f "${file}" ]] || continue
         current="$(sed -nE 's/.*HSYNC_VERSION = "([0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?)".*/\1/p' "${file}" | head -n 1)"
         [[ -n "${current}" ]] || { err "cannot read HSYNC_VERSION line from ${file}"; exit 1; }
         log "${file#"${ROOT_DIR}/"}: ${current} -> ${NEW_VERSION}"
@@ -357,6 +362,8 @@ verify_release_metadata() {
     local previous_token
     previous_token="(^|[^0-9A-Za-z.-])v?${PREVIOUS_VERSION//./\\.}([^0-9A-Za-z.-]|$)"
     for file in "${carriers[@]}"; do
+        # ``llm-wiki/`` is local-only: verify it when present, skip otherwise.
+        [[ -f "${file}" ]] || continue
         if [[ -n "${PREVIOUS_VERSION}" ]] && grep -qE "${previous_token}" "${file}"; then
             err "still at ${PREVIOUS_VERSION}: ${file#"${ROOT_DIR}/"}"
             failures=$((failures + 1))

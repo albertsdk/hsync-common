@@ -25,7 +25,7 @@ Three design constraints shape the solution:
 
 - **No-log invariant.** The rendezvous never writes peer data (IPs, CIDs,
   timestamps) to disk; its only on-disk artifact is its own long-lived TLS
-  key+cert (`hsync-rendezvous/AGENTS.md`, `llm-wiki/README.md`) — the same posture
+  key+cert (`hsync-rendezvous/AGENTS.md`) — the same posture
   as an SSH host key. Peer-facing state (the routing table) stays in RAM.
 - **Identity key type.** The identity is **ECDSA P-256** (ADR-0037): BoringSSL
   (used by Android's `quiche` client) disables Ed25519 in its default client

@@ -77,4 +77,4 @@ endpoints unrecoverable).
 - Obligations: spec + fixtures + both `rdv/1` implementations and the Kotlin
   mirror in one change; the client rendezvous mapping, the dial-time ordering and
   the slave connect path; regression tests for the relayed list, the ordering and
-  the selection; and the `docs/`/`llm-wiki` updates in every affected repository.
+  the selection; and the `docs/` updates in every affected repository.

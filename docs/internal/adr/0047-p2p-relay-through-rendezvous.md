@@ -72,5 +72,5 @@ the peers' bytes **verbatim**:
   seeders.
 - Obligations: spec + fixtures + the daemon and the mirrored validators in one
   change, the client's `RelayDialer`/`RelayAcceptor`, the `[RELAY]` log label, the
-  quotas and metrics, and the `docs/`/`llm-wiki` updates in every affected
+  quotas and metrics, and the `docs/` updates in every affected
   repository. The future C port implements the same frames.

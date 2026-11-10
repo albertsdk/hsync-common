@@ -87,13 +87,9 @@ cd ../hsync-server && .venv/bin/python -m pytest
 
 ## Documentation
 
-HSYNC maintains two documentation sets that must stay in sync with the code:
-
-- `llm-wiki/` — internal agent knowledge base (architecture, modules, data models)
-- `docs/` — end-user technical documentation
-
-Any change that affects architecture, contracts, configuration, or behavior
-must update the relevant files in both sets within the same change.
+The end-user technical documentation lives in `docs/` and must stay in sync with
+the code. Any change that affects architecture, contracts, configuration, or
+behavior must update the relevant `docs/` files within the same change.
 
 ## Commit Messages
 

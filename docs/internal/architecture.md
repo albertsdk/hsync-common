@@ -74,7 +74,6 @@ hsync-common/
 │   ├── architecture.md         # This file
 │   ├── p2p-protocol.md         # p2p rendezvous/election/pairing/security spec
 │   └── adr/                    # Architecture Decision Records
-├── llm-wiki/                   # Agent-optimized knowledge base
 └── hsync_common/
     ├── __init__.py
     ├── constants.py             # HSYNC_VERSION, wire/checksum headers, sentinel/ignore/tombstone filenames, chunk sizes, delta constants
