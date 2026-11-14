@@ -31,9 +31,6 @@ import hmac
 from collections.abc import Sequence
 from enum import StrEnum
 
-from hsync_common.endpoint import format_authority, parse_host_port
-from hsync_common.hashing import is_sha256_hex
-
 from .p2p import SYNC_DIRECTION_BIDIRECTIONAL
 
 __all__ = [
@@ -112,6 +109,8 @@ def parse_fingerprint(value: str | None) -> str | None:
     Consumers: ``hsync-client`` (rendezvous fingerprint pinning), the rendezvous
     CLI ``identity show``, and the language-neutral parity test.
     """
+    from hsync_common.hashing import is_sha256_hex
+
     if not value:
         return None
     cleaned = value.strip().lower()
@@ -221,6 +220,8 @@ def endpoint_pin_key(host: str, port: int | None) -> str:
     otherwise — the same form the configuration string uses, so a pin and the
     endpoint it belongs to compare as strings.
     """
+    from hsync_common.endpoint import format_authority
+
     return format_authority(host, port) if port is not None else host
 
 
@@ -236,6 +237,8 @@ def parse_pin_map(raw: str | None, *, strict: bool = False) -> FingerprintPins:
     ``strict=True`` raises on the first malformed entry (operator input: the CLI
     and the env loader), while ``strict=False`` drops it (lenient readers).
     """
+    from hsync_common.endpoint import parse_host_port
+
     value = (raw or "").strip()
     if not value:
         return {}

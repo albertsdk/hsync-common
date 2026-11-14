@@ -15,7 +15,6 @@ the drift-check test always agree byte-for-byte; never hand-edit the JSON.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
@@ -67,11 +66,15 @@ def dump_contract(schema: dict[str, Any]) -> str:
     Keys are sorted and the output is indented so every committed snapshot is
     diff-friendly and the exporter/drift-check produce identical bytes.
     """
+    import json
+
     return json.dumps(schema, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
 
 
 def load_contract(path: Path) -> dict[str, Any]:
     """Load a committed contract snapshot from ``path``."""
+    import json
+
     return json.loads(path.read_text(encoding="utf-8"))
 
 
