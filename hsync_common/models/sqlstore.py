@@ -44,7 +44,7 @@ _db_cache: dict[str, StateDb] = {}
 # connection, and the overwritten one is never closed (leaked handle).
 _db_cache_lock = threading.Lock()
 
-SCHEMA_USER_VERSION = 1
+SCHEMA_USER_VERSION = 2
 
 # Periodic maintenance cadence for the installation DB (ADR-0025). The
 # ``retain``/tombstone-TTL pruning deletes rows but, without auto-vacuum, the
@@ -94,6 +94,11 @@ CREATE TABLE IF NOT EXISTS tombstones (
   vclock     TEXT NOT NULL,
   PRIMARY KEY (folder_id, key)
 ) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS counters (
+  name  TEXT PRIMARY KEY,
+  value INTEGER NOT NULL
+);
 """
 
 
@@ -336,6 +341,55 @@ class StateDb:
                 (bucket_name, folder_id),
             )
             return folder_id
+
+    # ── node-global counters (ADR-0022) ─────────────────────────────
+    def next_counter(self, name: str) -> int:
+        """Reserve and return the next value of a strictly increasing counter.
+
+        The increment and the read happen in one reserved transaction, so two
+        concurrent reservations — even across processes sharing the installation
+        DB — never obtain the same value. Consumers: the version mint's
+        no-history branch
+        (``hsync-common.models.version_store.SyncStateStore.next_clock_counter``),
+        which needs a value that was never minted before.
+        """
+        with self._lock, self.transaction():
+            self._conn.execute(
+                """
+                INSERT INTO counters (name, value) VALUES (?, 1)
+                ON CONFLICT(name) DO UPDATE SET value = counters.value + 1
+                """,
+                (name,),
+            )
+            row = self._conn.execute(
+                "SELECT value FROM counters WHERE name = ?", (name,)
+            ).fetchone()
+        return int(row["value"])
+
+    def raise_counter(self, name: str, value: int) -> None:
+        """Raise *name* to at least *value*; never lowers it.
+
+        Consumers: every persisted clock (``version_store.SyncStateStore.record``,
+        ``tombstone_store.TombstoneStore.record_by_key``), so the installation
+        floor stays above every counter this node has ever published.
+        """
+        with self._lock:
+            self._conn.execute(
+                """
+                INSERT INTO counters (name, value) VALUES (?, ?)
+                ON CONFLICT(name) DO UPDATE
+                  SET value = MAX(counters.value, excluded.value)
+                """,
+                (name, max(int(value), 0)),
+            )
+
+    def counter(self, name: str) -> int:
+        """Return the current *name* value (0 when never raised)."""
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT value FROM counters WHERE name = ?", (name,)
+            ).fetchone()
+            return 0 if row is None else int(row["value"])
 
     # ── maintenance ─────────────────────────────────────────────────
     def freelist_count(self) -> int:

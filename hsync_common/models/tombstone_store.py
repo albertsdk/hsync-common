@@ -112,6 +112,10 @@ class TombstoneStore(CausalStoreBase[TombstoneEntry]):
             vclock=clock,
         )
         self._mark_dirty(key)
+        if clock:
+            # A marker is a published clock too: keep the installation counter
+            # floor above it (ADR-0022).
+            self.raise_clock_counter(max(clock.values()))
 
     # ── maintenance ─────────────────────────────────────────────────
     def prune(self, now: int | float | None = None) -> int:

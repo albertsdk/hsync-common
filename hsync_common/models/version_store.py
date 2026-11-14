@@ -92,6 +92,11 @@ class SyncStateStore(CausalStoreBase[FileVersion]):
             corrected_mtime=corrected_mtime,
         )
         self._mark_dirty(key)
+        if vclock:
+            # Keep the installation counter floor above every clock this node
+            # persists, so a later no-history mint cannot reuse a counter it
+            # already published (ADR-0022).
+            self.raise_clock_counter(max(vclock.values()))
 
     def retain(self, relpaths: list[str]) -> int:
         """Drop entries for paths not in *relpaths*; return the drop count.

@@ -24,12 +24,23 @@ Consumers: ``hsync-common`` store classes only (not a public API).
 
 from __future__ import annotations
 
+import itertools
 import sqlite3
 import time
 from pathlib import Path
 
 from ._util import tombstone_key
 from .sqlstore import StateDb, get_state_db
+
+# Node-global clock counter name in the installation DB (see
+# ``StateDb.next_counter``). Every persisted clock raises it, so a node's mint
+# can always reserve a value it has never published before — the node-scope
+# anti-aliasing invariant (ADR-0022).
+VCLOCK_COUNTER = "vclock"
+
+# Fallback for stores without a SQLite backend (in-memory/test stores): a
+# process-local sequence keeps reservations strictly increasing within the run.
+_fallback_counter = itertools.count(1)
 
 
 class CausalStoreBase[T]:
@@ -73,6 +84,33 @@ class CausalStoreBase[T]:
         if self._db is None:
             self._db = get_state_db(self.db_path)
         return self._db
+
+    # ── node-global clock counter (ADR-0022) ────────────────────────
+    def next_clock_counter(self) -> int:
+        """Reserve a value this node has never minted for any path (ADR-0022).
+
+        The installation ``counters`` floor stays above every counter this node
+        ever published, so a path that lost both its version row and its
+        deletion marker cannot re-mint a counter it already published — the only
+        way a fresh version could be proven a stale ancestor of a peer's marker.
+        Without a backend (in-memory/test store) a process-local sequence is
+        used. Consumers: ``hsync-client`` (``sync_state._mint_clock``), the
+        ``hsync-server`` mirror and ``hsync-android``.
+        """
+        db = self._backend()
+        if db is None:
+            return next(_fallback_counter)
+        return db.next_counter(VCLOCK_COUNTER)
+
+    def raise_clock_counter(self, value: int) -> None:
+        """Raise the installation clock floor to at least *value*.
+
+        Consumers: the stores' own ``record`` methods, so every persisted clock
+        keeps the floor honest without an extra call from the sync engine.
+        """
+        db = self._backend()
+        if db is not None:
+            db.raise_counter(VCLOCK_COUNTER, value)
 
     # ── dirty tracking ──────────────────────────────────────────────
     def _mark_dirty(self, key: str) -> None:

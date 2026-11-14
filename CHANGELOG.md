@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The installation DB keeps a node-global monotonic clock counter
+  (`counters` table, `StateDb.next_counter`/`raise_counter`): every persisted
+  version and tombstone raises the floor, so a node can never mint a counter it
+  already published — the node-scope anti-aliasing invariant (ADR-0022 §6).
+
 ## [1.1.0] - 2026-11-11
 
 ### Added

@@ -1,7 +1,7 @@
 # ADR 0022 — Causal vector-clock conflict model
 
 - **Status:** Accepted
-- **Date:** 2026-08-13
+- **Date:** 2026-08-13 (last revised 2026-11-14)
 
 ## Context
 
@@ -62,6 +62,17 @@ version is always the store — two sequential local edits produce monotonically
 increasing clocks, preventing aliasing (two distinct versions sharing one
 clock ⇒ silent overwrite). The pure/persistent split keeps dry-run preview
 read-only.
+
+The invariant is **node-scoped, not path-scoped**. Ticking the stored clock is
+monotone only while the path keeps causal state; a path whose version row *and*
+deletion marker are both gone — a file that vanished outside the watcher (an
+unmounted volume) and came back, or a marker dropped by its TTL — would restart
+at 1 and re-publish a counter the node already used, so a peer's surviving
+marker could prove the fresh version a stale ancestor and delete the
+re-creation on both peers. When no history is retained the mint therefore
+reserves a value from an installation-wide monotonic counter
+(`StateDb.next_counter`, raised by every persisted version and marker clock),
+strictly above everything the node has ever published.
 
 ### 7. Capability, not version bump
 

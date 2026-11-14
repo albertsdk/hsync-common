@@ -42,7 +42,7 @@ class TestOpenStateDb:
             tables = {
                 row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
             }
-            assert {"folders", "buckets", "versions", "tombstones"} <= tables
+            assert {"folders", "buckets", "versions", "tombstones", "counters"} <= tables
             assert conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_USER_VERSION
             mode = conn.execute("PRAGMA journal_mode").fetchone()[0]
             assert str(mode).lower() == "wal"
@@ -284,3 +284,33 @@ class TestStateDbMaintenance:
 
     def test_state_db_freelist_count_guard_missing_file(self, tmp_path):
         assert state_db_freelist_count(tmp_path / "missing" / "state DB") == 0
+
+
+class TestNodeCounters:
+    """The installation-wide monotonic counters (ADR-0022 node-scope invariant)."""
+
+    def test_next_counter_is_strictly_increasing(self, state_db):
+        assert state_db.next_counter("vclock") == 1
+        assert state_db.next_counter("vclock") == 2
+        assert state_db.counter("vclock") == 2
+
+    def test_raise_counter_never_lowers_and_creates(self, state_db):
+        state_db.raise_counter("vclock", 7)
+        assert state_db.counter("vclock") == 7
+        state_db.raise_counter("vclock", 3)  # lower value: no-op
+        assert state_db.counter("vclock") == 7
+
+    def test_next_counter_resumes_above_a_raised_floor(self, state_db):
+        state_db.raise_counter("vclock", 41)
+        assert state_db.next_counter("vclock") == 42
+
+    def test_counters_are_independent_by_name(self, state_db):
+        assert state_db.next_counter("vclock") == 1
+        assert state_db.counter("other") == 0
+
+    def test_concurrent_reservations_never_repeat(self, state_db):
+        """Two concurrent reservations must never return the same value."""
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            values = list(pool.map(lambda _: state_db.next_counter("vclock"), range(200)))
+
+        assert sorted(values) == list(range(1, 201))
