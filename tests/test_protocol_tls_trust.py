@@ -17,6 +17,7 @@ from hsync_common.protocol.tls_trust import (
     TrustPolicy,
     ensure_pinning_policy,
     evaluate_tls_trust,
+    resolve_auto_policy,
     resolve_self_signed_policy,
     resolve_trust_policy,
 )
@@ -124,7 +125,60 @@ def test_default_self_signed_policy_is_ask():
     assert DEFAULT_SELF_SIGNED_POLICY in PINNING_POLICIES
 
 
-@pytest.mark.parametrize("policy", [TrustPolicy.ask, TrustPolicy.accept_new, TrustPolicy.strict])
+class TestResolveAutoPolicy:
+    """The ``auto`` meta-policy resolves as pin > chain > TOFU."""
+
+    def test_non_auto_policies_pass_through(self):
+        for policy in (
+            TrustPolicy.chain,
+            TrustPolicy.ask,
+            TrustPolicy.accept_new,
+            TrustPolicy.strict,
+            TrustPolicy.none,
+        ):
+            assert resolve_auto_policy(policy, None, chain_trusted=True) is policy
+
+    def test_stored_pin_wins_over_chain(self):
+        assert (
+            resolve_auto_policy(TrustPolicy.auto, _FP_A, chain_trusted=True) is TrustPolicy.strict
+        )
+
+    def test_stored_malformed_pin_still_wins(self):
+        # Fail closed: a present-but-malformed pin must not silently fall back to
+        # chain/TOFU; ``evaluate_tls_trust(strict, ...)`` refuses it.
+        assert (
+            resolve_auto_policy(TrustPolicy.auto, "nope", chain_trusted=True) is TrustPolicy.strict
+        )
+
+    def test_chain_when_ca_validated(self):
+        assert resolve_auto_policy(TrustPolicy.auto, None, chain_trusted=True) is TrustPolicy.chain
+
+    def test_tofu_when_no_chain(self):
+        assert (
+            resolve_auto_policy(TrustPolicy.auto, None, chain_trusted=False)
+            is TrustPolicy.accept_new
+        )
+
+    def test_self_signed_transport_pins_or_refuses(self):
+        # The rendezvous/P2P transports pass chain_trusted=False.
+        unknown = resolve_auto_policy(TrustPolicy.auto, None, chain_trusted=False)
+        known = resolve_auto_policy(TrustPolicy.auto, _FP_A, chain_trusted=False)
+        assert evaluate_tls_trust(unknown, None, _FP_A) is TrustAction.pin_and_proceed
+        assert evaluate_tls_trust(known, _FP_A, _FP_A) is TrustAction.proceed
+        assert evaluate_tls_trust(known, _FP_A, _FP_B) is TrustAction.refuse
+
+
+def test_evaluate_tls_trust_rejects_unresolved_auto():
+    # ``auto`` must be resolved first; silently proceeding would skip the
+    # strongest available check.
+    with pytest.raises(ValueError):
+        evaluate_tls_trust(TrustPolicy.auto, None, _FP_A)
+
+
+@pytest.mark.parametrize(
+    "policy",
+    [TrustPolicy.auto, TrustPolicy.ask, TrustPolicy.accept_new, TrustPolicy.strict],
+)
 def test_ensure_pinning_policy_accepts_pinning_policies(policy):
     assert ensure_pinning_policy(policy) is policy
 

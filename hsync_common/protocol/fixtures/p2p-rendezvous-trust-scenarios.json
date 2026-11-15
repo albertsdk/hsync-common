@@ -118,6 +118,34 @@
       "observed": "abcdef",
       "policy": "strict",
       "stored": null
+    },
+    {
+      "expected_action": "pin-and-proceed",
+      "name": "auto-unknown-pins",
+      "observed": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "policy": "auto",
+      "stored": null
+    },
+    {
+      "expected_action": "proceed",
+      "name": "auto-matched-proceeds",
+      "observed": "AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA",
+      "policy": "auto",
+      "stored": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "expected_action": "refuse",
+      "name": "auto-changed-refused",
+      "observed": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "policy": "auto",
+      "stored": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "expected_action": "refuse",
+      "name": "auto-missing-observed-refused",
+      "observed": null,
+      "policy": "auto",
+      "stored": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ]
 }

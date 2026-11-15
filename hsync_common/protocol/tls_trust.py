@@ -13,6 +13,11 @@ server case where standard CA validation is the anchor:
 ``chain``
     Standard certificate-chain validation (public CA or ``--ca-cert`` anchor); no
     fingerprint pinning. The default for the sync server.
+``auto``
+    Pick the strongest available verification: an existing pin (``strict``), else
+    standard ``chain`` validation when the certificate is CA-valid, else pin the
+    first sighting (``accept-new``). The Desktop default; a meta-policy that
+    :func:`evaluate_tls_trust` refuses until :func:`resolve_auto_policy` resolves it.
 ``ask``
     Prompt on an unknown host and pin it on acceptance; refuse a changed one.
     The default for a self-signed node (and fail-closed without a terminal).
@@ -45,6 +50,7 @@ __all__ = [
     "TrustPolicy",
     "ensure_pinning_policy",
     "evaluate_tls_trust",
+    "resolve_auto_policy",
     "resolve_self_signed_policy",
     "resolve_trust_policy",
 ]
@@ -54,6 +60,7 @@ class TrustPolicy(StrEnum):
     """How an observed certificate fingerprint is evaluated (SSH-like)."""
 
     chain = "chain"  # standard CA chain validation; no pinning (server default)
+    auto = "auto"  # strongest available: pin > chain > TOFU (Desktop default)
     ask = "ask"  # prompt on an unknown host, refuse a changed one
     accept_new = "accept-new"  # pin a first sighting silently, refuse a changed one
     strict = "strict"  # require an explicit pin; refuse unknown or changed
@@ -65,8 +72,11 @@ class TrustPolicy(StrEnum):
 DEFAULT_SELF_SIGNED_POLICY = TrustPolicy.ask
 
 # Policies that actually pin a self-signed transport. ``chain``/``none`` never
-# pin, so they cannot express trust for a P2P master or a rendezvous.
+# pin, so they cannot express trust for a P2P master or a rendezvous. ``auto`` is
+# accepted because it resolves to a pinning policy (``strict``/``accept-new``)
+# for a self-signed transport.
 PINNING_POLICIES: tuple[TrustPolicy, ...] = (
+    TrustPolicy.auto,
     TrustPolicy.ask,
     TrustPolicy.accept_new,
     TrustPolicy.strict,
@@ -106,6 +116,10 @@ def evaluate_tls_trust(
     Consumers: ``hsync-client`` (rendezvous/P2P/server connect paths) and the Android
     mirror, both fed by the shared ``p2p-rendezvous-trust-scenarios`` fixture.
     """
+    if policy is TrustPolicy.auto:
+        raise ValueError(
+            "policy 'auto' must be resolved with resolve_auto_policy() before evaluate_tls_trust()"
+        )
     if policy is TrustPolicy.chain or policy is TrustPolicy.none:
         return TrustAction.proceed
 
@@ -127,6 +141,40 @@ def evaluate_tls_trust(
     if observed == stored:
         return TrustAction.proceed
     return TrustAction.refuse
+
+
+def resolve_auto_policy(
+    policy: TrustPolicy,
+    stored_fp: str | None,
+    *,
+    chain_trusted: bool,
+) -> TrustPolicy:
+    """Resolve the ``auto`` meta-policy to a concrete :class:`TrustPolicy`.
+
+    ``auto`` picks the strongest verification the endpoint supports:
+
+    1. a stored pin (even a malformed one) → ``strict``, so the pin is enforced
+       and :func:`evaluate_tls_trust` fails closed on an unknown/changed value;
+    2. otherwise, when the server's certificate validated against the CA anchor
+       (``chain_trusted``) → ``chain`` (standard validation, no pin);
+    3. otherwise → ``accept_new`` (pin the first sighting).
+
+    Self-signed transports (P2P master, rendezvous) pass ``chain_trusted=False``,
+    so they resolve to ``strict`` (known) or ``accept_new`` (first use). A
+    non-``auto`` policy is returned unchanged, so callers may apply this
+    unconditionally.
+
+    Consumers: ``hsync-client`` (server, rendezvous and P2P connect paths), the
+    Android mirror (``RendezvousTrust`` and the server trust manager), and the
+    shared ``p2p-rendezvous-trust-scenarios`` fixture.
+    """
+    if policy is not TrustPolicy.auto:
+        return policy
+    if stored_fp:
+        return TrustPolicy.strict
+    if chain_trusted:
+        return TrustPolicy.chain
+    return TrustPolicy.accept_new
 
 
 def resolve_trust_policy(

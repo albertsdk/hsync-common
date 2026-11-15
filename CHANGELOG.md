@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- TLS trust policy `auto` (`hsync_common/protocol/tls_trust.py::TrustPolicy.auto`
+  and `resolve_auto_policy`): prefer a stored pin, then standard CA validation,
+  then trust-on-first-use; `evaluate_tls_trust` refuses an unresolved `auto`
+  (ADR-0051).
 - The installation DB keeps a node-global monotonic clock counter
   (`counters` table, `StateDb.next_counter`/`raise_counter`): every persisted
   version and tombstone raises the floor, so a node can never mint a counter it

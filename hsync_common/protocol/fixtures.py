@@ -55,7 +55,7 @@ from .peer_download import (
     build_p2p_sources_request,
     build_p2p_sources_response,
 )
-from .tls_trust import TrustPolicy, evaluate_tls_trust
+from .tls_trust import TrustPolicy, evaluate_tls_trust, resolve_auto_policy
 from .transfer_progress import build_p2p_file_progress
 
 __all__ = ["FIXTURE_APP_VERSION", "FIXTURE_TOKEN", "build_fixtures"]
@@ -413,6 +413,12 @@ _RENDEZVOUS_TRUST_SCENARIOS: tuple[tuple[str, TrustPolicy, str | None, str | Non
     # A malformed observed value is never trusted (matches the Android mirror).
     ("accept-new-invalid-observed-refused", TrustPolicy.accept_new, None, "not-a-fingerprint"),
     ("strict-short-observed-refused", TrustPolicy.strict, None, "abcdef"),
+    # ``auto`` resolves to strict (known pin) or accept-new (first use); the
+    # rendezvous is self-signed, so chain validation is never available.
+    ("auto-unknown-pins", TrustPolicy.auto, None, _TRUST_FP_A),
+    ("auto-matched-proceeds", TrustPolicy.auto, _TRUST_FP_A, _TRUST_FP_A_COLON),
+    ("auto-changed-refused", TrustPolicy.auto, _TRUST_FP_A, _TRUST_FP_B),
+    ("auto-missing-observed-refused", TrustPolicy.auto, _TRUST_FP_A, None),
 )
 
 
@@ -425,7 +431,9 @@ def _rendezvous_trust_scenarios() -> dict[str, Any]:
                 "policy": policy,
                 "stored": stored,
                 "observed": observed,
-                "expected_action": evaluate_tls_trust(policy, stored, observed),
+                "expected_action": evaluate_tls_trust(
+                    resolve_auto_policy(policy, stored, chain_trusted=False), stored, observed
+                ),
             }
             for name, policy, stored, observed in _RENDEZVOUS_TRUST_SCENARIOS
         ]

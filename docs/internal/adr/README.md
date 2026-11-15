@@ -74,6 +74,7 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0048](0048-desktop-update-check.md) | The desktop release check is opt-in and never self-installs | Accepted |
 | [0049](0049-empty-directory-status.md) | An empty directory reports its own sync status | Accepted |
 | [0050](0050-one-fact-per-event.md) | One fact per event: link state and data movement | Accepted |
+| [0051](0051-auto-trust-policy.md) | Automatic TLS trust policy: prefer CA, then pin, then TOFU (`auto`) | Accepted |
 
 ## Related documents
 
