@@ -66,27 +66,50 @@ def folder_has_user_content(path: str) -> bool:
     return False
 
 
-def iter_json_array(items: Iterable[dict]) -> Iterator[bytes]:
-    """Yield a JSON array body incrementally: ``[``, item, ``,``, item, ``]``.
+def iter_json_array(items: Iterable[dict], *, batch_bytes: int = 64 * 1024) -> Iterator[bytes]:
+    """Yield a JSON array body incrementally: ``[``, items, ``]``.
 
     The listing endpoints do not know their body size without materialising the
-    whole array, so they stream it: peak memory is O(one entry) instead of one
-    dict per file, and the first entry reaches the peer without waiting for the
-    walk to finish. A producer failure truncates the array — invalid JSON — so a
-    consumer fails loudly instead of acting on a silently partial listing.
+    whole array, so they stream it: peak memory is O(one batch + one item)
+    instead of one dict per file, and the first chunk reaches the peer once the
+    batch fills (not after the walk). A producer failure truncates the array —
+    invalid JSON — so a consumer fails loudly instead of acting on a silently
+    partial listing.
+
+    Chunks are **batched** up to *batch_bytes* because ``StreamingResponse``
+    iterates a sync generator with one ``anyio.to_thread.run_sync`` per yielded
+    chunk (``starlette.concurrency.iterate_in_threadpool``): emitting one
+    fragment per entry paid two thread hops per file, which dominated a large
+    listing (~0.4 ms/file measured on the server, GIL-bound). Batching keeps the
+    memory bound while removing ~all of those hops.
+
+    Args:
+        items: The entries to encode, in emission order.
+        batch_bytes: Target chunk size. A larger batch reduces thread hops at
+            the cost of a later first byte; it must stay well below the memory
+            bound the stream is designed for.
+
+    Raises:
+        ValueError: When *batch_bytes* is not positive.
 
     Consumers: ``hsync-server`` ``get_files``/``get_dirs`` (``StreamingResponse``
-    iterates the generator on a worker thread).
+    iterates the generator on a worker thread) and ``hsync-client``'s P2P master
+    listing.
     """
-    yield b"["
+    if batch_bytes < 1:
+        raise ValueError("batch_bytes must be positive")
+    buffer = bytearray(b"[")
     first = True
     for item in items:
-        if first:
-            first = False
-        else:
-            yield b","
-        yield compact_json_bytes(item)
-    yield b"]"
+        if not first:
+            buffer += b","
+        first = False
+        buffer += compact_json_bytes(item)
+        if len(buffer) >= batch_bytes:
+            yield bytes(buffer)
+            buffer.clear()
+    buffer += b"]"
+    yield bytes(buffer)
 
 
 def iter_dir_entries(bucket_root: str) -> Iterator[dict]:

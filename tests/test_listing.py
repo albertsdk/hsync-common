@@ -7,6 +7,8 @@ import json
 import os
 from pathlib import Path
 
+import pytest
+
 from hsync_common.listing import (
     file_entry,
     iter_bucket_entries,
@@ -26,16 +28,42 @@ def _write(path: Path, content: bytes = b"x") -> None:
 
 class TestIterJsonArray:
     def test_frames_an_empty_array(self):
-        assert list(iter_json_array([])) == [b"[", b"]"]
+        assert list(iter_json_array([])) == [b"[]"]
 
     def test_frames_items_with_compact_encoding(self):
         chunks = list(iter_json_array([{"a": 1}, {"b": "c"}]))
-        assert chunks == [b"[", b'{"a":1}', b",", b'{"b":"c"}', b"]"]
+        assert chunks == [b'[{"a":1},{"b":"c"}]']
         assert json.loads(b"".join(chunks)) == [{"a": 1}, {"b": "c"}]
 
     def test_unicode_is_not_escaped(self):
         chunks = list(iter_json_array([{"path": "dati-\u010d"}]))
         assert b"\\u" not in b"".join(chunks)
+
+    def test_batches_entries_into_few_chunks(self):
+        """One chunk per entry made Starlette pay a thread hop per entry.
+
+        The stream must stay byte-identical while emitting batches, so a
+        ``StreamingResponse`` over this generator no longer dispatches once (or
+        twice) per file.
+        """
+        items = [{"filepath": f"dir/file-{i:05d}.bin", "size": i} for i in range(5000)]
+        chunks = list(iter_json_array(items, batch_bytes=8192))
+
+        assert json.loads(b"".join(chunks)) == items
+        # ~250 KB of JSON at 8 KiB per batch: a handful of chunks, not 10 000.
+        assert len(chunks) < 100
+        assert all(len(chunk) <= 8192 + 256 for chunk in chunks)
+
+    def test_small_batch_still_frames_valid_json(self):
+        items = [{"a": 1}, {"b": 2}, {"c": 3}]
+        chunks = list(iter_json_array(items, batch_bytes=1))
+
+        assert len(chunks) > 1
+        assert json.loads(b"".join(chunks)) == items
+
+    def test_rejects_a_non_positive_batch(self):
+        with pytest.raises(ValueError):
+            list(iter_json_array([], batch_bytes=0))
 
 
 class TestIterDirEntries:

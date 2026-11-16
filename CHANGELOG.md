@@ -17,6 +17,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`counters` table, `StateDb.next_counter`/`raise_counter`): every persisted
   version and tombstone raises the floor, so a node can never mint a counter it
   already published — the node-scope anti-aliasing invariant (ADR-0022 §6).
+- `set_sha256_cache_provider` / `reset_sha256_cache_provider`
+  (`hsync_common/models/file.py`): a host can route `File.get`'s checksum cache
+  to a cache it already owns, so the server listing shares its preloaded
+  `FILE_HASHES` instead of hashing into the 10k client LRU.
+
+### Fixed
+
+- `iter_json_array` (`hsync_common/listing.py`) batches its output (64 KiB):
+  `StreamingResponse` dispatches one worker-thread hop per yielded chunk, so one
+  fragment per entry dominated a large listing. The JSON bytes are unchanged
+  and peak memory stays O(batch + one entry).
 
 ## [1.1.0] - 2026-11-11
 

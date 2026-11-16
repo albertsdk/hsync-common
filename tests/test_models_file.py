@@ -381,3 +381,79 @@ class TestFileFromDict:
             {"filepath": "/base2/x.txt", "size": 1}, dir_prefix="/base", strip_dir_prefix=True
         )
         assert f.filepath == "/base2/x.txt"  # type: ignore[reportOperatorIssue]
+
+
+class TestSha256CacheProvider:
+    """A host can route File.get's checksum cache to a cache it already owns.
+
+    Consumer: hsync-server (``hsync_server.hashes.register_sha256_cache_provider``),
+    so the file listing shares the cache the startup preload fills instead of
+    hashing into its own 10k LRU.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _no_provider_leak(self):
+        from hsync_common.models.file import reset_sha256_cache_provider
+
+        reset_sha256_cache_provider()
+        yield
+        reset_sha256_cache_provider()
+
+    def _install(self, store: dict) -> None:
+        from hsync_common.models.file import set_sha256_cache_provider
+
+        def get(path, mtime_ns, ctime_ns, size):
+            return store.get(path)
+
+        def set_(path, sha256sum, mtime_ns, ctime_ns, size):
+            store[path] = sha256sum
+
+        def invalidate(path):
+            store.pop(path, None)
+
+        def clear():
+            store.clear()
+
+        set_sha256_cache_provider(get, set_, invalidate, clear)
+
+    def test_file_get_reads_the_provider_without_hashing(self, tmp_path, monkeypatch):
+        target = tmp_path / "f.bin"
+        target.write_bytes(b"payload")
+        store = {str(target): "f" * 64}
+        self._install(store)
+
+        def _boom(_path):
+            raise AssertionError("File.get must not hash a provider hit")
+
+        monkeypatch.setattr("hsync_common.models.file.compute_sha256", _boom)
+        file_obj = File.get(str(target))
+
+        assert file_obj is not None
+        assert file_obj.sha256sum == "f" * 64
+
+    def test_provider_miss_computes_and_stores(self, tmp_path):
+        import hashlib
+
+        target = tmp_path / "f.bin"
+        content = b"payload"
+        target.write_bytes(content)
+        store: dict[str, str] = {}
+        self._install(store)
+
+        file_obj = File.get(str(target))
+
+        assert file_obj is not None
+        assert file_obj.sha256sum == hashlib.sha256(content).hexdigest()
+        assert store[str(target)] == file_obj.sha256sum
+
+    def test_invalidate_and_clear_reach_the_provider(self, tmp_path):
+        target = str(tmp_path / "f.bin")
+        store = {target: "a" * 64}
+        self._install(store)
+
+        invalidate_sha256_cache(target)
+        assert store == {}
+
+        store["other"] = "b" * 64
+        clear_sha256_cache()
+        assert store == {}

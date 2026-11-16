@@ -7,6 +7,7 @@ This module defines the File class representing a file with its metadata
 
 import os
 from collections import OrderedDict
+from collections.abc import Callable
 from datetime import datetime
 from threading import Lock
 from typing import TYPE_CHECKING, NotRequired, TypedDict
@@ -56,6 +57,42 @@ _sha256_cache: OrderedDict[str, tuple[str, int, int, int]] = OrderedDict()
 # stale drop, overflow eviction) must never interleave.
 _sha256_cache_lock = Lock()
 
+# Optional process-wide provider for the same cache, installed by a host that
+# already owns one (consumer: ``hsync-server``, whose lifespan preloads
+# ``hsync_server.hashes.FILE_HASHES``). Without it the listing would consult the
+# 10k client LRU instead of the preloaded 100k server cache, so every start (and
+# every eviction past 10k) re-hashed whole files. The tuple is swapped
+# atomically: readers observe either the old or the new provider, never a mix.
+Sha256CacheProvider = tuple[
+    Callable[[str, int, int, int], "str | None"],  # get(path, mtime_ns, ctime_ns, size)
+    Callable[[str, str, int, int, int], None],  # set(path, sha, mtime_ns, ctime_ns, size)
+    Callable[[str], None],  # invalidate(path)
+    Callable[[], None],  # clear()
+]
+_sha256_provider: Sha256CacheProvider | None = None
+
+
+def set_sha256_cache_provider(
+    get: Callable[[str, int, int, int], "str | None"],
+    set_: Callable[[str, str, int, int, int], None],
+    invalidate: Callable[[str], None],
+    clear: Callable[[], None],
+) -> None:
+    """Route ``File.get``'s checksum cache through a host-owned cache.
+
+    Consumer: ``hsync-server`` (``hsync_server.hashes.register_sha256_cache_provider``)
+    so the listing shares the cache the lifespan preloads; the client never
+    installs one and keeps its local LRU.
+    """
+    global _sha256_provider
+    _sha256_provider = (get, set_, invalidate, clear)
+
+
+def reset_sha256_cache_provider() -> None:
+    """Drop the installed provider and return to the local LRU (tests/embedded hosts)."""
+    global _sha256_provider
+    _sha256_provider = None
+
 
 def clear_sha256_cache() -> None:
     """Clear the entire SHA-256 cache.
@@ -65,6 +102,9 @@ def clear_sha256_cache() -> None:
     mode relies on per-entry invalidation plus the nanosecond identity
     check instead, so unchanged files are never re-hashed.
     """
+    provider = _sha256_provider
+    if provider is not None:
+        provider[3]()
     with _sha256_cache_lock:
         _sha256_cache.clear()
 
@@ -79,6 +119,9 @@ def invalidate_sha256_cache(file_path: str) -> None:
     Args:
         file_path: Path of the file to invalidate.
     """
+    provider = _sha256_provider
+    if provider is not None:
+        provider[2](file_path)
     with _sha256_cache_lock:
         _sha256_cache.pop(file_path, None)
 
@@ -87,6 +130,9 @@ def _get_cached_sha256(
     file_path: str, current_mtime_ns: int, current_ctime_ns: int, current_size: int
 ) -> str | None:
     """Get cached SHA-256 if file metadata still matches (LRU: move to end on hit)."""
+    provider = _sha256_provider
+    if provider is not None:
+        return provider[0](file_path, current_mtime_ns, current_ctime_ns, current_size)
     with _sha256_cache_lock:
         try:
             cached_sha256, cached_mtime_ns, cached_ctime_ns, cached_size = _sha256_cache[file_path]
@@ -107,6 +153,10 @@ def _set_cached_sha256(
     file_path: str, sha256sum: str, mtime_ns: int, ctime_ns: int, size: int
 ) -> None:
     """Store SHA-256 in cache with its stat identity; evict LRU entry at capacity."""
+    provider = _sha256_provider
+    if provider is not None:
+        provider[1](file_path, sha256sum, mtime_ns, ctime_ns, size)
+        return
     with _sha256_cache_lock:
         _sha256_cache[file_path] = (sha256sum, mtime_ns, ctime_ns, size)
         _sha256_cache.move_to_end(file_path)
