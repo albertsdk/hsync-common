@@ -18,7 +18,7 @@ from hsync_common.constants import (
 )
 from hsync_common.hashing import compute_sha256
 from hsync_common.path_validation import basename
-from hsync_common.permissions import mode_to_octal
+from hsync_common.permissions import canonical_permissions
 from hsync_common.time_utils import to_epoch
 
 from ._util import _resolve_prefixed_path
@@ -348,7 +348,7 @@ class File:
 
         # Reuse the st_mode already read by file.stat() above instead of a
         # second stat syscall (get_permissions would stat the path again).
-        permissions = mode_to_octal(file_stat.st_mode)
+        permissions = canonical_permissions(file_stat)
 
         return cls(
             filepath=file_path,

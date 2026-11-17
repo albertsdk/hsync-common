@@ -93,8 +93,7 @@ def iter_json_array(items: Iterable[dict], *, batch_bytes: int = 64 * 1024) -> I
         ValueError: When *batch_bytes* is not positive.
 
     Consumers: ``hsync-server`` ``get_files``/``get_dirs`` (``StreamingResponse``
-    iterates the generator on a worker thread) and ``hsync-client``'s P2P master
-    listing.
+    iterates the generator on a worker thread).
     """
     if batch_bytes < 1:
         raise ValueError("batch_bytes must be positive")

@@ -81,6 +81,7 @@ P2P_TXT_OPTIONAL_KEYS: tuple[str, ...] = (
     "connected",
     "heartbeat",
     "peer_download",
+    "readonly_permissions",
 )
 P2P_TXT_KEYS: tuple[str, ...] = P2P_TXT_REQUIRED_KEYS + P2P_TXT_OPTIONAL_KEYS
 
@@ -813,6 +814,13 @@ def build_p2p_txt_schema() -> dict[str, Any]:
             "description": (
                 "This node implements LAN inventory, batch source lookup and "
                 "read-only seeder semantics (ADR-0028)."
+            ),
+        },
+        "readonly_permissions": {
+            **_TXT_BOOL_FLAG,
+            "description": (
+                "This node's local filesystem can represent only the owner-write "
+                "bit (Windows): permission-only comparisons are projected to it."
             ),
         },
         "connected": {

@@ -148,6 +148,28 @@ class TestWindowsReadonlyMapping:
         assert perms.apply_remote_permissions(str(tmp_path / "d"), "444", directory=True) == "755"
         assert calls == [stat.S_IWRITE]
 
+    def test_file_and_dir_models_report_canonical_modes(self, tmp_path, monkeypatch):
+        """File.get/Dir.get feed the wire; they must map like get_permissions."""
+        import hsync_common.permissions as perms
+        from hsync_common.models.dir import Dir
+        from hsync_common.models.file import File
+
+        monkeypatch.setattr(perms, "_IS_WINDOWS", True)
+        target = tmp_path / "f.bin"
+        target.write_bytes(b"x")
+
+        os.chmod(target, 0o644)
+        file = File.get(str(target))
+        assert file is not None and file.permissions == "644"
+
+        os.chmod(target, 0o444)
+        file = File.get(str(target))
+        assert file is not None and file.permissions == "444"
+
+        directory = tmp_path / "d"
+        directory.mkdir()
+        assert Dir.get(str(directory)).permissions == "755"
+
     @pytest.mark.parametrize(
         ("permissions", "expected"),
         [("600", True), ("644", True), ("444", False), ("555", False), ("bogus", False)],

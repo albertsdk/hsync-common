@@ -115,6 +115,23 @@ def sanitize_remote_permissions(permissions: str) -> str:
     return format(int(permissions, 8) & REMOTE_PERMISSION_MASK, "o").zfill(3)
 
 
+def canonical_permissions(st: os.stat_result) -> str:
+    """Return a stat result's canonical octal mode, mapped on a lossy host.
+
+    The Windows mapping lives here so every listing/upload metadata path
+    (``get_permissions``, ``File.get``, ``Dir.get``) emits the same canonical
+    modes instead of the synthetic NTFS 666/777. Consumers: ``hsync-common``
+    models and ``get_permissions``; ``hsync-client`` and ``hsync-server``
+    through them.
+    """
+    if not _IS_WINDOWS:
+        return mode_to_octal(st.st_mode)
+    writable = bool(st.st_mode & stat.S_IWRITE)
+    if stat.S_ISDIR(st.st_mode):
+        return _WINDOWS_DIRECTORY if writable else "555"
+    return _WINDOWS_FILE_WRITABLE if writable else _WINDOWS_FILE_READONLY
+
+
 def get_permissions(obj_path: str) -> str:
     """Read a path's permissions as a canonical octal string.
 
@@ -132,13 +149,7 @@ def get_permissions(obj_path: str) -> str:
     Returns:
         Octal permission string (e.g. ``"644"``).
     """
-    st = os_stat(obj_path)
-    if _IS_WINDOWS:
-        writable = bool(st.st_mode & stat.S_IWRITE)
-        if stat.S_ISDIR(st.st_mode):
-            return _WINDOWS_DIRECTORY if writable else "555"
-        return _WINDOWS_FILE_WRITABLE if writable else _WINDOWS_FILE_READONLY
-    return mode_to_octal(st.st_mode)
+    return canonical_permissions(os_stat(obj_path))
 
 
 def local_permissions_are_lossy() -> bool:
@@ -232,9 +243,7 @@ def _apply_windows_permissions(
     if directory:
         target = _WINDOWS_DIRECTORY
     else:
-        target = (
-            _WINDOWS_FILE_WRITABLE if octal_to_mode(sanitized) & 0o200 else _WINDOWS_FILE_READONLY
-        )
+        target = _WINDOWS_FILE_WRITABLE if has_owner_write(sanitized) else _WINDOWS_FILE_READONLY
     if skip_if_equal:
         try:
             if get_permissions(obj_path) == target:

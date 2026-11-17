@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `readonly_permissions` capability
   (`hsync_common/protocol/handshake.py::Capability`) marks a node whose local
   filesystem represents only the owner-write bit; absence means full POSIX modes.
+  The P2P TXT SSOT declares the matching `readonly_permissions` flag
+  (`hsync_common/protocol/schemas.py::P2P_TXT_OPTIONAL_KEYS`), so a Windows
+  node's mDNS record validates against the published schema.
 - TLS trust policy `auto` (`hsync_common/protocol/tls_trust.py::TrustPolicy.auto`
   and `resolve_auto_policy`): prefer a stored pin, then standard CA validation,
   then trust-on-first-use; `evaluate_tls_trust` refuses an unresolved `auto`
@@ -41,7 +44,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   read-only) and `apply_remote_permissions` writes or clears only the Read-only
   attribute; `has_owner_write` and `local_permissions_are_lossy`
   (`hsync_common/permissions.py`) expose the portable bit and the host's
-  lossiness.
+  lossiness. The mapping is one function
+  (`canonical_permissions`) so the `File`/`Dir` metadata paths a peer reads emit
+  the same canonical modes instead of the synthetic NTFS `666`/`777`.
 - The ignore matcher serves the literal default names from a set when no custom
   pattern exists (~9 fewer regexes per scanned entry); a `.hsyncignore` or an
   extra pattern still compiles the full spec, so negations keep working.

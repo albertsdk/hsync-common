@@ -7,7 +7,7 @@ path and permissions, used for directory synchronization events.
 
 from os import stat as os_stat
 
-from hsync_common.permissions import mode_to_octal
+from hsync_common.permissions import canonical_permissions
 
 from ._util import _resolve_prefixed_path
 
@@ -123,5 +123,5 @@ class Dir:
             return None
         return cls(
             path=path,
-            permissions=mode_to_octal(st.st_mode),
+            permissions=canonical_permissions(st),
         )

@@ -74,6 +74,13 @@
     "protocol": {
       "const": "p2p/1"
     },
+    "readonly_permissions": {
+      "description": "This node's local filesystem can represent only the owner-write bit (Windows): permission-only comparisons are projected to it.",
+      "enum": [
+        "true"
+      ],
+      "type": "string"
+    },
     "server_ready": {
       "enum": [
         "true"
