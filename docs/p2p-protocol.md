@@ -36,7 +36,8 @@ lives in `P2P_TXT_KEYS`; do not introduce keys outside it.
 
 **Optional keys** (present only when meaningful/true): `group`, `https`,
 `cert_fp`, `compression`, `delta`, `server_ready`, `prefer_master`,
-`never_master`, `inbound`, `connected`, `heartbeat`, `peer_download`.
+`never_master`, `inbound`, `connected`, `heartbeat`, `peer_download`,
+`readonly_permissions`.
 
 `inbound` marks a node that confirms an externally dialable data-plane endpoint
 (e.g. a successful UPnP mapping): it can serve every peer without the relay, so
@@ -48,6 +49,11 @@ true, so an absent key means "false". Causal version metadata (ADR-0022) and
 deletion gossip (ADR-0003) are hard dependencies of the sync/conflict model and
 are negotiated over the authenticated WSS handshake (ADR-0024), never the TXT
 record.
+
+`readonly_permissions` marks a lossy permission host (NTFS): its local files
+carry only the Read-only attribute, so permission-only comparisons are projected
+to the owner-write bit. It travels in the TXT record so a peer knows the master's
+model before the WSS handshake; absence means full POSIX modes.
 
 `peer_download` means the node implements the ADR-0028 inventory, batch source
 lookup, and read-only seeder semantics. A serving master publishes it when its

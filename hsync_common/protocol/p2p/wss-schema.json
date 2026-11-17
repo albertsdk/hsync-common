@@ -12,6 +12,7 @@
               "index",
               "never_master",
               "peer_download",
+              "readonly_permissions",
               "tombstones",
               "vector_clocks"
             ]
@@ -85,6 +86,7 @@
               "index",
               "never_master",
               "peer_download",
+              "readonly_permissions",
               "tombstones",
               "vector_clocks"
             ]
@@ -123,6 +125,7 @@
               "index",
               "never_master",
               "peer_download",
+              "readonly_permissions",
               "tombstones",
               "vector_clocks"
             ]
@@ -364,6 +367,7 @@
               "index",
               "never_master",
               "peer_download",
+              "readonly_permissions",
               "tombstones",
               "vector_clocks"
             ]

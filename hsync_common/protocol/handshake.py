@@ -88,6 +88,9 @@ class Capability(StrEnum):
     vector_clocks = "vector_clocks"  # causal version metadata exchanged on file payloads (ADR-0022)
     index = "index"  # publishes a read-only inventory so peers can compute sync status
     peer_download = "peer_download"  # serves file blocks to other peers (source/seeder)
+    readonly_permissions = (
+        "readonly_permissions"  # local modes are lossy (owner-write/read-only only)
+    )
 
 
 ALL_CAPABILITIES: frozenset[Capability] = frozenset(Capability)

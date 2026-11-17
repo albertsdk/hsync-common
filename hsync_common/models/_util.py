@@ -12,6 +12,7 @@ without circular imports.
 
 import json
 import os
+import unicodedata
 from hashlib import sha256
 
 __all__ = [
@@ -76,12 +77,20 @@ _last_prefix_parts: list[str] = []
 
 
 def _strip_prefix_components(path: str, prefix: str) -> str | None:
-    """Return *path* relative to *prefix*, or ``None`` when it is not inside.
+    """Return the bucket-relative **identity** of *path* under *prefix*.
 
     Component-aware: ``/base2/x`` is never stripped against ``/base`` (a string
     prefix check would yield ``2/x``), the prefix itself maps to ``""``, and the
     result never carries a leading separator. An empty *prefix* means "nothing
     is inside" and yields ``None``.
+
+    The result is the platform-independent identity used by the wire, the
+    version/tombstone keys and the vclock history: **POSIX separators and NFC**,
+    on every OS. On Windows the native separator is a backslash, so returning it
+    would make a nested path never match the forward-slash form the server and
+    POSIX peers use (every nested local file looked local-only, and
+    tombstone/version keys diverged). NFC matches the inbound normalisation
+    ``path_validation.validate_remote_relpath`` already enforces.
 
     Replaces ``Path(path).relative_to(prefix)`` on the hot path: pathlib
     parsing costs ~12.7 us per call against ~1.0 us here, and it is invoked once
@@ -99,7 +108,10 @@ def _strip_prefix_components(path: str, prefix: str) -> str | None:
     path_parts = _split_path_components(str(path))
     if len(path_parts) < len(prefix_parts) or path_parts[: len(prefix_parts)] != prefix_parts:
         return None
-    return os.sep.join(path_parts[len(prefix_parts) :])
+    relative = "/".join(path_parts[len(prefix_parts) :])
+    if not unicodedata.is_normalized("NFC", relative):
+        relative = unicodedata.normalize("NFC", relative)
+    return relative
 
 
 def _resolve_prefixed_path(data_filepath: str, prefix: str | None, *, strip: bool) -> str:
@@ -145,7 +157,7 @@ def _resolve_prefixed_path(data_filepath: str, prefix: str | None, *, strip: boo
         # production caller (bucket roots, dir_prefix, localpath) and of the
         # benchmark fixtures, and it is pinned by the prepend-equivalence
         # test in tests/test_models_file.py.
-        return prefix.rstrip("/") + "/" + str(data_filepath).lstrip("/")
+        return prefix.rstrip("/\\") + "/" + str(data_filepath).lstrip("/")
     return str(data_filepath)
 
 
@@ -176,7 +188,11 @@ def tombstone_key(relpath: str) -> str:
 
 
 def relpath_in_bucket(abs_path: str, bucket_dir: str) -> str | None:
-    """Return the bucket-relative path used as the tombstone identity.
+    """Return the bucket-relative **identity** used by the wire and the state.
+
+    The identity is platform-independent: POSIX separators and NFC on every OS
+    (see ``_strip_prefix_components``), so a Windows client and a POSIX
+    server/peer derive the same version/tombstone key for the same file.
 
     Component-aware and never resolves ``..`` (a path that merely shares a
     string prefix with the bucket, e.g. ``/data/bucket2`` vs ``/data/bucket``,

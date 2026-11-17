@@ -35,6 +35,8 @@ Peers advertise capabilities during the handshake:
 - `https` and `never_master` — p2p transport/election behavior
 - `peer_download` — p2p inventory, batch source lookup, and read-only seeder
   semantics
+- `readonly_permissions` — the device's local filesystem can represent only the
+  owner-write bit (Windows): permission-only comparisons are projected to it
 
 The registry is `hsync_common.protocol.handshake.Capability`; the desktop-facing
 capability document is in `hsync_common.protocol.capabilities`. Capabilities are

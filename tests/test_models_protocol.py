@@ -568,3 +568,26 @@ class TestRelpathInBucket:
         # path (never the bucket-root identity "" nor the raw input, which could
         # be smuggled into a tombstone key and corrupt the root's state).
         assert relpath_in_bucket("/other/a.txt", "/bucket") is None
+
+    def test_uses_posix_separators_on_windows(self, monkeypatch):
+        """The identity is POSIX on every OS, not the native separator.
+
+        Regression: rejoining with ``os.sep`` made a Windows nested path
+        ``a\\b`` while the wire/state is ``a/b``, so nested files looked
+        local-only and version/tombstone keys diverged from POSIX peers.
+        """
+        import ntpath
+        from types import SimpleNamespace
+
+        import hsync_common.models._util as util
+
+        monkeypatch.setattr(util, "os", SimpleNamespace(sep="\\", path=ntpath))
+
+        assert util.relpath_in_bucket("C:\\bucket\\a\\b.txt", "C:\\bucket") == "a/b.txt"
+        assert util._strip_prefix_components("C:\\bucket\\a", "C:\\bucket") == "a"
+
+    def test_normalizes_the_identity_to_nfc(self):
+        """NFC matches the inbound normalisation ``validate_remote_relpath`` enforces."""
+        decomposed = "cafe\u0301.txt"  # café.txt, NFD
+
+        assert relpath_in_bucket(f"/bucket/{decomposed}", "/bucket") == "caf\u00e9.txt"

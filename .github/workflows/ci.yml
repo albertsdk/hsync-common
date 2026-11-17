@@ -48,3 +48,38 @@ jobs:
 
       - name: Tests
         run: poetry run pytest -q
+
+  # Cross-platform signal (the `python` job above is Linux-only).
+  # macOS runs the full suite (POSIX modes/symlinks). The Windows runner runs the
+  # platform-neutral subset: POSIX-mode assertions in test_permissions.py need a
+  # dedicated Windows sweep before they can be blocking.
+  platforms:
+    name: tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            pytest-args: ""
+          - os: windows-latest
+            pytest-args: >-
+              tests/test_path_validation.py tests/test_models_protocol.py
+              tests/test_ignore.py tests/test_listing.py tests/test_sqlstore.py
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@v7.1.0
+        with:
+          python-version: "3.14"
+
+      - name: Install Poetry
+        run: pipx install poetry==2.4.1
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Tests
+        shell: bash
+        run: poetry run pytest -q ${{ matrix.pytest-args }}

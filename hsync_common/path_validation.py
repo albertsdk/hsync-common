@@ -126,14 +126,19 @@ def basename(path: str) -> str:
 
     Trailing slashes are stripped first so ``"foo/"`` yields ``"foo"``,
     matching :attr:`pathlib.Path.name`. Empty / slash-only input yields ``""``.
+    On Windows the native separator (backslash) also splits, matching ``Path.name``
+    there; on POSIX a backslash stays a legal filename character.
 
     Consumers: ``hsync-common`` (``File``, ``is_partial_file``,
     ``IgnoreMatcher.matches``) — hot path, once per scanned entry.
     """
-    stripped = path.rstrip("/")
+    windows = os.sep != "/"
+    stripped = path.rstrip("/\\") if windows else path.rstrip("/")
     if not stripped:
         return ""
     sep = stripped.rfind("/")
+    if windows:
+        sep = max(sep, stripped.rfind("\\"))
     return stripped if sep < 0 else stripped[sep + 1 :]
 
 

@@ -549,3 +549,32 @@ class TestIsSafeSymlinkTarget:
         # byte) must be rejected, not blow up the event-apply path.
         assert not is_safe_symlink_target(str(tmp_path / "ln"), "x\x00y", str(tmp_path))
         assert not is_safe_symlink_target(str(tmp_path / "ln"), "\x00", str(tmp_path))
+
+
+class TestBasename:
+    """``basename`` matches ``Path.name`` on the host platform."""
+
+    def test_posix_paths(self):
+        from hsync_common.path_validation import basename
+
+        assert basename("/bucket/a/b.txt") == "b.txt"
+        assert basename("foo/") == "foo"
+        assert basename("") == ""
+
+    def test_windows_backslash_paths_when_sep_is_backslash(self, monkeypatch):
+        import ntpath
+        from types import SimpleNamespace
+
+        import hsync_common.path_validation as pv
+
+        monkeypatch.setattr(pv, "os", SimpleNamespace(sep="\\", path=ntpath))
+
+        assert pv.basename("C:\\bucket\\a\\b.txt") == "b.txt"
+        assert pv.basename("C:\\bucket\\a\\") == "a"
+
+    def test_backslash_is_a_legal_posix_name_character(self):
+        from hsync_common.path_validation import basename
+
+        # On POSIX a backslash is not a separator; changing that would split a
+        # legitimate filename.
+        assert basename("/bucket/a\\b.txt") == "a\\b.txt"

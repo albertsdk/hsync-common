@@ -15,7 +15,9 @@ hsync-client; the Android client mirrors the same format.
 upload/download/delta, client download/metadata events).
 """
 
+import os
 import re
+import stat
 from os import chmod
 from os import stat as os_stat
 
@@ -40,6 +42,17 @@ OWNER_DIRECTORY_ACCESS = 0o700
 # C-level regex object instead of recompiling (or cache-looking-up) the
 # pattern on every validation call.
 _OCTAL_PERMISSIONS_RE = re.compile(r"[0-7]{3,4}")
+
+# Windows cannot represent POSIX modes: NTFS carries only the read-only
+# attribute. The wire stays POSIX; this process maps the owner-write bit to that
+# attribute and exposes a canonical mode so peers never see 666/777
+# (``get_permissions``). Module constant so tests can drive the Windows branch.
+_IS_WINDOWS = os.name == "nt"
+
+# The canonical modes a lossy local reports on the wire.
+_WINDOWS_FILE_WRITABLE = "644"
+_WINDOWS_FILE_READONLY = "444"
+_WINDOWS_DIRECTORY = "755"
 
 
 def mode_to_octal(mode: int) -> str:
@@ -105,13 +118,54 @@ def sanitize_remote_permissions(permissions: str) -> str:
 def get_permissions(obj_path: str) -> str:
     """Read a path's permissions as a canonical octal string.
 
+    On Windows only the read-only attribute is representable, so the mode is
+    reported canonically (``644``/``755``, or ``444``/``555`` when the attribute
+    is set): exposing the synthetic NTFS 666/777 to a POSIX peer would make it
+    apply over-permissive modes.
+
+    Consumers: ``hsync-client`` (``File``/``Dir`` metadata, permission-only
+    events), ``hsync-server`` (listing/upload metadata).
+
     Args:
         obj_path: Path to the file or directory.
 
     Returns:
         Octal permission string (e.g. ``"644"``).
     """
-    return mode_to_octal(os_stat(obj_path).st_mode)
+    st = os_stat(obj_path)
+    if _IS_WINDOWS:
+        writable = bool(st.st_mode & stat.S_IWRITE)
+        if stat.S_ISDIR(st.st_mode):
+            return _WINDOWS_DIRECTORY if writable else "555"
+        return _WINDOWS_FILE_WRITABLE if writable else _WINDOWS_FILE_READONLY
+    return mode_to_octal(st.st_mode)
+
+
+def local_permissions_are_lossy() -> bool:
+    """Return whether this host can represent only the owner-write bit.
+
+    True on Windows (NTFS carries the read-only attribute, not POSIX modes).
+    Consumers: the client's capability advertisement
+    (``hsync_client/capabilities.py::local_capabilities``), the P2P mDNS TXT
+    record and the reconciliation projection
+    (``hsync_client/sync.py::_actions_from_remote``).
+    """
+    return _IS_WINDOWS
+
+
+def has_owner_write(permissions: str) -> bool:
+    """Return whether the owner-write bit is set in *permissions*.
+
+    The Windows-portable projection of a POSIX mode: a lossy peer can only
+    represent writable vs read-only, so the reconciliation compares this bit
+    instead of the full string when either side is lossy.
+
+    Consumers: ``hsync-client/sync.py::_actions_from_remote``.
+    """
+    try:
+        return bool(octal_to_mode(permissions) & 0o200)
+    except (TypeError, ValueError):
+        return False
 
 
 def apply_remote_permissions(
@@ -147,6 +201,10 @@ def apply_remote_permissions(
         ValueError: If *permissions* is not a valid octal permission string.
     """
     sanitized = sanitize_remote_permissions(permissions)
+    if _IS_WINDOWS:
+        return _apply_windows_permissions(
+            obj_path, sanitized, directory=directory, skip_if_equal=skip_if_equal
+        )
     if skip_if_equal:
         try:
             if mode_to_octal(os_stat(obj_path).st_mode) == sanitized:
@@ -158,3 +216,30 @@ def apply_remote_permissions(
         mode |= OWNER_DIRECTORY_ACCESS
     chmod(obj_path, mode)
     return sanitized
+
+
+def _apply_windows_permissions(
+    obj_path: str, sanitized: str, *, directory: bool, skip_if_equal: bool
+) -> str | None:
+    """Map a wire mode to NTFS's only portable bit: the read-only attribute.
+
+    Directories always stay writable (the sync engine must traverse and update
+    its own tree), so their owner-write floor is not representable as read-only.
+    A file is read-only exactly when the wire mode lacks the owner-write bit.
+    Returns the canonical mode actually in force, or ``None`` when
+    *skip_if_equal* found it already applied.
+    """
+    if directory:
+        target = _WINDOWS_DIRECTORY
+    else:
+        target = (
+            _WINDOWS_FILE_WRITABLE if octal_to_mode(sanitized) & 0o200 else _WINDOWS_FILE_READONLY
+        )
+    if skip_if_equal:
+        try:
+            if get_permissions(obj_path) == target:
+                return None
+        except OSError:
+            pass  # missing path: let chmod raise the real error
+    chmod(obj_path, stat.S_IWRITE if target != _WINDOWS_FILE_READONLY else stat.S_IREAD)
+    return target

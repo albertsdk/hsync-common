@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The `readonly_permissions` capability
+  (`hsync_common/protocol/handshake.py::Capability`) marks a node whose local
+  filesystem represents only the owner-write bit; absence means full POSIX modes.
 - TLS trust policy `auto` (`hsync_common/protocol/tls_trust.py::TrustPolicy.auto`
   and `resolve_auto_policy`): prefer a stored pin, then standard CA validation,
   then trust-on-first-use; `evaluate_tls_trust` refuses an unresolved `auto`
@@ -27,6 +30,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Path identity is independent of the host separator and Unicode form:
+  `_split_path_components`/`_strip_prefix_components`
+  (`hsync_common/models/_util.py`) split on `/` and `\` and compare
+  NFC-normalized components, so a listing produced on Windows keys the same
+  local state as one produced on Linux and an NFD macOS name matches its NFC
+  peer.
+- The permission model maps a lossy host instead of rejecting it: on Windows
+  `get_permissions` reports the canonical `644`/`755` pair (`444`/`555` when
+  read-only) and `apply_remote_permissions` writes or clears only the Read-only
+  attribute; `has_owner_write` and `local_permissions_are_lossy`
+  (`hsync_common/permissions.py`) expose the portable bit and the host's
+  lossiness.
 - The ignore matcher serves the literal default names from a set when no custom
   pattern exists (~9 fewer regexes per scanned entry); a `.hsyncignore` or an
   extra pattern still compiles the full spec, so negations keep working.
