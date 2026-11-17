@@ -47,6 +47,18 @@ from hsync_common.path_validation import basename, is_internal_name
 _MAX_IGNORE_PATTERNS = 1000
 
 
+# Built-in defaults split by shape: literal basenames (``.DS_Store``,
+# ``Thumbs.db``, …) become an O(1) frozenset lookup when no user pattern can
+# negate them, while the glob patterns keep their gitignore regex semantics.
+# Deriving the split from the SSOT tuple means a new default cannot drift.
+_DEFAULT_LITERAL_NAMES = frozenset(
+    p for p in DEFAULT_IGNORE_PATTERNS if p and not any(c in p for c in "*?[\\/")
+)
+_DEFAULT_GLOB_PATTERNS = tuple(
+    p for p in DEFAULT_IGNORE_PATTERNS if p not in _DEFAULT_LITERAL_NAMES
+)
+
+
 class IgnoreMatcher:
     """gitignore-style matcher with built-in default patterns.
 
@@ -68,6 +80,9 @@ class IgnoreMatcher:
         self.bucket_root = str(Path(bucket_root).resolve()) if bucket_root else ""
         self._extra_patterns = list(extra_patterns or [])
         self._spec: PathSpec = PathSpec.from_lines(GitIgnoreSpecPattern, [])
+        # Literal default basenames for the no-custom-patterns fast path (see
+        # ``reload``); swapped together with ``_spec`` like the spec itself.
+        self._literal_names: frozenset[str] = frozenset()
         self._lock = threading.RLock()
         # Cached prefix slice for the hot path: the bucket root never changes
         # between reloads (only the spec does), so _to_relative reuses it
@@ -96,6 +111,7 @@ class IgnoreMatcher:
         the new immutable spec, never a half-built one.
         """
         patterns: list[str] = []
+        has_custom = bool(self._extra_patterns)
 
         # Layer 1 — built-in default patterns (always active)
         patterns.extend(DEFAULT_IGNORE_PATTERNS)
@@ -104,6 +120,7 @@ class IgnoreMatcher:
         if self.bucket_root:
             ignore_path = Path(self.bucket_root) / HSYNCIGNORE_FILENAME
             if ignore_path.is_file():
+                has_custom = True
                 try:
                     patterns.extend(
                         ignore_path.read_text(encoding="utf-8", errors="replace").splitlines()
@@ -126,12 +143,20 @@ class IgnoreMatcher:
             )
             patterns = patterns[:_MAX_IGNORE_PATTERNS]
 
+        # With no user patterns, the literal defaults are served by a set lookup
+        # and only the glob defaults stay in the spec: ~9 regexes per scanned
+        # entry disappear. A custom .hsyncignore may negate any default
+        # (``!.DS_Store``), so the split is only safe when none exists.
+        spec_patterns = list(_DEFAULT_GLOB_PATTERNS) if not has_custom else patterns
+        literal_names = frozenset() if has_custom else _DEFAULT_LITERAL_NAMES
         with self._lock:
-            new_spec = PathSpec.from_lines(GitIgnoreSpecPattern, patterns)
+            new_spec = PathSpec.from_lines(GitIgnoreSpecPattern, spec_patterns)
         # Swap executed outside the lock: assignment is atomic under the GIL
         # and PathSpec objects are treated as immutable once published, so
-        # concurrent matches() readers never observe a half-built spec.
+        # concurrent matches() readers never observe a half-built spec. The
+        # literal set is published together with the spec it belongs to.
         self._spec = new_spec
+        self._literal_names = literal_names
 
     # ------------------------------------------------------------------
     # Matching
@@ -193,6 +218,8 @@ class IgnoreMatcher:
         if is_internal_name(name):
             return True
         if not is_dir and is_partial_file(name):
+            return True
+        if name in self._literal_names:
             return True
 
         rel = self._to_relative(path)

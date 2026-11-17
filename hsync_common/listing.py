@@ -224,18 +224,23 @@ def iter_bucket_entries(
                     yield dir_path, link
 
 
-def file_entry(file_obj: File, bucket_root: str) -> dict:
+def file_entry(file_obj: File, bucket_root: str, *, rel: str | None = None) -> dict:
     """Return the wire dict for one file, with a bucket-relative ``filepath``.
 
     A path outside *bucket_root* is kept verbatim (it is never advertised as a
     relative path); this mirrors what both listing surfaces did before the
     extraction, so the JSON shape is unchanged.
 
+    *rel* lets a caller that already resolved the bucket-relative path (the
+    server's version JOIN needs the same value) pass it instead of computing it
+    twice; passing ``None`` keeps the self-contained behavior.
+
     Consumers: ``hsync-server`` (``api/files/list.py``), ``hsync-client``
     (``p2p_server._handle_list_files``).
     """
     entry = file_obj.to_dict()
-    rel = relpath_in_bucket(file_obj.filepath or "", bucket_root)
+    if rel is None:
+        rel = relpath_in_bucket(file_obj.filepath or "", bucket_root)
     entry["filepath"] = (file_obj.filepath or "") if rel is None else rel
     return entry
 

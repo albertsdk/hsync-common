@@ -21,6 +21,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`hsync_common/models/file.py`): a host can route `File.get`'s checksum cache
   to a cache it already owns, so the server listing shares its preloaded
   `FILE_HASHES` instead of hashing into the 10k client LRU.
+- `file_entry(..., rel=...)` (`hsync_common/listing.py::file_entry`) accepts the
+  already-resolved bucket-relative path, so a caller that also needs it for the
+  version JOIN does not compute it twice.
+
+### Changed
+
+- The ignore matcher serves the literal default names from a set when no custom
+  pattern exists (~9 fewer regexes per scanned entry); a `.hsyncignore` or an
+  extra pattern still compiles the full spec, so negations keep working.
 
 ### Fixed
 

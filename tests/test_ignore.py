@@ -276,3 +276,41 @@ class TestActiveMatcher:
             assert should_skip("build", is_dir=False) is False
         finally:
             set_active_matcher(None)
+
+
+class TestLiteralDefaultFastPath:
+    """The defaults split into literals + globs must keep gitignore semantics.
+
+    Without a custom pattern the literal basenames are served by a set lookup
+    (and the glob defaults stay in the spec); a custom pattern may negate any
+    default, so the split is disabled as soon as one exists.
+    """
+
+    def test_literal_defaults_match_without_custom_patterns(self):
+        from hsync_common.ignore import IgnoreMatcher
+
+        matcher = IgnoreMatcher("")
+
+        assert matcher.matches(".DS_Store")
+        assert matcher.matches("/bucket/deep/Thumbs.db")
+        assert matcher.matches("folder/4913")
+        assert not matcher.matches("/bucket/deep/notes.txt")
+
+    def test_glob_defaults_still_match_without_custom_patterns(self):
+        from hsync_common.ignore import IgnoreMatcher
+
+        matcher = IgnoreMatcher("")
+
+        assert matcher.matches("scratch.tmp")
+        assert matcher.matches("report.bak")
+        assert matcher.matches("download.crdownload")
+
+    def test_custom_negation_can_reinclude_a_literal_default(self):
+        from hsync_common.ignore import IgnoreMatcher
+
+        matcher = IgnoreMatcher("", extra_patterns=["!.DS_Store"])
+
+        # The full spec (defaults + negation) is in effect, so the later
+        # negation wins — the set-based fast path must not shortcut this.
+        assert not matcher.matches(".DS_Store")
+        assert matcher.matches("Thumbs.db")
