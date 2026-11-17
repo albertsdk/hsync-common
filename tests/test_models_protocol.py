@@ -591,3 +591,11 @@ class TestRelpathInBucket:
         decomposed = "cafe\u0301.txt"  # café.txt, NFD
 
         assert relpath_in_bucket(f"/bucket/{decomposed}", "/bucket") == "caf\u00e9.txt"
+
+    def test_a_non_nfc_name_and_its_nfc_form_share_one_state_key(self):
+        """The identity is the key of the persisted version/tombstone state, so a
+        normal-form twin must not key a second entry."""
+        decomposed = "cafe\u0301.txt"  # café.txt, NFD
+
+        nfd_identity = relpath_in_bucket(f"/bucket/{decomposed}", "/bucket")
+        assert tombstone_key(nfd_identity) == tombstone_key("caf\u00e9.txt")

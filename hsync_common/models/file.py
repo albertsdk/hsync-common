@@ -13,7 +13,7 @@ from threading import Lock
 from typing import TYPE_CHECKING, NotRequired, TypedDict
 
 from hsync_common.constants import (
-    PARTIAL_DELTA_SUFFIX,
+    PARTIAL_DELTA_LIT_SUFFIX,
     PARTIAL_DOWNLOAD_SUFFIX,
 )
 from hsync_common.hashing import compute_sha256
@@ -186,10 +186,6 @@ class FileDict(TypedDict):
     version: NotRequired["VersionInfo"]
 
 
-# Parked literal-payload suffix: "<final>.delta.part.lit". Precomputed once
-# so the hot is_partial_file() check does not rebuild the string per entry.
-_PARTIAL_DELTA_LIT_SUFFIX = f"{PARTIAL_DELTA_SUFFIX}.lit"
-
 # Keys always emitted by the production wire shape (``to_dict`` / server
 # listing). A single C-level set-containment test decides the ``from_dict``
 # fast path instead of rebuilding a tuple and running a Python ``all()``
@@ -215,7 +211,7 @@ def is_partial_file(file_path: str) -> bool:
         True if the basename ends with a partial-transfer suffix.
     """
     name = basename(file_path)
-    return name.endswith((PARTIAL_DOWNLOAD_SUFFIX, _PARTIAL_DELTA_LIT_SUFFIX))
+    return name.endswith((PARTIAL_DOWNLOAD_SUFFIX, PARTIAL_DELTA_LIT_SUFFIX))
 
 
 def is_hidden_file(file_path: str) -> bool:

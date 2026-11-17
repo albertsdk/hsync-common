@@ -220,6 +220,11 @@ PARTIAL_DOWNLOAD_SUFFIX = ".part"
 # cleaned up) separately from a plain interrupted download.
 PARTIAL_DELTA_SUFFIX = ".delta.part"
 
+# Parked literal payload an interrupted delta reconstruction leaves behind:
+# "<final>.delta.part.lit". This is the LONGEST transient name a transfer can
+# create for a path, so a platform path-limit guard must account for it.
+PARTIAL_DELTA_LIT_SUFFIX = f"{PARTIAL_DELTA_SUFFIX}.lit"
+
 # =============================================================================
 # Delta Transfer (rsync-style) Settings
 # =============================================================================
