@@ -373,6 +373,30 @@ def is_valid_bucket_name(value: str) -> bool:
 # Safe Path Resolution
 # =============================================================================
 
+_WINDOWS = os.sep != "/"
+
+
+def _strip_extended_prefix(value: str) -> str:
+    r"""Map a Win32 extended-length path to its drive/UNC form (pure).
+
+    ``\\?\C:\dir`` becomes ``C:\dir`` and ``\\?\UNC\server\share``
+    becomes ``\\server\share``. Comparisons need one form; the original
+    (prefixed) path is still the one returned, because the prefix is required to
+    reach components beyond ``MAX_PATH``. Only ``_comparable_path`` applies it, and
+    only on Windows: on POSIX a leading backslash is a legal filename character.
+    """
+    if value.startswith("\\\\?\\UNC\\"):
+        return "\\\\" + value[len("\\\\?\\UNC\\") :]
+    if value.startswith("\\\\?\\"):
+        return value[len("\\\\?\\") :]
+    return value
+
+
+def _comparable_path(value: str | Path) -> Path:
+    """A path whose drive/UNC prefix matches another path for comparison."""
+    text = str(value)
+    return Path(_strip_extended_prefix(text) if _WINDOWS else text)
+
 
 def safe_resolve_path(path: str, *, allow_absolute: bool = True) -> str | None:
     """Resolve a filesystem path, rejecting traversal and unsafe inputs.
@@ -605,7 +629,10 @@ def resolve_within(base_dir: str, rel: str, *, resolve_final: bool = True) -> st
             target = (base / clean).resolve()
         else:
             target = (base / Path(clean).parent).resolve() / Path(clean).name
-        target.relative_to(base)
+        # ``resolve()`` may return the Win32 extended-length form while another
+        # path is the drive form; compare one form (the returned path keeps the
+        # original spelling so long paths stay reachable).
+        _comparable_path(target).relative_to(_comparable_path(base))
     except (OSError, ValueError):
         return None
 
@@ -616,12 +643,14 @@ def _resolve_target_in_bucket(symlink_path: str, target: str, bucket_dir: str) -
     """Resolve a symlink *target* and return it when it stays inside *bucket_dir*.
 
     Absolute targets are resolved as-is; relative targets are resolved from the
-    link's parent directory. ``None`` signals an unresolvable input (e.g. an
-    embedded NUL byte or an over-long component) or a target that escapes the
-    bucket. Single source of truth for the confinement check shared by
-    :func:`wire_symlink_target` and :func:`is_safe_symlink_target`.
+    link's parent directory. ``None`` signals an unresolvable input (an embedded
+    NUL byte, an over-long component) or a target that escapes the bucket.
+    ``Path.resolve(strict=False)`` is lexical on a missing target, so the NUL
+    check is explicit rather than relying on a syscall error. Single source of
+    truth for the confinement check shared by :func:`wire_symlink_target` and
+    :func:`is_safe_symlink_target`.
     """
-    if not target:
+    if not target or "\x00" in target:
         return None
     try:
         bucket_path = Path(bucket_dir).resolve()
@@ -629,7 +658,10 @@ def _resolve_target_in_bucket(symlink_path: str, target: str, bucket_dir: str) -
             resolved = Path(target).resolve()
         else:
             resolved = (Path(symlink_path).parent / target).resolve()
-        resolved.relative_to(bucket_path)
+        # ``os.readlink``/``resolve()`` may return a ``\\?\`` extended path
+        # while the bucket is the drive form: compare without the prefix, or an
+        # in-bucket link is falsely rejected as escaping.
+        _comparable_path(resolved).relative_to(_comparable_path(bucket_path))
     except (OSError, ValueError):
         return None
     return resolved
@@ -652,19 +684,24 @@ def wire_symlink_target(symlink_path: str, target: str, bucket_dir: str) -> str 
         target: The symlink target (relative or absolute).
         bucket_dir: The bucket directory.
 
+    The returned target always uses POSIX separators: a Windows ``\\`` in the
+    replicated target would be a literal filename character on every other peer.
+
     Returns:
-        The wire-safe target string, or ``None`` when escaping the bucket.
+        The wire-safe target string, or ``None`` when escaping the bucket or
+        carrying an embedded NUL byte.
     """
-    if not target:
+    if not target or "\x00" in target:
         return None
     if not Path(target).is_absolute():
-        return target
+        return target.replace(os.sep, "/")
     resolved = _resolve_target_in_bucket(symlink_path, target, bucket_dir)
     if resolved is None:
         return None
     try:
         link_parent = Path(symlink_path).resolve().parent
-        return os.path.relpath(resolved, link_parent)
+        rel = os.path.relpath(_comparable_path(resolved), _comparable_path(link_parent))
+        return rel.replace(os.sep, "/")
     except (OSError, ValueError):
         return None
 

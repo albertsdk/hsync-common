@@ -1,5 +1,7 @@
 """Tests for hsync_common.path_validation."""
 
+import os
+
 from hsync_common.path_validation import (
     FORBIDDEN_FILENAME_CHARS,
     FORBIDDEN_PATH_CHARS,
@@ -256,7 +258,7 @@ class TestSafeResolvePath:
 
     def test_relative_path_resolved_when_absolute_allowed(self):
         result = safe_resolve_path("subdir/file.txt")
-        assert result is not None and result.endswith("subdir/file.txt")
+        assert result is not None and result.endswith(os.path.join("subdir", "file.txt"))
 
 
 class TestIsInternalName:
@@ -526,6 +528,9 @@ class TestWireSymlinkTarget:
     def test_empty_target_rejected(self, tmp_path):
         assert wire_symlink_target(str(tmp_path / "ln"), "", str(tmp_path)) is None
 
+    def test_nul_target_rejected(self, tmp_path):
+        assert wire_symlink_target(str(tmp_path / "ln"), "x\x00y", str(tmp_path)) is None
+
 
 class TestIsSafeSymlinkTarget:
     def test_relative_target_within_bucket(self, tmp_path):
@@ -572,9 +577,19 @@ class TestBasename:
         assert pv.basename("C:\\bucket\\a\\b.txt") == "b.txt"
         assert pv.basename("C:\\bucket\\a\\") == "a"
 
-    def test_backslash_is_a_legal_posix_name_character(self):
+    def test_backslash_follows_the_platform_separator(self):
         from hsync_common.path_validation import basename
 
-        # On POSIX a backslash is not a separator; changing that would split a
-        # legitimate filename.
-        assert basename("/bucket/a\\b.txt") == "a\\b.txt"
+        # POSIX: a backslash is a legal filename character; Windows: it is the
+        # native separator and splits just like Path.name does there.
+        expected = "a\\b.txt" if os.sep == "/" else "b.txt"
+        assert basename("/bucket/a\\b.txt") == expected
+
+
+class TestExtendedPathPrefix:
+    def test_strips_the_drive_and_unc_prefix(self):
+        from hsync_common.path_validation import _strip_extended_prefix
+
+        assert _strip_extended_prefix("\\\\?\\C:\\bucket\\a") == "C:\\bucket\\a"
+        assert _strip_extended_prefix("\\\\?\\UNC\\server\\share\\a") == "\\\\server\\share\\a"
+        assert _strip_extended_prefix("/bucket/a") == "/bucket/a"

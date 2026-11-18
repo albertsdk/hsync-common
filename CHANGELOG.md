@@ -57,6 +57,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `StreamingResponse` dispatches one worker-thread hop per yielded chunk, so one
   fragment per entry dominated a large listing. The JSON bytes are unchanged
   and peak memory stays O(batch + one entry).
+- Symlink replication on Windows no longer skips in-bucket links: the
+  `\\?\`/`\\?\UNC\` extended-length form that `readlink`/`resolve` can return is
+  compared without its prefix, a target carrying an embedded NUL is rejected, and
+  the wire target always uses POSIX separators (a backslash would be a literal
+  filename character on every other peer).
 
 ## [1.1.0] - 2026-11-11
 

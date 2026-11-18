@@ -82,7 +82,10 @@ class TestIterDirEntries:
         assert paths[0] == "a"
         assert set(paths) == {"a", "b", os.path.join("a", "nested")}
         by_path = {entry["path"]: entry["permissions"] for entry in entries}
-        assert by_path["a"] == "750"
+        # A Windows host reports the canonical mode (only the owner-write bit is
+        # representable), so the POSIX chmod above resolves to 755 there.
+        expected = "755" if os.name == "nt" else "750"
+        assert by_path["a"] == expected
 
     def test_order_is_stable_across_calls(self, tmp_path):
         (tmp_path / "b").mkdir()
