@@ -20,7 +20,6 @@ from hsync_common.path_validation import (
     is_valid_filename,
     resolve_within,
     safe_resolve_path,
-    sanitize_filename,
     validate_remote_relpath,
     wire_relpaths,
     wire_symlink_target,
@@ -180,48 +179,6 @@ class TestIsValidFilename:
 
     def test_unicode_valid(self):
         assert is_valid_filename("résumé.pdf") is True
-
-
-class TestSanitizeFilename:
-    def test_slash_replaced(self):
-        result = sanitize_filename("foo/bar.txt")
-        assert "/" not in result
-
-    def test_control_char_replaced(self):
-        result = sanitize_filename("foo\x01bar.txt")
-        assert "\x01" not in result
-
-    def test_empty_returns_unnamed(self):
-        assert sanitize_filename("") == "unnamed"
-
-    def test_reserved_name_replaced(self):
-        result = sanitize_filename("NUL")
-        assert result == "unnamed"
-
-    def test_trailing_space_stripped(self):
-        result = sanitize_filename("file ")
-        assert not result.endswith(" ")
-
-    def test_long_filename_truncated(self):
-        long_name = "a" * 300 + ".txt"
-        result = sanitize_filename(long_name)
-        assert len(result) <= 255
-
-    def test_long_multibyte_filename_truncated_without_splitting_utf8(self):
-        # Each 'é' is 2 UTF-8 bytes: 200 of them exceed the 255-byte limit.
-        # Byte-aware truncation must not split a multi-byte sequence (which
-        # would produce an invalid encoding) and must preserve the extension.
-        result = sanitize_filename("é" * 200 + ".txt")
-        assert result.endswith(".txt")
-        assert len(result.encode("utf-8")) <= 255
-        # Would raise UnicodeDecodeError/encode implicitly fails on a split
-        # sequence if the implementation sliced characters instead of bytes.
-        assert result.encode("utf-8").decode("utf-8") == result
-
-    def test_long_extensionless_name_truncated(self):
-        result = sanitize_filename("a" * 300)
-        assert len(result.encode("utf-8")) <= 255
-        assert result != "unnamed"
 
 
 class TestIsValidBucketName:

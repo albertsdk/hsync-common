@@ -112,9 +112,6 @@ PROBLEMATIC_TRAILING_CHARS: frozenset[str] = frozenset({" ", "."})
 # A whole ".." path component (between / separators or at either end).
 _DOTDOT_COMPONENT_RE = re.compile(r"(?:^|/)\.\.(?:/|$)")
 
-# One-pass C-level replacement of every forbidden/control char with "_".
-_SANITIZE_TABLE = str.maketrans({ord(c): "_" for c in FORBIDDEN_FILENAME_CHARS | CONTROL_CHARS})
-
 
 # =============================================================================
 # Validation Functions
@@ -268,64 +265,6 @@ def is_safe_path_component(path: str) -> bool:
 
     # Reject parent directory traversal (".." as a component, not substring)
     return not has_dotdot_component(path)
-
-
-def sanitize_filename(filename: str) -> str:
-    """
-    Sanitize a filename by removing/replacing dangerous characters.
-
-    This function:
-    - Removes path separators
-    - Replaces forbidden characters with underscores
-    - Removes control characters
-    - Strips problematic trailing characters
-    - Truncates to safe length (255 chars)
-
-    Args:
-        filename: The filename to sanitize.
-
-    Returns:
-        A sanitized filename safe for storage.
-    """
-    if not filename:
-        return "unnamed"
-
-    # Remove path separators - extract just the filename
-    if "/" in filename:
-        filename = filename.rsplit("/", 1)[-1]
-    if "\\" in filename:
-        filename = filename.rsplit("\\", 1)[-1]
-
-    # Remove or replace forbidden characters (single C-level translate pass;
-    # every forbidden/control char maps to "_", identical to the old loop).
-    filename = filename.translate(_SANITIZE_TABLE)
-
-    # Remove problematic trailing characters
-    filename = filename.rstrip(" .")
-
-    # Truncate to maximum filename length (255 bytes is the typical limit on
-    # most filesystems). Truncation is byte-aware so a multi-byte UTF-8
-    # sequence is never split in the middle (which would produce an invalid
-    # encoding). The extension is preserved when possible.
-    filename_bytes = filename.encode("utf-8")
-    if len(filename_bytes) > 255:
-        name, ext = filename.rsplit(".", 1) if "." in filename else (filename, "")
-        ext_bytes = ext.encode("utf-8")
-        # Reserve 1 byte for the dot + ext bytes; truncate the name part.
-        max_name_bytes = 255 - len(ext_bytes) - 1 if ext else 255
-        # Truncate the name to max_name_bytes without splitting a UTF-8
-        # character: decode with errors="ignore" drops any partial trailing
-        # sequence.
-        name_truncated = name.encode("utf-8")[:max_name_bytes].decode("utf-8", errors="ignore")
-        filename = f"{name_truncated}.{ext}" if ext else name_truncated
-
-    # Handle empty or reserved names. ``is_reserved_name`` correctly handles
-    # names with extensions (e.g. "NUL.txt" is reserved), unlike a plain
-    # ``filename.upper() in RESERVED_FILENAMES`` check.
-    if not filename or is_reserved_name(filename):
-        filename = "unnamed"
-
-    return filename
 
 
 # =============================================================================
