@@ -6,7 +6,12 @@
 from __future__ import annotations
 
 from hsync_common.constants import HSYNCKEEP_FILENAME
-from hsync_common.models.sentinel import ensure_sentinel, is_sentinel_file, remove_empty_dir
+from hsync_common.models.sentinel import (
+    ensure_sentinel,
+    is_sentinel_file,
+    prune_sentinel,
+    remove_empty_dir,
+)
 
 
 class TestEnsureSentinel:
@@ -27,6 +32,29 @@ class TestEnsureSentinel:
 
     def test_missing_dir_is_a_noop(self, tmp_path):
         assert ensure_sentinel(tmp_path / "missing") is False
+
+
+class TestPruneSentinel:
+    def test_removes_the_marker_once_the_dir_holds_content(self, tmp_path):
+        (tmp_path / HSYNCKEEP_FILENAME).touch()
+        (tmp_path / "file.txt").write_text("x")
+        assert prune_sentinel(tmp_path) is True
+        assert not (tmp_path / HSYNCKEEP_FILENAME).exists()
+        # The directory now has content, so no marker comes back.
+        assert ensure_sentinel(tmp_path) is False
+
+    def test_keeps_the_marker_of_a_dir_with_only_hidden_entries(self, tmp_path):
+        (tmp_path / HSYNCKEEP_FILENAME).touch()
+        (tmp_path / "f.part").write_text("x")
+        assert prune_sentinel(tmp_path) is False
+        assert (tmp_path / HSYNCKEEP_FILENAME).exists()
+
+    def test_no_marker_is_a_noop(self, tmp_path):
+        (tmp_path / "file.txt").write_text("x")
+        assert prune_sentinel(tmp_path) is False
+
+    def test_missing_dir_is_a_noop(self, tmp_path):
+        assert prune_sentinel(tmp_path / "missing") is False
 
 
 class TestRemoveEmptyDir:

@@ -65,6 +65,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `is_valid_filename` (`hsync_common/path_validation.py`) enforces the 255-byte
   component cap its portable-name policy already documented, so an overlong name
   is refused instead of reaching the filesystem write (`ENAMETOOLONG`).
+- A `.hsynckeep` marker left behind in a directory that later received content is
+  dropped again (`hsync_common/models/sentinel.py::prune_sentinel`), and the
+  marker's emptiness rule is exposed read-only
+  (`hsync_common/models/sentinel.py::dir_has_syncable_entry`) so a status pass can
+  consult it without creating anything.
 
 ## [1.1.0] - 2026-11-11
 

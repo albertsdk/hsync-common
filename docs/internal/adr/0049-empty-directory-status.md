@@ -38,6 +38,19 @@ only the peers hold. A consumer renders the directory row from it and does not
 count it as a file: it is a directory, and the sentinel stays out of every plan
 counter and every per-device backlog.
 
+**A marker only suggests emptiness.** A sentinel is created whenever a directory
+is momentarily empty — a copy materialises the directory before its files, a peer
+creates it before downloading into it — and the marker it leaves behind is not
+content. The verdict is therefore emitted only for a directory that is empty on
+**both** sides (the listings, plus the local tree on disk, where a subdirectory is
+content exactly as it is for `ensure_sentinel`); the bucket root has no row. The
+markers themselves are kept honest in the same change: the P2P watchers drop the
+parent's marker when an entry appears
+(`sync.prune_parent_sentinel` → `prune_sentinel`), the per-cycle walk reconciles
+both directions (`sync.ensure_hsynckeep_files`), and a marker's deletion is never
+propagated to a peer — the marker is per-device, and on a serving master a
+`.hsynckeep` delete also removes the now-empty directory.
+
 ## Consequences
 
 ### Benefits
