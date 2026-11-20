@@ -180,6 +180,16 @@ class TestIsValidFilename:
     def test_unicode_valid(self):
         assert is_valid_filename("résumé.pdf") is True
 
+    def test_component_limit_boundary(self):
+        # 255 bytes is the per-component cap of ext4/XFS/NTFS/APFS
+        assert is_valid_filename("a" * 255) is True
+        assert is_valid_filename("a" * 256) is False
+
+    def test_component_limit_counts_bytes_not_characters(self):
+        # A multi-byte name reaches the byte cap before 255 characters
+        assert is_valid_filename("é" * 127) is True  # 254 bytes
+        assert is_valid_filename("é" * 128) is False  # 256 bytes
+
 
 class TestIsValidBucketName:
     def test_valid_names(self):
