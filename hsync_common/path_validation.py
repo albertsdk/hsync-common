@@ -172,6 +172,11 @@ def has_problematic_trailing(name: str) -> bool:
     return bool(name) and name[-1] in PROBLEMATIC_TRAILING_CHARS
 
 
+# Maximum byte length of a single path component (filename). Most filesystems
+# (ext4, XFS, NTFS, APFS) enforce a 255-byte limit per component.
+MAX_PATH_COMPONENT_BYTES = 255
+
+
 def is_valid_filename(filename: str) -> bool:
     """
     Validate a filename for cross-platform compatibility.
@@ -184,6 +189,7 @@ def is_valid_filename(filename: str) -> bool:
     - Problematic trailing characters (space, period)
     - Path traversal attempts (../ or ..\\)
     - Absolute paths
+    - Names longer than 255 bytes (filesystem component limit)
 
     Args:
         filename: The filename to validate (without path).
@@ -204,6 +210,13 @@ def is_valid_filename(filename: str) -> bool:
         return False
 
     if has_problematic_trailing(filename):
+        return False
+
+    # Filesystem component cap. The policy is refuse-or-keep: an overlong name
+    # is never truncated, because a renamed copy would stop agreeing with the
+    # sender's (ENAMETOOLONG would otherwise surface as a 500 on write).
+    name_bytes = len(filename) if filename.isascii() else len(filename.encode("utf-8"))
+    if name_bytes > MAX_PATH_COMPONENT_BYTES:
         return False
 
     # Separators/drive-letters/emptiness are already rejected by the guards
@@ -453,10 +466,6 @@ def wire_relpaths(payload: dict) -> list[str]:
             paths.append(value)
     return paths
 
-
-# Maximum byte length of a single path component (filename). Most filesystems
-# (ext4, XFS, NTFS, APFS) enforce a 255-byte limit per component.
-MAX_PATH_COMPONENT_BYTES = 255
 
 # Maximum total byte length of a bucket-relative path. 4096 is the Linux
 # PATH_MAX; keeping the wire path well below it leaves room for the bucket

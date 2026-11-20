@@ -62,6 +62,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   compared without its prefix, a target carrying an embedded NUL is rejected, and
   the wire target always uses POSIX separators (a backslash would be a literal
   filename character on every other peer).
+- `is_valid_filename` (`hsync_common/path_validation.py`) enforces the 255-byte
+  component cap its portable-name policy already documented, so an overlong name
+  is refused instead of reaching the filesystem write (`ENAMETOOLONG`).
 
 ## [1.1.0] - 2026-11-11
 
