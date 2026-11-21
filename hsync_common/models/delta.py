@@ -137,6 +137,7 @@ class DeltaApplyMetadataDict(TypedDict):
     new_size: int  # expected size of the reconstructed file (coverage check)
     block_size: int  # block size used for signature/matching
     compressed: bool  # whether the literal payload is zstd-compressed
+    payload_size: int  # literal payload bytes on the wire (post-compression)
     mtime: NotRequired[float]  # modification time (epoch seconds) to preserve
     permissions: NotRequired[str]  # octal permissions string (e.g., "644")
     ops: list[DeltaOpDict]  # ordered operations to rebuild the file
@@ -230,6 +231,7 @@ class DeltaApplyMetadata:
     new_size: int
     block_size: int
     compressed: bool
+    payload_size: int
     ops: tuple[DeltaOp, ...] = field(default_factory=tuple)
     mtime: float | None = None
     permissions: str | None = None
@@ -243,6 +245,7 @@ class DeltaApplyMetadata:
             new_size=self.new_size,
             block_size=self.block_size,
             compressed=self.compressed,
+            payload_size=self.payload_size,
             ops=[op.to_dict() for op in self.ops],
         )
         if self.mtime is not None:

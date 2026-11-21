@@ -189,6 +189,8 @@ class TestDeltaFixtureCoherence:
         assert "version_id" not in doc
         assert doc["new_size"] == sum(op["length"] for op in doc["ops"])
         assert doc["ops"] == _FIXTURES["delta-instructions"]["ops"]
+        # The literal payload total is the scale both ends report progress on.
+        assert doc["payload_size"] == _FIXTURES["delta-instructions"]["literal_size"]
 
     def test_signatures_cover_full_base(self):
         """The signature fixture lists every block of the full base, not a

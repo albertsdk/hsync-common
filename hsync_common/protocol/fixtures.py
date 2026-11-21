@@ -525,7 +525,7 @@ def _delta_apply_metadata() -> dict[str, Any]:
     Demonstrates the multipart metadata part. Built from :class:`DeltaApplyMetadata`
     so the keys are exactly the model contract (no hand-added fields).
     """
-    base, new, _, ops, _ = _delta_example()
+    base, new, _, ops, literal_data = _delta_example()
     return dict(
         DeltaApplyMetadata(
             cid="TestClientX1234567890",
@@ -534,6 +534,7 @@ def _delta_apply_metadata() -> dict[str, Any]:
             new_size=len(new),
             block_size=_DELTA_BLOCK,
             compressed=False,
+            payload_size=len(literal_data),
             ops=tuple(ops),
             mtime=1706457600.123456,
             permissions="644",

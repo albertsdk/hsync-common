@@ -1545,5 +1545,6 @@
       "type": "copy"
     }
   ],
+  "payload_size": 4096,
   "permissions": "644"
 }

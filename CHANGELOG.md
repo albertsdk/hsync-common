@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `payload_size` in `DeltaApplyMetadata`/`DeltaApplyMetadataDict`: the literal
+  payload's wire bytes (post-compression), the progress total both ends report
+  for an upload delta. Part of the `delta-apply-metadata` golden fixture.
 - The `readonly_permissions` capability
   (`hsync_common/protocol/handshake.py::Capability`) marks a node whose local
   filesystem represents only the owner-write bit; absence means full POSIX modes.
