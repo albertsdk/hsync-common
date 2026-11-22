@@ -45,7 +45,23 @@ other election fields: TXT `epoch`, `rdv/1` `register`/`peers[].epoch`
 node re-acquires from the terms its peers advertise, and a lone node with no
 peers has nothing to fence.
 
-### 2. Trust has a shelf life, and a step revokes it
+### 2. Sources are ranked, and the weakest one still helps
+
+A reference is chosen by what it can prove about itself:
+
+1. **The sync authority** — the `/api/v1/time` round-trip in client-server mode,
+   or the SNTP probes in p2p. Both bound their estimate by the round-trip.
+2. **The rendezvous echo** — a node answering `ack.server_time` is TLS-pinned and
+   its reply already traverses the NAT, so it is reachable exactly where UDP/123
+   is filtered. Its timestamp has one-second resolution, so the derived offset
+   carries that quantization in its uncertainty, and a *better* source is never
+   replaced by it: the echo only establishes trust where none exists. A node
+   whose clock is off by more than an hour (`_ACK_MAX_OFFSET_S` in
+   `hsync-client/hsync_client/timesync.py`) is refused rather than allowed to
+   shift the mesh.
+3. **Nothing** — the host stays degraded and content identity decides.
+
+### 3. Trust has a shelf life, and a step revokes it
 
 `ClockOffsetStore` (`hsync_common/clock.py`) now records *when* a measurement was
 taken and degrades on its own:
@@ -59,7 +75,7 @@ taken and degrades on its own:
   suspend/resume), not drift: trust is revoked immediately and the next probe
   re-establishes it.
 
-### 3. A difference inside the measurement error is not an order
+### 4. A difference inside the measurement error is not an order
 
 `resolve_three_way` takes `mtime_uncertainty`: the chronological tie-break only
 ranks two versions whose corrected mtimes differ by **more** than that bound.

@@ -19,6 +19,13 @@ the offset measured against a trusted reference:
   probes a configurable list of public SNTP servers (UDP, RFC 4330) in order
   until one answers; the estimate is the median of several round-trips.
 
+* **p2p behind a filter** — a network that blocks UDP/123 leaves the SNTP probe
+  empty; the rendezvous ``ack`` (a TLS-pinned control-plane node the client
+  already trusts, ADR-0034) echoes ``server_time`` on the same path that crosses
+  the NAT, and the client derives a second-resolution offset from it. That
+  establishes trust for a degraded host and never refines a better source
+  (ADR-0055).
+
 * **Offline / air-gapped** — every probe fails: the caller records offset 0 and
   logs a degraded-temporal-mode warning; synchronisation must proceed.
 
