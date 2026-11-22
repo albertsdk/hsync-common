@@ -288,8 +288,9 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
 
 - Dialect const `hsync_common/protocol/schemas.py::JSON_SCHEMA_DIALECT`; p2p TXT key sets
   `hsync_common/protocol/schemas.py::P2P_TXT_REQUIRED_KEYS`/`hsync_common/protocol/schemas.py::P2P_TXT_OPTIONAL_KEYS`/`hsync_common/protocol/schemas.py::P2P_TXT_KEYS` include the
-  optional `peer_download` implementation flag. Live seeder capacity is not a TXT
-  fact: it travels on the authenticated handshake (ADR-0030).
+  optional `peer_download` block-serving flag. Live seeder capacity is not a TXT
+  fact: it travels on the authenticated handshake (ADR-0030), and the key is
+  absent on a node that serves no blocks.
 - `build_ws_schema` (`hsync_common/protocol/schemas.py::build_ws_schema`), `build_p2p_wss_schema` (`hsync_common/protocol/schemas.py::build_p2p_wss_schema`; pins
   auth/hello plus inventory/ACK and the bidirectional `file_progress` frame,
   ADR-0024/0028),

@@ -33,8 +33,11 @@ Peers advertise capabilities during the handshake:
 - `delta` — rsync-style block sync support
 - `vector_clocks` and `tombstones` — causal synchronization metadata
 - `https` and `never_master` — p2p transport/election behavior
-- `peer_download` — p2p inventory, batch source lookup, and read-only seeder
-  semantics
+- `index` — supports the read-only inventory protocol (stores and compares the
+  inventories peers publish)
+- `publishes_index` — publishes its own inventory right now
+- `peer_download` — serves file blocks to other peers (read-only seeder
+  semantics)
 - `readonly_permissions` — the device's local filesystem can represent only the
   owner-write bit (Windows): permission-only comparisons are projected to it
 

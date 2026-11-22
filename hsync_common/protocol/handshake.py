@@ -87,8 +87,10 @@ class Capability(StrEnum):
     delta = "delta"  # rsync-style delta transfer (block-level sync)
     vector_clocks = "vector_clocks"  # causal version metadata exchanged on file payloads (ADR-0022)
     # The member name is the wire token; it deliberately shadows ``str.index``.
-    # Publishes a read-only inventory so peers can compute sync status.
+    # Supports the read-only inventory protocol: a node advertising it can store
+    # and compare the inventories peers publish (the serving role always can).
     index = "index"  # type: ignore[assignment]
+    publishes_index = "publishes_index"  # publishes its own read-only inventory now
     peer_download = "peer_download"  # serves file blocks to other peers (source/seeder)
     readonly_permissions = (
         "readonly_permissions"  # local modes are lossy (owner-write/read-only only)

@@ -68,7 +68,9 @@ FIXTURE_APP_VERSION = "1.0.0"
 # Fixed capability advertised by the sample client/server (kept minimal so the
 # fixture exercises a non-empty list without coupling to the full registry).
 _FIXTURE_CAPS = frozenset({Capability.compression})
-_FIXTURE_P2P_CAPS = frozenset({Capability.compression, Capability.peer_download})
+_FIXTURE_P2P_CAPS = frozenset(
+    {Capability.compression, Capability.publishes_index, Capability.peer_download}
+)
 
 # Stable timestamps for the sample file event (Unix seconds, UTC).
 _FIXTURE_CTIME = 1_700_000_000

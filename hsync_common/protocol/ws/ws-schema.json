@@ -44,6 +44,7 @@
               "index",
               "never_master",
               "peer_download",
+              "publishes_index",
               "readonly_permissions",
               "tombstones",
               "vector_clocks"
@@ -87,6 +88,7 @@
               "index",
               "never_master",
               "peer_download",
+              "publishes_index",
               "readonly_permissions",
               "tombstones",
               "vector_clocks"

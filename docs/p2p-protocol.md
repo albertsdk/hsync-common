@@ -55,15 +55,16 @@ carry only the Read-only attribute, so permission-only comparisons are projected
 to the owner-write bit. It travels in the TXT record so a peer knows the master's
 model before the WSS handshake; absence means full POSIX modes.
 
-`peer_download` means the node implements the ADR-0028 inventory, batch source
-lookup, and read-only seeder semantics. A serving master publishes it when its
+`peer_download` means the node serves file blocks to other peers (read-only
+seeder semantics, ADR-0028). A serving master publishes it when its
 `POST .../files/sources` endpoint is available; this TXT flag gates initial and
 one-shot lookup before WSS. After an authenticated handshake the WSS capability is
 authoritative, and so is the seeder's live capacity advertisement (ADR-0030):
 whether a peer can serve *right now* is decided only by its authenticated session
 with the master, never by a discovery-time hint. A stale or spoofed hint can at
 worst cause a failed source lookup or peer attempt, followed by the mandatory
-master fallback.
+master fallback. The key is absent on a node that serves no blocks, whatever its
+inventory settings are.
 
 Endpoint-material keys are optional at the record level because a node advertises
 them only while it serves an endpoint. A master or seeder, however, **must**
@@ -205,11 +206,18 @@ Semantics:
   the capabilities are authenticated: the values are logged, never trusted for
   gating decisions on the master side; the slave keeps using the TXT values
   unless it later authenticates.
-- `peer_download` follows the same intersection rule. A slave publishes
-  inventory only when its implementation is enabled and the master's WSS
-  handshake advertises the capability. On a no-key hello it is an availability
-  hint rather than authenticated authorization; every failure remains a safe
-  master fallback.
+- `peer_download` follows the same intersection rule. A slave serves blocks only
+  when its own block serving is enabled **and** it advertises the capability, and
+  it sends `serve_slots` only in that case.
+- `index` and `publishes_index` are two different statements. `index` means the
+  node supports the inventory protocol (it can store and compare the inventories
+  peers publish) and is advertised by every node of this version; the serving
+  role always does. `publishes_index` means the node publishes its **own**
+  inventory right now: a device that publishes is admitted with an inventory
+  session, and one that does not publishes nothing to admit, so the master
+  reports the share without that device's rows. A node whose inventory
+  publishing is off therefore still advertises `index` — otherwise the devices
+  that do publish would stop being admitted.
 - A `protocol_version` mismatch anywhere in the handshake is a **hard failure**
   (auth refused / peer treated as invalid), exactly like the WS channel.
 

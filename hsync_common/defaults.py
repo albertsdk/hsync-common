@@ -42,13 +42,15 @@ __all__ = [
     "MIN_FREE_DISK_SPACE_DEFAULT",
     "MIN_FREE_DISK_SPACE_MAX",
     "MIN_FREE_DISK_SPACE_MIN",
-    "P2P_PEER_DOWNLOAD_DEFAULT",
+    "P2P_FETCH_FROM_PEERS_DEFAULT",
     "P2P_PEER_READ_CAP_DEFAULT",
     "P2P_PEER_READ_CAP_MAX",
     "P2P_PEER_READ_CAP_MIN",
     "P2P_PEER_SOURCES_MAX_DEFAULT",
     "P2P_PEER_SOURCES_MAX_MAX",
     "P2P_PEER_SOURCES_MAX_MIN",
+    "P2P_PUBLISH_INVENTORY_DEFAULT",
+    "P2P_SERVE_BLOCKS_DEFAULT",
     "RECONNECT_DELAY_DEFAULT",
     "RECONNECT_DELAY_MAX",
     "RECONNECT_DELAY_MIN",
@@ -129,8 +131,13 @@ MAX_INBOUND_SIZE_MB_MAX = 10_000_000
 BANDWIDTH_MIN_BPS = 1024
 BANDWIDTH_MAX_BPS = 100 * 1024 * 1024
 
-# Download file blocks from other peers in p2p mode, and the caps that bound it.
-P2P_PEER_DOWNLOAD_DEFAULT = True
+# Peer-mesh participation, one key per observable capability: serve file blocks
+# to peers (egress), fetch them from peers (ingress), publish the read-only
+# inventory the serving role classifies the share against (metadata egress). The
+# caps that bound the serving side are next to them.
+P2P_SERVE_BLOCKS_DEFAULT = True
+P2P_FETCH_FROM_PEERS_DEFAULT = True
+P2P_PUBLISH_INVENTORY_DEFAULT = True
 P2P_PEER_READ_CAP_DEFAULT = 2
 P2P_PEER_READ_CAP_MIN = 1
 P2P_PEER_READ_CAP_MAX = 32

@@ -59,7 +59,7 @@
       "type": "string"
     },
     "peer_download": {
-      "description": "This node implements LAN inventory, batch source lookup and read-only seeder semantics (ADR-0028).",
+      "description": "This node serves file blocks to other peers (read-only seeder semantics, ADR-0028). Absent when block serving is disabled, even if the node still publishes its inventory.",
       "enum": [
         "true"
       ],

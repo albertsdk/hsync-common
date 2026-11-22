@@ -1,7 +1,8 @@
 {
   "capabilities": [
     "compression",
-    "peer_download"
+    "peer_download",
+    "publishes_index"
   ],
   "protocol_version": "p2p/1",
   "status": "ok",

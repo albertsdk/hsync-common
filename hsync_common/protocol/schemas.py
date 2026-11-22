@@ -812,8 +812,9 @@ def build_p2p_txt_schema() -> dict[str, Any]:
         "peer_download": {
             **_TXT_BOOL_FLAG,
             "description": (
-                "This node implements LAN inventory, batch source lookup and "
-                "read-only seeder semantics (ADR-0028)."
+                "This node serves file blocks to other peers (read-only seeder "
+                "semantics, ADR-0028). Absent when block serving is disabled, "
+                "even if the node still publishes its inventory."
             ),
         },
         "readonly_permissions": {
