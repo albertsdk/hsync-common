@@ -27,6 +27,7 @@ contract is mechanically tied to the in-code types.
 | `hsync_common/constants.py::HSYNC_VERSION` | `HSYNC_VERSION`, wire/checksum header names + client-name validator, content types, sentinel filenames, chunk-size tiers, `.part` suffix | [utilities](modules/utilities.md) |
 | `hsync_common/models/` | Canonical sync data types; `folder.py` (`.hsyncfolder` + state-dir helpers), `sqlstore.py` (per-folder state DB) | [data-models](data-models.md) |
 | `hsync_common/protocol/` | Versioned wire protocol + contract artifacts | [protocol](modules/protocol.md) |
+| `hsync_common/deletions.py::begin_tree_delete` | In-flight recursive-delete windows: a tree closed (`begin`…`end`, TTL'd, bounded, per process) while its removal runs, so no concurrent materialisation can defeat the `rmtree`. Consumers: `hsync-client` (p2p master delete, write endpoints, `event_dispatch`) and `hsync-server` (WS delete handler, REST writes, WS event handlers) | [utilities](modules/utilities.md) |
 | `hsync_common/{hashing,compression,permissions,path_validation,ignore,ssl_utils,logger,labels,env,text,clock,format,time_utils,endpoint,runtime,ratelimit,upnp,exceptions}.py`, `hsync_common/delta/` | Cross-cutting helpers | [utilities](modules/utilities.md) |
 
 ## Protocol SSOT → consumers
