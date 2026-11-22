@@ -15,6 +15,7 @@ from hsync_common.endpoint import (
     parse_https_url,
     parse_port_list,
     server_fallback_url,
+    url_host_port,
 )
 
 
@@ -367,3 +368,37 @@ class TestServerFallbackUrl:
     )
     def test_only_the_default_port_gets_a_fallback(self, url):
         assert server_fallback_url(url) is None
+
+
+class TestUrlHostPort:
+    """The shared URL -> (host, default-port-by-scheme) derivation."""
+
+    def test_https_default_port(self):
+        assert url_host_port("https://h.example.com") == HostPort(host="h.example.com", port=443)
+
+    def test_http_default_port(self):
+        assert url_host_port("http://h.example.com") == HostPort(host="h.example.com", port=80)
+
+    def test_explicit_port_wins(self):
+        assert url_host_port("https://h.example.com:8443") == HostPort(
+            host="h.example.com", port=8443
+        )
+
+    def test_ipv6_host_is_unbracketed(self):
+        assert url_host_port("https://[2001:db8::1]:8443") == HostPort(
+            host="2001:db8::1", port=8443
+        )
+
+    def test_custom_scheme_defaults(self):
+        assert url_host_port("https://h.example.com", http_default=9753) == HostPort(
+            host="h.example.com", port=443
+        )
+        assert url_host_port("http://h.example.com", http_default=9753) == HostPort(
+            host="h.example.com", port=9753
+        )
+
+    def test_missing_hostname_is_none(self):
+        assert url_host_port("file:///tmp/x") is None
+
+    def test_out_of_range_port_is_none(self):
+        assert url_host_port("https://h.example.com:70000") is None

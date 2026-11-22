@@ -14,11 +14,13 @@ unverified context without pulling the certificate toolkit.
 
 from __future__ import annotations
 
+import os
 import ssl
 
 __all__ = [
     "disable_certificate_verification",
     "unverified_ssl_context",
+    "verified_ssl_context",
 ]
 
 
@@ -37,3 +39,20 @@ def disable_certificate_verification(context: ssl.SSLContext) -> ssl.SSLContext:
 def unverified_ssl_context() -> ssl.SSLContext:
     """A default client context with chain/hostname verification disabled."""
     return disable_certificate_verification(ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT))
+
+
+def verified_ssl_context(ca_cert: str | os.PathLike[str] | None = None) -> ssl.SSLContext:
+    """A client context with chain/hostname verification ON (the "chain" policy).
+
+    The anchor is the system CA bundle, or *ca_cert* as an explicit PEM anchor
+    when given (a self-signed deployment). One definition of "trust the chain",
+    shared by the client's server probe/WSS connect and the desktop's probes, so
+    the CA policy cannot drift between them.
+
+    The caller owns the surrounding policy: whether the file exists, and how a
+    missing/unreadable anchor surfaces — :func:`ssl.create_default_context`
+    raises ``OSError``/``ssl.SSLError``, which this helper does **not** swallow.
+    """
+    if ca_cert:
+        return ssl.create_default_context(cafile=str(ca_cert))
+    return ssl.create_default_context()

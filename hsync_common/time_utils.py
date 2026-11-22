@@ -152,3 +152,62 @@ def conflict_timestamp(t: int | float | datetime | None = None) -> str:
     dt = datetime.now(UTC) if t is None else _as_utc_dt(t)
 
     return dt.strftime("%Y%m%dT%H%M%SZ")
+
+
+# Wire format of the one-second-resolution ISO-8601 timestamp: the rendezvous
+# emits ``ack.server_time`` with it and the client parses the same field, so the
+# format string is defined once instead of being written on both sides of one
+# protocol contract.
+ISO_SECONDS_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+
+
+def to_iso_seconds(t: int | float | datetime) -> str:
+    """Format *t* as the one-second ISO-8601 wire form ``...THH:MM:SSZ``.
+
+    Consumers: ``hsync-rendezvous`` (``ack.server_time``).
+    """
+    return to_iso(t, timespec="seconds")
+
+
+def parse_iso_seconds(value: object) -> datetime | None:
+    """Parse the one-second ISO-8601 wire form, or ``None`` when it does not match.
+
+    Strict by design (``strptime`` against :data:`ISO_SECONDS_FORMAT`): a
+    malformed or higher-resolution value is rejected rather than silently
+    accepted, since the recorded uncertainty assumes exactly this quantization.
+
+    Consumers: ``hsync-client`` (``ack.server_time``).
+    """
+    if not isinstance(value, str):
+        return None
+    try:
+        return datetime.strptime(value, ISO_SECONDS_FORMAT).replace(tzinfo=UTC)
+    except ValueError:
+        return None
+
+
+def parse_iso_dt(value: str) -> datetime:
+    """Parse an ISO-8601 string into a UTC-aware ``datetime``.
+
+    The ``Z`` suffix is accepted natively (supported Python), so callers no
+    longer rewrite it to ``+00:00``; a naive value is treated as UTC.
+
+    Raises:
+        ValueError: If *value* is not valid ISO 8601.
+    """
+    dt = datetime.fromisoformat(value)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return dt
+
+
+def quarantine_timestamp() -> str:
+    """Compact **local-time** ``YYYYMMDD-HHMMSS`` stamp for quarantining corrupt data.
+
+    Used to rename an unreadable state DB or settings blob (``...corrupt-<stamp>``)
+    aside so the next run rebuilds it. Local time on purpose: it names a file an
+    operator looks for next to the artifact, not a wire instant.
+
+    Consumers: ``hsync-client`` (``state_reset``), ``hsync-desktop`` (shares store).
+    """
+    return datetime.now().strftime("%Y%m%d-%H%M%S")

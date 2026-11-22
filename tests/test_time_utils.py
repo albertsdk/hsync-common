@@ -11,8 +11,12 @@ import pytest
 
 from hsync_common.time_utils import (
     conflict_timestamp,
+    parse_iso_dt,
+    parse_iso_seconds,
+    quarantine_timestamp,
     to_epoch,
     to_iso,
+    to_iso_seconds,
     utc_now_epoch,
     utc_now_iso,
 )
@@ -216,3 +220,68 @@ class TestConflictTimestamp:
         dt = datetime(2025, 1, 20, 8, 0, 0)
         with pytest.raises(ValueError, match="Naive datetime"):
             conflict_timestamp(dt)
+
+
+# ---------------------------------------------------------------------------
+# to_iso_seconds / parse_iso_seconds (the ack.server_time wire form)
+# ---------------------------------------------------------------------------
+class TestIsoSeconds:
+    SOME_TIME = 1737360000  # 2025-01-20T08:00:00Z
+
+    def test_to_iso_seconds_has_no_fraction(self):
+        assert to_iso_seconds(self.SOME_TIME) == "2025-01-20T08:00:00Z"
+
+    def test_to_iso_seconds_truncates_subseconds(self):
+        assert to_iso_seconds(self.SOME_TIME + 0.9) == "2025-01-20T08:00:00Z"
+
+    def test_parse_iso_seconds_round_trip(self):
+        parsed = parse_iso_seconds("2025-01-20T08:00:00Z")
+        assert parsed is not None
+        assert parsed.tzinfo is UTC
+        assert int(parsed.timestamp()) == self.SOME_TIME
+
+    @pytest.mark.parametrize(
+        "bad",
+        ["2025-01-20T08:00:00.500Z", "2025-01-20 08:00:00Z", "", None, 1737360000],
+    )
+    def test_parse_iso_seconds_rejects_non_matching(self, bad):
+        # Strictness is the contract: the recorded uncertainty assumes exactly
+        # one-second resolution, so a millisecond value is not silently accepted.
+        assert parse_iso_seconds(bad) is None
+
+
+# ---------------------------------------------------------------------------
+# parse_iso_dt
+# ---------------------------------------------------------------------------
+class TestParseIsoDt:
+    def test_accepts_z(self):
+        dt = parse_iso_dt("2025-01-20T08:00:00Z")
+        assert dt.tzinfo is UTC
+        assert dt == datetime(2025, 1, 20, 8, 0, 0, tzinfo=UTC)
+
+    def test_naive_treated_as_utc(self):
+        assert parse_iso_dt("2025-01-20T08:00:00").tzinfo is UTC
+
+    def test_offset_normalised_to_utc(self):
+        assert parse_iso_dt("2025-01-20T09:00:00+01:00") == datetime(
+            2025, 1, 20, 8, 0, 0, tzinfo=UTC
+        )
+
+    def test_invalid_raises(self):
+        with pytest.raises(ValueError):
+            parse_iso_dt("not-a-timestamp")
+
+
+# ---------------------------------------------------------------------------
+# quarantine_timestamp
+# ---------------------------------------------------------------------------
+class TestQuarantineTimestamp:
+    def test_format_is_compact_and_dashed(self):
+        ts = quarantine_timestamp()
+        assert len(ts) == 15  # YYYYMMDD-HHMMSS
+        assert ts[8] == "-"
+        assert ":" not in ts
+
+    def test_is_filesystem_safe(self):
+        ts = quarantine_timestamp()
+        assert all(c.isdigit() or c == "-" for c in ts)

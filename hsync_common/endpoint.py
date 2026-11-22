@@ -274,6 +274,29 @@ def build_https_url(hp: HostPort, default_port: int) -> str:
     return f"https://{_authority_of(hp.host)}:{port}"
 
 
+def url_host_port(url: str, *, https_default: int = 443, http_default: int = 80) -> HostPort | None:
+    """Split *url* into its host and port, defaulting the port by scheme.
+
+    The port is the explicit one when present, else *https_default* for an
+    ``https`` URL and *http_default* otherwise. ``None`` when the URL carries no
+    hostname (or an out-of-range port). One definition of the "which default
+    port" policy, so the client and the desktop cannot disagree.
+
+    Consumers: ``hsync-client`` (WSS/RTT/URL handling), ``hsync-desktop``
+    (server/rendezvous probes and the setup wizard).
+    """
+    parsed = urlsplit(url)
+    if not parsed.hostname:
+        return None
+    try:
+        port = parsed.port
+    except ValueError:
+        return None
+    if port is None:
+        port = https_default if parsed.scheme == "https" else http_default
+    return HostPort(host=parsed.hostname, port=port)
+
+
 def server_fallback_url(server_url: str) -> str | None:
     """The ``:443`` URL for a server left on the default port, or ``None``.
 
