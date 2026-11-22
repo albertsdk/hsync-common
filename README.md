@@ -84,6 +84,7 @@ complete documentation index.
 | [Internal Architecture](docs/internal/architecture.md) | Shared models, utilities, and how they fit the HSYNC ecosystem |
 | [Architecture Decision Records](docs/internal/adr/README.md) | Why the stable, cross-project decisions were made |
 | [Contributing](CONTRIBUTING.md) | Development setup and contribution guidelines |
+| [Contributors](CONTRIBUTORS.md) | People who contribute to HSYNC |
 | [Report an issue](https://github.com/albertsdk/hsync-common/issues) | Open development and bug tracking |
 | [Security Policy](SECURITY.md) | Supported versions and how to report vulnerabilities |
 
