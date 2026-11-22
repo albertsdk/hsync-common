@@ -344,6 +344,14 @@ untrusted and commits only after the complete decoded body matches the listing
 hash. Peer candidates are tried before the master; partial bytes survive only
 an interrupted body, never a completed hash/range/size failure.
 
+A response is either **byte-addressed** (`Content-Length`, `Accept-Ranges`,
+`Range` honoured with 206) or **compressed** (`Content-Encoding: zstd` on a
+chunked body whose length is unknown up front), never both: a compressed body
+cannot be byte-addressed, so a range request is always answered with raw
+bytes. Compressing is negotiated per request (`Accept-Encoding: zstd`) and is
+open to a file of any size — the frame is produced while it is sent, so the
+serving side holds one read chunk of memory and writes no temporary copy.
+
 ### Inventory frames
 
 Inventory extends `p2p/1`. Slave to master snapshot:

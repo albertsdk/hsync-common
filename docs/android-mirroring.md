@@ -192,17 +192,20 @@ Python uses the `zstandard` package; Kotlin uses `zstd-jni` via JNI bindings.
 | Upload threshold | `MIN_SIZE_FOR_UPLOAD` = 32 KB | `MIN_SIZE_FOR_UPLOAD` = 32 KB |
 | LAN threshold | `MIN_SIZE_FOR_P2P` = 100 KB | `MIN_SIZE_FOR_P2P` = 100 KB |
 | Download threshold | `MIN_SIZE_FOR_COMPRESSION` = 10 KB | — (not exposed in `CompressionManager`) |
-| p2p master compressed-download cap | `P2P_COMPRESSION_MAX_FILE_BYTES` = 256 MB (`hsync-client/p2p_server.py`) | `P2P_COMPRESSION_MAX_FILE_BYTES` = 256 MiB (`P2PServer.kt`) |
 
 Both implementations must produce byte-identical compressed output for the
 same input. The cross-language test fixtures include compression round-trip
 vectors to verify this.
 
-The p2p masters cap the compressed download branch at 256 MB because it
-buffers the whole file in RAM to build the zstd frame: larger compressible
-files are served UNCOMPRESSED instead. The Kotlin master additionally
-refuses to buffer downloads above 512 MiB outright (phone memory) — a
-deliberate divergence from the Python master, which streams any size.
+Both p2p masters serve a compressible download by streaming the zstd frame
+straight into a **chunked** response: the body length is unknown up front,
+memory stays at one read chunk and neither implementation stages a copy of
+the frame, so the served file has no size cap. A request that asks for a
+byte range (a resume) is answered with the raw bytes, because a compressed
+body cannot be byte-addressed. The Kotlin master additionally streams every
+*request* body and refuses to buffer one above
+`P2PHttpExchange.MAX_BODY_BYTES`, an inbound limit unrelated to the size of
+a served file.
 
 ---
 
