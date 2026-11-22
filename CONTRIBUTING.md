@@ -57,6 +57,16 @@ git commit -m "type(scope): message"
 .venv/bin/python -m pytest -k "protocol"
 ```
 
+## Type check
+
+```bash
+.venv/bin/python -m mypy hsync_common
+```
+
+The settings live in `[tool.mypy]` (`pyproject.toml`). The package is
+annotation-complete for this configuration, so a new module must arrive with
+the annotations that keep the check green.
+
 ### Test structure
 
 All tests live at the project root under `tests/`. The suite is organised by

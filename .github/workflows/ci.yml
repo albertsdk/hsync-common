@@ -46,6 +46,9 @@ jobs:
       - name: Ruff (format check)
         run: poetry run ruff format --check .
 
+      - name: Mypy (types)
+        run: poetry run mypy hsync_common
+
       - name: Tests
         run: poetry run pytest -q
 

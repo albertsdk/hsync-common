@@ -154,7 +154,7 @@ After implementation and before finalizing:
 2. Inspect the complete diff, including tests, schemas, golden fixtures, ADRs, changelog, and documentation.
 3. Trace normal, invalid-input, empty/missing, limits, serialization, concurrency, cancellation, partial-failure, path-validation, secret-exposure, and injection paths where applicable.
 4. Verify consistency across models, type hints, serialization, protocol versions, JSON schemas, fixtures, callers, all consumers, and documentation.
-5. Run targeted `poetry run pytest` tests first. When practical, run full `poetry run pytest` and `poetry run ruff check .` checks configured by the project.
+5. Run targeted `poetry run pytest` tests first. When practical, run full `poetry run pytest`, `poetry run ruff check .`, and `poetry run mypy hsync_common` checks configured by the project.
 6. Correct every issue found and rerun affected checks.
 
 Documentation reference integrity (Documentation Maintenance §7) is part of step 4: every `path::symbol`, backticked path, link/anchor and quoted derived value in `llm-wiki/` must resolve or be corrected in the same task.
