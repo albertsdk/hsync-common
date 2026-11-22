@@ -162,6 +162,9 @@ _SYNC_DIRECTIONS = frozenset(
 _MAX_GROUP_LEN = 128
 _MAX_CERT_FP_LEN = 256
 _MAX_VERSION_LEN = 64
+# Leadership term bound: a Lamport counter, far below the exact-integer JSON
+# limit; anything larger is a malformed advertisement, not a mandate.
+_MAX_EPOCH = 2**53
 _MAX_ENDPOINTS = 16
 _MIN_QUERY_LIMIT = 1
 _MAX_QUERY_LIMIT = 50
@@ -194,7 +197,7 @@ class RdvRegister(TypedDict):
     authoritative value is the authenticated ``serve_slots`` (ADR-0030).
 
     ``server_ready``/``prefer_master``/``never_master``/``inbound``/
-    ``sync_direction`` is the **election advertisement**, the
+    ``epoch``/``sync_direction`` are the **election advertisement**, the
     same values the
     mDNS TXT record carries. The rendezvous relays them verbatim in ``query``
     responses so a rendezvous-discovered peer ranks exactly like an mDNS one; it
@@ -219,6 +222,7 @@ class RdvRegister(TypedDict):
     prefer_master: NotRequired[bool]
     never_master: NotRequired[bool]
     inbound: NotRequired[bool]
+    epoch: NotRequired[int]
     sync_direction: NotRequired[str]
 
 
@@ -285,8 +289,9 @@ class RdvPeer(TypedDict):
     ``register`` (defaults when it advertised none): ``server_ready`` (it is
     currently serving as master), ``prefer_master``/``never_master`` (operator
     pins), ``inbound`` (it has a confirmed externally dialable endpoint),
-    ``sync_direction``. They feed the shared election algorithm exactly like
-    the mDNS TXT values; none of them is authenticated.
+    ``epoch`` (the leadership term, ``0`` = unknown) and ``sync_direction``.
+    They feed the shared election algorithm exactly like the mDNS TXT values;
+    none of them is authenticated.
     """
 
     cid: str
@@ -301,6 +306,7 @@ class RdvPeer(TypedDict):
     prefer_master: bool
     never_master: bool
     inbound: bool
+    epoch: int
     sync_direction: str
     group: NotRequired[str]
 
@@ -447,6 +453,7 @@ _REGISTER_OPTIONAL = frozenset(
         "prefer_master",
         "never_master",
         "inbound",
+        "epoch",
         "sync_direction",
     }
 )
@@ -485,6 +492,7 @@ _PEER_REQUIRED = frozenset(
         "prefer_master",
         "never_master",
         "inbound",
+        "epoch",
         "sync_direction",
     }
 )
@@ -615,6 +623,15 @@ def _read_election_advert(value: Mapping[str, Any], clean: Any, *, optional: boo
             return False
         if not _optional_flag(value, clean, key):
             return False
+    if "epoch" not in value:
+        if not optional:
+            return False
+        clean["epoch"] = 0
+    else:
+        epoch = value["epoch"]
+        if not _is_int(epoch, minimum=0, maximum=_MAX_EPOCH):
+            return False
+        clean["epoch"] = epoch
     if "sync_direction" not in value:
         if not optional:
             return False

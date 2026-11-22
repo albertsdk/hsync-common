@@ -14,13 +14,17 @@ Ordering (highest priority first):
 
 1. ``server_ready`` — an already-serving incumbent wins, so a newcomer never
    triggers a takeover/split-brain for the same bucket.
-2. ``prefer_master`` — an operator-preferred master wins over ordinary peers.
-3. ``inbound`` — a node with a confirmed externally dialable endpoint is
+2. highest ``epoch`` — the leadership *term*: a mandate acquired more
+   recently outranks an older one, so after a partition heals the side that
+   took over last keeps the role and the older one yields (ADR-0055). An
+   epoch is a Lamport counter, not a clock: no host time is involved.
+3. ``prefer_master`` — an operator-preferred master wins over ordinary peers.
+4. ``inbound`` — a node with a confirmed externally dialable endpoint is
    preferred over a relay-only one: it serves every peer directly, while the
    other forces them all onto the relay.
-4. bidirectional ``sync_direction`` — a fully bidirectional peer is preferred
+5. bidirectional ``sync_direction`` — a fully bidirectional peer is preferred
    over an upload-only/download-only one (it can serve every other peer).
-5. lowest ``cid`` lexicographically — a deterministic final tiebreaker.
+6. lowest ``cid`` lexicographically — a deterministic final tiebreaker.
 
 No component reads a clock: two hosts have no shared timebase they can trust
 without an external reference, and a tie-break that ranks by wall time hands
@@ -94,17 +98,23 @@ class ElectionCandidate:
     server_ready: bool = False
     never_master: bool = False
     inbound: bool = False
+    # Leadership term: the highest mandate seen for this bucket, bumped by
+    # one every time a node starts serving. Monotonic per bucket, never a
+    # wall-clock value (TXT ``epoch``, ``rdv/1`` register/peer ``epoch``).
+    epoch: int = 0
 
 
-def election_sort_key(candidate: ElectionCandidate) -> tuple[bool, bool, bool, bool, str]:
+def election_sort_key(candidate: ElectionCandidate) -> tuple[bool, int, bool, bool, bool, str]:
     """Return the canonical sort key; the smallest key wins the election.
 
     Booleans are negated so that ``True`` (e.g. ``server_ready``) sorts before
-    ``False`` under ascending ordering. The key never contains a timestamp:
-    see the module docstring for why the clock is out of the election.
+    ``False`` under ascending ordering; ``epoch`` is negated so a higher term
+    sorts first. The key never contains a timestamp: see the module docstring
+    for why the clock is out of the election.
     """
     return (
         not candidate.server_ready,
+        -candidate.epoch,
         not candidate.prefer_master,
         not candidate.inbound,
         candidate.sync_direction != SYNC_DIRECTION_BIDIRECTIONAL,

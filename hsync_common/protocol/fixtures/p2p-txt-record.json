@@ -5,6 +5,7 @@
   "compression": "true",
   "connected": "3",
   "delta": "true",
+  "epoch": "3",
   "heartbeat": "7",
   "https": "true",
   "inbound": "true",

@@ -175,8 +175,9 @@ notification in desktop/Android.
 |-------|----------|-------------|---|---|---|---|
 | `[SECURITY]` | security | Rejected an unsafe remote path (traversal, absolute, internal name) | ✓ | ✓ | ✓ | ✓ |
 | `[NO MASTER]` | warning | No master elected after the grace period (all peers are `--never-master`) | ✓ | | ✓ | ✓ |
-| `[MASTER CONFLICT]` | warning | Two `prefer_master` peers conflict; one wins by earlier start time | ✓ | | ✓ | ✓ |
+| `[MASTER CONFLICT]` | warning | Two `prefer_master` peers conflict; the deterministic election picks one (readiness, term, preference, reachability, direction, then CID) | ✓ | | ✓ | ✓ |
 | `[MASTER TAKEOVER]` | warning | A remote `prefer_master` peer takes over a non-prefer_master master | ✓ | | ✓ | ✓ |
+| `[MASTER YIELD]` | warning | The local master lost the election (or the role moved to a higher leadership term): it stops serving and revokes its incumbency | ✓ | | ✓ | ✓ |
 | `[INSECURE MASTER]` | warning | Master does not advertise HTTPS + a cert fingerprint; connection refused | ✓ | | ✓ | ✓ |
 | `[PAIRING NEEDED]` | warning | Strict pairing: master cert is unpinned; out-of-band confirmation required | ✓ | | ✓ | ✓ |
 | `[FINGERPRINT CHANGED]` | warning | Master cert no longer matches the pinned fingerprint (possible MITM); refused | ✓ | | ✓ | ✓ |
@@ -192,6 +193,8 @@ notification in desktop/Android.
 |-------|----------|-------------|---|---|---|---|
 | `[WS]` | infrastructure | WebSocket transport message (e.g. dropping a dead connection) | | ✓ | ✓ | |
 | `[RELAY]` | infrastructure | p2p data plane relayed through the rendezvous because no inbound candidate was reachable (CGNAT) | ✓ | | | |
+| `[CLOCK SYNC]` | infrastructure | A time reference measured the clock; the offset and its error are reported. Corrected mtimes are comparable, so the chronological tie-break may decide | ✓ | | ✓ | ✓ |
+| `[CLOCK DEGRADED]` | warning | No reference answered, the measurement expired, or a clock step revoked it: corrected mtimes are unknown and conflicts resolve by content | ✓ | | ✓ | ✓ |
 
 ## Lifecycle phases
 

@@ -149,9 +149,14 @@ def decide_arbitration(
     # cannot rank two concurrent versions chronologically. The *comparison*
     # therefore sees two unknown (0) timestamps and the deterministic content
     # tie-break decides; the recorded value keeps what the uploader advertised.
+    trust = offset_store.is_trusted()
     tie_break_incoming, tie_break_stored = (
-        (incoming_corrected_mtime, stored_corrected_mtime) if offset_store.is_trusted() else (0, 0)
+        (incoming_corrected_mtime, stored_corrected_mtime) if trust else (0, 0)
     )
+    # A difference inside the combined error bound is not an order: our own
+    # half-round-trip, doubled because the uploader measured its own clock with
+    # a similar probe (the assumption can only widen the bound, never narrow it).
+    uncertainty = 2 * round(offset_store.uncertainty()) if trust else 0
     decision = resolve_three_way(
         incoming_hash,
         incoming_vclock,
@@ -163,6 +168,7 @@ def decide_arbitration(
         # version, which is already one of the two sides here).
         local_corrected_mtime=tie_break_incoming,
         remote_corrected_mtime=tie_break_stored,
+        mtime_uncertainty=uncertainty,
     )
 
     match decision:

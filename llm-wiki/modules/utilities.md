@@ -410,11 +410,16 @@ reconciliation, transfers, previews and server lines.
   self-recorded/advertised. `begin_epoch` / `end_epoch` freeze that basis for
   one sync cycle so a late NTP `record()` cannot mix clocks mid-cycle
   (consumer: `hsync-client` `sync()`). Never persisted, never writes the
-  system clock. `record(offset, trusted=...)` also records whether a
-  reference answered, exposed as `is_trusted()` (`hsync_common/clock.py::ClockOffsetStore.is_trusted`):
-  an untrusted clock feeds `0` for both sides of the corrected-mtime
-  tie-break, so content identity decides (ADR-0054). Android mirrors it in
-  `TimeSync.kt` (`isTrusted`).
+  system clock. `record(offset, trusted=..., rtt=...)` records whether a
+  reference answered, when, and how well: `is_trusted()` (`hsync_common/clock.py::ClockOffsetStore.is_trusted`)
+  also requires `age() <= CLOCK_OFFSET_MAX_AGE_SECONDS`, and `observe()`
+  revokes trust on a wall/monotonic divergence above
+  `CLOCK_STEP_THRESHOLD_SECONDS` (a time-daemon step, a suspended VM). An
+  untrusted clock feeds `0` for both sides of the corrected-mtime
+  tie-break, so content identity decides (ADR-0054); `uncertainty()` reports
+  half the probe round-trip, and a mtime difference inside that bound (doubled
+  for the peer, `mtime_uncertainty` in `models/version.py::resolve_three_way`)
+  is not an order (ADR-0055). Android mirrors all of it in `TimeSync.kt`.
 - Anti conflict-engineering: `clamp_wire_corrected_mtime` (`hsync_common/clock.py::clamp_wire_corrected_mtime`) clamps
   peer-supplied corrected mtimes beyond
   `constants.CORRECTED_MTIME_MAX_FUTURE_SKEW = 300 s`; the receiver-side guard

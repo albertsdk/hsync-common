@@ -77,6 +77,7 @@ P2P_TXT_OPTIONAL_KEYS: tuple[str, ...] = (
     "prefer_master",
     "never_master",
     "inbound",
+    "epoch",
     "connected",
     "heartbeat",
     "peer_download",
@@ -792,6 +793,15 @@ def build_p2p_txt_schema() -> dict[str, Any]:
         "compression": _TXT_BOOL_FLAG,
         "delta": _TXT_BOOL_FLAG,
         "server_ready": _TXT_BOOL_FLAG,
+        "epoch": {
+            "type": "string",
+            "description": (
+                "Leadership term: a decimal integer, bumped when this node "
+                "starts serving. The highest term wins a tie between two "
+                "serving incumbents after a partition heal. A Lamport "
+                "counter, never a timestamp."
+            ),
+        },
         "prefer_master": _TXT_BOOL_FLAG,
         "never_master": _TXT_BOOL_FLAG,
         "inbound": {

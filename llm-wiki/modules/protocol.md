@@ -207,7 +207,10 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   `rest_bucket_path`.
 - `ElectionCandidate` dataclass (`hsync_common/protocol/p2p.py::ElectionCandidate`).
 - Ordering key `election_sort_key` (`hsync_common/protocol/p2p.py::election_sort_key`): `server_ready` →
-  `prefer_master` → `inbound` → bidirectional `sync_direction` → lowest `cid`. SSOT ranking
+  highest `epoch` (the leadership term) → `prefer_master` → `inbound` → bidirectional
+  `sync_direction` → lowest `cid`. The term is a Lamport counter opened by
+  `ElectionCandidate` producers when a node starts serving, so a partition heal keeps
+  the newest mandate (ADR-0055). SSOT ranking
   `rank_election_candidates` (`hsync_common/protocol/p2p.py::rank_election_candidates`) returns the full ranked list
   (never_master filtered out); `elect_master` (`hsync_common/protocol/p2p.py::elect_master`) is its
   winner-only projection; `SYNC_DIRECTION_BIDIRECTIONAL` (`hsync_common/protocol/p2p.py::SYNC_DIRECTION_BIDIRECTIONAL`).

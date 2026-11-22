@@ -119,6 +119,7 @@ def _p2p_txt_record() -> dict[str, Any]:
         "cert_fp": _FIXTURE_CERT_FP,
         "peer_download": "true",
         "server_ready": "true",
+        "epoch": "3",
         "inbound": "true",
         "connected": "3",
         "heartbeat": "7",
@@ -136,6 +137,7 @@ def _p2p_txt_seeder_record() -> dict[str, Any]:
         "https": "true",
         "cert_fp": _FIXTURE_CERT_FP,
         "peer_download": "true",
+        "epoch": "4",
         "inbound": "true",
         "heartbeat": "8",
     }
@@ -230,6 +232,24 @@ _ELECTION_SCENARIOS: tuple[tuple[str, tuple[ElectionCandidate, ...]], ...] = (
         (
             ElectionCandidate(cid="aaa", sync_direction="upload-only"),
             ElectionCandidate(cid="bbb"),
+        ),
+    ),
+    (
+        # A partition heal leaves two serving incumbents: the newer mandate
+        # keeps the role and the older one yields (ADR-0055).
+        "newer-term-wins-between-serving-incumbents",
+        (
+            ElectionCandidate(cid="old", server_ready=True, epoch=2),
+            ElectionCandidate(cid="new", server_ready=True, epoch=5),
+        ),
+    ),
+    (
+        # The term is part of the order, so a stale mandate cannot outrank a
+        # newer one merely because its operator pinned it.
+        "newer-term-outranks-a-preferred-stale-mandate",
+        (
+            ElectionCandidate(cid="pinned", prefer_master=True, epoch=1),
+            ElectionCandidate(cid="fresh", epoch=2),
         ),
     ),
     (

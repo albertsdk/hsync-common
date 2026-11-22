@@ -518,9 +518,10 @@ than the winner (successor, conflict reports) use the same ranked list:
 3. **`inbound`** — a node with a confirmed externally dialable endpoint is
    preferred over a relay-only one: it serves every peer directly, while the
    other forces them all onto the relay.
-4. **bidirectional `sync_direction`** — a fully bidirectional peer is preferred
-   over an upload-/download-only one (it can serve every other peer).
-5. **lowest `cid`** lexicographically — a deterministic final tiebreaker.
+4. **highest `epoch`** — the leadership *term*: between two serving peers the
+   mandate acquired more recently wins, so a partition heal has a deterministic
+   winner. A Lamport counter, never a timestamp.
+5. **`prefer_master`** — an operator-preferred master wins over ordinary peers.
 
 The ranking never reads a clock. Two hosts share no timebase they can trust
 without an external reference, so an "earlier start wins" rule would hand

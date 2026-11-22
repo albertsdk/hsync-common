@@ -231,6 +231,50 @@ class TestResolveThreeWay:
             is SyncDecision.conflict_download
         )
 
+    def test_difference_inside_the_uncertainty_is_not_an_order(self):
+        """Two timestamps the probes cannot tell apart do not decide (ADR-0055)."""
+        assert (
+            resolve_three_way(
+                "zzz",
+                {CID_A: 2},
+                "aaa",
+                {CID_B: 2},
+                "base",
+                local_corrected_mtime=201,
+                remote_corrected_mtime=200,
+                mtime_uncertainty=2,
+            )
+            is SyncDecision.conflict_upload
+        )
+
+    def test_difference_beyond_the_uncertainty_decides(self):
+        assert (
+            resolve_three_way(
+                "zzz",
+                {CID_A: 2},
+                "aaa",
+                {CID_B: 2},
+                "base",
+                local_corrected_mtime=230,
+                remote_corrected_mtime=200,
+                mtime_uncertainty=2,
+            )
+            is SyncDecision.conflict_upload
+        )
+        assert (
+            resolve_three_way(
+                "aaa",
+                {CID_A: 2},
+                "zzz",
+                {CID_B: 2},
+                "base",
+                local_corrected_mtime=170,
+                remote_corrected_mtime=200,
+                mtime_uncertainty=2,
+            )
+            is SyncDecision.conflict_download
+        )
+
     def test_equal_corrected_mtimes_fall_back_to_hash(self):
         assert (
             resolve_three_way(

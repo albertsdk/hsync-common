@@ -297,6 +297,7 @@ def resolve_three_way(
     *,
     local_corrected_mtime: int = 0,
     remote_corrected_mtime: int = 0,
+    mtime_uncertainty: int = 0,
 ) -> SyncDecision:
     """Decide the sync direction from content hashes and causal vector clocks.
 
@@ -304,8 +305,10 @@ def resolve_three_way(
     true causal divergence the **corrected mtime tie-break** decides the winner
     chronologically (ADR-0023): the higher ``*_corrected_mtime`` wins the
     original path. The raw wall clock is never consulted directly; when either
-    side lacks a corrected mtime (``0``) or the two tie, the deterministic
-    SHA-256 fallback decides so every peer still converges on the same winner.
+    side lacks a corrected mtime (``0``), the two differ by no more than
+    ``mtime_uncertainty`` (the probes cannot tell such an order apart) or the
+    two tie, the deterministic SHA-256 fallback decides so every peer still
+    converges on the same winner.
     The matrix covers the *file-present-on-both-sides* case; callers handle
     absent-file (deletion) branches separately (causal tombstones, ADR-0003).
 
@@ -320,6 +323,9 @@ def resolve_three_way(
             version (0 ⇒ unknown; hash fallback applies).
         remote_corrected_mtime: clock-offset-corrected mtime of the remote
             version (0 ⇒ unknown; hash fallback applies).
+        mtime_uncertainty: combined error bound of both timestamps in
+            seconds (half the probe round-trip, doubled for the peer; 0 ⇒
+            exact). A difference inside the bound is not an order.
 
     Returns:
         The :class:`SyncDecision`. ``conflict_*`` signals a true divergence
@@ -348,13 +354,16 @@ def resolve_three_way(
         return SyncDecision.download
     # concurrent (or equal-clock-anomaly, or both-empty with differing content):
     # true divergence -> chronological corrected-mtime tie-break (ADR-0023),
-    # with the deterministic SHA-256 fallback when a side lacks the field or
-    # the two values tie.
+    # with the deterministic SHA-256 fallback when a side lacks the field, the
+    # two values tie, or their difference is inside the measurement error.
     if local_corrected_mtime > 0 and remote_corrected_mtime > 0:
-        if local_corrected_mtime > remote_corrected_mtime:
-            return SyncDecision.conflict_upload
-        if remote_corrected_mtime > local_corrected_mtime:
+        delta = abs(local_corrected_mtime - remote_corrected_mtime)
+        if delta > mtime_uncertainty:
+            if local_corrected_mtime > remote_corrected_mtime:
+                return SyncDecision.conflict_upload
             return SyncDecision.conflict_download
+        # Inside the combined error bound the two timestamps are
+        # indistinguishable: fall through to the content tie-break.
     # fallback: highest SHA-256 lexicographically
     if (local_hash or "") > (remote_hash or ""):
         return SyncDecision.conflict_upload

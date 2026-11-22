@@ -2,6 +2,7 @@
   "bucket": "bucket-1",
   "cert_fp": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
   "cid": "TestClientA1234567890",
+  "epoch": "4",
   "heartbeat": "8",
   "https": "true",
   "inbound": "true",

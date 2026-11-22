@@ -106,6 +106,8 @@ class ActionLabel(StrEnum):
     MASTER_CONFLICT = "[MASTER CONFLICT]"
     MASTER_TAKEOVER = "[MASTER TAKEOVER]"
     MASTER_YIELD = "[MASTER YIELD]"
+    CLOCK_SYNC = "[CLOCK SYNC]"
+    CLOCK_DEGRADED = "[CLOCK DEGRADED]"
     INSECURE_MASTER = "[INSECURE MASTER]"
     PAIRING_NEEDED = "[PAIRING NEEDED]"
     FINGERPRINT_CHANGED = "[FINGERPRINT CHANGED]"
@@ -186,6 +188,8 @@ _LABEL_CATEGORY_MAP: dict[str, str] = {
     ActionLabel.MASTER_CONFLICT: "warning",
     ActionLabel.MASTER_TAKEOVER: "warning",
     ActionLabel.MASTER_YIELD: "warning",
+    ActionLabel.CLOCK_SYNC: "infrastructure",
+    ActionLabel.CLOCK_DEGRADED: "warning",
     ActionLabel.INSECURE_MASTER: "warning",
     ActionLabel.PAIRING_NEEDED: "warning",
     ActionLabel.FINGERPRINT_CHANGED: "warning",

@@ -31,6 +31,10 @@
       ],
       "type": "string"
     },
+    "epoch": {
+      "description": "Leadership term: a decimal integer, bumped when this node starts serving. The highest term wins a tie between two serving incumbents after a partition heal. A Lamport counter, never a timestamp.",
+      "type": "string"
+    },
     "group": {
       "type": "string"
     },

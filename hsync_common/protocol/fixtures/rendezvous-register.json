@@ -12,6 +12,7 @@
   ],
   "connected": 3,
   "server_ready": true,
+  "epoch": 5,
   "prefer_master": false,
   "never_master": false,
   "inbound": true,

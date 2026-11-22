@@ -46,7 +46,8 @@ elected master.
 
 - A node that yields is no longer an incumbent anywhere: peers re-run the
   deterministic election and converge on the correct master, closing the
-  zombie-incumbent window.
+  zombie-incumbent window. Between two serving incumbents the winner is the
+  higher leadership `epoch` (ADR-0055), so the most recent mandate continues.
 - **No quorum is introduced.** A full network partition (two sides that cannot
   see each other) can briefly yield two masters; this ADR does **not** claim
   at-most-one-master under partition. That guarantee would require a majority

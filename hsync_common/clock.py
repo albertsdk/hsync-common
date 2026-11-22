@@ -58,6 +58,8 @@ from .endpoint import parse_host_port
 _NTP_EPOCH_DELTA = 2_208_988_800
 
 __all__ = [
+    "CLOCK_OFFSET_MAX_AGE_SECONDS",
+    "CLOCK_STEP_THRESHOLD_SECONDS",
     "ClockOffsetStore",
     "HttpGet",
     "TimeResponse",
@@ -339,6 +341,16 @@ def measure_clock_offset_ntp_multi(
 # Process-local offset store & mtime correction
 # ─────────────────────────────────────────────────────────────────────────────
 
+# A measurement is a *reference* only while it is both recent and stable. These
+# are the two bounds that make that claim checkable; ``hsync-android`` mirrors
+# them in ``util/TimeSync.kt``.
+# Live age beyond this invalidates trust: an offset measured an hour ago says
+# nothing about a clock that a time daemon may have stepped since.
+CLOCK_OFFSET_MAX_AGE_SECONDS = 3600.0
+# Wall-clock movement that the monotonic clock did not see is a step (a manual
+# change, a suspension/resume, a late NTP correction), not drift.
+CLOCK_STEP_THRESHOLD_SECONDS = 2.0
+
 
 class ClockOffsetStore:
     """Process-local holder of the measured clock offset (remote − local).
@@ -357,20 +369,32 @@ class ClockOffsetStore:
     def __init__(self) -> None:
         self._offset: float | None = None
         self._trusted = False
+        self._uncertainty = 0.0
+        self._measured_monotonic: float | None = None
+        # Wall/monotonic sample of the previous observation (step detection).
+        self._last_wall: float | None = None
+        self._last_monotonic: float | None = None
         self._epoch_active = False
         self._epoch_offset: float | None = None
         self._epoch_trusted = False
+        self._epoch_uncertainty = 0.0
 
-    def record(self, offset: float, *, trusted: bool = True) -> None:
-        """Store the measured offset and whether a reference produced it.
+    def record(self, offset: float, *, trusted: bool = True, rtt: float | None = None) -> None:
+        """Store a measurement: the offset, its trust and its uncertainty.
 
         ``trusted=False`` records the degraded mode explicitly: the value is
         still usable as an offset (``0`` keeps the local clock as-is) but the
         host does not claim to know the true time, so nothing may treat it as a
-        time authority.
+        time authority. ``rtt`` is the probe round-trip: the true offset can be
+        off by up to half of it, which is the uncertainty the chronological
+        tie-break must not decide inside.
         """
         self._offset = float(offset)
         self._trusted = bool(trusted)
+        self._uncertainty = max(float(rtt), 0.0) / 2.0 if rtt else 0.0
+        self._measured_monotonic = time.monotonic()
+        self._last_wall = None
+        self._last_monotonic = None
 
     def begin_epoch(self) -> None:
         """Freeze the offset used by ``correct_mtime`` until :meth:`end_epoch`.
@@ -382,6 +406,7 @@ class ClockOffsetStore:
         """
         self._epoch_offset = self._offset
         self._epoch_trusted = self._trusted
+        self._epoch_uncertainty = self._uncertainty
         self._epoch_active = True
 
     def end_epoch(self) -> None:
@@ -389,6 +414,7 @@ class ClockOffsetStore:
         self._epoch_active = False
         self._epoch_offset = None
         self._epoch_trusted = False
+        self._epoch_uncertainty = 0.0
 
     def get(self) -> float | None:
         """Return the stored offset (``None`` before any measurement)."""
@@ -397,16 +423,70 @@ class ClockOffsetStore:
     def is_trusted(self) -> bool:
         """Whether a reference measured the offset currently in force.
 
+        Trust is a *claim with a shelf life*: it holds only while the
+        measurement is younger than ``CLOCK_OFFSET_MAX_AGE_SECONDS``. An
+        expired measurement is not a reference any more even though nothing
+        failed, which is why the p2p client re-probes on its maintenance tick.
+
         Consumers: ``hsync-client`` (election advertisement and the
         corrected-mtime tie-break), ``hsync-android`` (``TimeSync.kt``
-        mirror). ``None``/``trusted=False`` means degraded temporal mode.
+        mirror). ``None``/``trusted=False``/expired means degraded temporal
+        mode.
         """
-        return self._epoch_trusted if self._epoch_active else self._trusted
+        trusted = self._epoch_trusted if self._epoch_active else self._trusted
+        return trusted and self.age() <= CLOCK_OFFSET_MAX_AGE_SECONDS
+
+    def age(self) -> float:
+        """Seconds since the offset in force was measured (``inf`` if never)."""
+        measured = self._measured_monotonic
+        if measured is None:
+            return float("inf")
+        return max(time.monotonic() - measured, 0.0)
+
+    def uncertainty(self) -> float:
+        """Half the probe round-trip of the offset in force, in seconds.
+
+        The chronological tie-break may only rank two versions whose
+        timestamps differ by more than the combined uncertainty; inside it,
+        the deterministic content tie-break decides (ADR-0055).
+        """
+        if self._epoch_active:
+            return self._epoch_uncertainty if self._epoch_trusted else 0.0
+        return self._uncertainty if self._trusted else 0.0
+
+    def observe(self) -> bool:
+        """Sample the wall/monotonic pair and report a clock step.
+
+        A wall clock that moves while the monotonic clock does not (or moves
+        by a different amount) has been stepped, which invalidates any measured
+        offset: the store revokes trust and returns True exactly on the call
+        that detected it. ``now_corrected`` calls this on every sample it
+        takes, so a step is never silently kept; the caller that sees True
+        (the p2p maintenance tick, which then re-probes) logs it.
+        """
+        wall = time.time()
+        monotonic = time.monotonic()
+        previous = (self._last_wall, self._last_monotonic)
+        self._last_wall, self._last_monotonic = wall, monotonic
+        if previous[0] is None or previous[1] is None:
+            return False
+        wall_delta = wall - previous[0]
+        monotonic_delta = monotonic - previous[1]
+        if abs(wall_delta - monotonic_delta) <= CLOCK_STEP_THRESHOLD_SECONDS:
+            return False
+        self._trusted = False
+        self._uncertainty = 0.0
+        self._measured_monotonic = None
+        return True
 
     def clear(self) -> None:
         """Forget the stored offset and its trust (tests and mode switches)."""
         self._offset = None
         self._trusted = False
+        self._uncertainty = 0.0
+        self._measured_monotonic = None
+        self._last_wall = None
+        self._last_monotonic = None
         self.end_epoch()
 
     def correct_mtime(self, mtime: int | float) -> int:
@@ -467,6 +547,7 @@ def now_corrected() -> float:
     ``hsync-client`` (LAN master upload arbitration, remote decode),
     ``hsync-android`` (``TimeSync.kt`` mirror).
     """
+    offset_store.observe()
     return offset_store.correct_mtime(time.time())
 
 

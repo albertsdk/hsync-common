@@ -216,6 +216,7 @@ def test_response_peer_requires_the_election_advert():
         "prefer_master": False,
         "never_master": True,
         "inbound": True,
+        "epoch": 5,
         "sync_direction": "bidirectional",
     }
     validated = validate_rdv_response(_response_with_peer(peer))
@@ -259,6 +260,7 @@ def test_response_peer_endpoints_list_is_bounded_and_optional():
         "prefer_master": False,
         "never_master": True,
         "inbound": True,
+        "epoch": 5,
         "sync_direction": "bidirectional",
     }
     assert validate_rdv_response(_response_with_peer(peer)) is not None

@@ -377,6 +377,57 @@ class TestClockOffsetStore:
         assert store.get() is None
         assert store.correct_mtime(100) == 100
 
+    def test_measurement_expires(self, monkeypatch):
+        """Trust is a claim with a shelf life: an old measurement is no reference."""
+        import hsync_common.clock as clock_module
+
+        store = ClockOffsetStore()
+        store.record(0.0)
+        assert store.is_trusted() is True
+        assert store.age() < 1.0
+        monkeypatch.setattr(clock_module, "CLOCK_OFFSET_MAX_AGE_SECONDS", 0.0)
+        assert store.is_trusted() is False
+
+    def test_uncertainty_is_half_the_round_trip(self):
+        store = ClockOffsetStore()
+        store.record(0.0, rtt=0.4)
+        assert store.uncertainty() == pytest.approx(0.2)
+
+    def test_untrusted_measurement_has_no_uncertainty(self):
+        store = ClockOffsetStore()
+        store.record(0.0, trusted=False, rtt=9.0)
+        assert store.uncertainty() == 0.0
+
+    def test_epoch_freezes_confidence(self):
+        store = ClockOffsetStore()
+        store.record(0.0, rtt=2.0)
+        store.begin_epoch()
+        store.record(5.0, rtt=10.0)
+        assert store.is_trusted() is True
+        assert store.uncertainty() == pytest.approx(1.0)
+        store.end_epoch()
+        assert store.uncertainty() == pytest.approx(5.0)
+
+    def test_clock_step_revokes_trust(self, monkeypatch):
+        """Wall movement the monotonic clock did not see is a step, not drift."""
+        import hsync_common.clock as clock_module
+
+        store = ClockOffsetStore()
+        store.record(0.0, rtt=0.1)
+        wall = [1000.0]
+        monotonic = [10.0]
+        monkeypatch.setattr(clock_module.time, "time", lambda: wall[0])
+        monkeypatch.setattr(clock_module.time, "monotonic", lambda: monotonic[0])
+        assert store.observe() is False  # first sample primes the watch
+        wall[0] += 1.0
+        monotonic[0] += 1.0
+        assert store.observe() is False  # normal passage of time
+        wall[0] += 30.0
+        monotonic[0] += 0.1
+        assert store.observe() is True  # a jump: the offset is void
+        assert store.is_trusted() is False
+        assert store.uncertainty() == 0.0
+
     def test_module_singleton_correct_mtime(self):
         offset_store.clear()
         offset_store.record(7)

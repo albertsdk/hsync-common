@@ -4,6 +4,7 @@
       "candidates": [
         {
           "cid": "local",
+          "epoch": 0,
           "inbound": false,
           "never_master": false,
           "prefer_master": true,
@@ -12,6 +13,7 @@
         },
         {
           "cid": "incumbent",
+          "epoch": 0,
           "inbound": false,
           "never_master": false,
           "prefer_master": false,
@@ -26,6 +28,7 @@
       "candidates": [
         {
           "cid": "plain",
+          "epoch": 0,
           "inbound": false,
           "never_master": false,
           "prefer_master": false,
@@ -34,6 +37,7 @@
         },
         {
           "cid": "forced",
+          "epoch": 0,
           "inbound": false,
           "never_master": false,
           "prefer_master": true,
@@ -48,6 +52,7 @@
       "candidates": [
         {
           "cid": "aaa",
+          "epoch": 0,
           "inbound": false,
           "never_master": false,
           "prefer_master": false,
@@ -56,6 +61,7 @@
         },
         {
           "cid": "bbb",
+          "epoch": 0,
           "inbound": false,
           "never_master": false,
           "prefer_master": false,
@@ -69,7 +75,56 @@
     {
       "candidates": [
         {
+          "cid": "old",
+          "epoch": 2,
+          "inbound": false,
+          "never_master": false,
+          "prefer_master": false,
+          "server_ready": true,
+          "sync_direction": "bidirectional"
+        },
+        {
+          "cid": "new",
+          "epoch": 5,
+          "inbound": false,
+          "never_master": false,
+          "prefer_master": false,
+          "server_ready": true,
+          "sync_direction": "bidirectional"
+        }
+      ],
+      "expected_master": "new",
+      "name": "newer-term-wins-between-serving-incumbents"
+    },
+    {
+      "candidates": [
+        {
+          "cid": "pinned",
+          "epoch": 1,
+          "inbound": false,
+          "never_master": false,
+          "prefer_master": true,
+          "server_ready": false,
+          "sync_direction": "bidirectional"
+        },
+        {
+          "cid": "fresh",
+          "epoch": 2,
+          "inbound": false,
+          "never_master": false,
+          "prefer_master": false,
+          "server_ready": false,
+          "sync_direction": "bidirectional"
+        }
+      ],
+      "expected_master": "fresh",
+      "name": "newer-term-outranks-a-preferred-stale-mandate"
+    },
+    {
+      "candidates": [
+        {
           "cid": "zzz",
+          "epoch": 0,
           "inbound": false,
           "never_master": false,
           "prefer_master": false,
@@ -78,6 +133,7 @@
         },
         {
           "cid": "aaa",
+          "epoch": 0,
           "inbound": false,
           "never_master": false,
           "prefer_master": false,
@@ -92,6 +148,7 @@
       "candidates": [
         {
           "cid": "bbb",
+          "epoch": 0,
           "inbound": false,
           "never_master": false,
           "prefer_master": false,
@@ -100,6 +157,7 @@
         },
         {
           "cid": "aaa",
+          "epoch": 0,
           "inbound": false,
           "never_master": false,
           "prefer_master": false,
@@ -114,6 +172,7 @@
       "candidates": [
         {
           "cid": "never",
+          "epoch": 0,
           "inbound": false,
           "never_master": true,
           "prefer_master": false,
@@ -122,6 +181,7 @@
         },
         {
           "cid": "eligible",
+          "epoch": 0,
           "inbound": false,
           "never_master": false,
           "prefer_master": false,
@@ -136,6 +196,7 @@
       "candidates": [
         {
           "cid": "a",
+          "epoch": 0,
           "inbound": false,
           "never_master": true,
           "prefer_master": false,
@@ -144,6 +205,7 @@
         },
         {
           "cid": "b",
+          "epoch": 0,
           "inbound": false,
           "never_master": true,
           "prefer_master": false,
@@ -158,6 +220,7 @@
       "candidates": [
         {
           "cid": "relay-only",
+          "epoch": 0,
           "inbound": false,
           "never_master": false,
           "prefer_master": false,
@@ -166,6 +229,7 @@
         },
         {
           "cid": "reachable",
+          "epoch": 0,
           "inbound": true,
           "never_master": false,
           "prefer_master": false,
@@ -180,6 +244,7 @@
       "candidates": [
         {
           "cid": "relay-only",
+          "epoch": 0,
           "inbound": false,
           "never_master": false,
           "prefer_master": false,
@@ -188,6 +253,7 @@
         },
         {
           "cid": "reachable",
+          "epoch": 0,
           "inbound": true,
           "never_master": false,
           "prefer_master": false,
@@ -202,6 +268,7 @@
       "candidates": [
         {
           "cid": "forced",
+          "epoch": 0,
           "inbound": false,
           "never_master": false,
           "prefer_master": true,
@@ -210,6 +277,7 @@
         },
         {
           "cid": "reachable",
+          "epoch": 0,
           "inbound": true,
           "never_master": false,
           "prefer_master": false,
