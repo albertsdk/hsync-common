@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Capability.publishes_index`: inventory publishing is its own capability, advertised
+  beside `index`, `peer_download` and the transfer capabilities.
+- TXT key `epoch` and the matching `rdv/1` field: the leadership term that ranks between
+  two serving masters.
+- `ActionLabel.CLOCK_SYNC` / `ActionLabel.CLOCK_DEGRADED` (`[CLOCK SYNC]` / `[CLOCK
+  DEGRADED]`), so a front-end can surface degraded temporal mode.
 - `payload_size` in `DeltaApplyMetadata`/`DeltaApplyMetadataDict`: the literal
   payload's wire bytes (post-compression), the progress total both ends report
   for an upload delta. Part of the `delta-apply-metadata` golden fixture.
@@ -36,6 +42,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The master election never reads a clock: `startup_time` is gone from the candidate,
+  the TXT record and `rdv/1`; the ordering is readiness, leadership term, preference,
+  reachability, direction, then CID.
+- A compressed p2p serve is streamed into a chunked body for a file of any size (no
+  `Content-Length`, no `Accept-Ranges`); `p2p-protocol.md` states the byte-addressed XOR
+  compressed contract.
+- The corrected-mtime tie-break requires a measured, unexpired clock and ignores
+  differences inside the measurement error (`mtime_uncertainty`); without a trusted
+  clock both sides fall back to content identity.
 - Path identity is independent of the host separator and Unicode form:
   `_split_path_components`/`_strip_prefix_components`
   (`hsync_common/models/_util.py`) split on `/` and `\` and compare
