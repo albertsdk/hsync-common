@@ -19,6 +19,7 @@ import re
 import sys
 from collections.abc import Callable, Iterable, Mapping
 from datetime import UTC, datetime
+from types import FrameType
 from typing import Any, Final
 
 from loguru import logger
@@ -123,7 +124,7 @@ class BaseInterceptHandler(logging.Handler):
             level = record.levelno
 
         # Find caller from where the logged message originated
-        frame = logging.currentframe()
+        frame: FrameType | None = logging.currentframe()
         depth = 2
         while frame and frame.f_code.co_filename == logging.__file__:
             frame = frame.f_back

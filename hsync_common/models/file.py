@@ -10,7 +10,7 @@ from collections import OrderedDict
 from collections.abc import Callable
 from datetime import datetime
 from threading import Lock
-from typing import TYPE_CHECKING, NotRequired, TypedDict
+from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 
 from hsync_common.constants import (
     PARTIAL_DELTA_LIT_SUFFIX,
@@ -376,7 +376,7 @@ class File:
         """
         required = _FILE_REQUIRED_KEYS
         fast = required <= data.keys()
-        lookup = data.__getitem__ if fast else data.get
+        lookup: Callable[[str], Any] = data.__getitem__ if fast else data.get
         filepath = _resolve_prefixed_path(
             str(data.get("filepath") or ""),
             dir_prefix,

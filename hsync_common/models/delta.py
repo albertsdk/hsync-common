@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Literal, NotRequired, TypedDict, TypeGuard
+from typing import Final, Literal, NotRequired, TypedDict, TypeGuard, cast
 
 from hsync_common.constants import DELTA_MAX_OPS, DELTA_MAX_SIGNATURES
 from hsync_common.hashing import is_sha256_hex
@@ -46,8 +46,8 @@ __all__ = [
     "validate_op_bounds",
 ]
 
-OP_TYPE_COPY = "copy"
-OP_TYPE_DATA = "data"
+OP_TYPE_COPY: Final[Literal["copy"]] = "copy"
+OP_TYPE_DATA: Final[Literal["data"]] = "data"
 
 _OpType = Literal["copy", "data"]
 
@@ -319,7 +319,9 @@ def sanitize_delta_op(value: object) -> DeltaOpDict | None:
     if not _is_valid_non_negative_int(data_offset):
         return None
 
-    return DeltaOpDict(type=op_type, offset=offset, length=length, data_offset=data_offset)
+    return DeltaOpDict(
+        type=cast(_OpType, op_type), offset=offset, length=length, data_offset=data_offset
+    )
 
 
 def _sanitize_list[T](
@@ -374,7 +376,7 @@ def parse_op_payload(value: object) -> list[DeltaOp] | None:
         return None
     return [
         DeltaOp(
-            type=op["type"],
+            type=cast(_OpType, op["type"]),
             offset=op["offset"],
             length=op["length"],
             data_offset=op["data_offset"],
@@ -440,7 +442,9 @@ def delta_signatures_payload(
         file_size=file_size,
         sha256=sha256,
         signatures=[
-            dict(signature) if isinstance(signature, dict) else signature.to_dict()
+            cast(BlockSignatureDict, dict(signature))
+            if isinstance(signature, dict)
+            else signature.to_dict()
             for signature in signatures
         ],
     )

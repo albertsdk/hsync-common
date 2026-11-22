@@ -18,7 +18,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 from ipaddress import ip_address
-from typing import Literal, NotRequired, TypedDict, TypeGuard
+from typing import Any, Literal, NotRequired, TypedDict, TypeGuard
 from urllib.parse import urlsplit
 
 from hsync_common.constants import WS_MAX_MESSAGE_BYTES
@@ -177,7 +177,7 @@ class P2PInventoryAckFrame(TypedDict):
     reason: NotRequired[str]
 
 
-def _is_exact_object(value: object, keys: frozenset[str]) -> TypeGuard[dict[str, object]]:
+def _is_exact_object(value: object, keys: frozenset[str]) -> TypeGuard[dict[str, Any]]:
     """Return whether *value* is a dict containing exactly *keys*."""
     return isinstance(value, dict) and set(value) == keys
 
@@ -328,8 +328,8 @@ def validate_p2p_sources_request(value: object) -> P2PSourcesRequest | None:
             return None
         seen_paths.add(clean["path"])
         clean_files.append(clean)
-    clean = P2PSourcesRequest(cid=cid, files=clean_files)
-    return clean if _fits_encoded_limit(clean, P2P_SOURCES_MAX_BODY_BYTES) else None
+    request = P2PSourcesRequest(cid=cid, files=clean_files)
+    return request if _fits_encoded_limit(request, P2P_SOURCES_MAX_BODY_BYTES) else None
 
 
 def validate_p2p_sources_response(value: object) -> P2PSourcesResponse | None:
@@ -430,7 +430,7 @@ def validate_p2p_inventory_frame(value: object) -> P2PInventoryFrame | None:
         seen_paths.add(clean["path"])
         clean_entries.append(clean)
 
-    clean = P2PInventoryFrame(
+    frame = P2PInventoryFrame(
         type="inventory",
         gen=gen,
         seq=seq,
@@ -438,7 +438,7 @@ def validate_p2p_inventory_frame(value: object) -> P2PInventoryFrame | None:
         more=more,
         entries=clean_entries,
     )
-    return clean if _fits_encoded_limit(clean, P2P_INVENTORY_MAX_FRAME_BYTES) else None
+    return frame if _fits_encoded_limit(frame, P2P_INVENTORY_MAX_FRAME_BYTES) else None
 
 
 def validate_p2p_inventory_ack(value: object) -> P2PInventoryAckFrame | None:

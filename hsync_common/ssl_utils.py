@@ -27,6 +27,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import cast
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
@@ -143,7 +144,7 @@ def build_self_signed_certificate(
         )
 
     # Ed25519 is a fixed scheme with no hash parameter; RSA/ECDSA sign over SHA-256.
-    signature_algorithm: hashes.HashAlgorithm | None = (
+    signature_algorithm: hashes.SHA256 | None = (
         None if isinstance(private_key, ed25519.Ed25519PrivateKey) else hashes.SHA256()
     )
     return builder.sign(private_key, signature_algorithm)
@@ -281,7 +282,13 @@ def load_pem_certificate_and_key(
     (``identity rotate``).
     """
     certificate = x509.load_pem_x509_certificate(Path(cert_path).read_bytes())
-    private_key = serialization.load_pem_private_key(Path(key_path).read_bytes(), password=None)
+    # The alias is the contract of this loader (a pair check validates the
+    # match separately); ``load_pem_private_key`` also admits key types the
+    # identity model never generates.
+    private_key = cast(
+        PrivateKey,
+        serialization.load_pem_private_key(Path(key_path).read_bytes(), password=None),
+    )
     return certificate, private_key
 
 
@@ -416,7 +423,7 @@ def write_identity_file(
 ) -> None:
     """Write a combined cert+key PEM atomically, owner-only, creating the dir."""
     ensure_identity_dir(path)
-    atomic_write_bytes(path, serialize_identity_pem(cert_pem, key_pem), mode=mode)
+    atomic_write_bytes(Path(path), serialize_identity_pem(cert_pem, key_pem), mode=mode)
 
 
 @dataclass(frozen=True, slots=True)

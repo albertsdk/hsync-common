@@ -160,7 +160,7 @@ def _resolve_entry_symlink(entry_path: str, bucket_root: str) -> tuple[bool, Sym
         # A directory entry that vanished (or is not readable as a link) between
         # the walk and this call: skip it rather than abort the whole listing.
         return False, None
-    if link is not None and not is_safe_symlink_target(entry_path, link.target, bucket_root):
+    if link is not None and not is_safe_symlink_target(entry_path, link.target or "", bucket_root):
         log.warning(
             f"{ActionLabel.SECURITY} Symlink target escapes bucket, "
             f'skipping: "{entry_path}" -> "{link.target}"'
@@ -237,7 +237,7 @@ def file_entry(file_obj: File, bucket_root: str, *, rel: str | None = None) -> d
     Consumers: ``hsync-server`` (``api/files/list.py``), ``hsync-client``
     (``p2p_server._handle_list_files``).
     """
-    entry = file_obj.to_dict()
+    entry: dict = dict(file_obj.to_dict())
     if rel is None:
         rel = relpath_in_bucket(file_obj.filepath or "", bucket_root)
     entry["filepath"] = (file_obj.filepath or "") if rel is None else rel

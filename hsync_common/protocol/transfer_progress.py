@@ -22,7 +22,7 @@ Schema and golden fixtures, and the shared protocol contract tests.
 
 from __future__ import annotations
 
-from typing import Literal, TypedDict
+from typing import Final, Literal, TypedDict, cast
 
 from hsync_common.path_validation import validate_remote_relpath
 from hsync_common.protocol.peer_download import P2P_WIRE_INT_MAX
@@ -35,7 +35,7 @@ __all__ = [
 ]
 
 # Frame discriminator on the master⇄slave WebSocket control plane.
-P2P_FILE_PROGRESS_TYPE = "file_progress"
+P2P_FILE_PROGRESS_TYPE: Final[Literal["file_progress"]] = "file_progress"
 
 _FILE_PROGRESS_KEYS = frozenset({"type", "file", "transferred", "total"})
 
@@ -83,7 +83,10 @@ def validate_p2p_file_progress(value: object) -> P2PFileProgressFrame | None:
     if total and transferred > total:
         return None
     return P2PFileProgressFrame(
-        type=P2P_FILE_PROGRESS_TYPE, file=file, transferred=transferred, total=total
+        type=P2P_FILE_PROGRESS_TYPE,
+        file=file,
+        transferred=cast(int, transferred),
+        total=cast(int, total),
     )
 
 

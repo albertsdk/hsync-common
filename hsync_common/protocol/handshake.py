@@ -86,7 +86,9 @@ class Capability(StrEnum):
     https = "https"  # TLS-secured master endpoint
     delta = "delta"  # rsync-style delta transfer (block-level sync)
     vector_clocks = "vector_clocks"  # causal version metadata exchanged on file payloads (ADR-0022)
-    index = "index"  # publishes a read-only inventory so peers can compute sync status
+    # The member name is the wire token; it deliberately shadows ``str.index``.
+    # Publishes a read-only inventory so peers can compute sync status.
+    index = "index"  # type: ignore[assignment]
     peer_download = "peer_download"  # serves file blocks to other peers (source/seeder)
     readonly_permissions = (
         "readonly_permissions"  # local modes are lossy (owner-write/read-only only)

@@ -67,6 +67,14 @@ target-version = "py313"
 select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM"]
 ignore = ["E501", "E402", "B904", "SIM115", "SIM117", "SIM102", "SIM105"]
 
+[tool.mypy]
+python_version = "3.13"
+warn_return_any = false
+warn_unused_ignores = false
+disallow_untyped_defs = false
+ignore_missing_imports = true
+no_implicit_optional = false
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

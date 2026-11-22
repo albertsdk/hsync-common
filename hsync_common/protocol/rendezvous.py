@@ -45,7 +45,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping
-from typing import Literal, NotRequired, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict, TypeGuard, cast
 
 from hsync_common.endpoint import is_valid_endpoint_host
 from hsync_common.ids import CID_PATTERN, is_valid_cid
@@ -505,7 +505,9 @@ _ENDPOINT_KEYS = frozenset({"proto", "host", "port"})
 _OBSERVED_KEYS = frozenset({"proto", "ip", "port"})
 
 
-def _is_object(value: object, required: frozenset[str], optional: frozenset[str]) -> bool:
+def _is_object(
+    value: object, required: frozenset[str], optional: frozenset[str]
+) -> TypeGuard[Mapping[str, Any]]:
     """True when ``value`` is a mapping whose keys are exactly required ∪ optional."""
     if not isinstance(value, Mapping):
         return False
@@ -515,7 +517,7 @@ def _is_object(value: object, required: frozenset[str], optional: frozenset[str]
 
 def _envelope_ok(
     value: object, frame_type: str, required: frozenset[str], optional: frozenset[str]
-) -> bool:
+) -> TypeGuard[Mapping[str, Any]]:
     """Validate the common frame envelope shared by every validator.
 
     Combines the exact-key check (:func:`_is_object`) with the mandatory
@@ -545,7 +547,7 @@ def _is_capacity(value: object) -> bool:
     return _is_int(value, maximum=CAPACITY_MAX)
 
 
-def _optional_str(value: Mapping, clean: dict, key: str, max_len: int) -> bool:
+def _optional_str(value: Mapping[str, Any], clean: Any, key: str, max_len: int) -> bool:
     """Copy an optional bounded string field; return False when it is malformed."""
     if key not in value or value[key] is None:
         return True
@@ -557,7 +559,12 @@ def _optional_str(value: Mapping, clean: dict, key: str, max_len: int) -> bool:
 
 
 def _optional_int(
-    value: Mapping, clean: dict, key: str, *, minimum: int = 0, maximum: int | None = None
+    value: Mapping[str, Any],
+    clean: Any,
+    key: str,
+    *,
+    minimum: int = 0,
+    maximum: int | None = None,
 ) -> bool:
     """Copy an optional bounded integer field; return False when it is malformed."""
     if key not in value or value[key] is None:
@@ -568,7 +575,7 @@ def _optional_int(
     return True
 
 
-def _optional_token(value: Mapping, clean: dict) -> bool:
+def _optional_token(value: Mapping[str, Any], clean: Any) -> bool:
     if "bucket_token" not in value or value["bucket_token"] is None:
         return True
     token = value["bucket_token"]
@@ -578,7 +585,7 @@ def _optional_token(value: Mapping, clean: dict) -> bool:
     return True
 
 
-def _optional_connected(value: Mapping, clean: dict) -> bool:
+def _optional_connected(value: Mapping[str, Any], clean: Any) -> bool:
     """Copy the optional advisory ``connected`` count (see :func:`_optional_int`)."""
     return _optional_int(value, clean, "connected")
 
@@ -598,7 +605,7 @@ def _is_sync_direction(value: object) -> bool:
     return isinstance(value, str) and value in _SYNC_DIRECTIONS
 
 
-def _optional_flag(value: Mapping, clean: dict, key: str) -> bool:
+def _optional_flag(value: Mapping[str, Any], clean: Any, key: str) -> bool:
     """Copy an optional boolean flag; return False when it is malformed.
 
     Explicit ``null`` is rejected, like the rendezvous's pydantic models (a
@@ -614,7 +621,7 @@ def _optional_flag(value: Mapping, clean: dict, key: str) -> bool:
     return True
 
 
-def _read_election_advert(value: Mapping, clean: dict, *, optional: bool) -> bool:
+def _read_election_advert(value: Mapping[str, Any], clean: Any, *, optional: bool) -> bool:
     """Validate and copy the election advertisement (register / query peer).
 
     These keys are the same values the mDNS TXT record carries; ``optional``
@@ -720,14 +727,20 @@ def _validate_peer(value: object) -> RdvPeer | None:
         if clean_endpoint is None:
             return None
         clean_endpoints.append(clean_endpoint)
-    clean = RdvPeer(
-        cid=cid,
-        endpoints=clean_endpoints,
-        cert_fp=cert_fp,
-        bucket=bucket,
-        version=version,
-        capacity=value["capacity"],
-        reachable=value["reachable"],
+    # The election advertisement is required on a relayed peer and filled by the
+    # reader below; a malformed one rejects the whole frame, so the draft never
+    # leaves this function without it.
+    clean = cast(
+        RdvPeer,
+        {
+            "cid": cid,
+            "endpoints": clean_endpoints,
+            "cert_fp": cert_fp,
+            "bucket": bucket,
+            "version": version,
+            "capacity": value["capacity"],
+            "reachable": value["reachable"],
+        },
     )
     if not _read_election_advert(value, clean, optional=False):
         return None

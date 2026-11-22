@@ -48,6 +48,7 @@ def _parse_version_row(row: sqlite3.Row, _now: int) -> tuple[str, FileVersion] |
     if vclock is None:
         return None
     raw_corrected = mapping.get("corrected_mtime")
+    corrected: int | None
     if raw_corrected is None:
         corrected = 0
     else:
