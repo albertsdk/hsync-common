@@ -55,7 +55,7 @@ byte-for-byte with the canonical ones.
 | `relay_connect` | client → server | `cid`, `bucket`, `target_cid`, `group?`, `bucket_token?` |
 | `relay_attach` | client → server | `cid`, `bucket`, `relay_id`, `bucket_token?` |
 | `ack` | server → client | `observed_endpoint{proto,ip,port}`, `ttl`, `server_time`, `retry_after?` |
-| `response` | server → client | `peers[{cid, endpoints[{proto,host,port}], cert_fp, bucket, group?, version, capacity, reachable, server_ready, prefer_master, never_master, inbound, startup_time, sync_direction}]`, `count`, `ttl`, `error?`, `retry_after?` |
+| `response` | server → client | `peers[{cid, endpoints[{proto,host,port}], cert_fp, bucket, group?, version, capacity, reachable, server_ready, prefer_master, never_master, inbound, sync_direction}]`, `count`, `ttl`, `error?`, `retry_after?` |
 | `relay_listening` | server → client | `ttl` |
 | `relay_incoming` | server → client | `relay_id`, `cid`, `expires_in` |
 | `relay_ok` | server → client | `relay_id` |

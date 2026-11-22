@@ -11,7 +11,6 @@
   "peer_download": "true",
   "protocol": "p2p/1",
   "server_ready": "true",
-  "startup_time": "1700000000.5",
   "sync_direction": "bidirectional",
   "version": "1.0.0"
 }

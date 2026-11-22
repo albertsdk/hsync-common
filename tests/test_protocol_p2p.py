@@ -26,36 +26,36 @@ class TestElectionOrdering:
 
     def test_server_ready_incumbent_wins_over_prefer_master(self):
         candidates = [
-            ElectionCandidate(cid="local", prefer_master=True, startup_time=10.0),
-            ElectionCandidate(cid="incumbent", startup_time=200.0, server_ready=True),
+            ElectionCandidate(cid="local", prefer_master=True),
+            ElectionCandidate(cid="incumbent", server_ready=True),
         ]
         assert elect_master(candidates) == "incumbent"
 
     def test_prefer_master_wins_over_plain_peer(self):
         candidates = [
-            ElectionCandidate(cid="plain", startup_time=50.0),
-            ElectionCandidate(cid="forced", prefer_master=True, startup_time=300.0),
+            ElectionCandidate(cid="plain"),
+            ElectionCandidate(cid="forced", prefer_master=True),
         ]
         assert elect_master(candidates) == "forced"
 
     def test_bidirectional_preferred_over_directional(self):
         candidates = [
-            ElectionCandidate(cid="aaa", startup_time=100.0, sync_direction="upload-only"),
-            ElectionCandidate(cid="bbb", startup_time=100.0),
+            ElectionCandidate(cid="aaa", sync_direction="upload-only"),
+            ElectionCandidate(cid="bbb"),
         ]
         assert elect_master(candidates) == "bbb"
 
-    def test_earliest_startup_wins(self):
+    def test_cid_decides_a_full_tie(self):
         candidates = [
-            ElectionCandidate(cid="late", startup_time=200.0),
-            ElectionCandidate(cid="early", startup_time=100.0),
+            ElectionCandidate(cid="late"),
+            ElectionCandidate(cid="early"),
         ]
         assert elect_master(candidates) == "early"
 
     def test_lowest_cid_breaks_tie(self):
         candidates = [
-            ElectionCandidate(cid="zzz", startup_time=100.0),
-            ElectionCandidate(cid="aaa", startup_time=100.0),
+            ElectionCandidate(cid="zzz"),
+            ElectionCandidate(cid="aaa"),
         ]
         assert elect_master(candidates) == "aaa"
 
@@ -68,8 +68,8 @@ class TestNeverMaster:
 
     def test_never_master_peer_excluded(self):
         candidates = [
-            ElectionCandidate(cid="never", startup_time=100.0, never_master=True),
-            ElectionCandidate(cid="eligible", startup_time=200.0),
+            ElectionCandidate(cid="never", never_master=True),
+            ElectionCandidate(cid="eligible"),
         ]
         assert elect_master(candidates) == "eligible"
 
@@ -88,12 +88,12 @@ class TestRankElectionCandidates:
     """``rank_election_candidates`` is the SSOT ranking every consumer shares."""
 
     def test_full_ranking_order(self):
-        # server_ready > prefer_master > bidirectional > earliest startup > cid
+        # server_ready > prefer_master > inbound > bidirectional > cid
         candidates = [
-            ElectionCandidate(cid="plain-late", startup_time=500.0),
-            ElectionCandidate(cid="forced", prefer_master=True, startup_time=300.0),
-            ElectionCandidate(cid="incumbent", startup_time=200.0, server_ready=True),
-            ElectionCandidate(cid="plain-early", startup_time=100.0),
+            ElectionCandidate(cid="plain-late"),
+            ElectionCandidate(cid="forced", prefer_master=True),
+            ElectionCandidate(cid="incumbent", server_ready=True),
+            ElectionCandidate(cid="plain-early"),
         ]
         ranked = rank_election_candidates(candidates)
         assert [c.cid for c in ranked] == [
@@ -106,7 +106,7 @@ class TestRankElectionCandidates:
     def test_never_master_filtered_out(self):
         candidates = [
             ElectionCandidate(cid="never", never_master=True),
-            ElectionCandidate(cid="eligible", startup_time=100.0),
+            ElectionCandidate(cid="eligible"),
         ]
         assert [c.cid for c in rank_election_candidates(candidates)] == ["eligible"]
 
@@ -117,8 +117,8 @@ class TestRankElectionCandidates:
     def test_winner_matches_elect_master(self):
         # elect_master must be the winner-only projection of the shared ranking.
         candidates = [
-            ElectionCandidate(cid="zzz", startup_time=100.0),
-            ElectionCandidate(cid="aaa", startup_time=100.0),
+            ElectionCandidate(cid="zzz"),
+            ElectionCandidate(cid="aaa"),
             ElectionCandidate(cid="mmm", never_master=True),
         ]
         ranked = rank_election_candidates(candidates)
@@ -126,9 +126,9 @@ class TestRankElectionCandidates:
 
     def test_input_order_does_not_affect_ranking(self):
         base = [
-            ElectionCandidate(cid="a", startup_time=100.0),
-            ElectionCandidate(cid="b", startup_time=50.0),
-            ElectionCandidate(cid="c", startup_time=75.0),
+            ElectionCandidate(cid="a"),
+            ElectionCandidate(cid="b"),
+            ElectionCandidate(cid="c"),
         ]
         assert rank_election_candidates(base) == rank_election_candidates(list(reversed(base)))
 
@@ -137,8 +137,8 @@ class TestSortKey:
     """The exposed sort key is usable directly and is stable."""
 
     def test_sort_key_orders_candidates(self):
-        a = ElectionCandidate(cid="a", startup_time=100.0)
-        b = ElectionCandidate(cid="b", startup_time=100.0, server_ready=True)
+        a = ElectionCandidate(cid="a")
+        b = ElectionCandidate(cid="b", server_ready=True)
         assert election_sort_key(b) < election_sort_key(a)
 
 

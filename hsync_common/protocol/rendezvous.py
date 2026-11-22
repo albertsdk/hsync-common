@@ -22,7 +22,7 @@ rendezvous's ``extra="forbid"`` models provide).
 
 Besides the advisory ``capacity`` hint, ``register`` and ``peers[]`` carry the
 **election advertisement** (``server_ready``/``prefer_master``/``never_master``/
-``inbound``/``startup_time``/``sync_direction``) — the same values the mDNS TXT
+``inbound``/``sync_direction``) — the same values the mDNS TXT
 record carries, relayed verbatim by the rendezvous so both rendezvous plans feed
 the one
 shared election algorithm in :mod:`hsync_common.protocol.p2p`. The rendezvous never
@@ -43,7 +43,6 @@ shared fixtures/tests.
 
 from __future__ import annotations
 
-import math
 from collections.abc import Mapping
 from typing import Any, Literal, NotRequired, TypedDict, TypeGuard, cast
 
@@ -158,12 +157,6 @@ _SYNC_DIRECTIONS = frozenset(
     }
 )
 
-# Bound on the advertised unix ``startup_time``: keeps the value inside the
-# exactly-representable integer range of a JSON number. A peer that does not
-# advertise one defaults to ``0.0`` ("unknown"), which the election only reads
-# as a last-resort ordering key before the CID tiebreaker.
-_MAX_STARTUP_TIME = float(2**53)
-
 # Wire bounds, mirrored from the rendezvous models. Bucket names are bounded by
 # ``is_valid_bucket_name`` (``MAX_BUCKET_NAME_LENGTH``), not by a length here.
 _MAX_GROUP_LEN = 128
@@ -201,7 +194,7 @@ class RdvRegister(TypedDict):
     authoritative value is the authenticated ``serve_slots`` (ADR-0030).
 
     ``server_ready``/``prefer_master``/``never_master``/``inbound``/
-    ``startup_time``/``sync_direction`` are the **election advertisement**, the
+    ``sync_direction`` is the **election advertisement**, the
     same values the
     mDNS TXT record carries. The rendezvous relays them verbatim in ``query``
     responses so a rendezvous-discovered peer ranks exactly like an mDNS one; it
@@ -226,7 +219,6 @@ class RdvRegister(TypedDict):
     prefer_master: NotRequired[bool]
     never_master: NotRequired[bool]
     inbound: NotRequired[bool]
-    startup_time: NotRequired[float]
     sync_direction: NotRequired[str]
 
 
@@ -293,7 +285,6 @@ class RdvPeer(TypedDict):
     ``register`` (defaults when it advertised none): ``server_ready`` (it is
     currently serving as master), ``prefer_master``/``never_master`` (operator
     pins), ``inbound`` (it has a confirmed externally dialable endpoint),
-    ``startup_time`` (unix seconds, ``0.0`` = unknown) and
     ``sync_direction``. They feed the shared election algorithm exactly like
     the mDNS TXT values; none of them is authenticated.
     """
@@ -310,7 +301,6 @@ class RdvPeer(TypedDict):
     prefer_master: bool
     never_master: bool
     inbound: bool
-    startup_time: float
     sync_direction: str
     group: NotRequired[str]
 
@@ -457,7 +447,6 @@ _REGISTER_OPTIONAL = frozenset(
         "prefer_master",
         "never_master",
         "inbound",
-        "startup_time",
         "sync_direction",
     }
 )
@@ -496,7 +485,6 @@ _PEER_REQUIRED = frozenset(
         "prefer_master",
         "never_master",
         "inbound",
-        "startup_time",
         "sync_direction",
     }
 )
@@ -590,16 +578,6 @@ def _optional_connected(value: Mapping[str, Any], clean: Any) -> bool:
     return _optional_int(value, clean, "connected")
 
 
-def _is_startup_time(value: object) -> bool:
-    """True for a finite, non-negative unix timestamp (bools are rejected)."""
-    return (
-        isinstance(value, (int, float))
-        and not isinstance(value, bool)
-        and math.isfinite(value)
-        and 0 <= value <= _MAX_STARTUP_TIME
-    )
-
-
 def _is_sync_direction(value: object) -> bool:
     """True for a canonical sync-direction token (SSOT: ``protocol.pairing``)."""
     return isinstance(value, str) and value in _SYNC_DIRECTIONS
@@ -637,15 +615,6 @@ def _read_election_advert(value: Mapping[str, Any], clean: Any, *, optional: boo
             return False
         if not _optional_flag(value, clean, key):
             return False
-    if "startup_time" not in value:
-        if not optional:
-            return False
-        clean["startup_time"] = 0.0
-    else:
-        startup_time = value["startup_time"]
-        if not _is_startup_time(startup_time):
-            return False
-        clean["startup_time"] = float(startup_time)
     if "sync_direction" not in value:
         if not optional:
             return False

@@ -65,7 +65,6 @@ P2P_TXT_REQUIRED_KEYS: tuple[str, ...] = (
     "bucket",
     "version",
     "protocol",
-    "startup_time",
     "sync_direction",
 )
 P2P_TXT_OPTIONAL_KEYS: tuple[str, ...] = (
@@ -786,11 +785,6 @@ def build_p2p_txt_schema() -> dict[str, Any]:
         "bucket": {"type": "string"},
         "version": {"type": "string", "description": "Semantic app version (informational)."},
         "protocol": {"const": PROTOCOL_VERSION_P2P},
-        "startup_time": {
-            "type": "string",
-            "pattern": r"^[0-9]+(\.[0-9]+)?$",
-            "description": "Unix start time; earlier wins master election.",
-        },
         "sync_direction": {"type": "string"},
         "group": {"type": "string"},
         "https": _TXT_BOOL_FLAG,

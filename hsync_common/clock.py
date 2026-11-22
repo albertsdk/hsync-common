@@ -24,7 +24,11 @@ the offset measured against a trusted reference:
 
 The measured offset (remote clock − local clock) is process-local and consumed
 through the :class:`ClockOffsetStore` singleton: ``correct_mtime(mtime)``
-returns ``mtime + offset`` (int). Measurements are never persisted and never
+returns ``mtime + offset`` (int). A recorded offset is **trusted** only when a
+reference actually answered; a probe that found none records ``0`` and marks
+the clock untrusted, because an unsynchronised host must not act as a time
+authority (the election ranks it after a synchronised peer, and the
+corrected-mtime tie-break falls back to content identity). Measurements are never persisted and never
 write the system clock. Wire-supplied offsets/timestamps are *clamped* by
 :func:`clamp_wire_corrected_mtime` so a far-future peer value cannot win every
 tie-break (conflict engineering).
@@ -352,12 +356,21 @@ class ClockOffsetStore:
 
     def __init__(self) -> None:
         self._offset: float | None = None
+        self._trusted = False
         self._epoch_active = False
         self._epoch_offset: float | None = None
+        self._epoch_trusted = False
 
-    def record(self, offset: float) -> None:
-        """Store the measured offset."""
+    def record(self, offset: float, *, trusted: bool = True) -> None:
+        """Store the measured offset and whether a reference produced it.
+
+        ``trusted=False`` records the degraded mode explicitly: the value is
+        still usable as an offset (``0`` keeps the local clock as-is) but the
+        host does not claim to know the true time, so nothing may treat it as a
+        time authority.
+        """
         self._offset = float(offset)
+        self._trusted = bool(trusted)
 
     def begin_epoch(self) -> None:
         """Freeze the offset used by ``correct_mtime`` until :meth:`end_epoch`.
@@ -368,20 +381,32 @@ class ClockOffsetStore:
         change ``corrected_mtime`` mid-cycle.
         """
         self._epoch_offset = self._offset
+        self._epoch_trusted = self._trusted
         self._epoch_active = True
 
     def end_epoch(self) -> None:
         """Release the frozen epoch so ``correct_mtime`` follows the live offset."""
         self._epoch_active = False
         self._epoch_offset = None
+        self._epoch_trusted = False
 
     def get(self) -> float | None:
         """Return the stored offset (``None`` before any measurement)."""
         return self._offset
 
+    def is_trusted(self) -> bool:
+        """Whether a reference measured the offset currently in force.
+
+        Consumers: ``hsync-client`` (election advertisement and the
+        corrected-mtime tie-break), ``hsync-android`` (``TimeSync.kt``
+        mirror). ``None``/``trusted=False`` means degraded temporal mode.
+        """
+        return self._epoch_trusted if self._epoch_active else self._trusted
+
     def clear(self) -> None:
-        """Forget the stored offset (used by tests and mode switches)."""
+        """Forget the stored offset and its trust (tests and mode switches)."""
         self._offset = None
+        self._trusted = False
         self.end_epoch()
 
     def correct_mtime(self, mtime: int | float) -> int:

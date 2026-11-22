@@ -87,11 +87,6 @@
       ],
       "type": "string"
     },
-    "startup_time": {
-      "description": "Unix start time; earlier wins master election.",
-      "pattern": "^[0-9]+(\\.[0-9]+)?$",
-      "type": "string"
-    },
     "sync_direction": {
       "type": "string"
     },
@@ -105,7 +100,6 @@
     "bucket",
     "version",
     "protocol",
-    "startup_time",
     "sync_direction"
   ],
   "title": "HSYNC p2p mDNS/TXT record (p2p/1)",

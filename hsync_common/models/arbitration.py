@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
+from ..clock import offset_store
 from .version import (
     FileVersion,
     SyncDecision,
@@ -144,6 +145,13 @@ def decide_arbitration(
     effective_origin = incoming_info["origin_cid"] if incoming_info else incoming_origin_cid
 
     stored_corrected_mtime = int(stored.get("corrected_mtime", 0) or 0) if stored else 0
+    # Degraded temporal mode: the host has no measured clock reference, so it
+    # cannot rank two concurrent versions chronologically. The *comparison*
+    # therefore sees two unknown (0) timestamps and the deterministic content
+    # tie-break decides; the recorded value keeps what the uploader advertised.
+    tie_break_incoming, tie_break_stored = (
+        (incoming_corrected_mtime, stored_corrected_mtime) if offset_store.is_trusted() else (0, 0)
+    )
     decision = resolve_three_way(
         incoming_hash,
         incoming_vclock,
@@ -153,8 +161,8 @@ def decide_arbitration(
         # (the base-identity fast paths are a client-side concern; the receiver
         # has no independent knowledge of the common ancestor beyond the stored
         # version, which is already one of the two sides here).
-        local_corrected_mtime=incoming_corrected_mtime,
-        remote_corrected_mtime=stored_corrected_mtime,
+        local_corrected_mtime=tie_break_incoming,
+        remote_corrected_mtime=tie_break_stored,
     )
 
     match decision:

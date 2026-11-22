@@ -77,6 +77,7 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0051](0051-auto-trust-policy.md) | Automatic TLS trust policy: prefer CA, then pin, then TOFU (`auto`) | Accepted |
 | [0052](0052-peer-mesh-capabilities.md) | The peer mesh has three capabilities (serve, fetch, publish), each with its own key | Accepted |
 | [0053](0053-streamed-compressed-serve.md) | A compressed p2p serve is streamed into a chunked body, for a file of any size | Accepted |
+| [0054](0054-clock-free-election.md) | The election never reads a clock; chronology needs a measured one | Accepted |
 
 ## Related documents
 

@@ -8,7 +8,6 @@
           "never_master": false,
           "prefer_master": true,
           "server_ready": false,
-          "startup_time": 10.0,
           "sync_direction": "bidirectional"
         },
         {
@@ -17,7 +16,6 @@
           "never_master": false,
           "prefer_master": false,
           "server_ready": true,
-          "startup_time": 200.0,
           "sync_direction": "bidirectional"
         }
       ],
@@ -32,7 +30,6 @@
           "never_master": false,
           "prefer_master": false,
           "server_ready": false,
-          "startup_time": 50.0,
           "sync_direction": "bidirectional"
         },
         {
@@ -41,7 +38,6 @@
           "never_master": false,
           "prefer_master": true,
           "server_ready": false,
-          "startup_time": 300.0,
           "sync_direction": "bidirectional"
         }
       ],
@@ -56,7 +52,6 @@
           "never_master": false,
           "prefer_master": false,
           "server_ready": false,
-          "startup_time": 100.0,
           "sync_direction": "upload-only"
         },
         {
@@ -65,7 +60,6 @@
           "never_master": false,
           "prefer_master": false,
           "server_ready": false,
-          "startup_time": 100.0,
           "sync_direction": "bidirectional"
         }
       ],
@@ -75,36 +69,11 @@
     {
       "candidates": [
         {
-          "cid": "late",
-          "inbound": false,
-          "never_master": false,
-          "prefer_master": false,
-          "server_ready": false,
-          "startup_time": 200.0,
-          "sync_direction": "bidirectional"
-        },
-        {
-          "cid": "early",
-          "inbound": false,
-          "never_master": false,
-          "prefer_master": false,
-          "server_ready": false,
-          "startup_time": 100.0,
-          "sync_direction": "bidirectional"
-        }
-      ],
-      "expected_master": "early",
-      "name": "earliest-startup-wins"
-    },
-    {
-      "candidates": [
-        {
           "cid": "zzz",
           "inbound": false,
           "never_master": false,
           "prefer_master": false,
           "server_ready": false,
-          "startup_time": 100.0,
           "sync_direction": "bidirectional"
         },
         {
@@ -113,7 +82,6 @@
           "never_master": false,
           "prefer_master": false,
           "server_ready": false,
-          "startup_time": 100.0,
           "sync_direction": "bidirectional"
         }
       ],
@@ -123,26 +91,24 @@
     {
       "candidates": [
         {
-          "cid": "early",
+          "cid": "bbb",
           "inbound": false,
           "never_master": false,
           "prefer_master": false,
           "server_ready": false,
-          "startup_time": 100.0,
           "sync_direction": "bidirectional"
         },
         {
-          "cid": "later",
+          "cid": "aaa",
           "inbound": false,
           "never_master": false,
           "prefer_master": false,
           "server_ready": false,
-          "startup_time": 200.0,
           "sync_direction": "bidirectional"
         }
       ],
-      "expected_master": "early",
-      "name": "no-peer-server-ready-still-elects"
+      "expected_master": "aaa",
+      "name": "cold-start-with-no-incumbent-elects"
     },
     {
       "candidates": [
@@ -152,7 +118,6 @@
           "never_master": true,
           "prefer_master": false,
           "server_ready": false,
-          "startup_time": 100.0,
           "sync_direction": "bidirectional"
         },
         {
@@ -161,7 +126,6 @@
           "never_master": false,
           "prefer_master": false,
           "server_ready": false,
-          "startup_time": 200.0,
           "sync_direction": "bidirectional"
         }
       ],
@@ -176,7 +140,6 @@
           "never_master": true,
           "prefer_master": false,
           "server_ready": false,
-          "startup_time": 100.0,
           "sync_direction": "bidirectional"
         },
         {
@@ -185,7 +148,6 @@
           "never_master": true,
           "prefer_master": false,
           "server_ready": false,
-          "startup_time": 200.0,
           "sync_direction": "bidirectional"
         }
       ],
@@ -200,7 +162,6 @@
           "never_master": false,
           "prefer_master": false,
           "server_ready": false,
-          "startup_time": 100.0,
           "sync_direction": "bidirectional"
         },
         {
@@ -209,7 +170,6 @@
           "never_master": false,
           "prefer_master": false,
           "server_ready": false,
-          "startup_time": 200.0,
           "sync_direction": "bidirectional"
         }
       ],
@@ -224,7 +184,6 @@
           "never_master": false,
           "prefer_master": false,
           "server_ready": false,
-          "startup_time": 100.0,
           "sync_direction": "bidirectional"
         },
         {
@@ -233,7 +192,6 @@
           "never_master": false,
           "prefer_master": false,
           "server_ready": false,
-          "startup_time": 200.0,
           "sync_direction": "bidirectional"
         }
       ],
@@ -248,7 +206,6 @@
           "never_master": false,
           "prefer_master": true,
           "server_ready": false,
-          "startup_time": 300.0,
           "sync_direction": "bidirectional"
         },
         {
@@ -257,7 +214,6 @@
           "never_master": false,
           "prefer_master": false,
           "server_ready": false,
-          "startup_time": 100.0,
           "sync_direction": "bidirectional"
         }
       ],

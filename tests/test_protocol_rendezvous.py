@@ -148,18 +148,17 @@ def _minimal_register() -> dict:
 def test_register_election_advert_defaults_and_bounds():
     """The election advertisement is optional (documented defaults) and strict.
 
-    Mirrors the rendezvous models: booleans default to false, ``startup_time`` to
-    ``0.0`` ("unknown") and ``sync_direction`` to ``bidirectional``. A malformed
-    value (wrong type, null, negative/non-finite/out-of-range timestamp, unknown
-    direction) makes the whole frame invalid instead of being silently coerced,
-    and the canonical vocabulary is the pairing/p2p SSOT pair.
+    Mirrors the rendezvous models: booleans default to false and ``sync_direction``
+    to ``bidirectional``. A malformed value (wrong type, null, unknown direction)
+    makes the whole frame invalid instead of being silently coerced, and the
+    canonical vocabulary is the pairing/p2p SSOT pair. The advertisement
+    carries no timestamp: the election never reads a clock (ADR-0054).
     """
     validated = validate_rdv_frame(_minimal_register())
     assert validated is not None
     assert validated["server_ready"] is False
     assert validated["prefer_master"] is False
     assert validated["never_master"] is False
-    assert validated["startup_time"] == 0.0
     assert validated["sync_direction"] == "bidirectional"
 
     advertised = validate_rdv_frame(
@@ -167,7 +166,6 @@ def test_register_election_advert_defaults_and_bounds():
             **_minimal_register(),
             "server_ready": True,
             "prefer_master": True,
-            "startup_time": 1760000000.5,
             "sync_direction": "download-only",
         }
     )
@@ -175,7 +173,6 @@ def test_register_election_advert_defaults_and_bounds():
     assert advertised["server_ready"] is True
     assert advertised["prefer_master"] is True
     assert advertised["never_master"] is False
-    assert advertised["startup_time"] == 1760000000.5
     assert advertised["sync_direction"] == "download-only"
 
     for field, bad in (
@@ -183,11 +180,6 @@ def test_register_election_advert_defaults_and_bounds():
         ("server_ready", None),
         ("prefer_master", "true"),
         ("never_master", None),
-        ("startup_time", -1),
-        ("startup_time", "1760000000"),
-        ("startup_time", True),
-        ("startup_time", float("inf")),
-        ("startup_time", 2**53 + 1),
         ("sync_direction", "sideways"),
         ("sync_direction", 3),
     ):
@@ -224,7 +216,6 @@ def test_response_peer_requires_the_election_advert():
         "prefer_master": False,
         "never_master": True,
         "inbound": True,
-        "startup_time": 1760000000.0,
         "sync_direction": "bidirectional",
     }
     validated = validate_rdv_response(_response_with_peer(peer))
@@ -233,14 +224,12 @@ def test_response_peer_requires_the_election_advert():
     assert relayed["never_master"] is True
     assert relayed["server_ready"] is False
     assert relayed["inbound"] is True
-    assert relayed["startup_time"] == 1760000000.0
 
     for key in (
         "server_ready",
         "prefer_master",
         "never_master",
         "inbound",
-        "startup_time",
         "sync_direction",
     ):
         partial = {name: value for name, value in peer.items() if name != key}
@@ -249,7 +238,6 @@ def test_response_peer_requires_the_election_advert():
     assert (
         validate_rdv_response(_response_with_peer({**peer, "sync_direction": "sideways"})) is None
     )
-    assert validate_rdv_response(_response_with_peer({**peer, "startup_time": None})) is None
 
 
 def test_response_peer_endpoints_list_is_bounded_and_optional():
@@ -271,7 +259,6 @@ def test_response_peer_endpoints_list_is_bounded_and_optional():
         "prefer_master": False,
         "never_master": True,
         "inbound": True,
-        "startup_time": 1760000000.0,
         "sync_direction": "bidirectional",
     }
     assert validate_rdv_response(_response_with_peer(peer)) is not None

@@ -28,10 +28,10 @@ The CID serves three purposes across the protocol:
    with the originating CID, making it possible to trace which peer
    triggered which sync action.
 
-3. **Master election tiebreaker** — in p2p mode, when two peers start at
-   exactly the same `startup_time` (same-second), the peer with the
-   lexicographically **lowest CID** wins the election. This is a
-   deterministic, always-available fallback.
+3. **Master election tiebreaker** — in p2p mode the deterministic election
+   ends on the lexicographically **lowest CID** whenever its policy
+   components (readiness, preference, reachability, direction) tie. The
+   ranking never reads a clock, so no host can win by skewing its time.
 
 Key properties:
 

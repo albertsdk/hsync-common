@@ -25,9 +25,10 @@ eligible candidate with the smallest sort key, prioritised:
 3. `inbound` (a node with a confirmed externally dialable endpoint, so it
    serves every peer without the relay, over a relay-only one),
 4. bidirectional `sync_direction` over upload/download-only,
-5. earliest `startup_time` (SNTP-corrected, so the tie-break does not depend on
-   each host's raw clock),
-6. lowest `cid` lexicographically (final deterministic tiebreaker).
+5. lowest `cid` lexicographically (final deterministic tiebreaker).
+
+The wall clock is not part of the ordering (ADR-0054): a tie-break that ranks
+by start time hands mastership to whichever host clock runs fastest.
 
 `never_master` nodes are excluded; if no candidate is eligible, **no master is
 elected** (`NO_MASTER`) rather than a wrong one. Parity is enforced by golden
@@ -38,9 +39,9 @@ fixtures (`protocol/fixtures/p2p-election-scenarios.json`) replayed in both
 
 - Identical inputs yield an identical master on every peer and language → no
   split-brain by construction; divergence fails a parity test, not the field.
-- The algorithm is pure and clock-light: it depends only on advertised TXT
-  fields, so it is testable offline and immune to per-node clock skew beyond the
-  `startup_time` tiebreaker.
+- The algorithm is pure and clock-free: it depends only on advertised TXT
+  fields and the CID, so it is testable offline and immune to per-node clock
+  skew by construction (ADR-0054).
 - Edge cases are first-class and observable via parsable log markers
   (`[MASTER CONFLICT]`, `[MASTER TAKEOVER]`, `[NO MASTER]`) and structured events.
 - The election decides only *who serves* the transport hub; it confers no

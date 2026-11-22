@@ -112,7 +112,6 @@ def _p2p_txt_record() -> dict[str, Any]:
         "bucket": "bucket-1",
         "version": FIXTURE_APP_VERSION,
         "protocol": PROTOCOL_VERSION_P2P,
-        "startup_time": "1700000000.5",
         "sync_direction": "bidirectional",
         "compression": "true",
         "delta": "true",
@@ -133,7 +132,6 @@ def _p2p_txt_seeder_record() -> dict[str, Any]:
         "bucket": "bucket-1",
         "version": FIXTURE_APP_VERSION,
         "protocol": PROTOCOL_VERSION_P2P,
-        "startup_time": "1700000001",
         "sync_direction": "download-only",
         "https": "true",
         "cert_fp": _FIXTURE_CERT_FP,
@@ -216,78 +214,71 @@ _ELECTION_SCENARIOS: tuple[tuple[str, tuple[ElectionCandidate, ...]], ...] = (
     (
         "incumbent-server-ready-wins-over-prefer-master",
         (
-            ElectionCandidate(cid="local", prefer_master=True, startup_time=10.0),
-            ElectionCandidate(cid="incumbent", startup_time=200.0, server_ready=True),
+            ElectionCandidate(cid="local", prefer_master=True),
+            ElectionCandidate(cid="incumbent", server_ready=True),
         ),
     ),
     (
         "prefer-master-wins-over-plain-peer",
         (
-            ElectionCandidate(cid="plain", startup_time=50.0),
-            ElectionCandidate(cid="forced", prefer_master=True, startup_time=300.0),
+            ElectionCandidate(cid="plain"),
+            ElectionCandidate(cid="forced", prefer_master=True),
         ),
     ),
     (
         "bidirectional-preferred-over-upload-only",
         (
-            ElectionCandidate(cid="aaa", startup_time=100.0, sync_direction="upload-only"),
-            ElectionCandidate(cid="bbb", startup_time=100.0),
-        ),
-    ),
-    (
-        "earliest-startup-wins",
-        (
-            ElectionCandidate(cid="late", startup_time=200.0),
-            ElectionCandidate(cid="early", startup_time=100.0),
+            ElectionCandidate(cid="aaa", sync_direction="upload-only"),
+            ElectionCandidate(cid="bbb"),
         ),
     ),
     (
         "lowest-cid-breaks-tie",
         (
-            ElectionCandidate(cid="zzz", startup_time=100.0),
-            ElectionCandidate(cid="aaa", startup_time=100.0),
+            ElectionCandidate(cid="zzz"),
+            ElectionCandidate(cid="aaa"),
         ),
     ),
     (
-        "no-peer-server-ready-still-elects",
+        "cold-start-with-no-incumbent-elects",
         (
-            ElectionCandidate(cid="early", startup_time=100.0),
-            ElectionCandidate(cid="later", startup_time=200.0),
+            ElectionCandidate(cid="bbb"),
+            ElectionCandidate(cid="aaa"),
         ),
     ),
     (
         "never-master-peer-excluded",
         (
-            ElectionCandidate(cid="never", startup_time=100.0, never_master=True),
-            ElectionCandidate(cid="eligible", startup_time=200.0),
+            ElectionCandidate(cid="never", never_master=True),
+            ElectionCandidate(cid="eligible"),
         ),
     ),
     (
         "all-never-master-no-master",
         (
-            ElectionCandidate(cid="a", startup_time=100.0, never_master=True),
-            ElectionCandidate(cid="b", startup_time=200.0, never_master=True),
+            ElectionCandidate(cid="a", never_master=True),
+            ElectionCandidate(cid="b", never_master=True),
         ),
     ),
     (
         "inbound-beats-relay-only",
         (
-            ElectionCandidate(cid="relay-only", startup_time=100.0),
-            ElectionCandidate(cid="reachable", startup_time=200.0, inbound=True),
+            ElectionCandidate(cid="relay-only"),
+            ElectionCandidate(cid="reachable", inbound=True),
         ),
     ),
     (
         "inbound-beats-bidirectional",
         (
-            ElectionCandidate(cid="relay-only", startup_time=100.0, sync_direction="bidirectional"),
-            ElectionCandidate(cid="reachable", startup_time=200.0, inbound=True),
+            ElectionCandidate(cid="relay-only", sync_direction="bidirectional"),
+            ElectionCandidate(cid="reachable", inbound=True),
         ),
     ),
     (
         "prefer-master-beats-inbound",
         (
-            ElectionCandidate(cid="forced", startup_time=300.0, prefer_master=True),
-            ElectionCandidate(cid="reachable", startup_time=100.0, inbound=True),
+            ElectionCandidate(cid="forced", prefer_master=True),
+            ElectionCandidate(cid="reachable", inbound=True),
         ),
     ),
 )

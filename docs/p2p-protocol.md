@@ -31,7 +31,6 @@ lives in `P2P_TXT_KEYS`; do not introduce keys outside it.
 | `bucket` | string | Bucket served/synced. |
 | `version` | string | Semantic app version (informational only). |
 | `protocol` | string | p2p protocol version (`p2p/1`); mismatched peers are ignored. |
-| `startup_time` | string (number) | Unix start time; earlier wins. |
 | `sync_direction` | string | `bidirectional` (preferred), `upload-only`, `download-only`. |
 
 **Optional keys** (present only when meaningful/true): `group`, `https`,
@@ -76,7 +75,7 @@ invalid and must not be contacted. Non-serving slaves need not advertise either.
 
 The same election inputs reach the election through the `rdv/1` rendezvous
 channel (SSOT: `hsync-rendezvous/protocol-spec/rdv-1.md`): `register` carries
-`server_ready`, `prefer_master`, `never_master`, `inbound`, `startup_time` and
+`server_ready`, `prefer_master`, `never_master` and `inbound`, plus
 `sync_direction` (optional; defaults `false`/`false`/`false`/`false`/`0.0`/
 `bidirectional`) and every `query` peer echoes them, so a
 peer discovered through the rendezvous channel ranks exactly like an mDNS
@@ -521,10 +520,14 @@ than the winner (successor, conflict reports) use the same ranked list:
    other forces them all onto the relay.
 4. **bidirectional `sync_direction`** — a fully bidirectional peer is preferred
    over an upload-/download-only one (it can serve every other peer).
-5. **earliest `startup_time`** — the node that started first wins (on the
-   SNTP-corrected clock, `hsync_common.clock.now_corrected`, so a host whose
-   clock runs behind cannot win it by accident).
-6. **lowest `cid`** lexicographically — a deterministic final tiebreaker.
+5. **lowest `cid`** lexicographically — a deterministic final tiebreaker.
+
+The ranking never reads a clock. Two hosts share no timebase they can trust
+without an external reference, so an "earlier start wins" rule would hand
+mastership to whichever clock runs fastest; continuity comes from
+`server_ready` (the incumbent keeps the role), operator intent from
+`prefer_master`, and a cold start is decided by `cid`, which every host reads
+identically.
 
 If no candidate is eligible (every node is `never_master`) **no master is
 elected**: `elect_master` returns `None`, the role becomes `NONE`, and a parsable

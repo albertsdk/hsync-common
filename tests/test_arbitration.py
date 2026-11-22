@@ -5,6 +5,9 @@
 
 from __future__ import annotations
 
+import pytest
+
+from hsync_common.clock import offset_store
 from hsync_common.models.arbitration import (
     ArbitrationOutcome,
     conflicted_copy_name,
@@ -15,6 +18,14 @@ from hsync_common.models.version import FileVersion
 
 CID_A = "TestClientA1234567890"
 CID_B = "TestClientB1234567890"
+
+
+@pytest.fixture(autouse=True)
+def _clean_clock():
+    """Every test starts and ends with no measured offset."""
+    offset_store.clear()
+    yield
+    offset_store.clear()
 
 
 def _stored(
@@ -66,6 +77,8 @@ class TestDecideArbitration:
         assert result.record_vclock == {CID_A: 1, CID_B: 2}
 
     def test_concurrent_newer_incoming_wins(self):
+        # A measured clock is what makes the chronological tie-break meaningful.
+        offset_store.record(0.0)
         result = _decide(
             _stored("h-stored", {CID_B: 1}, corrected_mtime=100),
             incoming_hash="h-in",
@@ -77,6 +90,7 @@ class TestDecideArbitration:
         assert result.loser_cid == CID_B
 
     def test_concurrent_newer_stored_wins(self):
+        offset_store.record(0.0)
         result = _decide(
             _stored("h-stored", {CID_B: 1}, corrected_mtime=200),
             incoming_hash="h-in",
@@ -86,6 +100,30 @@ class TestDecideArbitration:
         assert result.outcome is ArbitrationOutcome.conflict_lost
         assert result.record_corrected_mtime == 200
         assert result.loser_cid == CID_A
+
+    def test_no_measured_clock_falls_back_to_content(self):
+        """Without a measured clock the chronological order means nothing.
+
+        The host cannot rank two concurrent versions by time, so the
+        deterministic content tie-break decides even though one timestamp is
+        numerically newer.
+        """
+        offset_store.clear()
+        newer_loses = _decide(
+            _stored("b" * 64, {CID_B: 1}, corrected_mtime=100),
+            incoming_hash="a" * 64,
+            vclock={CID_A: 1},
+            corrected_mtime=200,
+        )
+        assert newer_loses.outcome is ArbitrationOutcome.conflict_lost
+
+        newer_wins = _decide(
+            _stored("a" * 64, {CID_B: 1}, corrected_mtime=100),
+            incoming_hash="b" * 64,
+            vclock={CID_A: 1},
+            corrected_mtime=200,
+        )
+        assert newer_wins.outcome is ArbitrationOutcome.accepted_conflict_won
 
     def test_malformed_vclock_degrades_to_empty_clock(self):
         result = _decide(None, incoming_hash="h-in", vclock={"not-a-cid": 1})

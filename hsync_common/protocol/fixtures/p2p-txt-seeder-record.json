@@ -7,7 +7,6 @@
   "inbound": "true",
   "peer_download": "true",
   "protocol": "p2p/1",
-  "startup_time": "1700000001",
   "sync_direction": "download-only",
   "version": "1.0.0"
 }

@@ -206,10 +206,12 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   has no hsync-server counterpart; its concrete path is built with
   `rest_bucket_path`.
 - `ElectionCandidate` dataclass (`hsync_common/protocol/p2p.py::ElectionCandidate`).
-- Ordering key `election_sort_key` (`hsync_common/protocol/p2p.py::election_sort_key`); SSOT ranking
+- Ordering key `election_sort_key` (`hsync_common/protocol/p2p.py::election_sort_key`): `server_ready` →
+  `prefer_master` → `inbound` → bidirectional `sync_direction` → lowest `cid`. SSOT ranking
   `rank_election_candidates` (`hsync_common/protocol/p2p.py::rank_election_candidates`) returns the full ranked list
   (never_master filtered out); `elect_master` (`hsync_common/protocol/p2p.py::elect_master`) is its
   winner-only projection; `SYNC_DIRECTION_BIDIRECTIONAL` (`hsync_common/protocol/p2p.py::SYNC_DIRECTION_BIDIRECTIONAL`).
+  No component reads a clock (ADR-0054): no candidate, TXT key or `rdv/1` field carries a timestamp.
 - The client `hsync_client/p2p_peers.py` consumes `rank_election_candidates` for
   master, successor and the prefer_master conflict subset; android
   `Election.kt` mirrors the ordering; parity is pinned by the

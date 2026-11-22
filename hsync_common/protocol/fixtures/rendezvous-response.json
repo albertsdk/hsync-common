@@ -22,7 +22,6 @@
       "prefer_master": false,
       "never_master": false,
       "inbound": true,
-      "startup_time": 1760000000.0,
       "sync_direction": "bidirectional"
     }
   ],

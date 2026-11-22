@@ -22,6 +22,11 @@ shared time reference, measured per device.
 
 ## Decision
 
+The tie-break runs only on a host whose clock a reference has measured:
+`hsync_common.clock.ClockOffsetStore.is_trusted` is false in degraded
+temporal mode, and an untrusted host treats both timestamps as unknown so
+the SHA-256 fallback decides (ADR-0054).
+
 ### 1. Clock offset subsystem
 
 A clock offset (trusted remote clock − local clock) is measured and kept

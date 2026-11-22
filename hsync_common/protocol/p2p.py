@@ -20,8 +20,15 @@ Ordering (highest priority first):
    other forces them all onto the relay.
 4. bidirectional ``sync_direction`` — a fully bidirectional peer is preferred
    over an upload-only/download-only one (it can serve every other peer).
-5. earliest ``startup_time`` — the node that started first wins.
-6. lowest ``cid`` lexicographically — a deterministic final tiebreaker.
+5. lowest ``cid`` lexicographically — a deterministic final tiebreaker.
+
+No component reads a clock: two hosts have no shared timebase they can trust
+without an external reference, and a tie-break that ranks by wall time hands
+mastership to whichever clock is fastest. Continuity comes from
+``server_ready`` (the incumbent keeps the role) and operator intent from
+``prefer_master``; a cold start is decided by ``cid``, which every host reads
+identically. The ordering is a total order built only from per-candidate
+values, so no pairwise comparison can make it intransitive.
 
 Nodes flagged ``never_master`` are excluded from candidacy entirely; if every
 candidate is excluded no master is elected (``elect_master`` returns ``None``).
@@ -83,25 +90,24 @@ class ElectionCandidate:
 
     cid: str
     prefer_master: bool = False
-    startup_time: float = 0.0
     sync_direction: str = SYNC_DIRECTION_BIDIRECTIONAL
     server_ready: bool = False
     never_master: bool = False
     inbound: bool = False
 
 
-def election_sort_key(candidate: ElectionCandidate) -> tuple[bool, bool, bool, bool, float, str]:
+def election_sort_key(candidate: ElectionCandidate) -> tuple[bool, bool, bool, bool, str]:
     """Return the canonical sort key; the smallest key wins the election.
 
     Booleans are negated so that ``True`` (e.g. ``server_ready``) sorts before
-    ``False`` under ascending ordering.
+    ``False`` under ascending ordering. The key never contains a timestamp:
+    see the module docstring for why the clock is out of the election.
     """
     return (
         not candidate.server_ready,
         not candidate.prefer_master,
         not candidate.inbound,
         candidate.sync_direction != SYNC_DIRECTION_BIDIRECTIONAL,
-        candidate.startup_time,
         candidate.cid,
     )
 
