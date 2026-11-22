@@ -329,7 +329,7 @@ Engine-owned artifacts (`.hsyncignore`, `.hsyncfolder`, leftover
 
 | Constant                     | Value                | Description                              |
 |------------------------------|----------------------|------------------------------------------|
-| `HSYNC_VERSION`              | `"1.0.0"`            | HSYNC application version (single source) |
+| `HSYNC_VERSION`              | `"1.1.16"`           | HSYNC application version (single source) |
 | `HEADER_CLIENT_NAME`         | `"X-Client-Name"`    | REST header identifying the client product |
 | `HEADER_CHECKSUM_SHA256`     | `"X-Checksum-SHA256"` | Full-file response checksum header |
 | `HSYNCKEEP_FILENAME`         | `".hsynckeep"`       | Sentinel file for empty-directory sync   |

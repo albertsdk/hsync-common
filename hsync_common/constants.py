@@ -18,7 +18,7 @@ from typing import Final, Literal
 # Single source of truth for the HSYNC application version, shared by client,
 # server, desktop and Android. The wire-protocol versions live separately in
 # hsync_common.protocol.handshake (PROTOCOL_VERSION_*).
-HSYNC_VERSION = "1.1.15"
+HSYNC_VERSION = "1.1.16"
 
 # =============================================================================
 # HTTP Headers (wire protocol)
@@ -352,3 +352,12 @@ CORRECTED_MTIME_MAX_FUTURE_SKEW = 300
 # sub-second writes, large enough to absorb filesystem timestamp granularity.
 # Mirrored by the Android client.
 MTIME_PROPAGATION_TOLERANCE_SECONDS = 1
+
+# The corrected-mtime tie-break treats a difference at or below this many
+# seconds as "not an order": content identity decides instead. A *fixed,
+# protocol-wide* guard, never the evaluating host's own probe error — the
+# comparator must be a pure function of the replicated metadata so two replicas
+# reach the same winner (ADR-0054). Clock trust is enforced by the *producer* of
+# ``corrected_mtime`` (it advertises 0 when it cannot vouch for its clock), not
+# re-evaluated by the receiver. Mirrored by the Android client.
+CORRECTED_MTIME_TIE_BREAK_BOUND_SECONDS = 1

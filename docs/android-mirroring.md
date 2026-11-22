@@ -133,7 +133,7 @@ Constants must stay identical across all projects. The single source of truth
 is `hsync_common/constants.py`:
 
 ```python
-HSYNC_VERSION = "1.0.0"
+HSYNC_VERSION = "1.1.16"
 HEADER_CLIENT_NAME = "X-Client-Name"
 HEADER_CLIENT_VERSION = "X-Client-Version"
 HEADER_SERVER_VERSION = "X-Server-Version"

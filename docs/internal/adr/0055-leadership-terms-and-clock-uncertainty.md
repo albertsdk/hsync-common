@@ -22,8 +22,9 @@ That leaves three questions the two decisions do not answer:
    no longer exists, while the host still reports itself synchronised.
 3. **How exact is "newer"?** A probe round-trip bounds how well the offset is
    known: with a 400 ms round-trip the offset is only good to ±200 ms, and the
-   peer measured its own clock with a similar error. Two timestamps 100 ms apart
-   are therefore not an order, yet they decided which file kept its name.
+   peer measured its own clock with a similar error. The tie-break therefore uses
+   a fixed one-second guard: two corrected mtimes one second apart are not an
+   order, yet they decided which file kept its name.
 
 ## Decision
 
@@ -87,11 +88,12 @@ stepped clock out of the mesh's recorded history
 
 `resolve_three_way` takes `mtime_uncertainty`: the chronological tie-break only
 ranks two versions whose corrected mtimes differ by **more** than that bound.
-The store reports its measured error (half the probe round-trip,
-`ClockOffsetStore.uncertainty`), and the hubs double it once because the peer
-measured its own clock with a similar probe — an assumption that can only widen
-the bound, never narrow it. Inside the bound the deterministic SHA-256 fallback
-decides, exactly as for an absent timestamp.
+The bound is the fixed, protocol-wide `CORRECTED_MTIME_TIE_BREAK_BOUND_SECONDS`,
+never the evaluating host's own probe error: a per-node bound would let two
+replicas disagree on the boundary and is not convergent. The producer withholds
+the value (it advertises `0`) when its own measurement is untrusted, so the
+comparator never reads local clock state. Inside the bound the deterministic
+SHA-256 fallback decides, exactly as for an absent timestamp.
 
 ## Consequences
 

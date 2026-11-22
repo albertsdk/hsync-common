@@ -9,7 +9,7 @@ transfer thresholds.
 
 | Constant | Value | Description |
 |----------|-------|-------------|
-| `HSYNC_VERSION` | `"1.0.0"` | HSYNC application version — single source of truth, shared by client, server, desktop and Android. |
+| `HSYNC_VERSION` | `"1.1.16"` | HSYNC application version — single source of truth, shared by client, server, desktop and Android. |
 | `HEADER_CLIENT_NAME` | `"X-Client-Name"` | REST header identifying the client product (`hsync-client`, `hsync-android`). |
 | `HEADER_CLIENT_VERSION` | `"X-Client-Version"` | REST header carrying the client's application version. |
 | `HEADER_SERVER_VERSION` | `"X-Server-Version"` | REST header carrying the server's application version. |

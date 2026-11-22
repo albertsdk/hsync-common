@@ -44,14 +44,19 @@ value part of the wire contract and of every cross-language fixture.
    `prefer_master`, and a cold start is decided by `cid`, which every host reads
    identically. `startup_time` is removed from the candidate, from the TXT
    record, from `rdv/1` and from every mirror.
-2. The chronological tie-break runs only when the local clock is trusted:
-   `ClockOffsetStore.is_trusted()` is true exactly when a reference produced the
-   offset in force (`record(offset, trusted=True)`), false in degraded mode
-   (`record(0.0, trusted=False)`). An untrusted host feeds `0` for both sides
+2. The chronological tie-break is a **pure comparator of the replicated
+   claims**; it never reads the evaluator's clock. Trust is enforced where the
+   value is *produced*: `ClockOffsetStore.is_trusted()` is true exactly when a
+   reference produced the offset in force, and a host that cannot vouch for its
+   clock advertises `corrected_mtime = 0` (unknown) instead of a raw value
+   (`hsync_client.sync_state._corrected_mtime_of`, Android
+   `TimeSync.advertisedCorrectedMtime`). Every receiver then sees the same
+   "unknown" and content identity decides
    (`hsync_common.models.arbitration::decide_arbitration`,
-   `hsync_client.sync::_chronological_inputs`), which is the documented
-   "unknown mtime" path: content identity decides, so every peer still converges
-   on the same winner.
+   `hsync_client.sync::_chronological_inputs`). The guard within which a
+   difference is "not an order" is the fixed
+   `CORRECTED_MTIME_TIE_BREAK_BOUND_SECONDS`, not the evaluator's own probe
+   error, so two replicas order the same pair identically.
 3. No quorum is introduced. A partition can still yield two serving masters
    ([ADR-0027](0027-p2p-leadership-lease.md)); the guarantee is that the
    *convergence on heal* is deterministic and clock-free, and that divergence is
@@ -62,6 +67,8 @@ value part of the wire contract and of every cross-language fixture.
 - A mis-set or unsynchronised clock can no longer buy mastership, keep it, or
   decide which file keeps its name. Degraded temporal mode changes *which*
   deterministic rule decides (content identity), never *whether* peers agree.
+  The comparator itself never reads local state, so the server and every peer
+  reach the same winner from the same replicated metadata.
 - The election has one fewer input and one fewer wire field; the TXT record and
   the `rdv/1` frames carry only facts a peer can observe about itself and that
   mean the same thing on every host.

@@ -414,12 +414,13 @@ reconciliation, transfers, previews and server lines.
   reference answered, when, and how well: `is_trusted()` (`hsync_common/clock.py::ClockOffsetStore.is_trusted`)
   also requires `age() <= CLOCK_OFFSET_MAX_AGE_SECONDS`, and `observe()`
   revokes trust on a wall/monotonic divergence above
-  `CLOCK_STEP_THRESHOLD_SECONDS` (a time-daemon step, a suspended VM). An
-  untrusted clock feeds `0` for both sides of the corrected-mtime
-  tie-break, so content identity decides (ADR-0054); `uncertainty()` reports
-  half the probe round-trip, and a mtime difference inside that bound (doubled
-  for the peer, `mtime_uncertainty` in `models/version.py::resolve_three_way`)
-  is not an order (ADR-0055). Android mirrors all of it in `TimeSync.kt`.
+  `CLOCK_STEP_THRESHOLD_SECONDS` (a time-daemon step, a suspended VM). A host
+  that cannot vouch for its clock advertises `0` (unknown) for its side of the
+  corrected-mtime tie-break, so content identity decides (ADR-0054). The
+  comparator never reads local trust: a mtime difference inside the fixed
+  `CORRECTED_MTIME_TIE_BREAK_BOUND_SECONDS` guard (passed as `mtime_uncertainty`
+  to `models/version.py::resolve_three_way`) is not an order (ADR-0023/0055).
+  Android mirrors all of it in `TimeSync.kt`.
 - Anti conflict-engineering: `clamp_wire_corrected_mtime` (`hsync_common/clock.py::clamp_wire_corrected_mtime`) clamps
   peer-supplied corrected mtimes beyond
   `constants.CORRECTED_MTIME_MAX_FUTURE_SKEW = 300 s`; the receiver-side guard

@@ -148,8 +148,9 @@ def _minimal_register() -> dict:
 def test_register_election_advert_defaults_and_bounds():
     """The election advertisement is optional (documented defaults) and strict.
 
-    Mirrors the rendezvous models: booleans default to false and ``sync_direction``
-    to ``bidirectional``. A malformed value (wrong type, null, unknown direction)
+    Mirrors the rendezvous models: booleans default to false, ``epoch`` to ``0``
+    and ``sync_direction`` to ``bidirectional``. A malformed value (wrong type,
+    null, out-of-range term, unknown direction)
     makes the whole frame invalid instead of being silently coerced, and the
     canonical vocabulary is the pairing/p2p SSOT pair. The advertisement
     carries no timestamp: the election never reads a clock (ADR-0054).
@@ -159,6 +160,7 @@ def test_register_election_advert_defaults_and_bounds():
     assert validated["server_ready"] is False
     assert validated["prefer_master"] is False
     assert validated["never_master"] is False
+    assert validated["epoch"] == 0
     assert validated["sync_direction"] == "bidirectional"
 
     advertised = validate_rdv_frame(
@@ -166,6 +168,7 @@ def test_register_election_advert_defaults_and_bounds():
             **_minimal_register(),
             "server_ready": True,
             "prefer_master": True,
+            "epoch": 3,
             "sync_direction": "download-only",
         }
     )
@@ -173,6 +176,7 @@ def test_register_election_advert_defaults_and_bounds():
     assert advertised["server_ready"] is True
     assert advertised["prefer_master"] is True
     assert advertised["never_master"] is False
+    assert advertised["epoch"] == 3
     assert advertised["sync_direction"] == "download-only"
 
     for field, bad in (
@@ -180,6 +184,9 @@ def test_register_election_advert_defaults_and_bounds():
         ("server_ready", None),
         ("prefer_master", "true"),
         ("never_master", None),
+        ("epoch", -1),
+        ("epoch", "5"),
+        ("epoch", None),
         ("sync_direction", "sideways"),
         ("sync_direction", 3),
     ):

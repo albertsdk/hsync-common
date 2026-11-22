@@ -77,8 +77,6 @@ class TestDecideArbitration:
         assert result.record_vclock == {CID_A: 1, CID_B: 2}
 
     def test_concurrent_newer_incoming_wins(self):
-        # A measured clock is what makes the chronological tie-break meaningful.
-        offset_store.record(0.0)
         result = _decide(
             _stored("h-stored", {CID_B: 1}, corrected_mtime=100),
             incoming_hash="h-in",
@@ -90,7 +88,6 @@ class TestDecideArbitration:
         assert result.loser_cid == CID_B
 
     def test_concurrent_newer_stored_wins(self):
-        offset_store.record(0.0)
         result = _decide(
             _stored("h-stored", {CID_B: 1}, corrected_mtime=200),
             incoming_hash="h-in",
@@ -101,29 +98,41 @@ class TestDecideArbitration:
         assert result.record_corrected_mtime == 200
         assert result.loser_cid == CID_A
 
-    def test_no_measured_clock_falls_back_to_content(self):
-        """Without a measured clock the chronological order means nothing.
+    def test_the_receiver_clock_does_not_gate_the_comparison(self):
+        """The winner depends on the replicated claims, never the receiver's clock.
 
-        The host cannot rank two concurrent versions by time, so the
-        deterministic content tie-break decides even though one timestamp is
-        numerically newer.
+        Trust is enforced by the producer (it advertises 0 when it cannot vouch
+        for its clock), so the comparator must not re-evaluate it: a server that
+        never measured a reference still orders two known claims (ADR-0054).
         """
-        offset_store.clear()
-        newer_loses = _decide(
+        offset_store.clear()  # an untrusted receiver
+        result = _decide(
             _stored("b" * 64, {CID_B: 1}, corrected_mtime=100),
             incoming_hash="a" * 64,
             vclock={CID_A: 1},
             corrected_mtime=200,
         )
-        assert newer_loses.outcome is ArbitrationOutcome.conflict_lost
+        assert result.outcome is ArbitrationOutcome.accepted_conflict_won
+        assert result.record_corrected_mtime == 200
 
-        newer_wins = _decide(
-            _stored("a" * 64, {CID_B: 1}, corrected_mtime=100),
-            incoming_hash="b" * 64,
+    def test_a_difference_at_the_bound_is_not_an_order(self):
+        """Within the fixed guard the deterministic content tie-break decides."""
+        result = _decide(
+            _stored("b" * 64, {CID_B: 1}, corrected_mtime=100),
+            incoming_hash="a" * 64,
             vclock={CID_A: 1},
-            corrected_mtime=200,
+            corrected_mtime=101,  # delta == CORRECTED_MTIME_TIE_BREAK_BOUND_SECONDS
         )
-        assert newer_wins.outcome is ArbitrationOutcome.accepted_conflict_won
+        assert result.outcome is ArbitrationOutcome.conflict_lost
+
+    def test_a_difference_above_the_bound_orders_by_time(self):
+        result = _decide(
+            _stored("b" * 64, {CID_B: 1}, corrected_mtime=100),
+            incoming_hash="a" * 64,
+            vclock={CID_A: 1},
+            corrected_mtime=102,  # delta > bound
+        )
+        assert result.outcome is ArbitrationOutcome.accepted_conflict_won
 
     def test_malformed_vclock_degrades_to_empty_clock(self):
         result = _decide(None, incoming_hash="h-in", vclock={"not-a-cid": 1})

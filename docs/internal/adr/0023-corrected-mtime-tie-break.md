@@ -22,10 +22,19 @@ shared time reference, measured per device.
 
 ## Decision
 
-The tie-break runs only on a host whose clock a reference has measured:
-`hsync_common.clock.ClockOffsetStore.is_trusted` is false in degraded
-temporal mode, and an untrusted host treats both timestamps as unknown so
-the SHA-256 fallback decides (ADR-0054).
+The tie-break is a **pure, deterministic function of the replicated claims**: it
+compares the two `corrected_mtime` values carried by the versions and, when a
+side is unknown (`0`), the two are equal, or they differ by no more than the
+fixed guard `CORRECTED_MTIME_TIE_BREAK_BOUND_SECONDS`, falls back to the SHA-256
+content tie-break. It never reads the evaluating host's own clock trust: a
+decision that depended on the evaluator (server vs client, fresh vs stale probe)
+would not converge.
+
+Clock trust is enforced by the **producer** of `corrected_mtime`: a host whose
+clock a reference has not measured advertises `0` (unknown) instead of a raw
+clock value (`hsync_client.sync_state._corrected_mtime_of`, Android
+`TimeSync.advertisedCorrectedMtime`), so every receiver sees the same "unknown"
+and reaches the same winner (ADR-0054).
 
 ### 1. Clock offset subsystem
 

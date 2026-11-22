@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ..clock import offset_store
+from ..constants import CORRECTED_MTIME_TIE_BREAK_BOUND_SECONDS
 from .version import (
     FileVersion,
     SyncDecision,
@@ -145,18 +145,13 @@ def decide_arbitration(
     effective_origin = incoming_info["origin_cid"] if incoming_info else incoming_origin_cid
 
     stored_corrected_mtime = int(stored.get("corrected_mtime", 0) or 0) if stored else 0
-    # Degraded temporal mode: the host has no measured clock reference, so it
-    # cannot rank two concurrent versions chronologically. The *comparison*
-    # therefore sees two unknown (0) timestamps and the deterministic content
-    # tie-break decides; the recorded value keeps what the uploader advertised.
-    trust = offset_store.is_trusted()
-    tie_break_incoming, tie_break_stored = (
-        (incoming_corrected_mtime, stored_corrected_mtime) if trust else (0, 0)
-    )
-    # A difference inside the combined error bound is not an order: our own
-    # half-round-trip, doubled because the uploader measured its own clock with
-    # a similar probe (the assumption can only widen the bound, never narrow it).
-    uncertainty = 2 * round(offset_store.uncertainty()) if trust else 0
+    # The comparator is a pure function of the replicated claims. The wire value
+    # is already "0 when the producer could not vouch for its clock"
+    # (``sync_state._corrected_mtime_of`` / Android ``advertisedCorrectedMtime``),
+    # so trust MUST NOT be re-evaluated here from the receiver's own store: doing
+    # so would make the winner depend on the evaluating host (server vs client,
+    # fresh vs stale probe) and two replicas could disagree on the same conflict
+    # (ADR-0054). The bound is the same fixed guard everywhere for that reason.
     decision = resolve_three_way(
         incoming_hash,
         incoming_vclock,
@@ -166,9 +161,9 @@ def decide_arbitration(
         # (the base-identity fast paths are a client-side concern; the receiver
         # has no independent knowledge of the common ancestor beyond the stored
         # version, which is already one of the two sides here).
-        local_corrected_mtime=tie_break_incoming,
-        remote_corrected_mtime=tie_break_stored,
-        mtime_uncertainty=uncertainty,
+        local_corrected_mtime=incoming_corrected_mtime,
+        remote_corrected_mtime=stored_corrected_mtime,
+        mtime_uncertainty=CORRECTED_MTIME_TIE_BREAK_BOUND_SECONDS,
     )
 
     match decision:

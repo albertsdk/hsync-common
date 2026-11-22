@@ -33,7 +33,7 @@ The library version is the single source of truth for the wire protocol:
 
 ```python
 from hsync_common.constants import HSYNC_VERSION
-# → "1.0.0"
+# → "1.1.16"
 ```
 
 A protocol version change in `hsync-common` is applied atomically across all
