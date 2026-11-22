@@ -75,6 +75,14 @@ taken and degrades on its own:
   suspend/resume), not drift: trust is revoked immediately and the next probe
   re-establishes it.
 
+An untrusted host also stops **publishing** a timestamp: the corrected mtime it
+would record and advertise becomes `0` ("unknown"). A value derived from a clock
+the host cannot vouch for is stored by every peer and would compete again in the
+tie-break once the clock recovered, so withholding it is what keeps a stale or
+stepped clock out of the mesh's recorded history
+(`hsync-client/hsync_client/sync_state.py::_corrected_mtime_of`,
+`hsync-android/app/src/main/java/com/hsync/android/util/TimeSync.kt::TimeSync.advertisedCorrectedMtime`).
+
 ### 4. A difference inside the measurement error is not an order
 
 `resolve_three_way` takes `mtime_uncertainty`: the chronological tie-break only
