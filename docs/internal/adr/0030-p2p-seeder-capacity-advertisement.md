@@ -1,6 +1,6 @@
 # ADR 0030 — p2p seeder capacity advertisement and requester admission
 
-- **Status:** Accepted
+- **Status:** Accepted — the participation switches it names are superseded by ADR-0052
 - **Date:** 2026-09-16
 
 ## Context

@@ -5,7 +5,7 @@ formatting/hashing/parsing helper (DRY rule in `AGENTS.md`).
 
 ## constants.py
 
-- `HSYNC_VERSION = "1.1.15"` (`hsync_common/constants.py::HSYNC_VERSION`) — ecosystem version SSOT.
+- `HSYNC_VERSION = "1.1.16"` (`hsync_common/constants.py::HSYNC_VERSION`) — ecosystem version SSOT.
 - Wire headers `HEADER_CLIENT_NAME/CLIENT_VERSION/SERVER_VERSION/PROTOCOL_VERSION`
   plus `HEADER_CHECKSUM_SHA256` (`hsync_common/constants.py::HEADER_CLIENT_NAME`) — REST header names shared
   by client, server and the Android mirror; the checksum header is canonical for
@@ -485,7 +485,8 @@ reconciliation, transfers, previews and server lines.
   `MASS_DELETE_GUARD_DEFAULT`, `MASS_DELETE_THRESHOLD_DEFAULT`,
   `MASS_DELETE_PERCENT_DEFAULT`, `MIN_FREE_DISK_SPACE_DEFAULT`,
   `MAX_INBOUND_SIZE_MB_DEFAULT`, `BANDWIDTH_MIN_BPS`, `BANDWIDTH_MAX_BPS`,
-  `MAX_WAIT_TIMEOUT_DEFAULT`, `P2P_PEER_DOWNLOAD_DEFAULT`,
+  `MAX_WAIT_TIMEOUT_DEFAULT`, `P2P_SERVE_BLOCKS_DEFAULT`,
+  `P2P_FETCH_FROM_PEERS_DEFAULT`, `P2P_PUBLISH_INVENTORY_DEFAULT`,
   `P2P_PEER_READ_CAP_DEFAULT`, `P2P_PEER_SOURCES_MAX_DEFAULT`,
   `DELETION_POLICIES` and `DELETION_POLICY_DEFAULT`.
 - `DELETION_POLICIES` (`propagate`/`keep`) is the deletion-policy vocabulary

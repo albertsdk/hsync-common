@@ -75,6 +75,7 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0049](0049-empty-directory-status.md) | An empty directory reports its own sync status | Accepted |
 | [0050](0050-one-fact-per-event.md) | One fact per event: link state and data movement | Accepted |
 | [0051](0051-auto-trust-policy.md) | Automatic TLS trust policy: prefer CA, then pin, then TOFU (`auto`) | Accepted |
+| [0052](0052-peer-mesh-capabilities.md) | The peer mesh has three capabilities (serve, fetch, publish), each with its own key | Accepted |
 
 ## Related documents
 

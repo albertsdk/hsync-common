@@ -1,6 +1,6 @@
 # ADR 0028 — p2p peer-assisted download
 
-- **Status:** Accepted
+- **Status:** Accepted — the participation switches it names are superseded by ADR-0052
 - **Date:** 2026-09-09
 
 ## Context

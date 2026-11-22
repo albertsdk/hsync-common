@@ -1,6 +1,6 @@
 # ADR 0031 — p2p peer-offload lane cost: attribution and accepted trade-off
 
-- **Status:** Accepted
+- **Status:** Accepted — the participation switches it names are superseded by ADR-0052
 - **Date:** 2026-09-21
 
 ## Context
