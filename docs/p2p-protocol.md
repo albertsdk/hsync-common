@@ -712,6 +712,29 @@ play different transport roles:
   re-check still sees the file changing (e.g. a rapid multi-close or an NFS
   chunked write), the guard reverts to the bounded poll.
 
+### Metadata-only changes (a bare `touch`)
+
+A content-identical `touch` (only the mtime moved) is metadata that must still
+converge. The touching side emits a `modified` event whose `version` carries the
+effective vector clock (`_attach_effective_version`); the receiving side adopts
+the mtime locally without transferring bytes (`update_file`). When no reference
+has measured the clocks every replica advertises `corrected_mtime = 0`
+(ADR-0054), so the corrected-time comparison cannot order the change: the
+touching replica therefore mints a new *causal* version for the touch (its
+self-record runs with `touch=True`), and a peer adopts it by vclock dominance.
+One shared comparator decides every case (`_metadata_only_decision`): with
+trusted clocks a non-comparable (equal/concurrent) version breaks the tie by the
+caller's role, and with no measured clock the advertised raw mtime decides (the
+greater value wins, clamped at the receiver) — clock-free determinism that is
+the same on both replicas.
+
+A p2p **slave** that touches a file pushes it with
+`PATCH …/files/permissions`. That route carries the ADR-0023 *corrected*
+`mtime`; when the slave has no measured clock it sends the `raw_mtime` field
+instead, which the master applies verbatim (clamped). The central server exposes
+the same `raw_mtime` field for the equivalent REST path. The master's own
+watcher then re-broadcasts the `modified` event to the other slaves.
+
 ### Why the asymmetry is intentional
 
 The guard lives on the **push** side to avoid uploading a half-written

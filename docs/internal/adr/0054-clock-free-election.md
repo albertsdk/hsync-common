@@ -57,6 +57,19 @@ value part of the wire contract and of every cross-language fixture.
    difference is "not an order" is the fixed
    `CORRECTED_MTIME_TIE_BREAK_BOUND_SECONDS`, not the evaluator's own probe
    error, so two replicas order the same pair identically.
+4. A content-identical `touch` (metadata-only: the bytes match, only the mtime
+   moved) is metadata that must still converge. The bytes cannot decide it, so
+   the touching replica mints a new *causal* version
+   (`hsync_client.sync_state.note_local_edit` with `touch=True`) and a receiver
+   adopts it by vclock dominance; the whole decision is one shared comparator
+   (`hsync_client.sync::_metadata_only_decision`). With trusted clocks and a
+   non-comparable (equal/concurrent) version the tie follows the caller's role:
+   the realtime event adopts the peer's value, the reconcile keeps and pushes
+   the local one. With no measured clock the advertised **raw** mtime picks the
+   winner — the greater value, clamped
+   (`hsync_common.clock::clamp_incoming_raw_mtime`), computed identically on both
+   sides (`hsync_client.sync::_remote_metadata_wins`) — so the touch still
+   converges clock-free and without ping-pong.
 3. No quorum is introduced. A partition can still yield two serving masters
    ([ADR-0027](0027-p2p-leadership-lease.md)); the guarantee is that the
    *convergence on heal* is deterministic and clock-free, and that divergence is
@@ -77,5 +90,8 @@ value part of the wire contract and of every cross-language fixture.
   `_conflicted_copy_` exactly as before, but the *choice* is no longer
   chronological. Users who need chronological arbitration must let the client
   reach a time reference (the sync server, or the configured SNTP hosts).
+- A `touch` (metadata-only, content identical) still converges in realtime with
+  no measured clock: the touching side advances its vector clock so the change
+  is causally visible, instead of waiting for the periodic full resync.
 - The clock module now reports trust (`ClockOffsetStore.is_trusted`), which is
   also the signal a front-end can surface as "degraded temporal mode".
