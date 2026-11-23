@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from hsync_common.clock import offset_store
@@ -12,6 +14,7 @@ from hsync_common.models.arbitration import (
     ArbitrationOutcome,
     conflicted_copy_name,
     decide_arbitration,
+    is_conflicted_copy,
     plan_self_record,
 )
 from hsync_common.models.version import FileVersion
@@ -168,3 +171,24 @@ class TestConflictedCopyName:
 
     def test_unknown_cid_falls_back(self):
         assert conflicted_copy_name("/b/f.txt", None, "ts") == "/b/f_conflicted_copy_ts_unknown.txt"
+
+
+class TestIsConflictedCopy:
+    def test_matches_the_canonical_shape(self):
+        ts = "20250120T080000Z"
+        name = conflicted_copy_name("/b/photo.jpg", CID_A, ts)
+        assert is_conflicted_copy(name)
+        # Only the basename is inspected, so a nested path still matches.
+        assert is_conflicted_copy(f"/deep/dir/{Path(name).name}")
+
+    def test_ordinary_files_do_not_match(self):
+        assert not is_conflicted_copy("/b/photo.jpg")
+        assert not is_conflicted_copy("/b/photo_conflicted_copy.jpg")
+        assert not is_conflicted_copy("/b/report_conflicted_copy_backup.txt")
+
+    def test_requires_the_canonical_timestamp(self):
+        assert not is_conflicted_copy("/b/f_conflicted_copy_2025_abcd.txt")
+        assert not is_conflicted_copy("/b/f_conflicted_copy_20250120T080000_abcd.txt")
+
+    def test_path_object_accepted(self):
+        assert is_conflicted_copy(Path("/b/f_conflicted_copy_20250120T080000Z_abcd.txt"))

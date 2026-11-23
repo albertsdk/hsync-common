@@ -21,6 +21,7 @@ Consumers: ``hsync-server`` (``arbitration.py``: REST upload and delta apply),
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -41,6 +42,7 @@ __all__ = [
     "SelfRecord",
     "conflicted_copy_name",
     "decide_arbitration",
+    "is_conflicted_copy",
     "plan_self_record",
 ]
 
@@ -218,3 +220,20 @@ def conflicted_copy_name(file_location: str, cid: str | None, ts: str) -> str:
     safe_cid = "".join(c for c in (cid or "unknown") if c.isalnum() or c in "-_.")[:32] or "unknown"
     path = Path(file_location)
     return f"{path.parent}/{path.stem}_conflicted_copy_{ts}_{safe_cid}{path.suffix}"
+
+
+# The canonical marker the server emits, and the only thing a maintenance sweep
+# may treat as reclaimable: ``_conflicted_copy_<YYYYMMDDTHHMMSSZ>_``.
+_CONFLICTED_COPY_MARKER = re.compile(r"_conflicted_copy_\d{8}T\d{6}Z_")
+
+
+def is_conflicted_copy(path: str | Path) -> bool:
+    """True when *path* is a conflicted-copy sibling built by :func:`conflicted_copy_name`.
+
+    Matches only the canonical ``_conflicted_copy_<YYYYMMDDTHHMMSSZ>_`` marker in
+    the basename, so a maintenance sweep can reclaim these siblings without ever
+    touching an ordinary user file. Pure string test: it never stats the path.
+
+    Consumers: ``hsync-server admin maintenance prune-conflicts``.
+    """
+    return _CONFLICTED_COPY_MARKER.search(Path(path).name) is not None
