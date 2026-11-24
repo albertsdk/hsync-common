@@ -666,6 +666,12 @@ bucket-relative paths, deterministic order, streamed JSON array body:
   `hsync-client` `transfer.py` (per-download guard), `p2p_server.py`
   (LAN-master upload guard) and `hsync-client/hsync_client/main_logic.py::_check_disk_space` (startup
   check) — all in bytes.
+- `share_of_volume_bytes` (`hsync_common/disk.py::share_of_volume_bytes`) — the size
+  budget of a **recovery store**: `percent` of the hosting volume's total, never
+  below `floor_mb`. Probes the nearest existing ancestor of the store root, and
+  falls back to the floor when the probe fails. Consumers: the client trash
+  budget (`hsync-client/hsync_client/trash.py::TrashSettings.budget`) and the
+  server history retention (`hsync-server` `admin maintenance history`).
 
 ## ratelimit.py (shared token bucket)
 

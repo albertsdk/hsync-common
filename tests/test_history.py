@@ -65,9 +65,7 @@ class TestLayout:
             history_bucket_dir(tmp_path, bucket)
 
     def test_an_entry_dir_needs_an_id_this_store_mints(self, tmp_path) -> None:
-        assert history_entry_dir(tmp_path, "photos", _ENTRY_ID) == (
-            tmp_path / "photos" / _ENTRY_ID
-        )
+        assert history_entry_dir(tmp_path, "photos", _ENTRY_ID) == (tmp_path / "photos" / _ENTRY_ID)
         for bad in ("", "..", "1700000000", "1700000000-XYZ", f"{_ENTRY_ID}/x"):
             with pytest.raises(ValueError):
                 history_entry_dir(tmp_path, "photos", bad)
