@@ -498,7 +498,17 @@ reconciliation, transfers, previews and server lines.
   `MAX_WAIT_TIMEOUT_DEFAULT`, `P2P_SERVE_BLOCKS_DEFAULT`,
   `P2P_FETCH_FROM_PEERS_DEFAULT`, `P2P_PUBLISH_INVENTORY_DEFAULT`,
   `P2P_PEER_READ_CAP_DEFAULT`, `P2P_PEER_SOURCES_MAX_DEFAULT`,
-  `DELETION_POLICIES` and `DELETION_POLICY_DEFAULT`.
+  `DELETION_POLICIES`, `DELETION_POLICY_DEFAULT` and the trash bounds
+  `TRASH_RETENTION_DAYS_DEFAULT`, `TRASH_RETENTION_DAYS_MAX`,
+  `TRASH_QUOTA_PERCENT_DEFAULT`, `TRASH_QUOTA_FLOOR_MB_DEFAULT`,
+  `TRASH_MAX_SIZE_MB_DEFAULT`.
+- The **trash bounds** (`TRASH_*`) are read by `hsync-client`
+  (`hsync-client/hsync_client/config.py::get_trash_retention_days` and
+  `hsync-client/hsync_client/trash.py::TrashSettings.budget`) and re-exported by
+  `hsync-desktop/hsync_desktop/config.py` for the settings spin boxes, so a value
+  the GUI emits is one the CLI accepts. The budget is a **share of the filesystem
+  hosting the trash** with a floor (the recycle-bin model); an explicit
+  `--trash-max-size` overrides both and `0` means "derive it".
 - `DELETION_POLICIES` (`propagate`/`keep`) is the deletion-policy vocabulary
   shared by `hsync-client` (`--deletion-policy` / `HSYNC_DELETION_POLICY`, read
   once through

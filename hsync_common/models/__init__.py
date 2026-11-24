@@ -33,6 +33,20 @@ from hsync_common.models.tombstone import (
     relpath_in_bucket,
     tombstone_key,
 )
+from hsync_common.models.trash import (
+    TRASH_ORIGIN_SYNC,
+    TRASH_ORIGIN_USER,
+    TRASH_ORIGINS,
+    TrashEntry,
+    entry_dir,
+    entry_payload_path,
+    is_safe_entry_id,
+    is_safe_folder_id,
+    is_safe_relpath,
+    parse_trash_entry,
+    trash_folder_dir,
+    trash_root,
+)
 
 __all__ = [
     "BlockSignature",
@@ -52,10 +66,22 @@ __all__ = [
     "SyncActionName",
     "TombstoneEntry",
     "TombstoneStore",
+    "TRASH_ORIGINS",
+    "TRASH_ORIGIN_SYNC",
+    "TRASH_ORIGIN_USER",
+    "TrashEntry",
     "clear_sha256_cache",
+    "entry_dir",
+    "entry_payload_path",
     "invalidate_sha256_cache",
     "is_hidden_dir",
     "is_hidden_file",
+    "is_safe_entry_id",
+    "is_safe_folder_id",
+    "is_safe_relpath",
+    "parse_trash_entry",
     "relpath_in_bucket",
     "tombstone_key",
+    "trash_folder_dir",
+    "trash_root",
 ]

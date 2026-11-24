@@ -79,6 +79,41 @@ Key features:
 - **SQLite persistence** — `save()`/`load()` against the per-folder SQLite DB
   (`<device_dir>/syncstate/<uuid>.db`), keyed by folder UUID (`.hsyncfolder`).
 
+## TrashEntry
+
+The record of one deletion this device applied, kept so the bytes can be
+restored (ADR-0056). It is **not** a wire model: the deletion itself still
+travels as a tombstone, and the entry never leaves the device.
+
+Layout, under the trash root (`<state dir>/trash`, relocatable with
+`HSYNC_TRASH_DIR` or the client's `--trash-dir`):
+
+```text
+<folder id>/<entry id>/entry.json          the record
+<folder id>/<entry id>/payload/<relpath>   the deleted bytes
+```
+
+`entry.json` holds `relpath` (bucket-relative, POSIX separators), `sha256` and
+`size` of the bytes, `mtime_ns` and `mode` to restore the metadata,
+`deleted_at`, `origin` (`sync` when a cycle applied the deletion, `user` when a
+front-end removed the file), the authoring `cid` and the `bucket` name.
+
+- **Validated on read** — `parse_trash_entry` treats a damaged or hand-edited
+  entry as absent, and `is_safe_relpath` refuses absolute paths, `..`
+  components, drive letters and backslashes, so no entry can reach outside the
+  store.
+- **Integrity before restore** — the recorded `sha256` is checked against the
+  stored copy; a mismatch reports `payload-corrupt` instead of restoring bytes
+  that are not the ones deleted.
+- **Bounded** — a retention window (30 days by default) and a size budget
+  (`TRASH_RETENTION_DAYS_DEFAULT`, `TRASH_QUOTA_PERCENT_DEFAULT`,
+  `TRASH_QUOTA_FLOOR_MB_DEFAULT` in `hsync_common/defaults.py`) are storage
+  bounds only: correctness never depends on them.
+
+The store implementation and the `hsync trash` commands live in `hsync-client`
+(`hsync_client/trash.py`), which is also what a front-end reads through
+`hsync trash list --json`.
+
 ## SyncStateStore / FileVersion
 
 Backs the causal three-way merge (vector-clock) conflict model. `SyncStateStore`

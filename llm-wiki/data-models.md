@@ -99,6 +99,16 @@ wire shape. Re-exported from `hsync_common/models/__init__.py`.
 - TTL GC via `prune()` bounded by `TOMBSTONE_TTL_DAYS_DEFAULT = 90`
   (`hsync_common/models/tombstone.py::TOMBSTONE_TTL_DAYS_DEFAULT`) — a **storage bound only**, correctness does not
   depend on it.
+- **Sync trash** (`hsync_common/models/trash.py::TrashEntry`, ADR-0056): the
+  device-local record of one deletion this node applied —
+  `{relpath, sha256, size, mtime_ns, mode, deleted_at, origin, cid, bucket}`
+  inside `<trash root>/<folder id>/<entry id>/entry.json`, with the bytes under
+  `payload/<relpath>`. It is not a wire model: the deletion itself still travels
+  as a tombstone, and the store's bounds are
+  `TRASH_RETENTION_DAYS_DEFAULT` / `TRASH_QUOTA_PERCENT_DEFAULT` /
+  `TRASH_QUOTA_FLOOR_MB_DEFAULT` (`hsync_common/defaults.py`). Validation
+  (`parse_trash_entry`, `is_safe_relpath`) treats a damaged or hand-edited entry
+  as absent, so nothing outside the store can be reached through it.
 - Strict wire validation (`merge()`/`load()` via `_sanitize_entry`,
   `hsync_common/models/tombstone.py::_sanitize_entry`): keys and `sha256` must be sha256 hex (64),
   `ts` must be `0 < ts ≤ now + TOMBSTONE_MAX_CLOCK_SKEW_SECONDS` (300 s),

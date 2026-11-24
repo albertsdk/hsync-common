@@ -170,6 +170,20 @@ SERVER_STATE_SUBDIR = "server"
 STATE_INDEX_DB_FILENAME = "index.db"
 AUTH_DB_FILENAME = "auth.db"
 
+# Sync trash (ADR-0056): a deletion applied by the engine moves the bytes into a
+# per-device store instead of unlinking them, so it stays recoverable. The store
+# lives under the installation state dir — never inside the synced folder, so no
+# peer can see it and the wire protocol is unchanged — and ``HSYNC_TRASH_DIR``
+# relocates it to another volume. Consumers: hsync-client (trash store),
+# hsync-desktop / hsync-android (through the client's JSON listing), tests.
+TRASH_DIRNAME = "trash"
+TRASH_DIR_ENV = "HSYNC_TRASH_DIR"
+TRASH_ENTRY_FILENAME = "entry.json"
+TRASH_PAYLOAD_DIRNAME = "payload"
+# An entry being restored is renamed with this suffix first, so the retention
+# sweep can never evict the payload mid-move.
+TRASH_RESTORING_SUFFIX = ".restoring"
+
 # Legacy engine-owned basenames. Causal state no longer lives in these files
 # (ADR-0025) but they stay rejected on the wire and by the ignore matcher so
 # an old peer cannot plant them through the sync channel.
