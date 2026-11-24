@@ -54,6 +54,20 @@ under the installation state dir, for a retention window:
   not be confused when the sweep reclaims an orphaned snapshot.
 - A restore writes the bytes back into the bucket. The server is then the author
   of a new version, which must supersede the tombstone the deletion recorded —
-  this is the invariant the implementation tests first, not last.
+  this is the invariant the implementation tests first, not last
+  (`hsync-server/hsync_server/maintenance.py::restore_entry`). The new version's
+  clock merges the marker's clock and any surviving version clock and is ticked
+  under the server's cid, so the restore is causally *after* the deletion instead
+  of racing it, and a peer whose state still carries the marker sees an ancestor
+  and concedes on its next cycle.
+- A restore keeps the entry: retention, not the restore, decides when the copy
+  goes away, so a wrong restore is itself undoable. It refuses an occupied path
+  unless `--overwrite` is asked (which captures the replaced content first), and
+  it refuses to publish a payload whose size or SHA-256 no longer matches the
+  record — the store may be hardlinked, so an external writer editing the
+  original in place is exactly the case that check exists for.
 - No new wire contract: the admin CLI's `--json` listing is the only surface a
-  front-end reads, and it carries the same fields plus `reason`.
+  front-end reads, and it carries the same fields plus `reason`. `history
+  restore` mutates the bucket, so it also mutates the causal state above; it
+  broadcasts no live event, and every connected client picks the path up on its
+  next cycle.
