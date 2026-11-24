@@ -184,6 +184,13 @@ def measure_clock_offset(
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+def _split_ntp_entries(value: str | None) -> tuple[str, ...]:
+    """Split a ``HSYNC_NTP_HOSTS`` CSV value into trimmed, non-blank entries."""
+    if value is None:
+        return ()
+    return tuple(h.strip() for h in value.split(",") if h.strip())
+
+
 def parse_ntp_hosts(value: str | None) -> tuple[str, ...]:
     """Parse the ``HSYNC_NTP_HOSTS`` CSV value into a non-empty raw-entry tuple.
 
@@ -194,13 +201,12 @@ def parse_ntp_hosts(value: str | None) -> tuple[str, ...]:
     :data:`hsync_common.constants.NTP_DEFAULT_HOSTS`.
     Consumers: ``hsync-client`` (config layer), ``hsync-android`` mirror.
     """
-    if value is None:
-        return NTP_DEFAULT_HOSTS
-    hosts = tuple(h.strip() for h in value.split(",") if h.strip())
-    return hosts or NTP_DEFAULT_HOSTS
+    return _split_ntp_entries(value) or NTP_DEFAULT_HOSTS
 
 
-def parse_ntp_targets(value: str | None) -> tuple[tuple[str, int], ...]:
+def parse_ntp_targets(
+    value: str | None, *, fallback_to_defaults: bool = True
+) -> tuple[tuple[str, int], ...]:
     """Parse ``HSYNC_NTP_HOSTS`` into ``(host, port)`` targets.
 
     Each CSV entry is a ``HOST[:PORT]`` endpoint parsed by the shared
@@ -209,17 +215,24 @@ def parse_ntp_targets(value: str | None) -> tuple[tuple[str, int], ...]:
     (invalid port, invalid host, URL-like input) are dropped with their host;
     ``None``/blank falls back to the default hosts on the standard port.
 
+    ``fallback_to_defaults=False`` removes that never-empty contract: an opt-in
+    client passes it so a malformed explicit source yields **no** target instead
+    of silently contacting the public default hosts.
+
     Consumers: ``hsync-client`` (``timesync`` probe), ``hsync-android``
     (``TimeSync.ntpTargets`` mirror) and the shared fixtures.
     """
+    entries = parse_ntp_hosts(value) if fallback_to_defaults else _split_ntp_entries(value)
     targets: list[tuple[str, int]] = []
-    for entry in parse_ntp_hosts(value):
+    for entry in entries:
         try:
             endpoint = parse_host_port(entry)
         except ValueError:
             continue
         targets.append((endpoint.host, endpoint.port or NTP_PORT))
     if not targets:
+        if not fallback_to_defaults:
+            return ()
         # Every entry carried a malformed endpoint: fall back to the defaults on
         # the standard port — the same never-empty contract as parse_ntp_hosts.
         return tuple((h, NTP_PORT) for h in NTP_DEFAULT_HOSTS)
@@ -378,6 +391,10 @@ class ClockOffsetStore:
         self._trusted = False
         self._uncertainty = 0.0
         self._measured_monotonic: float | None = None
+        # Provenance label of the trusted measurement (``server``/``master``/
+        # ``ntp``/``rendezvous``); lets a caller decide whether a weaker peer may
+        # replace it. Never a wire value.
+        self._source: str | None = None
         # Wall/monotonic sample of the previous observation (step detection).
         self._last_wall: float | None = None
         self._last_monotonic: float | None = None
@@ -385,21 +402,31 @@ class ClockOffsetStore:
         self._epoch_offset: float | None = None
         self._epoch_trusted = False
         self._epoch_uncertainty = 0.0
+        self._epoch_source: str | None = None
 
-    def record(self, offset: float, *, trusted: bool = True, rtt: float | None = None) -> None:
-        """Store a measurement: the offset, its trust and its uncertainty.
+    def record(
+        self,
+        offset: float,
+        *,
+        trusted: bool = True,
+        rtt: float | None = None,
+        source: str | None = None,
+    ) -> None:
+        """Store a measurement: the offset, its trust, its uncertainty and source.
 
         ``trusted=False`` records the degraded mode explicitly: the value is
         still usable as an offset (``0`` keeps the local clock as-is) but the
         host does not claim to know the true time, so nothing may treat it as a
         time authority. ``rtt`` is the probe round-trip: the true offset can be
         off by up to half of it, which is the uncertainty the chronological
-        tie-break must not decide inside.
+        tie-break must not decide inside. ``source`` is an internal provenance
+        label (``server``/``master``/``ntp``/``rendezvous``), never a wire value.
         """
         self._offset = float(offset)
         self._trusted = bool(trusted)
         self._uncertainty = max(float(rtt), 0.0) / 2.0 if rtt else 0.0
         self._measured_monotonic = time.monotonic()
+        self._source = source
         self._last_wall = None
         self._last_monotonic = None
 
@@ -414,6 +441,7 @@ class ClockOffsetStore:
         self._epoch_offset = self._offset
         self._epoch_trusted = self._trusted
         self._epoch_uncertainty = self._uncertainty
+        self._epoch_source = self._source
         self._epoch_active = True
 
     def end_epoch(self) -> None:
@@ -422,10 +450,21 @@ class ClockOffsetStore:
         self._epoch_offset = None
         self._epoch_trusted = False
         self._epoch_uncertainty = 0.0
+        self._epoch_source = None
 
     def get(self) -> float | None:
         """Return the stored offset (``None`` before any measurement)."""
         return self._offset
+
+    def source(self) -> str | None:
+        """Provenance label of the measurement in force (``None`` when untrusted).
+
+        Consumers: ``hsync-client.timesync`` — a peer master that is no longer
+        anchored must not replace a *better* trusted source (explicit NTP, the
+        rendezvous echo), but it does revoke a trust that this very master
+        established. Freezes with the epoch like :meth:`is_trusted`.
+        """
+        return self._epoch_source if self._epoch_active else self._source
 
     def is_trusted(self) -> bool:
         """Whether a reference measured the offset currently in force.
@@ -484,6 +523,7 @@ class ClockOffsetStore:
         self._trusted = False
         self._uncertainty = 0.0
         self._measured_monotonic = None
+        self._source = None
         return True
 
     def clear(self) -> None:
@@ -492,6 +532,7 @@ class ClockOffsetStore:
         self._trusted = False
         self._uncertainty = 0.0
         self._measured_monotonic = None
+        self._source = None
         self._last_wall = None
         self._last_monotonic = None
         self.end_epoch()
