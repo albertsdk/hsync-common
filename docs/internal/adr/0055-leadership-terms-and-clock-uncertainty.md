@@ -50,8 +50,12 @@ peers has nothing to fence.
 
 A reference is chosen by what it can prove about itself:
 
-1. **The sync authority** — the `/api/v1/time` round-trip in client-server mode,
-   or the SNTP probes in p2p. Both bound their estimate by the round-trip.
+1. **The sync authority** — the `/api/v1/time` round-trip: the sync server in
+   client-server mode, or the **elected master** in p2p (a slave adopts it only
+   when the reply says `trusted: true`, i.e. the master is itself anchored).
+   Explicit SNTP (`HSYNC_NTP_HOSTS`) is an **opt-in** deployment anchor for a
+   serving node with no rendezvous, never a silent public-pool default. Every
+   source bounds its estimate by the round-trip.
 2. **The rendezvous echo** — a node answering `ack.server_time` is TLS-pinned and
    its reply already traverses the NAT, so it is reachable exactly where UDP/123
    is filtered. Its timestamp has one-second resolution, so the derived offset
@@ -68,8 +72,9 @@ A reference is chosen by what it can prove about itself:
 taken and degrades on its own:
 
 * `is_trusted()` also requires `age() <= CLOCK_OFFSET_MAX_AGE_SECONDS`; an
-  expired measurement is no longer a reference, which is why the p2p client
-  re-probes from its maintenance tick instead of only at startup;
+  expired measurement is no longer a reference, which is why every role
+  re-probes: the sync server and a p2p slave at the start of each `sync()`
+  cycle, the serving master from its maintenance tick;
 * `observe()` compares the wall clock against the monotonic clock on every
   sample `now_corrected()` takes. A divergence larger than
   `CLOCK_STEP_THRESHOLD_SECONDS` is a **step** (time daemon, manual change,
@@ -105,6 +110,9 @@ SHA-256 fallback decides, exactly as for an absent timestamp.
   `hsync_common/tests/test_p2p_election_properties.py`).
 - A host that cannot keep time honest stops being a time authority *by itself*
   (expiry, step) instead of only when it fails to reach a reference at startup.
+- An expired offset is re-established on the next cycle/tick for every role, so
+  a long-lived process never silently degrades to the hash fallback after the
+  measurement expires.
 - Two edits closer together than the probe's error resolve by content. That is
   the intended trade: a deterministic, comparable outcome beats a
   chronologically plausible coin flip. Users who want finer resolution need a

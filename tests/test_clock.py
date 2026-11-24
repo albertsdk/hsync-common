@@ -561,3 +561,45 @@ class TestUncorrectMtime:
     def test_identity_without_offset(self):
         offset_store.clear()
         assert uncorrect_mtime(1_700_000_000) == 1_700_000_000
+
+
+class TestParseNtpTargetsOptIn:
+    """``fallback_to_defaults=False`` never silently probes the public defaults."""
+
+    def test_a_malformed_explicit_source_yields_no_target(self):
+        assert parse_ntp_targets("bad:notaport", fallback_to_defaults=False) == ()
+        assert parse_ntp_targets(",", fallback_to_defaults=False) == ()
+        assert parse_ntp_targets("", fallback_to_defaults=False) == ()
+
+    def test_a_valid_explicit_source_is_parsed(self):
+        assert parse_ntp_targets("stub.local:8123", fallback_to_defaults=False) == (
+            ("stub.local", 8123),
+        )
+
+    def test_the_legacy_default_fallback_is_unchanged(self):
+        assert parse_ntp_targets("bad:notaport") == tuple((h, 123) for h in NTP_DEFAULT_HOSTS)
+
+
+class TestClockOffsetSource:
+    def test_source_is_frozen_by_the_epoch(self):
+        store = ClockOffsetStore()
+        store.record(0.5, rtt=0.02, source="ntp")
+        assert store.source() == "ntp"
+        store.begin_epoch()
+        try:
+            store.record(0.9, rtt=0.02, source="master")
+            assert store.source() == "ntp"
+        finally:
+            store.end_epoch()
+        assert store.source() == "master"
+
+    def test_an_untrusted_record_has_no_source(self):
+        store = ClockOffsetStore()
+        store.record(0.0, trusted=False)
+        assert store.source() is None
+
+    def test_clear_forgets_the_source(self):
+        store = ClockOffsetStore()
+        store.record(0.5, rtt=0.02, source="ntp")
+        store.clear()
+        assert store.source() is None
