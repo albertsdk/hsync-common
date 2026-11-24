@@ -43,6 +43,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `file_entry(..., rel=...)` (`hsync_common/listing.py::file_entry`) accepts the
   already-resolved bucket-relative path, so a caller that also needs it for the
   version JOIN does not compute it twice.
+- Admin REST routes for a bucket's preserved versions
+  (`hsync_common/protocol/rest.py::REST_ADMIN_BUCKET_HISTORY_PATH` and
+  `hsync_common/protocol/rest.py::REST_ADMIN_BUCKET_HISTORY_RESTORE_PATH`), with
+  the regenerated OpenAPI snapshot, so a deployment without a shell can list and
+  restore them.
 
 ### Changed
 

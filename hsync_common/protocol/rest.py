@@ -23,6 +23,8 @@ from __future__ import annotations
 __all__ = [
     "PROMETHEUS_CONTENT_TYPE",
     "REST_ADMIN_BUCKETS_PATH",
+    "REST_ADMIN_BUCKET_HISTORY_PATH",
+    "REST_ADMIN_BUCKET_HISTORY_RESTORE_PATH",
     "REST_ADMIN_CLIENTS_PATH",
     "REST_ADMIN_CLIENT_DISABLE_PATH",
     "REST_ADMIN_CLIENT_ENABLE_PATH",
@@ -79,6 +81,10 @@ REST_ADMIN_CLIENT_DISABLE_PATH = f"{REST_ADMIN_CLIENT_PATH}/disable"
 REST_ADMIN_CLIENT_ENABLE_PATH = f"{REST_ADMIN_CLIENT_PATH}/enable"
 REST_ADMIN_CLIENT_EXPIRY_PATH = f"{REST_ADMIN_CLIENT_PATH}/expiry"
 REST_ADMIN_CLIENT_ROTATE_KEY_PATH = f"{REST_ADMIN_CLIENT_PATH}/rotate-key"
+# Preserved versions of one bucket (ADR-0057): the remote form of
+# ``hsync-server admin history list|restore``, for deployments without a shell.
+REST_ADMIN_BUCKET_HISTORY_PATH = f"{REST_ADMIN_BUCKETS_PATH}/{{bucket}}/history"
+REST_ADMIN_BUCKET_HISTORY_RESTORE_PATH = f"{REST_ADMIN_BUCKET_HISTORY_PATH}/{{entry_id}}/restore"
 
 # Bucket surface: the collection path plus per-bucket suffixes.
 REST_BUCKETS_PREFIX = f"{REST_API_PREFIX}/buckets"
@@ -137,6 +143,8 @@ REST_PATH_TEMPLATES = frozenset(
         REST_METRICS_PATH,
         REST_TIME_PATH,
         REST_ADMIN_BUCKETS_PATH,
+        REST_ADMIN_BUCKET_HISTORY_PATH,
+        REST_ADMIN_BUCKET_HISTORY_RESTORE_PATH,
         REST_ADMIN_CLIENTS_PATH,
         REST_ADMIN_CLIENT_PATH,
         REST_ADMIN_CLIENT_DISABLE_PATH,

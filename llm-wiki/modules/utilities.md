@@ -671,7 +671,7 @@ bucket-relative paths, deterministic order, streamed JSON array body:
   below `floor_mb`. Probes the nearest existing ancestor of the store root, and
   falls back to the floor when the probe fails. Consumers: the client trash
   budget (`hsync-client/hsync_client/trash.py::TrashSettings.budget`) and the
-  server history retention (`hsync-server` `admin maintenance history`).
+  server history retention (`hsync-server/hsync_server/history_maintenance.py::default_bounds`).
 
 ## ratelimit.py (shared token bucket)
 
