@@ -79,6 +79,8 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0053](0053-streamed-compressed-serve.md) | A compressed p2p serve is streamed into a chunked body, for a file of any size | Accepted |
 | [0054](0054-clock-free-election.md) | The election never reads a clock; chronology needs a measured one | Accepted |
 | [0055](0055-leadership-terms-and-clock-uncertainty.md) | Leadership is a term on the wire; a tie-break knows its own error | Accepted |
+| [0056](0056-sync-trash-causal-restore.md) | A deletion moves the bytes into a device-local trash; a restore is a causal re-create | Accepted |
+| [0057](0057-server-history-store.md) | The server keeps the bytes a write replaces or a delete removes, per bucket, for a window | Accepted |
 
 ## Related documents
 

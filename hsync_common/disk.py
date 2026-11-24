@@ -26,12 +26,14 @@ guard, ``main_logic.py`` startup check), shared tests.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from shutil import disk_usage
 
 __all__ = [
     "BYTES_PER_MB",
     "FreeSpaceCheck",
     "check_free_space",
+    "share_of_volume_bytes",
 ]
 
 BYTES_PER_MB = 1024 * 1024  # consumers: hsync-desktop (MB spin-box bounds), tests
@@ -65,6 +67,35 @@ class FreeSpaceCheck:
     def required_mb(self) -> int:
         """Required space in whole MB (for operator-facing messages)."""
         return int(self.required_bytes / BYTES_PER_MB)
+
+
+def share_of_volume_bytes(directory: str | Path, *, percent: int, floor_mb: int) -> int:
+    """Byte budget for a store living under *directory*: a share of its volume.
+
+    Both recovery stores (the client trash and the server history) size
+    themselves from the filesystem that hosts them — the recycle-bin model —
+    rather than from a fixed number, so a large volume gets a proportional
+    allowance. The floor keeps a small volume usable, and an unreadable path
+    falls back to the floor alone.
+
+    Args:
+        directory: Store root; a missing path probes its nearest existing ancestor.
+        percent: Share of the volume's total size, in whole percent.
+        floor_mb: Minimum budget in MB.
+
+    Returns:
+        The budget in bytes. Consumers: `hsync-client` (trash budget) and
+        `hsync-server` (history retention).
+    """
+    floor = floor_mb * BYTES_PER_MB
+    probe = Path(directory)
+    while not probe.exists() and probe != probe.parent:
+        probe = probe.parent
+    try:
+        total = disk_usage(probe).total
+    except OSError:
+        return floor
+    return max(total * max(percent, 0) // 100, floor)
 
 
 def check_free_space(

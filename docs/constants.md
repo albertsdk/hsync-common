@@ -33,6 +33,17 @@ transfer thresholds.
 | `SERVER_STATE_SUBDIR` | `"server"` | Server state subdir holding per-bucket DBs and `auth.db`. |
 | `STATE_INDEX_DB_FILENAME` | `"index.db"` | Per-device `canonical_path → folder UUID` index DB. |
 | `AUTH_DB_FILENAME` | `"auth.db"` | Global server auth DB filename. |
+| `TRASH_DIRNAME` | `"trash"` | Subdir of the state dir holding the device-local sync trash (ADR-0056). |
+| `TRASH_DIR_ENV` | `"HSYNC_TRASH_DIR"` | Environment override for the trash root, so it can live on another volume. |
+| `TRASH_ENTRY_FILENAME` | `"entry.json"` | Per-entry record inside the trash (the front-ends' contract). |
+| `TRASH_PAYLOAD_DIRNAME` | `"payload"` | Subdir of an entry holding the deleted bytes at their bucket path. |
+| `TRASH_RESTORING_SUFFIX` | `".restoring"` | Suffix that parks an entry during a restore, so the sweep skips it. |
+| `HISTORY_DIRNAME` | `"history"` | Subdir of the state dir holding the server history store (ADR-0057). |
+| `HISTORY_ENTRY_FILENAME` | `"entry.json"` | Per-entry record inside the history store (the admin CLI's contract). |
+| `HISTORY_PAYLOAD_DIRNAME` | `"payload"` | Subdir of an entry holding the preserved bytes at their bucket path. |
+| `HISTORY_REASON_OVERWRITE` | `"overwrite"` | The entry exists because a write replaced the previous content. |
+| `HISTORY_REASON_DELETE` | `"delete"` | The entry exists because the path was removed. |
+| `HISTORY_REASONS` | `("overwrite", "delete")` | The complete set of reasons a history entry may carry. |
 | `HSYNCTOMBSTONES_FILENAME` | `".hsynctombstones"` | Legacy name; rejected on the wire, no longer written. |
 | `HSYNCSTATE_FILENAME` | `".hsyncstate"` | Legacy name; rejected on the wire, no longer written. |
 

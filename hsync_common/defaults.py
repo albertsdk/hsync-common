@@ -62,6 +62,16 @@ __all__ = [
     "SYNC_DIRECTION_DEFAULT",
     "DELETION_POLICIES",
     "DELETION_POLICY_DEFAULT",
+    "TRASH_MAX_SIZE_MB_DEFAULT",
+    "TRASH_QUOTA_FLOOR_MB_DEFAULT",
+    "TRASH_QUOTA_PERCENT_DEFAULT",
+    "TRASH_RETENTION_DAYS_DEFAULT",
+    "TRASH_RETENTION_DAYS_MAX",
+    "HISTORY_MAX_SIZE_MB_DEFAULT",
+    "HISTORY_QUOTA_FLOOR_MB_DEFAULT",
+    "HISTORY_QUOTA_PERCENT_DEFAULT",
+    "HISTORY_RETENTION_DAYS_DEFAULT",
+    "HISTORY_RETENTION_DAYS_MAX",
 ]
 
 # Seconds allowed for one HTTP request (connect + read) before retrying.
@@ -104,6 +114,34 @@ SYNC_DIRECTION_DEFAULT = "bidirectional"
 # desktop offers exactly these options and the Android mirror models them.
 DELETION_POLICY_DEFAULT = "propagate"
 DELETION_POLICIES = ("propagate", "keep")
+
+# Sync trash (ADR-0056). A deletion applied by the engine moves the bytes into a
+# device-local store instead of unlinking them; these bound that store.
+#
+# The retention window follows the industry default for a service-side trash
+# (30 days) and stays below the tombstone TTL, so a restore never outlives the
+# causal proof that the deletion was authoritative.
+TRASH_RETENTION_DAYS_DEFAULT = 30
+TRASH_RETENTION_DAYS_MAX = 3650
+# The size budget is a share of the filesystem hosting the trash (the Windows
+# recycle-bin model) with a floor, so a small volume still holds a few files.
+# An explicit ``--trash-max-size`` overrides both; 0 means unlimited.
+TRASH_QUOTA_PERCENT_DEFAULT = 10
+TRASH_QUOTA_FLOOR_MB_DEFAULT = 512
+TRASH_MAX_SIZE_MB_DEFAULT = 0
+
+# Server history (ADR-0057). On by default: an overwrite accepted by the server
+# is already committed on the peer that sent it, so a server-side window is the
+# only way back. A week is the shortest window that covers an incident found
+# after a weekend; the store is bounded like the trash (a share of the hosting
+# filesystem with a floor) instead of by an absolute byte count. The numbers are
+# deliberately independent from the trash policy: the two stores are tuned on
+# their own, so changing one never silently changes the other.
+HISTORY_RETENTION_DAYS_DEFAULT = 7
+HISTORY_RETENTION_DAYS_MAX = 3650
+HISTORY_QUOTA_PERCENT_DEFAULT = 10
+HISTORY_QUOTA_FLOOR_MB_DEFAULT = 512
+HISTORY_MAX_SIZE_MB_DEFAULT = 0
 
 # Parallel file transfers (downloads/uploads) per peer.
 MAX_CONCURRENT_TRANSFERS_DEFAULT = 5

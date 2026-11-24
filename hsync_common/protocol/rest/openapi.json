@@ -225,6 +225,18 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "RestoreHistoryRequest": {
+        "properties": {
+          "overwrite": {
+            "default": false,
+            "description": "Replace a file already at that path (its bytes are preserved first)",
+            "title": "Overwrite",
+            "type": "boolean"
+          }
+        },
+        "title": "RestoreHistoryRequest",
+        "type": "object"
+      },
       "RotateKeyRequest": {
         "properties": {
           "expires_at": {
@@ -453,6 +465,124 @@
           }
         ],
         "summary": "Create Bucket On Behalf",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/api/v1/admin/buckets/{bucket}/history": {
+      "get": {
+        "description": "List the versions the server preserved for one bucket, newest first.\n\nThe store, not the bucket directory, is the source of truth: a bucket that no\nlonger exists still answers with whatever it preserved (possibly nothing), as\n``admin history list`` does. No absolute server path is ever exposed.",
+        "operationId": "list_bucket_history_api_v1_admin_buckets__bucket__history_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bucket",
+            "required": true,
+            "schema": {
+              "title": "Bucket",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Bucket History",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/api/v1/admin/buckets/{bucket}/history/{entry_id}/restore": {
+      "post": {
+        "description": "Put a preserved version back at its path, as ``admin history restore`` does.\n\nThe causal part is delegated to ``maintenance.restore_entry``: publishing the\nbytes, clearing the deletion marker and recording a new version must stay that\nsingle implementation, whatever the front-end.",
+        "operationId": "restore_bucket_history_entry_api_v1_admin_buckets__bucket__history__entry_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bucket",
+            "required": true,
+            "schema": {
+              "title": "Bucket",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "entry_id",
+            "required": true,
+            "schema": {
+              "title": "Entry Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RestoreHistoryRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Req"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Restore Bucket History Entry",
         "tags": [
           "Admin"
         ]
