@@ -25,6 +25,13 @@ from hsync_common.models.file import (
     invalidate_sha256_cache,
     is_hidden_file,
 )
+from hsync_common.models.history import (
+    HISTORY_REASON_DELETE,
+    HISTORY_REASON_OVERWRITE,
+    HISTORY_REASONS,
+    HistoryEntry,
+    parse_history_entry,
+)
 from hsync_common.models.symlink import Symlink
 from hsync_common.models.sync_action import SyncAction, SyncActionName
 from hsync_common.models.tombstone import (
@@ -66,6 +73,10 @@ __all__ = [
     "SyncActionName",
     "TombstoneEntry",
     "TombstoneStore",
+    "HISTORY_REASONS",
+    "HISTORY_REASON_DELETE",
+    "HISTORY_REASON_OVERWRITE",
+    "HistoryEntry",
     "TRASH_ORIGINS",
     "TRASH_ORIGIN_SYNC",
     "TRASH_ORIGIN_USER",
@@ -79,6 +90,7 @@ __all__ = [
     "is_safe_entry_id",
     "is_safe_folder_id",
     "is_safe_relpath",
+    "parse_history_entry",
     "parse_trash_entry",
     "relpath_in_bucket",
     "tombstone_key",

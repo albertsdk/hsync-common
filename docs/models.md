@@ -114,6 +114,36 @@ The store implementation and the `hsync trash` commands live in `hsync-client`
 (`hsync_client/trash.py`), which is also what a front-end reads through
 `hsync trash list --json`.
 
+## HistoryEntry
+
+The record of one blob the **server** replaced or removed, kept so an overwrite or
+a deletion stays recoverable for a window (ADR-0057). It is not a wire model: no
+peer sees it and the protocol is unchanged.
+
+Layout, under the history root (`<state dir>/history`):
+
+```text
+<bucket>/<entry id>/entry.json          the record
+<bucket>/<entry id>/payload/<relpath>   the preserved bytes
+```
+
+`entry.json` holds `relpath` (bucket-relative, POSIX separators), `sha256` and
+`size` of the bytes, `mtime_ns` and `mode` to restore the metadata,
+`recorded_at`, `reason` (`overwrite` or `delete`), the `cid` that caused it and
+the `bucket` name.
+
+- **Distinct from `TrashEntry`** — a replaced blob is not a deletion, so the record
+  carries `reason` instead of `origin`; the layout and the safety helpers
+  (`is_safe_relpath`, `is_safe_entry_id`) are shared.
+- **Validated on read** — `parse_history_entry` treats a damaged or hand-edited
+  record as absent; an unknown `reason` is refused.
+- **Bounded** — `HISTORY_RETENTION_DAYS_DEFAULT` (7 days) and the quota set by
+  `HISTORY_QUOTA_PERCENT_DEFAULT` / `HISTORY_QUOTA_FLOOR_MB_DEFAULT`
+  (`hsync_common/defaults.py`) are storage bounds only.
+
+The store, the overwrite/delete hooks and the `hsync-server admin history`
+commands live in `hsync-server`.
+
 ## SyncStateStore / FileVersion
 
 Backs the causal three-way merge (vector-clock) conflict model. `SyncStateStore`

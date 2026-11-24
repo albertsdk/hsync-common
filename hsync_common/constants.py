@@ -184,6 +184,20 @@ TRASH_PAYLOAD_DIRNAME = "payload"
 # sweep can never evict the payload mid-move.
 TRASH_RESTORING_SUFFIX = ".restoring"
 
+# Server history (ADR-0057): the bytes a server write replaces or removes are
+# kept in a per-bucket store, so an overwrite — the one loss a client-side trash
+# cannot undo, because the peer already committed its new version — and a
+# deletion stay recoverable for a window. Same on-disk shape as the sync trash,
+# but a **distinct entity**: an overwrite is not a deletion (S3 keeps a version
+# and a delete marker apart, Nextcloud ships `files_versions` next to
+# `files_trashbin`). Consumers: hsync-server (store, admin CLI), tests.
+HISTORY_DIRNAME = "history"
+HISTORY_ENTRY_FILENAME = "entry.json"
+HISTORY_PAYLOAD_DIRNAME = "payload"
+HISTORY_REASON_OVERWRITE = "overwrite"
+HISTORY_REASON_DELETE = "delete"
+HISTORY_REASONS = (HISTORY_REASON_OVERWRITE, HISTORY_REASON_DELETE)
+
 # Legacy engine-owned basenames. Causal state no longer lives in these files
 # (ADR-0025) but they stay rejected on the wire and by the ignore matcher so
 # an old peer cannot plant them through the sync channel.

@@ -109,6 +109,16 @@ wire shape. Re-exported from `hsync_common/models/__init__.py`.
   `TRASH_QUOTA_FLOOR_MB_DEFAULT` (`hsync_common/defaults.py`). Validation
   (`parse_trash_entry`, `is_safe_relpath`) treats a damaged or hand-edited entry
   as absent, so nothing outside the store can be reached through it.
+- **Server history** (`hsync_common/models/history.py::HistoryEntry`, ADR-0057):
+  the server's counterpart of the trash, for the two losses a client cannot undo —
+  an overwrite it accepted and a deletion it applied. Same shapes as the trash
+  (one payload convention, shared safety helpers) with a **distinct identity**:
+  `{relpath, sha256, size, mtime_ns, mode, recorded_at, reason, cid, bucket}`
+  under `<state dir>/history/<bucket>/<entry id>/`, `reason` being `overwrite` or
+  `delete`. Bounded by `HISTORY_RETENTION_DAYS_DEFAULT` /
+  `HISTORY_QUOTA_PERCENT_DEFAULT` / `HISTORY_QUOTA_FLOOR_MB_DEFAULT`
+  (`hsync_common/defaults.py`); `parse_history_entry` refuses an unknown reason
+  and any unsafe path.
 - Strict wire validation (`merge()`/`load()` via `_sanitize_entry`,
   `hsync_common/models/tombstone.py::_sanitize_entry`): keys and `sha256` must be sha256 hex (64),
   `ts` must be `0 < ts ≤ now + TOMBSTONE_MAX_CLOCK_SKEW_SECONDS` (300 s),
