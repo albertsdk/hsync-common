@@ -13,6 +13,7 @@ from hsync_common.protocol.capabilities import (
     build_capabilities,
     parse_capabilities,
     supports_cli_option,
+    supports_subcommand,
 )
 from hsync_common.protocol.events import EVENTS_SCHEMA_VERSION
 from hsync_common.protocol.handshake import (
@@ -23,9 +24,23 @@ from hsync_common.protocol.handshake import (
 )
 
 
+def _doc(**overrides):
+    """Build a valid capabilities document, optionally overriding fields."""
+    doc = build_capabilities(
+        app_version="1.0.0",
+        subcommands=["lan", "server"],
+        cli_options_by_subcommand={
+            "lan": ["--force-master", "--never-master"],
+            "server": ["--ca-cert", "--insecure"],
+        },
+    )
+    doc.update(overrides)
+    return doc
+
+
 class TestBuildCapabilities:
     def test_assembles_from_protocol_ssot(self):
-        doc = build_capabilities(app_version="1.2.3", cli_options=["--never-master", "--lan-mode"])
+        doc = _doc(app_version="1.2.3")
         assert doc["schema_version"] == CAPABILITIES_SCHEMA_VERSION
         assert doc["app_version"] == "1.2.3"
         assert doc["protocol_version"] == {
@@ -36,7 +51,7 @@ class TestBuildCapabilities:
         assert doc["events_schema_version"] == EVENTS_SCHEMA_VERSION
 
     def test_defaults_to_all_capabilities(self):
-        doc = build_capabilities(app_version="1.0.0", cli_options=[])
+        doc = build_capabilities(app_version="1.0.0", subcommands=[], cli_options_by_subcommand={})
         caps = doc["capabilities"]
         # Verify invariant properties rather than comparing against
         # encode_capabilities output (which would mask bugs in the encoder).
@@ -49,22 +64,38 @@ class TestBuildCapabilities:
     def test_explicit_capabilities_are_encoded(self):
         doc = build_capabilities(
             app_version="1.0.0",
-            cli_options=[],
+            subcommands=[],
+            cli_options_by_subcommand={},
             capabilities={Capability.compression, "https"},
         )
         assert doc["capabilities"] == ["compression", "https"]
 
-    def test_cli_options_are_sorted_and_deduped(self):
+    def test_subcommands_are_sorted_and_deduped(self):
         doc = build_capabilities(
             app_version="1.0.0",
-            cli_options=["--lan-mode", "--never-master", "--lan-mode"],
+            subcommands=["server", "lan", "server"],
+            cli_options_by_subcommand={},
         )
-        assert doc["cli_options"] == ["--lan-mode", "--never-master"]
+        assert doc["subcommands"] == ["lan", "server"]
+
+    def test_cli_options_are_sorted_and_deduped_per_subcommand(self):
+        doc = build_capabilities(
+            app_version="1.0.0",
+            subcommands=["lan", "server"],
+            cli_options_by_subcommand={
+                "server": ["--insecure", "--ca-cert", "--insecure"],
+                "lan": ["--never-master", "--force-master"],
+            },
+        )
+        assert doc["cli_options"] == {
+            "lan": ["--force-master", "--never-master"],
+            "server": ["--ca-cert", "--insecure"],
+        }
 
 
 class TestParseCapabilities:
     def test_round_trip(self):
-        doc = build_capabilities(app_version="9.9.9", cli_options=["--lan-mode"])
+        doc = _doc(app_version="9.9.9")
         parsed = parse_capabilities(json.dumps(doc))
         assert parsed == doc
 
@@ -78,54 +109,94 @@ class TestParseCapabilities:
         assert parse_capabilities("[1, 2, 3]") is None
 
     def test_rejects_unknown_schema_version(self):
-        doc = build_capabilities(app_version="1.0.0", cli_options=[])
+        doc = _doc()
         doc["schema_version"] = CAPABILITIES_SCHEMA_VERSION + 1
         assert parse_capabilities(json.dumps(doc)) is None
 
     def test_rejects_missing_required_key(self):
-        doc = build_capabilities(app_version="1.0.0", cli_options=[])
-        del doc["cli_options"]  # type: ignore[reportGeneralTypeIssues]
+        doc = _doc()
+        del doc["subcommands"]  # type: ignore[typeddict-item]
+        assert parse_capabilities(json.dumps(doc)) is None
+
+    def test_rejects_string_subcommands(self):
+        # Key presence alone is not enough: a plain-string subcommands would
+        # make supports_subcommand match substrings instead of names.
+        doc = _doc()
+        doc["subcommands"] = "lan"  # type: ignore[typeddict-item]
+        assert parse_capabilities(json.dumps(doc)) is None
+
+    def test_rejects_non_string_subcommand_entries(self):
+        doc = _doc()
+        doc["subcommands"] = ["lan", 42]  # type: ignore[list-item]
         assert parse_capabilities(json.dumps(doc)) is None
 
     def test_rejects_string_cli_options(self):
-        # Key presence alone is not enough: a plain-string cli_options would
-        # make supports_cli_option match substrings instead of flags.
-        doc = build_capabilities(app_version="1.0.0", cli_options=[])
+        doc = _doc()
         doc["cli_options"] = "--never-master"  # type: ignore[typeddict-item]
         assert parse_capabilities(json.dumps(doc)) is None
 
+    def test_rejects_non_list_cli_option_values(self):
+        doc = _doc()
+        doc["cli_options"] = {"lan": "--never-master"}  # type: ignore[typeddict-item]
+        assert parse_capabilities(json.dumps(doc)) is None
+
+    def test_rejects_non_string_cli_option_entries(self):
+        doc = _doc()
+        doc["cli_options"] = {"lan": [42]}  # type: ignore[typeddict-item]
+        assert parse_capabilities(json.dumps(doc)) is None
+
     def test_rejects_non_list_capabilities(self):
-        doc = build_capabilities(app_version="1.0.0", cli_options=[])
+        doc = _doc()
         doc["capabilities"] = "compression"  # type: ignore[typeddict-item]
         assert parse_capabilities(json.dumps(doc)) is None
 
-    def test_rejects_non_string_list_entries(self):
-        doc = build_capabilities(app_version="1.0.0", cli_options=[])
-        doc["cli_options"] = [42]  # type: ignore[list-item]
-        assert parse_capabilities(json.dumps(doc)) is None
-
     def test_rejects_malformed_protocol_version(self):
-        doc = build_capabilities(app_version="1.0.0", cli_options=[])
+        doc = _doc()
         doc["protocol_version"] = {"rest": 1, "ws": "ws/1"}  # type: ignore[typeddict-item]
         assert parse_capabilities(json.dumps(doc)) is None
 
     def test_rejects_wrong_scalar_types(self):
-        doc = build_capabilities(app_version="1.0.0", cli_options=[])
+        doc = _doc()
         doc["app_version"] = 123  # type: ignore[typeddict-item]
         assert parse_capabilities(json.dumps(doc)) is None
-        doc2 = build_capabilities(app_version="1.0.0", cli_options=[])
+        doc2 = _doc()
         doc2["events_schema_version"] = True  # type: ignore[typeddict-item]
         assert parse_capabilities(json.dumps(doc2)) is None
 
 
 class TestSupportsCliOption:
-    def test_present_flag(self):
-        doc = build_capabilities(app_version="1.0.0", cli_options=["--never-master"])
-        assert supports_cli_option(doc, "--never-master") is True
+    def test_present_flag_in_subcommand(self):
+        doc = _doc()
+        assert supports_cli_option(doc, "--force-master", subcommand="lan") is True
+        assert supports_cli_option(doc, "--ca-cert", subcommand="server") is True
 
-    def test_absent_flag(self):
-        doc = build_capabilities(app_version="1.0.0", cli_options=["--lan-mode"])
-        assert supports_cli_option(doc, "--never-master") is False
+    def test_absent_flag_in_subcommand(self):
+        doc = _doc()
+        assert supports_cli_option(doc, "--ca-cert", subcommand="lan") is False
+        assert supports_cli_option(doc, "--force-master", subcommand="server") is False
+
+    def test_unknown_subcommand_is_absent(self):
+        doc = _doc()
+        assert supports_cli_option(doc, "--force-master", subcommand="unknown") is False
+
+    def test_no_subcommand_checks_the_union(self):
+        doc = _doc()
+        assert supports_cli_option(doc, "--force-master") is True
+        assert supports_cli_option(doc, "--ca-cert") is True
+        assert supports_cli_option(doc, "--absent") is False
 
     def test_none_document_is_conservatively_supported(self):
-        assert supports_cli_option(None, "--never-master") is True
+        assert supports_cli_option(None, "--force-master") is True
+        assert supports_cli_option(None, "--force-master", subcommand="lan") is True
+
+
+class TestSupportsSubcommand:
+    def test_present_subcommand(self):
+        assert supports_subcommand(_doc(), "lan") is True
+        assert supports_subcommand(_doc(), "server") is True
+
+    def test_absent_subcommand(self):
+        assert supports_subcommand(_doc(), "unknown") is False
+
+    def test_none_document_is_conservatively_supported(self):
+        assert supports_subcommand(None, "lan") is True

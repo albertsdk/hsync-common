@@ -23,17 +23,17 @@ replacing log scraping and hard-coded assumptions:
   `pairing_needed`, …). The log-regex parser is removed.
 - **Capability discovery** — the client prints a capabilities document via
   `--capabilities-json` (assembled by `hsync_common.protocol.capabilities`):
-  supported CLI options, protocol versions, events schema version and feature
-  flags. The desktop probes this at startup and **gates UI controls** on it,
-  disabling and unchecking unsupported toggles (e.g. LAN options) rather than
-  emitting flags the binary rejects.
+  the supported subcommands with their per-subcommand CLI options, protocol
+  versions, events schema version and feature flags. The desktop probes this at
+  startup and **gates UI controls** on it, disabling and unchecking unsupported
+  toggles (e.g. LAN options) rather than emitting flags the binary rejects.
 
 ## Consequences
 
 - The UI is decoupled from log wording and from the binary's exact feature set:
   a reduced-capability binary degrades the UI gracefully instead of breaking.
 - The CLI surface advertised by `--capabilities-json` is introspected from the
-  real command, so it cannot drift from the actual interface.
+  real subcommands, so it cannot drift from the actual interface.
 - Desktop ↔ client compatibility becomes contract-testable against fixtures
   rather than against prose; an unknown event/capabilities `schema_version` is
   rejected explicitly.

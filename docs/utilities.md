@@ -34,7 +34,7 @@ Gitignore-style pattern matching for excluding files from synchronisation.
    (`.DS_Store`, `Thumbs.db`, ...) and editor/office temporary files. Always
    active and cannot be disabled.
 2. **Per-bucket `.hsyncignore`** — user-defined rules in the bucket root.
-3. **Extra patterns** — programmatic patterns (e.g. from CLI `--ignore-patterns`).
+3. **Extra patterns** — programmatic patterns (e.g. from CLI `--ignore-pattern`).
 
 ## Path validation (`hsync_common.path_validation`)
 

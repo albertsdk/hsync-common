@@ -21,7 +21,7 @@ excluded from sync.  The syntax is identical to `.gitignore`:
    **always active** and cannot be disabled. Dotfiles in general (`.env`,
    `.config`, …) are **not** excluded: they are synchronised normally.
 2. **Per-bucket `.hsyncignore`** — user-defined rules in the bucket root.
-3. **Extra patterns** — programmatic patterns (e.g. from CLI `--ignore-patterns`).
+3. **Extra patterns** — programmatic patterns (e.g. from CLI `--ignore-pattern`).
 
 The sentinel `.hsynckeep` is always preserved regardless of any pattern.
 
@@ -62,7 +62,7 @@ tested against the loaded rules.
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `bucket_root` | `str` | Absolute path of the directory being synchronised. |
-| `extra_patterns` | `Iterable[str] \| None` | Additional patterns from e.g. `--ignore-patterns`. |
+| `extra_patterns` | `Iterable[str] \| None` | Additional patterns from e.g. `--ignore-pattern`. |
 
 ```python
 matcher = IgnoreMatcher("/home/user/sync-bucket", extra_patterns=["*.log"])
