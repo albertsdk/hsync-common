@@ -109,6 +109,12 @@ wire shape. Re-exported from `hsync_common/models/__init__.py`.
   `TRASH_QUOTA_FLOOR_MB_DEFAULT` (`hsync_common/defaults.py`). Validation
   (`parse_trash_entry`, `is_safe_relpath`) treats a damaged or hand-edited entry
   as absent, so nothing outside the store can be reached through it.
+  `trash_root_inside_folder` (`hsync_common/models/trash.py::trash_root_inside_folder`)
+  is the layout rule the store cannot recover from: a root inside the synced
+  folder would be uploaded to every peer, so the client refuses it at startup and
+  when it builds the cycle's store. The client's sweep discards a record whose
+  payload is missing or whose size no longer matches `size` (a crash between the
+  record and the move leaves nothing a restore could write back).
 - **Server history** (`hsync_common/models/history.py::HistoryEntry`, ADR-0057):
   the server's counterpart of the trash, for the two losses a client cannot undo —
   an overwrite it accepted and a deletion it applied. Same shapes as the trash

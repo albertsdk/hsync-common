@@ -53,6 +53,7 @@ __all__ = [
     "parse_trash_entry",
     "trash_folder_dir",
     "trash_root",
+    "trash_root_inside_folder",
 ]
 
 # Why the file was trashed: the sync engine applied a deletion, or the user
@@ -126,6 +127,24 @@ def trash_root(directory: str | Path | None = None) -> Path:
     if directory is not None and str(directory).strip():
         return Path(directory).expanduser()
     return state_path(TRASH_DIRNAME, override_env=TRASH_DIR_ENV)
+
+
+def trash_root_inside_folder(root: str | Path, folder: str | Path) -> bool:
+    """True when *root* would place the store inside the synced *folder*.
+
+    The store is device-local (ADR-0056): inside the folder its bytes are shared
+    with the peers and re-uploaded on every cycle, which is the one thing this
+    layout must never do. Callers refuse the layout instead of degrading it
+    silently.
+
+    Consumers: ``hsync-client`` (CLI validation and the cycle's store builder).
+    """
+    try:
+        candidate = Path(root).expanduser().resolve()
+        target = Path(folder).expanduser().resolve()
+    except OSError:  # pragma: no cover - unresolvable path: let the store decide
+        return False
+    return candidate == target or target in candidate.parents
 
 
 def trash_folder_dir(root: Path, folder_id: str) -> Path:
