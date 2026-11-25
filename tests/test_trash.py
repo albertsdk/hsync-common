@@ -25,6 +25,7 @@ from hsync_common.models.trash import (
     parse_trash_entry,
     trash_folder_dir,
     trash_root,
+    trash_root_inside_folder,
 )
 
 _ENTRY_ID = "1700000000-deadbeef"
@@ -122,6 +123,27 @@ class TestTrashRoot:
         monkeypatch.setenv("HSYNC_STATE_DIR", str(tmp_path / "state"))
 
         assert trash_root() == Path(tmp_path / "state" / "trash")
+
+
+class TestTrashRootInsideFolder:
+    """The store is device-local, so it must never sit in the shared tree."""
+
+    def test_the_folder_itself_is_refused(self, tmp_path):
+        assert trash_root_inside_folder(tmp_path, tmp_path) is True
+
+    def test_a_subdirectory_of_the_folder_is_refused(self, tmp_path):
+        assert trash_root_inside_folder(tmp_path / "shared" / ".trash", tmp_path / "shared") is True
+
+    def test_a_sibling_directory_is_accepted(self, tmp_path):
+        assert trash_root_inside_folder(tmp_path / "trash", tmp_path / "shared") is False
+
+    def test_a_parent_directory_is_accepted(self, tmp_path):
+        """A store above the folder keeps its bytes on the device (the state dir)."""
+        assert trash_root_inside_folder(tmp_path, tmp_path / "shared") is False
+
+    def test_the_comparison_survives_a_relative_path(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        assert trash_root_inside_folder("shared/.trash", "shared") is True
 
 
 class TestParseEntry:

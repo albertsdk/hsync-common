@@ -102,6 +102,9 @@ front-end removed the file), the authoring `cid` and the `bucket` name.
   entry as absent, and `is_safe_relpath` refuses absolute paths, `..`
   components, drive letters and backslashes, so no entry can reach outside the
   store.
+- **Swept when the payload is gone** — the store's sweep discards a record whose
+  payload is missing or whose size no longer matches `size`: a crash between the
+  record and the move leaves nothing a restore could legitimately write back.
 - **Integrity before restore** — the recorded `sha256` is checked against the
   stored copy; a mismatch reports `payload-corrupt` instead of restoring bytes
   that are not the ones deleted.
@@ -109,6 +112,10 @@ front-end removed the file), the authoring `cid` and the `bucket` name.
   (`TRASH_RETENTION_DAYS_DEFAULT`, `TRASH_QUOTA_PERCENT_DEFAULT`,
   `TRASH_QUOTA_FLOOR_MB_DEFAULT` in `hsync_common/defaults.py`) are storage
   bounds only: correctness never depends on them.
+- **Outside the synced folder** — `trash_root_inside_folder` answers the one
+  layout question the store cannot recover from: inside the folder its bytes are
+  shared with the peers, so the client refuses that root at startup and again
+  when it builds the cycle's store.
 
 The store implementation and the `hsync trash` commands live in `hsync-client`
 (`hsync_client/trash.py`), which is also what a front-end reads through

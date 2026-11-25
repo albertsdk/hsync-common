@@ -11,8 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The sync trash contract (ADR-0056): `TrashEntry` and the store layout
   (`trash_root`, `entry_dir`, `entry_payload_path`, `parse_trash_entry`,
-  `is_safe_relpath`) in `hsync_common/models/trash.py`, with the retention
-  window and size budget defaults next to the deletion policy.
+  `is_safe_relpath`, `trash_root_inside_folder`) in
+  `hsync_common/models/trash.py`, with the retention window and size budget
+  defaults next to the deletion policy.
 - `Capability.publishes_index`: inventory publishing is its own capability, advertised
   beside `index`, `peer_download` and the transfer capabilities.
 - TXT key `epoch` and the matching `rdv/1` field: the leadership term that ranks between
