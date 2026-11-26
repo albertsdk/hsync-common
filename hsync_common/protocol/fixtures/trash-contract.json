@@ -234,7 +234,22 @@
   ],
   "prune_cases": [
     {
+      "broken": [
+        {
+          "entry_id": "1699136000-dddddddddddd",
+          "kind": "no-record"
+        },
+        {
+          "entry_id": "1699136000-eeeeeeeeeeee",
+          "kind": "payload-missing"
+        },
+        {
+          "entry_id": "1699136000-ffffffffffff",
+          "kind": "payload-mismatch"
+        }
+      ],
       "budget": 1000000,
+      "discarded": 3,
       "entries": [
         {
           "deleted_at": 1696544000,
@@ -263,7 +278,9 @@
       "why": "the window expires what is older than it"
     },
     {
+      "broken": [],
       "budget": 1000000,
+      "discarded": 0,
       "entries": [
         {
           "deleted_at": 1696544000,
@@ -285,7 +302,9 @@
       "why": "a zero window keeps everything"
     },
     {
+      "broken": [],
       "budget": 100,
+      "discarded": 0,
       "entries": [
         {
           "deleted_at": 1699136000,
@@ -309,7 +328,9 @@
       "why": "the budget evicts the oldest entry first"
     },
     {
+      "broken": [],
       "budget": 100,
+      "discarded": 0,
       "entries": [
         {
           "deleted_at": 1699000000,
@@ -333,7 +354,9 @@
       "why": "entries of the same second fall back to the entry id"
     },
     {
+      "broken": [],
       "budget": 100,
+      "discarded": 0,
       "entries": [
         {
           "deleted_at": 1699136000,
@@ -350,7 +373,9 @@
       "why": "a total at the budget is kept"
     },
     {
+      "broken": [],
       "budget": 100,
+      "discarded": 0,
       "entries": [
         {
           "deleted_at": 1696544000,

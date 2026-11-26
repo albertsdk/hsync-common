@@ -418,12 +418,19 @@ def _swept(
     retention_days: int,
     budget: int,
     now: int,
+    broken: list[tuple[str, str]] | None = None,
 ) -> dict[str, object]:
     """One sweep case: ``(entry id, deleted_at, size)`` triples and their plan.
 
     The verdicts come from [plan_trash_sweep], never from a hand-written number,
     so a rule change regenerates them and a front-end still applying the old rule
     fails its parity test.
+
+    *broken* lists the entry directories a real store can hold that no sweep may
+    keep — ``(entry id, kind)`` with a kind each side can reproduce
+    (``no-record``, ``payload-missing``, ``payload-mismatch``). They are not part
+    of the plan (the walk removes them before it), so only their count is
+    published.
     """
     plan = plan_trash_sweep(
         [
@@ -434,6 +441,7 @@ def _swept(
         budget=budget,
         now=now,
     )
+    unusable = broken or []
     return {
         "why": why,
         "now": now,
@@ -443,10 +451,12 @@ def _swept(
             {"entry_id": entry_id, "deleted_at": when, "size": size}
             for entry_id, when, size in entries
         ],
+        "broken": [{"entry_id": entry_id, "kind": kind} for entry_id, kind in unusable],
         "expired": sorted(plan.expired),
         "evicted": sorted(plan.evicted),
         "kept": plan.kept,
         "freed": plan.freed,
+        "discarded": len(unusable),
     }
 
 
@@ -473,6 +483,11 @@ def _sweep_cases() -> list[dict[str, object]]:
             retention_days=30,
             budget=_SWEEP_BUDGET,
             now=_SWEEP_NOW,
+            broken=[
+                (f"{_SWEEP_YOUNG}-dddddddddddd", "no-record"),
+                (f"{_SWEEP_YOUNG}-eeeeeeeeeeee", "payload-missing"),
+                (f"{_SWEEP_YOUNG}-ffffffffffff", "payload-mismatch"),
+            ],
         ),
         _swept(
             "a zero window keeps everything",

@@ -350,3 +350,4 @@ class TestSweepPlan:
             assert sorted(plan.evicted) == case["evicted"]
             assert plan.kept == case["kept"]
             assert plan.freed == case["freed"]
+            assert case["discarded"] == len(case["broken"])
