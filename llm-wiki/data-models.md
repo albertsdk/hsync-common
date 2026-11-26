@@ -115,6 +115,14 @@ wire shape. Re-exported from `hsync_common/models/__init__.py`.
   when it builds the cycle's store. The client's sweep discards a record whose
   payload is missing or whose size no longer matches `size` (a crash between the
   record and the move leaves nothing a restore could write back).
+  The cross-language half of the contract lives in the same module and is
+  published as the `trash-contract` fixture
+  (`hsync_common/models/trash.py::build_trash_contract`): the id patterns, the
+  restore vocabulary (`TRASH_RESTORE_STATUSES`, `TRASH_UNRECOVERABLE_RESTORE`,
+  `TRASH_RESTORE_ALL_STATUSES`), the tree park caps (`TREE_TRASH_MAX_FILES`,
+  `TREE_TRASH_MAX_BYTES`) and the sweep interval
+  (`TRASH_SWEEP_INTERVAL_SECONDS`); the client imports these instead of
+  re-declaring them, and Android asserts its own copies against the fixture.
 - **Server history** (`hsync_common/models/history.py::HistoryEntry`, ADR-0057):
   the server's counterpart of the trash, for the two losses a client cannot undo —
   an overwrite it accepted and a deletion it applied. Same shapes as the trash
