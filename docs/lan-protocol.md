@@ -119,10 +119,15 @@ conflicts**: every node resolves concurrently with vector clocks
 ([ADR-0022](internal/adr/0022-causal-vector-clock-conflict-model.md)), so the
 elected master never wins a divergence by role.
 
-Election runs on every discovery change (peer added, updated, removed) and when
-the local `server_ready` state changes. The candidate set is the local node plus
-every alive, group-compatible peer. `never_master` nodes are carried into the set
-but **excluded** by the algorithm.
+Election runs on every discovery change (peer added, updated, removed), when the
+local `server_ready` state changes, and on a **periodic staleness sweep**: every
+discovery wake (and every slave WebSocket drop) re-evaluates each peer's
+heartbeat, expires peers whose announce has not been seen within the configured
+peer timeout, and re-runs the election. A peer that crashes hard sends no
+goodbye and no further announce, so without this sweep the surviving peers would
+otherwise keep a dead master's record indefinitely (the two-node failure mode).
+The candidate set is the local node plus every alive, group-compatible peer.
+`never_master` nodes are carried into the set but **excluded** by the algorithm.
 
 The winner is the candidate with the smallest sort key
 (`election_sort_key`), i.e. highest priority first:
@@ -153,6 +158,21 @@ cannot proceed.
   non-`force_master` incumbent is logged as `[MASTER TAKEOVER]`.
 - **never_master.** Such nodes never serve. If they are the only candidates the
   result is `NO_MASTER` (scenario `all-never-master-no-master`).
+
+### Failover timing
+
+The staleness sweep bounds how long the group runs masterless after a hard
+crash: the dead master is demoted once its heartbeat has been absent for the
+configured peer timeout, and every remaining peer converges on the same
+successor because the election is deterministic. Each node also pre-computes
+the **successor** (the next-ranked eligible candidate) for operator logging and
+diagnostics — it never gates the decision. The peer timeout is a client
+operational knob (`HSYNC_PEER_TIMEOUT`) constrained to at least twice the
+heartbeat (`HSYNC_HEARTBEAT_INTERVAL`) so a single missed announce can never
+flap a live peer into a needless re-election. A slave whose WebSocket to the
+master drops re-runs the sweep immediately, but only demotes a master whose
+record is already stale: a transient local-link blip leaves the incumbent in
+place, so the surviving peers do not split-brain.
 
 ## Cross-language parity
 
