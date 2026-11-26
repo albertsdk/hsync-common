@@ -27,6 +27,7 @@ from hsync_common.models.delta import DeltaApplyMetadata, DeltaInstructions
 from hsync_common.models.event import Event, EventName
 from hsync_common.models.file import File
 from hsync_common.models.tombstone import TombstoneEntry, tombstone_merge_decision
+from hsync_common.models.trash import build_trash_contract
 from hsync_common.models.version import VersionInfo, resolve_three_way
 
 from .handshake import (
@@ -830,4 +831,7 @@ def build_fixtures() -> dict[str, dict[str, Any]]:
         "delta-signatures": _delta_signatures(),
         "delta-instructions": _delta_instructions(),
         "delta-apply-metadata": _delta_apply_metadata(),
+        # Not a wire message: the sync-trash record/policy contract of ADR-0056,
+        # published so the Android store cannot silently fork it.
+        "trash-contract": build_trash_contract(),
     }

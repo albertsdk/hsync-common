@@ -14,10 +14,22 @@ from pathlib import Path
 
 import pytest
 
-from hsync_common.constants import TRASH_PAYLOAD_DIRNAME
+from hsync_common.constants import (
+    TRASH_ENTRY_FILENAME,
+    TRASH_PAYLOAD_DIRNAME,
+    TRASH_RESTORING_SUFFIX,
+)
 from hsync_common.models.trash import (
     TRASH_ORIGIN_SYNC,
     TRASH_ORIGIN_USER,
+    TRASH_RESTORE_ALL_STATUSES,
+    TRASH_RESTORE_STATUSES,
+    TRASH_SWEEP_INTERVAL_SECONDS,
+    TRASH_UNRECOVERABLE_RESTORE,
+    TREE_TRASH_MAX_BYTES,
+    TREE_TRASH_MAX_FILES,
+    TrashEntry,
+    build_trash_contract,
     entry_dir,
     entry_payload_path,
     is_safe_folder_id,
@@ -27,6 +39,7 @@ from hsync_common.models.trash import (
     trash_root,
     trash_root_inside_folder,
 )
+from hsync_common.protocol.fixtures import build_fixtures
 
 _ENTRY_ID = "1700000000-deadbeef"
 _FOLDER_ID = "5f2a1c3e-1234-4abc-9def-0123456789ab"
@@ -185,11 +198,63 @@ class TestParseEntry:
             {"size": "42"},
             {"deleted_at": 0},
             {"origin": "somewhere-else"},
+            {"origin": ""},
+            {"origin": 5},
         ],
     )
     def test_damaged_records_are_skipped(self, overrides):
         assert parse_trash_entry(_entry(**overrides)) is None
 
+    def test_an_absent_origin_is_the_sync_origin(self):
+        payload = _entry()
+        payload.pop("origin")
+
+        entry = parse_trash_entry(payload)
+
+        assert entry is not None
+        assert entry["origin"] == TRASH_ORIGIN_SYNC
+
     @pytest.mark.parametrize("payload", [None, [], "text", 7])
     def test_non_mapping_payloads_are_skipped(self, payload):
         assert parse_trash_entry(payload) is None
+
+
+class TestContract:
+    """The published ``trash-contract`` fixture and the values behind it."""
+
+    def test_the_fixture_is_part_of_the_golden_set(self):
+        assert "trash-contract" in build_fixtures()
+
+    def test_the_unrecoverable_refusals_are_restore_statuses(self):
+        assert TRASH_UNRECOVERABLE_RESTORE <= TRASH_RESTORE_STATUSES
+        assert "restored" in TRASH_RESTORE_STATUSES
+        assert {"ok", "disabled"} == TRASH_RESTORE_ALL_STATUSES
+
+    def test_the_policy_bounds_are_positive(self):
+        assert TREE_TRASH_MAX_FILES > 0
+        assert TREE_TRASH_MAX_BYTES > 0
+        assert TRASH_SWEEP_INTERVAL_SECONDS > 0
+
+    def test_the_layout_names_are_the_written_ones(self):
+        entry = build_trash_contract()["entry"]
+
+        assert entry["filename"] == TRASH_ENTRY_FILENAME
+        assert entry["payload_dirname"] == TRASH_PAYLOAD_DIRNAME
+        assert entry["restoring_suffix"] == TRASH_RESTORING_SUFFIX
+        assert entry["keys"] == sorted(TrashEntry.__annotations__)
+
+    def test_every_record_case_carries_the_live_verdict(self):
+        cases = build_trash_contract()["entry_cases"]
+
+        assert any(case["accepted"] for case in cases)
+        assert any(not case["accepted"] for case in cases)
+        for case in cases:
+            assert case["accepted"] is (parse_trash_entry(case["payload"]) is not None)
+
+    def test_every_relpath_case_carries_the_live_verdict(self):
+        cases = build_trash_contract()["relpath_cases"]
+
+        assert any(case["safe"] for case in cases)
+        assert any(not case["safe"] for case in cases)
+        for case in cases:
+            assert case["safe"] is is_safe_relpath(case["path"])

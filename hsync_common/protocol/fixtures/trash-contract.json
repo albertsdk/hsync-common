@@ -1,0 +1,329 @@
+{
+  "budget": {
+    "max_size_mb_default": 0,
+    "quota_floor_mb": 512,
+    "quota_percent": 10
+  },
+  "entry": {
+    "filename": "entry.json",
+    "keys": [
+      "bucket",
+      "cid",
+      "deleted_at",
+      "mode",
+      "mtime_ns",
+      "origin",
+      "relpath",
+      "sha256",
+      "size"
+    ],
+    "payload_dirname": "payload",
+    "restoring_suffix": ".restoring",
+    "root_dirname": "trash"
+  },
+  "entry_cases": [
+    {
+      "accepted": true,
+      "payload": {
+        "bucket": "team",
+        "cid": "DeviceCid123456",
+        "deleted_at": 1700000100,
+        "mode": 420,
+        "mtime_ns": 1700000000000000000,
+        "origin": "sync",
+        "relpath": "docs/report.pdf",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "size": 42
+      },
+      "why": "a complete record"
+    },
+    {
+      "accepted": true,
+      "payload": {
+        "bucket": "team",
+        "cid": "DeviceCid123456",
+        "deleted_at": 1700000100,
+        "mode": 420,
+        "mtime_ns": 1700000000000000000,
+        "origin": "user",
+        "relpath": "docs/report.pdf",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "size": 42
+      },
+      "why": "the user origin"
+    },
+    {
+      "accepted": true,
+      "payload": {
+        "deleted_at": 1700000100,
+        "relpath": "docs/report.pdf",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "size": 42
+      },
+      "why": "a record without optional metadata"
+    },
+    {
+      "accepted": false,
+      "payload": {
+        "bucket": "team",
+        "cid": "DeviceCid123456",
+        "deleted_at": 1700000100,
+        "mode": 420,
+        "mtime_ns": 1700000000000000000,
+        "origin": "sync",
+        "relpath": "../escape",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "size": 42
+      },
+      "why": "an unsafe relpath"
+    },
+    {
+      "accepted": false,
+      "payload": {
+        "bucket": "team",
+        "cid": "DeviceCid123456",
+        "deleted_at": 1700000100,
+        "mode": 420,
+        "mtime_ns": 1700000000000000000,
+        "origin": "sync",
+        "relpath": "/etc/passwd",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "size": 42
+      },
+      "why": "an absolute relpath"
+    },
+    {
+      "accepted": false,
+      "payload": {
+        "bucket": "team",
+        "cid": "DeviceCid123456",
+        "deleted_at": 1700000100,
+        "mode": 420,
+        "mtime_ns": 1700000000000000000,
+        "origin": "sync",
+        "relpath": "back\\slash",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "size": 42
+      },
+      "why": "a backslash relpath"
+    },
+    {
+      "accepted": false,
+      "payload": {
+        "bucket": "team",
+        "cid": "DeviceCid123456",
+        "deleted_at": 1700000100,
+        "mode": 420,
+        "mtime_ns": 1700000000000000000,
+        "origin": "sync",
+        "relpath": "docs/report.pdf",
+        "sha256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "size": 42
+      },
+      "why": "an uppercase digest"
+    },
+    {
+      "accepted": false,
+      "payload": {
+        "bucket": "team",
+        "cid": "DeviceCid123456",
+        "deleted_at": 1700000100,
+        "mode": 420,
+        "mtime_ns": 1700000000000000000,
+        "origin": "sync",
+        "relpath": "docs/report.pdf",
+        "sha256": "abc",
+        "size": 42
+      },
+      "why": "a truncated digest"
+    },
+    {
+      "accepted": false,
+      "payload": {
+        "bucket": "team",
+        "cid": "DeviceCid123456",
+        "deleted_at": 1700000100,
+        "mode": 420,
+        "mtime_ns": 1700000000000000000,
+        "origin": "sync",
+        "relpath": "docs/report.pdf",
+        "size": 42
+      },
+      "why": "a missing digest"
+    },
+    {
+      "accepted": false,
+      "payload": {
+        "bucket": "team",
+        "cid": "DeviceCid123456",
+        "deleted_at": 1700000100,
+        "mode": 420,
+        "mtime_ns": 1700000000000000000,
+        "origin": "sync",
+        "relpath": "docs/report.pdf",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "why": "a missing size"
+    },
+    {
+      "accepted": false,
+      "payload": {
+        "bucket": "team",
+        "cid": "DeviceCid123456",
+        "deleted_at": 1700000100,
+        "mode": 420,
+        "mtime_ns": 1700000000000000000,
+        "origin": "sync",
+        "relpath": "docs/report.pdf",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "size": -1
+      },
+      "why": "a negative size"
+    },
+    {
+      "accepted": false,
+      "payload": {
+        "bucket": "team",
+        "cid": "DeviceCid123456",
+        "deleted_at": 0,
+        "mode": 420,
+        "mtime_ns": 1700000000000000000,
+        "origin": "sync",
+        "relpath": "docs/report.pdf",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "size": 42
+      },
+      "why": "a zero deletion time"
+    },
+    {
+      "accepted": false,
+      "payload": {
+        "bucket": "team",
+        "cid": "DeviceCid123456",
+        "deleted_at": 1700000100,
+        "mode": 420,
+        "mtime_ns": 1700000000000000000,
+        "origin": "somewhere-else",
+        "relpath": "docs/report.pdf",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "size": 42
+      },
+      "why": "an unknown origin"
+    },
+    {
+      "accepted": false,
+      "payload": {
+        "bucket": "team",
+        "cid": "DeviceCid123456",
+        "deleted_at": 1700000100,
+        "mode": 420,
+        "mtime_ns": 1700000000000000000,
+        "origin": "",
+        "relpath": "docs/report.pdf",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "size": 42
+      },
+      "why": "an empty origin"
+    }
+  ],
+  "entry_id_pattern": "^[0-9]{10,}-[0-9a-f]{8,32}$",
+  "folder_id_pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+  "origins": [
+    "sync",
+    "user"
+  ],
+  "relpath_cases": [
+    {
+      "path": "a.txt",
+      "safe": true
+    },
+    {
+      "path": "dir/sub/file.bin",
+      "safe": true
+    },
+    {
+      "path": "with space.txt",
+      "safe": true
+    },
+    {
+      "path": ".hidden/file",
+      "safe": true
+    },
+    {
+      "path": "aux.txt",
+      "safe": true
+    },
+    {
+      "path": "",
+      "safe": false
+    },
+    {
+      "path": "/etc/passwd",
+      "safe": false
+    },
+    {
+      "path": "\\windows\\system32",
+      "safe": false
+    },
+    {
+      "path": "C:/Windows",
+      "safe": false
+    },
+    {
+      "path": "../outside",
+      "safe": false
+    },
+    {
+      "path": "a/../../b",
+      "safe": false
+    },
+    {
+      "path": "a//b",
+      "safe": false
+    },
+    {
+      "path": "a/",
+      "safe": false
+    },
+    {
+      "path": "./a",
+      "safe": false
+    },
+    {
+      "path": "bad\u0000name",
+      "safe": false
+    },
+    {
+      "path": "back\\slash",
+      "safe": false
+    }
+  ],
+  "restore_all_statuses": [
+    "disabled",
+    "ok"
+  ],
+  "restore_statuses": [
+    "destination-exists",
+    "disabled",
+    "download-only",
+    "failed",
+    "no-entry",
+    "payload-corrupt",
+    "payload-missing",
+    "restored"
+  ],
+  "retention": {
+    "days_default": 30,
+    "days_max": 3650
+  },
+  "sweep_interval_seconds": 3600,
+  "tree": {
+    "max_bytes": 1073741824,
+    "max_files": 1000
+  },
+  "unrecoverable_restore": [
+    "failed",
+    "payload-corrupt",
+    "payload-missing"
+  ]
+}

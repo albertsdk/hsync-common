@@ -318,6 +318,15 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   `TestDeltaFixtureCoherence` in `test_protocol_fixtures.py`.
 - Consumed by Python drift tests and copied into Android test resources for
   parity (`test_protocol_schemas.py`, android `ProtocolContractTest`).
+- The **`trash-contract` fixture is not a wire message**: it is the sync-trash
+  record/policy contract of ADR-0056, built by
+  `build_trash_contract` (`hsync_common/models/trash.py::build_trash_contract`)
+  from the layout names, the id patterns, the defaults, the restore vocabulary
+  and one computed verdict per case of `is_safe_relpath` /
+  `parse_trash_entry`. It is what makes the Android store's constants and parsers
+  fail a test when they drift (`TrashContractParityTest`), and the client pins
+  the same values in `hsync-client/tests/test_trash_contract.py`; the fixture is
+  covered by the same drift/mirror assertions as the frames.
 
 ## __init__.py — paths & (de)serialization
 
