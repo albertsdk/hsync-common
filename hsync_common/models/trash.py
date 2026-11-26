@@ -442,6 +442,9 @@ def _swept(
         now=now,
     )
     unusable = broken or []
+    for entry_id, kind in unusable:
+        if kind not in _BROKEN_KINDS:
+            raise ValueError(f"unknown broken entry kind for {entry_id!r}: {kind!r}")
     return {
         "why": why,
         "now": now,
@@ -459,6 +462,10 @@ def _swept(
         "discarded": len(unusable),
     }
 
+
+# The ways a stored entry can be unusable while still on disk. Each front-end
+# reproduces them in its sweep test; an unknown kind must fail, never be guessed.
+_BROKEN_KINDS: tuple[str, ...] = ("no-record", "payload-missing", "payload-mismatch")
 
 # The sweep cases share one instant (and a budget large enough to never evict)
 # so a retention case only exercises the window, and vice versa.
@@ -582,6 +589,7 @@ def build_trash_contract() -> dict[str, Any]:
             "keys": sorted(TrashEntry.__annotations__),
         },
         "origins": list(TRASH_ORIGINS),
+        "broken_kinds": list(_BROKEN_KINDS),
         "folder_id_pattern": _FOLDER_ID_RE.pattern,
         "entry_id_pattern": _ENTRY_ID_RE.pattern,
         "retention": {

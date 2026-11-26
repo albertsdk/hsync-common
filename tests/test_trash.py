@@ -20,6 +20,7 @@ from hsync_common.constants import (
     TRASH_RESTORING_SUFFIX,
 )
 from hsync_common.models.trash import (
+    _BROKEN_KINDS,
     TRASH_ORIGIN_SYNC,
     TRASH_ORIGIN_USER,
     TRASH_RESTORE_ALL_STATUSES,
@@ -335,6 +336,7 @@ class TestSweepPlan:
         assert plan.freed == 140
 
     def test_the_published_cases_carry_the_live_plan(self):
+        assert build_trash_contract()["broken_kinds"] == list(_BROKEN_KINDS)
         for case in build_trash_contract()["prune_cases"]:
             plan = plan_trash_sweep(
                 [

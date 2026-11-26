@@ -326,8 +326,8 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   `parse_trash_entry`, plus `prune_cases`: whole sweep scenarios whose verdicts
   come from `plan_trash_sweep` (`hsync_common/models/trash.py::plan_trash_sweep`),
   each carrying the unusable entry directories a sweep must discard
-  (`broken`/`discarded`: a missing record, a missing payload, a payload whose size
-  no longer matches).
+  (`broken`/`discarded`, with the kinds named by the fixture's `broken_kinds`:
+  a missing record, a missing payload, a payload of the wrong size).
   It is what makes the Android store's constants, parsers and sweep fail a test
   when they drift (`TrashContractParityTest`), and the client pins the same
   values in `hsync-client/tests/test_trash_contract.py` (which replays the sweep
