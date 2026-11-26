@@ -69,6 +69,7 @@ class UiEventName(StrEnum):
     fingerprint_changed = "fingerprint_changed"  # pinned master cert changed (TOFU)
     auth_required = "auth_required"  # a shared LAN key is required but missing
     pairing_needed = "pairing_needed"  # an explicit trust confirmation is required
+    duplicate_identity = "duplicate_identity"  # two live hosts present the same device ID
     # ── Transfer resilience ─────────────────────────────────────────
     transfer_failed = "transfer_failed"  # a file transfer gave up after retries
     # ── Mass-deletion guard ─────────────────────────────────────────
