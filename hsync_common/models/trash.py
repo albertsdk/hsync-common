@@ -26,6 +26,8 @@ from __future__ import annotations
 
 import os
 import re
+from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, TypedDict, cast
 
@@ -59,6 +61,8 @@ __all__ = [
     "TRASH_SWEEP_INTERVAL_SECONDS",
     "TRASH_UNRECOVERABLE_RESTORE",
     "TrashEntry",
+    "TrashSweepEntry",
+    "TrashSweepPlan",
     "build_trash_contract",
     "entry_dir",
     "entry_payload_path",
@@ -66,6 +70,7 @@ __all__ = [
     "is_safe_folder_id",
     "is_safe_relpath",
     "parse_trash_entry",
+    "plan_trash_sweep",
     "trash_folder_dir",
     "trash_root",
     "trash_root_inside_folder",
@@ -287,6 +292,79 @@ def parse_trash_entry(payload: object) -> TrashEntry | None:
 
 # ── published contract ────────────────────────────────────────────────────────
 
+# How many seconds a day the retention window is measured in.
+_SECONDS_PER_DAY = 86_400
+
+
+@dataclass(frozen=True)
+class TrashSweepEntry:
+    """One stored entry as the sweep sees it (the rules ignore the bytes)."""
+
+    entry_id: str
+    deleted_at: int
+    size: int
+
+
+@dataclass(frozen=True)
+class TrashSweepPlan:
+    """What a retention/budget sweep drops, decided without touching a disk."""
+
+    expired: tuple[str, ...]
+    evicted: tuple[str, ...]
+    kept: int
+    freed: int
+
+
+def plan_trash_sweep(
+    entries: Sequence[TrashSweepEntry],
+    *,
+    retention_days: int,
+    budget: int,
+    now: int,
+) -> TrashSweepPlan:
+    """Decide which entries a sweep drops: the retention window, then the budget.
+
+    This is the one declaration of the rule: ``hsync-client`` applies the plan to
+    a real tree (``hsync_client/trash.py::prune_store``) instead of re-deriving
+    it, and the ``prune_cases`` of the ``trash-contract`` fixture publish the same
+    outcomes so the Android mirror
+    (``TrashStore.pruneRoot``) is asserted against them.
+
+    ``retention_days`` 0 disables the window; ``budget`` 0 disables eviction.
+    Eviction is oldest-first, and two entries deleted in the same second are
+    ordered by entry id (which starts with its creation timestamp).
+
+    Consumers: ``hsync-client`` (store and ``hsync trash prune``),
+    ``hsync-android`` (parity test), ``hsync-desktop`` / ``hsync-wd-os5`` through
+    the client.
+    """
+    cutoff = now - retention_days * _SECONDS_PER_DAY
+    expired = [
+        entry.entry_id for entry in entries if retention_days > 0 and entry.deleted_at < cutoff
+    ]
+    dropped = set(expired)
+    freed = sum(entry.size for entry in entries if entry.entry_id in dropped)
+    survivors = [entry for entry in entries if entry.entry_id not in dropped]
+    evicted: list[str] = []
+    if budget > 0:
+        total = sum(entry.size for entry in survivors)
+        if total > budget:
+            for entry in sorted(
+                survivors, key=lambda survivor: (survivor.deleted_at, survivor.entry_id)
+            ):
+                if total <= budget:
+                    break
+                total -= entry.size
+                freed += entry.size
+                evicted.append(entry.entry_id)
+    return TrashSweepPlan(
+        expired=tuple(expired),
+        evicted=tuple(evicted),
+        kept=len(survivors) - len(evicted),
+        freed=freed,
+    )
+
+
 # A record every front-end must accept, at its bucket path, with the fields a
 # restore needs plus the optional metadata at their written values.
 _CONTRACT_RECORD: dict[str, object] = {
@@ -331,6 +409,120 @@ def _without(record: dict[str, object], *keys: str) -> dict[str, object]:
 def _entry_case(why: str, record: dict[str, object]) -> dict[str, object]:
     """One ``entry.json`` case: the input, and the verdict the live rules give."""
     return {"why": why, "payload": record, "accepted": parse_trash_entry(record) is not None}
+
+
+def _swept(
+    why: str,
+    entries: list[tuple[str, int, int]],
+    *,
+    retention_days: int,
+    budget: int,
+    now: int,
+) -> dict[str, object]:
+    """One sweep case: ``(entry id, deleted_at, size)`` triples and their plan.
+
+    The verdicts come from [plan_trash_sweep], never from a hand-written number,
+    so a rule change regenerates them and a front-end still applying the old rule
+    fails its parity test.
+    """
+    plan = plan_trash_sweep(
+        [
+            TrashSweepEntry(entry_id=entry_id, deleted_at=when, size=size)
+            for entry_id, when, size in entries
+        ],
+        retention_days=retention_days,
+        budget=budget,
+        now=now,
+    )
+    return {
+        "why": why,
+        "now": now,
+        "retention_days": retention_days,
+        "budget": budget,
+        "entries": [
+            {"entry_id": entry_id, "deleted_at": when, "size": size}
+            for entry_id, when, size in entries
+        ],
+        "expired": sorted(plan.expired),
+        "evicted": sorted(plan.evicted),
+        "kept": plan.kept,
+        "freed": plan.freed,
+    }
+
+
+# The sweep cases share one instant (and a budget large enough to never evict)
+# so a retention case only exercises the window, and vice versa.
+_SWEEP_NOW = 1_700_000_000
+_SWEEP_BUDGET = 1_000_000
+_SWEEP_OLD = _SWEEP_NOW - 40 * _SECONDS_PER_DAY  # outside a 30-day window
+_SWEEP_CUTOFF = _SWEEP_NOW - 30 * _SECONDS_PER_DAY  # exactly at it
+_SWEEP_YOUNG = _SWEEP_NOW - 10 * _SECONDS_PER_DAY  # inside it
+_SWEEP_SAME_SECOND = _SWEEP_NOW - 1_000_000
+
+
+def _sweep_cases() -> list[dict[str, object]]:
+    """The ``prune_cases`` of the contract: retention, eviction and their order."""
+    return [
+        _swept(
+            "the window expires what is older than it",
+            [
+                (f"{_SWEEP_OLD}-aaaaaaaaaaaa", _SWEEP_OLD, 10),
+                (f"{_SWEEP_CUTOFF}-bbbbbbbbbbbb", _SWEEP_CUTOFF, 20),
+                (f"{_SWEEP_YOUNG}-cccccccccccc", _SWEEP_YOUNG, 30),
+            ],
+            retention_days=30,
+            budget=_SWEEP_BUDGET,
+            now=_SWEEP_NOW,
+        ),
+        _swept(
+            "a zero window keeps everything",
+            [
+                (f"{_SWEEP_OLD}-aaaaaaaaaaaa", _SWEEP_OLD, 10),
+                (f"{_SWEEP_YOUNG}-bbbbbbbbbbbb", _SWEEP_YOUNG, 20),
+            ],
+            retention_days=0,
+            budget=_SWEEP_BUDGET,
+            now=_SWEEP_NOW,
+        ),
+        _swept(
+            "the budget evicts the oldest entry first",
+            [
+                (f"{_SWEEP_YOUNG}-bbbbbbbbbbbb", _SWEEP_YOUNG, 60),
+                (f"{_SWEEP_OLD}-aaaaaaaaaaaa", _SWEEP_OLD, 60),
+            ],
+            retention_days=0,
+            budget=100,
+            now=_SWEEP_NOW,
+        ),
+        _swept(
+            "entries of the same second fall back to the entry id",
+            [
+                (f"{_SWEEP_SAME_SECOND}-bbbbbbbbbbbb", _SWEEP_SAME_SECOND, 60),
+                (f"{_SWEEP_SAME_SECOND}-aaaaaaaaaaaa", _SWEEP_SAME_SECOND, 60),
+            ],
+            retention_days=0,
+            budget=100,
+            now=_SWEEP_NOW,
+        ),
+        _swept(
+            "a total at the budget is kept",
+            [(f"{_SWEEP_YOUNG}-aaaaaaaaaaaa", _SWEEP_YOUNG, 100)],
+            retention_days=0,
+            budget=100,
+            now=_SWEEP_NOW,
+        ),
+        _swept(
+            "the window runs before the budget",
+            [
+                (f"{_SWEEP_OLD}-aaaaaaaaaaaa", _SWEEP_OLD, 80),
+                (f"{_SWEEP_YOUNG}-aaaaaaaaaaaa", _SWEEP_YOUNG, 60),
+                (f"{_SWEEP_YOUNG}-bbbbbbbbbbbb", _SWEEP_YOUNG, 50),
+            ],
+            retention_days=30,
+            budget=100,
+            now=_SWEEP_NOW,
+        ),
+    ]
 
 
 def build_trash_contract() -> dict[str, Any]:
@@ -393,4 +585,5 @@ def build_trash_contract() -> dict[str, Any]:
         "restore_all_statuses": sorted(TRASH_RESTORE_ALL_STATUSES),
         "relpath_cases": [{"path": path, "safe": is_safe_relpath(path)} for path in _RELPATH_CASES],
         "entry_cases": entry_cases,
+        "prune_cases": _sweep_cases(),
     }

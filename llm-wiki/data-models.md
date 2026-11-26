@@ -120,9 +120,12 @@ wire shape. Re-exported from `hsync_common/models/__init__.py`.
   (`hsync_common/models/trash.py::build_trash_contract`): the id patterns, the
   restore vocabulary (`TRASH_RESTORE_STATUSES`, `TRASH_UNRECOVERABLE_RESTORE`,
   `TRASH_RESTORE_ALL_STATUSES`), the tree park caps (`TREE_TRASH_MAX_FILES`,
-  `TREE_TRASH_MAX_BYTES`) and the sweep interval
-  (`TRASH_SWEEP_INTERVAL_SECONDS`); the client imports these instead of
-  re-declaring them, and Android asserts its own copies against the fixture.
+  `TREE_TRASH_MAX_BYTES`), the sweep interval
+  (`TRASH_SWEEP_INTERVAL_SECONDS`) and the sweep rule itself
+  (`hsync_common/models/trash.py::plan_trash_sweep`, whose `prune_cases` in the
+  fixture carry retention-window, eviction-order and tie-break outcomes). The
+  client applies that plan instead of re-deriving it, and Android asserts its own
+  copy against the fixture.
 - **Server history** (`hsync_common/models/history.py::HistoryEntry`, ADR-0057):
   the server's counterpart of the trash, for the two losses a client cannot undo —
   an overwrite it accepted and a deletion it applied. Same shapes as the trash

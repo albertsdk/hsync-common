@@ -323,10 +323,13 @@ import this mirror; its Python v1 reuses only generic `hsync-common` utilities
   `build_trash_contract` (`hsync_common/models/trash.py::build_trash_contract`)
   from the layout names, the id patterns, the defaults, the restore vocabulary
   and one computed verdict per case of `is_safe_relpath` /
-  `parse_trash_entry`. It is what makes the Android store's constants and parsers
-  fail a test when they drift (`TrashContractParityTest`), and the client pins
-  the same values in `hsync-client/tests/test_trash_contract.py`; the fixture is
-  covered by the same drift/mirror assertions as the frames.
+  `parse_trash_entry`, plus `prune_cases`: whole sweep scenarios whose verdicts
+  come from `plan_trash_sweep` (`hsync_common/models/trash.py::plan_trash_sweep`).
+  It is what makes the Android store's constants, parsers and sweep fail a test
+  when they drift (`TrashContractParityTest`), and the client pins the same
+  values in `hsync-client/tests/test_trash_contract.py` (which replays the sweep
+  scenarios through `prune_store`); the fixture is covered by the same
+  drift/mirror assertions as the frames.
 
 ## __init__.py — paths & (de)serialization
 
