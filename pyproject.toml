@@ -83,6 +83,7 @@ select = [
     "FURB", "RUF",       # refurb, ruff-specific (noqa / __all__ hygiene)
     "PGH", "LOG", "G",   # pygrep-hooks, logging
     "PL", "T10", "ERA",  # pylint, debugger, commented-out code
+    "C90",               # mccabe complexity (threshold below)
 ]
 ignore = [
     # pre-existing
@@ -108,6 +109,11 @@ ignore = [
 # digits).
 "tests/**" = ["ARG001", "ARG002", "ARG005", "RUF059", "RUF001"]
 "bench/**" = ["ARG001", "ARG005", "RUF059", "RUF001"]
+
+[tool.ruff.lint.mccabe]
+# A pragmatic ceiling that the current code meets; lower it as functions are
+# refactored.
+max-complexity = 25
 
 [tool.mypy]
 python_version = "3.13"
