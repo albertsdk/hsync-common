@@ -46,6 +46,7 @@ consequences accepted. Code answers "how"; these records answer "why".
 | [0024](0024-capability-negotiation.md) | Capability negotiation (registry, channels, intersection) | Accepted |
 | [0025](0025-sqlite-external-state-store.md) | SQLite external state store (folder UUID + ``syncstate.db``) | Accepted |
 | [0026](0026-permission-special-bits-policy.md) | Special permission bits (setuid/setgid/sticky) policy | Accepted |
+| [0027](0027-lan-leadership-lease.md) | LAN leadership lease: bounded incumbency and immediate yield | Accepted |
 
 ## Related documents
 
