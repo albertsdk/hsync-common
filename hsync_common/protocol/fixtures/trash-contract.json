@@ -1,4 +1,9 @@
 {
+  "broken_kinds": [
+    "no-record",
+    "payload-missing",
+    "payload-mismatch"
+  ],
   "budget": {
     "max_size_mb_default": 0,
     "quota_floor_mb": 512,
@@ -231,6 +236,180 @@
   "origins": [
     "sync",
     "user"
+  ],
+  "prune_cases": [
+    {
+      "broken": [
+        {
+          "entry_id": "1699136000-dddddddddddd",
+          "kind": "no-record"
+        },
+        {
+          "entry_id": "1699136000-eeeeeeeeeeee",
+          "kind": "payload-missing"
+        },
+        {
+          "entry_id": "1699136000-ffffffffffff",
+          "kind": "payload-mismatch"
+        }
+      ],
+      "budget": 1000000,
+      "discarded": 3,
+      "entries": [
+        {
+          "deleted_at": 1696544000,
+          "entry_id": "1696544000-aaaaaaaaaaaa",
+          "size": 10
+        },
+        {
+          "deleted_at": 1697408000,
+          "entry_id": "1697408000-bbbbbbbbbbbb",
+          "size": 20
+        },
+        {
+          "deleted_at": 1699136000,
+          "entry_id": "1699136000-cccccccccccc",
+          "size": 30
+        }
+      ],
+      "evicted": [],
+      "expired": [
+        "1696544000-aaaaaaaaaaaa"
+      ],
+      "freed": 10,
+      "kept": 2,
+      "now": 1700000000,
+      "retention_days": 30,
+      "why": "the window expires what is older than it"
+    },
+    {
+      "broken": [],
+      "budget": 1000000,
+      "discarded": 0,
+      "entries": [
+        {
+          "deleted_at": 1696544000,
+          "entry_id": "1696544000-aaaaaaaaaaaa",
+          "size": 10
+        },
+        {
+          "deleted_at": 1699136000,
+          "entry_id": "1699136000-bbbbbbbbbbbb",
+          "size": 20
+        }
+      ],
+      "evicted": [],
+      "expired": [],
+      "freed": 0,
+      "kept": 2,
+      "now": 1700000000,
+      "retention_days": 0,
+      "why": "a zero window keeps everything"
+    },
+    {
+      "broken": [],
+      "budget": 100,
+      "discarded": 0,
+      "entries": [
+        {
+          "deleted_at": 1699136000,
+          "entry_id": "1699136000-bbbbbbbbbbbb",
+          "size": 60
+        },
+        {
+          "deleted_at": 1696544000,
+          "entry_id": "1696544000-aaaaaaaaaaaa",
+          "size": 60
+        }
+      ],
+      "evicted": [
+        "1696544000-aaaaaaaaaaaa"
+      ],
+      "expired": [],
+      "freed": 60,
+      "kept": 1,
+      "now": 1700000000,
+      "retention_days": 0,
+      "why": "the budget evicts the oldest entry first"
+    },
+    {
+      "broken": [],
+      "budget": 100,
+      "discarded": 0,
+      "entries": [
+        {
+          "deleted_at": 1699000000,
+          "entry_id": "1699000000-bbbbbbbbbbbb",
+          "size": 60
+        },
+        {
+          "deleted_at": 1699000000,
+          "entry_id": "1699000000-aaaaaaaaaaaa",
+          "size": 60
+        }
+      ],
+      "evicted": [
+        "1699000000-aaaaaaaaaaaa"
+      ],
+      "expired": [],
+      "freed": 60,
+      "kept": 1,
+      "now": 1700000000,
+      "retention_days": 0,
+      "why": "entries of the same second fall back to the entry id"
+    },
+    {
+      "broken": [],
+      "budget": 100,
+      "discarded": 0,
+      "entries": [
+        {
+          "deleted_at": 1699136000,
+          "entry_id": "1699136000-aaaaaaaaaaaa",
+          "size": 100
+        }
+      ],
+      "evicted": [],
+      "expired": [],
+      "freed": 0,
+      "kept": 1,
+      "now": 1700000000,
+      "retention_days": 0,
+      "why": "a total at the budget is kept"
+    },
+    {
+      "broken": [],
+      "budget": 100,
+      "discarded": 0,
+      "entries": [
+        {
+          "deleted_at": 1696544000,
+          "entry_id": "1696544000-aaaaaaaaaaaa",
+          "size": 80
+        },
+        {
+          "deleted_at": 1699136000,
+          "entry_id": "1699136000-aaaaaaaaaaaa",
+          "size": 60
+        },
+        {
+          "deleted_at": 1699136000,
+          "entry_id": "1699136000-bbbbbbbbbbbb",
+          "size": 50
+        }
+      ],
+      "evicted": [
+        "1699136000-aaaaaaaaaaaa"
+      ],
+      "expired": [
+        "1696544000-aaaaaaaaaaaa"
+      ],
+      "freed": 140,
+      "kept": 1,
+      "now": 1700000000,
+      "retention_days": 30,
+      "why": "the window runs before the budget"
+    }
   ],
   "relpath_cases": [
     {

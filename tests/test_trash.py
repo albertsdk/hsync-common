@@ -20,6 +20,7 @@ from hsync_common.constants import (
     TRASH_RESTORING_SUFFIX,
 )
 from hsync_common.models.trash import (
+    _BROKEN_KINDS,
     TRASH_ORIGIN_SYNC,
     TRASH_ORIGIN_USER,
     TRASH_RESTORE_ALL_STATUSES,
@@ -29,12 +30,14 @@ from hsync_common.models.trash import (
     TREE_TRASH_MAX_BYTES,
     TREE_TRASH_MAX_FILES,
     TrashEntry,
+    TrashSweepEntry,
     build_trash_contract,
     entry_dir,
     entry_payload_path,
     is_safe_folder_id,
     is_safe_relpath,
     parse_trash_entry,
+    plan_trash_sweep,
     trash_folder_dir,
     trash_root,
     trash_root_inside_folder,
@@ -258,3 +261,95 @@ class TestContract:
         assert any(not case["safe"] for case in cases)
         for case in cases:
             assert case["safe"] is is_safe_relpath(case["path"])
+
+
+class TestSweepPlan:
+    """The rule behind ``prune_store`` and the ``prune_cases`` of the contract."""
+
+    _NOW = 1_700_000_000
+    _DAY = 86_400
+
+    def _plan(self, entries, *, retention_days=30, budget=10_000):
+        return plan_trash_sweep(
+            [TrashSweepEntry(*entry) for entry in entries],
+            retention_days=retention_days,
+            budget=budget,
+            now=self._NOW,
+        )
+
+    def test_the_window_drops_only_what_is_older(self):
+        plan = self._plan(
+            [
+                ("old", self._NOW - 40 * self._DAY, 10),
+                ("edge", self._NOW - 30 * self._DAY, 20),
+            ]
+        )
+
+        assert plan.expired == ("old",)
+        assert plan.kept == 1
+        assert plan.freed == 10
+
+    def test_a_zero_window_keeps_everything(self):
+        plan = self._plan([("old", self._NOW - 4_000 * self._DAY, 10)], retention_days=0)
+
+        assert plan.expired == ()
+        assert plan.kept == 1
+
+    def test_eviction_is_oldest_first_and_budget_is_strict(self):
+        plan = self._plan(
+            [
+                ("new", self._NOW - self._DAY, 60),
+                ("old", self._NOW - 5 * self._DAY, 60),
+            ],
+            retention_days=0,
+            budget=100,
+        )
+        exact = self._plan([("only", self._NOW, 100)], retention_days=0, budget=100)
+
+        assert plan.evicted == ("old",)
+        assert plan.kept == 1
+        assert plan.freed == 60
+        assert exact.evicted == ()
+
+    def test_entries_of_one_second_are_ordered_by_id(self):
+        plan = self._plan(
+            [("b", self._NOW - self._DAY, 60), ("a", self._NOW - self._DAY, 60)],
+            retention_days=0,
+            budget=100,
+        )
+
+        assert plan.evicted == ("a",)
+
+    def test_the_window_is_applied_before_the_budget(self):
+        plan = self._plan(
+            [
+                ("old", self._NOW - 40 * self._DAY, 80),
+                ("new", self._NOW - self._DAY, 60),
+                ("newer", self._NOW, 50),
+            ],
+            budget=100,
+        )
+
+        assert plan.expired == ("old",)
+        assert plan.evicted == ("new",)
+        assert plan.kept == 1
+        assert plan.freed == 140
+
+    def test_the_published_cases_carry_the_live_plan(self):
+        assert build_trash_contract()["broken_kinds"] == list(_BROKEN_KINDS)
+        for case in build_trash_contract()["prune_cases"]:
+            plan = plan_trash_sweep(
+                [
+                    TrashSweepEntry(entry["entry_id"], entry["deleted_at"], entry["size"])
+                    for entry in case["entries"]
+                ],
+                retention_days=case["retention_days"],
+                budget=case["budget"],
+                now=case["now"],
+            )
+
+            assert sorted(plan.expired) == case["expired"]
+            assert sorted(plan.evicted) == case["evicted"]
+            assert plan.kept == case["kept"]
+            assert plan.freed == case["freed"]
+            assert case["discarded"] == len(case["broken"])
