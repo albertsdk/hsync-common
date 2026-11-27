@@ -103,8 +103,10 @@ wire shape. Re-exported from `hsync_common/models/__init__.py`.
   device-local record of one deletion this node applied —
   `{relpath, sha256, size, mtime_ns, mode, deleted_at, origin, cid, bucket}`
   inside `<trash root>/<folder id>/<entry id>/entry.json`, with the bytes under
-  `payload/<relpath>`. It is not a wire model: the deletion itself still travels
-  as a tombstone, and the store's bounds are
+  `payload/<relpath>`. The entry id is `<unix seconds>-<hex>`, the hex starting
+  with a nanosecond field, so entries order by creation even for two deletions of
+  one path inside the same second. It is not a wire model: the deletion itself
+  still travels as a tombstone, and the store's bounds are
   `TRASH_RETENTION_DAYS_DEFAULT` / `TRASH_QUOTA_PERCENT_DEFAULT` /
   `TRASH_QUOTA_FLOOR_MB_DEFAULT` (`hsync_common/defaults.py`). Validation
   (`parse_trash_entry`, `is_safe_relpath`) treats a damaged or hand-edited entry

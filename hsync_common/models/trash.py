@@ -83,8 +83,8 @@ TRASH_ORIGIN_SYNC = "sync"
 TRASH_ORIGIN_USER = "user"
 TRASH_ORIGINS = (TRASH_ORIGIN_SYNC, TRASH_ORIGIN_USER)
 
-# ``<unix seconds>-<random hex>``: sorts by age as a string, which the retention
-# sweep relies on.
+# ``<unix seconds>-<hex>``: sorts by age as a string (the hex starts with the
+# creation timestamp in nanoseconds), which the listing and the sweep rely on.
 _ENTRY_ID_RE = re.compile(r"^[0-9]{10,}-[0-9a-f]{8,32}$")
 # ``.hsyncfolder`` holds a UUIDv4; the store also accepts any bounded token so a
 # hand-created marker cannot escape the root.
@@ -332,7 +332,8 @@ def plan_trash_sweep(
 
     ``retention_days`` 0 disables the window; ``budget`` 0 disables eviction.
     Eviction is oldest-first, and two entries deleted in the same second are
-    ordered by entry id (which starts with its creation timestamp).
+    ordered by the entry id's fixed-width nanosecond field, so the tie-break
+    follows creation order rather than chance.
 
     Consumers: ``hsync-client`` (store and ``hsync trash prune``),
     ``hsync-android`` (parity test), ``hsync-desktop`` / ``hsync-wd-os5`` through
