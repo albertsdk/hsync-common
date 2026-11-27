@@ -214,7 +214,7 @@ def build_signature_index(
     return table
 
 
-def _find_matches(
+def _find_matches(  # noqa: C901 - rolling-hash loop inlined for performance
     new_data: bytes | bytearray | memoryview | mmap.mmap,
     signatures: list[BlockSignature] | tuple[BlockSignature, ...],
     block_size: int,

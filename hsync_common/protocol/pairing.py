@@ -224,6 +224,53 @@ def endpoint_pin_key(host: str, port: int | None) -> str:
     return format_authority(host, port) if port is not None else host
 
 
+def _normalize_pin_entry(token: str, *, strict: bool) -> tuple[str, tuple[str, ...]] | None:
+    """Normalize one ``ENDPOINT=FINGERPRINT[|FINGERPRINT]`` entry.
+
+    Returns ``(key, digests)`` or ``None`` when the entry is dropped; ``strict``
+    raises on the first malformed entry instead of dropping it.
+    """
+    from hsync_common.endpoint import parse_host_port
+
+    key = UNSCOPED_PIN_KEY
+    fingerprint_text = token
+    if "=" in token:
+        endpoint_text, fingerprint_text = token.split("=", 1)
+        try:
+            endpoint = parse_host_port(endpoint_text.strip())
+        except ValueError as exc:
+            if strict:
+                raise ValueError(f"invalid endpoint in {token!r}: {exc}") from exc
+            return None
+        key = endpoint_pin_key(endpoint.host, endpoint.port)
+    declared = fingerprint_text.split(_PIN_SEPARATOR)
+    if len(declared) > _MAX_PINS_PER_ENDPOINT:
+        if strict:
+            raise ValueError(
+                f"at most {_MAX_PINS_PER_ENDPOINT} fingerprints per endpoint "
+                "are allowed (rotation window)"
+            )
+        return None
+    normalized: list[str] = []
+    for part in declared:
+        candidate = part.strip()
+        digest = parse_fingerprint(candidate) if candidate else None
+        if digest is None:
+            if strict:
+                raise ValueError(f"invalid fingerprint in {token!r}")
+            return None
+        if digest not in normalized:
+            normalized.append(digest)
+    if not normalized or len(normalized) > _MAX_PINS_PER_ENDPOINT:
+        if strict and len(normalized) > _MAX_PINS_PER_ENDPOINT:
+            raise ValueError(
+                f"at most {_MAX_PINS_PER_ENDPOINT} fingerprints per endpoint "
+                "are allowed (rotation window)"
+            )
+        return None
+    return key, tuple(normalized)
+
+
 def parse_pin_map(raw: str | None, *, strict: bool = False) -> FingerprintPins:
     """Parse ``ENDPOINT=FINGERPRINT[|FINGERPRINT][,…]`` into a keyed pin map.
 
@@ -236,8 +283,6 @@ def parse_pin_map(raw: str | None, *, strict: bool = False) -> FingerprintPins:
     ``strict=True`` raises on the first malformed entry (operator input: the CLI
     and the env loader), while ``strict=False`` drops it (lenient readers).
     """
-    from hsync_common.endpoint import parse_host_port
-
     value = (raw or "").strip()
     if not value:
         return {}
@@ -248,52 +293,13 @@ def parse_pin_map(raw: str | None, *, strict: bool = False) -> FingerprintPins:
             if strict:
                 raise ValueError("empty entry in the fingerprint list")
             continue
-        key = UNSCOPED_PIN_KEY
-        fingerprint_text = token
-        if "=" in token:
-            endpoint_text, fingerprint_text = token.split("=", 1)
-            try:
-                endpoint = parse_host_port(endpoint_text.strip())
-            except ValueError as exc:
-                if strict:
-                    raise ValueError(f"invalid endpoint in {token!r}: {exc}") from exc
-                continue
-            key = endpoint_pin_key(endpoint.host, endpoint.port)
-        normalized: list[str] = []
-        invalid = False
-        declared = fingerprint_text.split(_PIN_SEPARATOR)
-        if len(declared) > _MAX_PINS_PER_ENDPOINT:
-            if strict:
-                raise ValueError(
-                    f"at most {_MAX_PINS_PER_ENDPOINT} fingerprints per endpoint "
-                    "are allowed (rotation window)"
-                )
+        parsed = _normalize_pin_entry(token, strict=strict)
+        if parsed is None:
             continue
-        for part in declared:
-            candidate = part.strip()
-            if not candidate:
-                invalid = True
-                break
-            digest = parse_fingerprint(candidate)
-            if digest is None:
-                invalid = True
-                break
-            if digest not in normalized:
-                normalized.append(digest)
-        if invalid or not normalized:
-            if strict:
-                raise ValueError(f"invalid fingerprint in {token!r}")
-            continue
-        if len(normalized) > _MAX_PINS_PER_ENDPOINT:
-            if strict:
-                raise ValueError(
-                    f"at most {_MAX_PINS_PER_ENDPOINT} fingerprints per endpoint "
-                    "are allowed (rotation window)"
-                )
-            continue
+        key, digests = parsed
         if key in pins:
             if strict:
                 raise ValueError(f"duplicate endpoint {key!r} in the fingerprint list")
             continue
-        pins[key] = tuple(normalized)
+        pins[key] = digests
     return pins
