@@ -101,8 +101,8 @@ def parse_port_list(raw: str, *, strict: bool = False) -> tuple[int, ...]:
     at least one port, the client treats ``()`` as single-port dialing).
     """
     ports: list[int] = []
-    for token in raw.split(","):
-        token = token.strip()
+    for raw_token in raw.split(","):
+        token = raw_token.strip()
         if not token:
             continue
         # ASCII digits only: ``str.isdigit`` also accepts non-ASCII digits that
@@ -442,8 +442,8 @@ def parse_endpoint_list(
         return ()
     endpoints: list[HostPort] = []
     seen: set[tuple[str, int | None]] = set()
-    for token in value.split(","):
-        token = token.strip()
+    for raw_token in value.split(","):
+        token = raw_token.strip()
         if not token:
             if strict:
                 raise ValueError("empty endpoint in the list")

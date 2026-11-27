@@ -64,13 +64,16 @@ from hsync_common.protocol.rdv_tokens import (
 )
 
 __all__ = [
-    "RDV_ALPN",
-    "RDV_IDLE_TIMEOUT",
     "BUCKET_TOKEN_LEN",
     "CAPACITY_MAX",
     "CID_PATTERN",
     "PROTOCOL_VERSION_RDV",
+    "RDV_ALPN",
+    "RDV_IDLE_TIMEOUT",
     "RELAY_ID_LEN",
+    "BucketProto",
+    "Endpoint",
+    "ObservedEndpoint",
     "RdvAck",
     "RdvError",
     "RdvFrame",
@@ -88,9 +91,6 @@ __all__ = [
     "RdvRelayOk",
     "RdvRelayPing",
     "RdvResponse",
-    "BucketProto",
-    "Endpoint",
-    "ObservedEndpoint",
     "constant_time_equals",
     "derive_bucket_token",
     "is_valid_bucket_token",

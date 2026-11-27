@@ -84,7 +84,7 @@ class TestTotalOrder:
             assert (a < b) != (b < a) or a == b
         for first, second, third in itertools.permutations(candidates, 3):
             a, b, c = keys[first.cid], keys[second.cid], keys[third.cid]
-            if a < b and b < c:
+            if a < b < c:
                 assert a < c
 
 

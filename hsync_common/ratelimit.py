@@ -47,8 +47,7 @@ class TokenBucket:
 
     def _refill(self, now: float) -> None:
         elapsed = now - self._stamp
-        if elapsed < 0.0:
-            elapsed = 0.0
+        elapsed = max(elapsed, 0.0)
         self._tokens = min(self._capacity, self._tokens + elapsed * self._rate)
         self._stamp = now
 
@@ -120,11 +119,9 @@ class TokenBucketLimiter:
             tokens = self._capacity
         else:
             elapsed = now - entry[1]
-            if elapsed < 0.0:
-                elapsed = 0.0
+            elapsed = max(elapsed, 0.0)
             tokens = entry[0] + elapsed * self._rate
-            if tokens > self._capacity:
-                tokens = self._capacity
+            tokens = min(tokens, self._capacity)
             # Re-insert so this key becomes the most-recently-used (a plain dict
             # assignment on an existing key would keep its old position).
             del self._buckets[key]

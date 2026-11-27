@@ -26,7 +26,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ..constants import CORRECTED_MTIME_TIE_BREAK_BOUND_SECONDS
+from hsync_common.constants import CORRECTED_MTIME_TIE_BREAK_BOUND_SECONDS
+
 from .version import (
     FileVersion,
     SyncDecision,

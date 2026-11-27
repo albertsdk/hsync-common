@@ -305,7 +305,7 @@ def _symbol_present(path: Path, symbol: str) -> bool:
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
         return False
-    token = symbol.split(".")[-1]
+    token = symbol.rsplit(".", maxsplit=1)[-1]
     if not token:
         return False
     escaped = re.escape(token)

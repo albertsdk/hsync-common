@@ -36,10 +36,10 @@ from .p2p import SYNC_DIRECTION_BIDIRECTIONAL
 __all__ = [
     "SYNC_DIRECTION_DOWNLOAD_ONLY",
     "SYNC_DIRECTION_UPLOAD_ONLY",
-    "FingerprintMismatch",
-    "PinDecision",
-    "FingerprintPins",
     "UNSCOPED_PIN_KEY",
+    "FingerprintMismatch",
+    "FingerprintPins",
+    "PinDecision",
     "endpoint_pin_key",
     "evaluate_pin",
     "fingerprint_matches",
@@ -114,8 +114,7 @@ def parse_fingerprint(value: str | None) -> str | None:
     if not value:
         return None
     cleaned = value.strip().lower()
-    if cleaned.startswith("sha256:"):
-        cleaned = cleaned[len("sha256:") :]
+    cleaned = cleaned.removeprefix("sha256:")
     normalized = normalize_fingerprint(cleaned)
     if normalized is None or not is_sha256_hex(normalized):
         return None

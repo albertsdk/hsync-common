@@ -380,7 +380,7 @@ class TestThreadSafety:
             for i in range(self.ITERS):
                 try:
                     fn(index, i)
-                except Exception as exc:  # noqa: BLE001 - reported, not swallowed
+                except Exception as exc:
                     problems.append(exc)
 
         with ThreadPoolExecutor(max_workers=self.THREADS) as pool:

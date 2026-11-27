@@ -314,7 +314,7 @@ class TestPersistence:
         key_path = tmp_path / "svc.key"
         write_pem_keypair(cert_pem, key_pem, cert_path, key_path)
 
-        with pytest.raises(ValueError, match="P2P master identity .* ECDSA P-256"):
+        with pytest.raises(ValueError, match=r"P2P master identity .* ECDSA P-256"):
             load_pem_keypair(cert_path, key_path, subject="P2P master identity")
 
 
@@ -385,7 +385,7 @@ class TestServiceIdentityOperations:
         key = tmp_path / "svc.key"
         write_pem_keypair(cert_pem, key_pem, cert, key)
 
-        with pytest.raises(ValueError, match="svc identity .* ECDSA P-256"):
+        with pytest.raises(ValueError, match=r"svc identity .* ECDSA P-256"):
             load_or_create_service_identity(cert, key, subject="svc identity", **self._params())
 
 

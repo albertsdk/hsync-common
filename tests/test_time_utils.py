@@ -39,7 +39,7 @@ class TestUtcNow:
         assert s.endswith("Z"), f"Expected Z suffix, got {s!r}"
         assert "T" in s
         # Round-trip: parse back
-        parsed = datetime.fromisoformat(s.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(s)
         now = datetime.now(UTC)
         assert abs((now - parsed).total_seconds()) < 10
 

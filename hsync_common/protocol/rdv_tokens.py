@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import itertools
 import re
 import unicodedata
 
@@ -159,7 +160,7 @@ def derive_group_key(passphrase: str) -> str:
 
 def _is_strictly_consecutive(value: str) -> bool:
     return len(value) >= 2 and all(
-        ord(right) - ord(left) == 1 for left, right in zip(value, value[1:], strict=False)
+        ord(right) - ord(left) == 1 for left, right in itertools.pairwise(value)
     )
 
 

@@ -88,12 +88,12 @@ def dump_openapi(schema: dict[str, Any]) -> str:
 # via ``load_contract``.
 __all__ = [
     "ANDROID_FIXTURES_DIR",
-    "RENDEZVOUS_FIXTURES_DIR",
     "FIXTURES_DIR",
     "P2P_SOURCES_SCHEMA_PATH",
     "P2P_TXT_SCHEMA_PATH",
     "P2P_WSS_SCHEMA_PATH",
     "PROTOCOL_DIR",
+    "RENDEZVOUS_FIXTURES_DIR",
     "REST_OPENAPI_PATH",
     "WS_SCHEMA_PATH",
     "dump_contract",

@@ -39,7 +39,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
-from xml.etree import ElementTree
+from xml.etree import ElementTree as ET
 
 __all__ = [
     "UPNP_SSDP_ADDR",
@@ -115,7 +115,7 @@ def no_redirect_urlopen(url: str | urllib.request.Request, timeout: float) -> An
     global _OPENER
     if _OPENER is None:
         _OPENER = urllib.request.build_opener(_NoRedirect())
-    return _OPENER.open(url, timeout=timeout)  # noqa: S310 - scheme validated before
+    return _OPENER.open(url, timeout=timeout)  # scheme validated before
 
 
 def is_lan_unicast_address(text: str) -> bool:
@@ -381,7 +381,7 @@ def build_delete_mapping_soap(
     return _soap_envelope(inner)
 
 
-def _parse_bounded_xml(body: bytes) -> ElementTree.Element | None:
+def _parse_bounded_xml(body: bytes) -> ET.Element | None:
     """Parse an IGD XML body under the byte bound, refusing any DTD.
 
     The body comes from an unauthenticated LAN reply: a document type
@@ -393,8 +393,8 @@ def _parse_bounded_xml(body: bytes) -> ElementTree.Element | None:
     if b"<!DOCTYPE" in head or b"<!ENTITY" in head:
         return None
     try:
-        return ElementTree.fromstring(head)
-    except ElementTree.ParseError:
+        return ET.fromstring(head)
+    except ET.ParseError:
         return None
 
 

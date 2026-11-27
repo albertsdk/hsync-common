@@ -34,7 +34,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from common import (  # noqa: E402
+from common import (
     BenchResult,
     add_json_out,
     maybe_write_json,
@@ -42,9 +42,9 @@ from common import (  # noqa: E402
     print_table,
 )
 
-from hsync_common.models.tombstone import TombstoneEntry  # noqa: E402
-from hsync_common.models.tombstone_store import TombstoneStore  # noqa: E402
-from hsync_common.models.version_store import SyncStateStore  # noqa: E402
+from hsync_common.models.tombstone import TombstoneEntry
+from hsync_common.models.tombstone_store import TombstoneStore
+from hsync_common.models.version_store import SyncStateStore
 
 
 def _cid(seed: int) -> str:
@@ -110,7 +110,7 @@ def main() -> None:
         def vs_retain() -> None:
             # Keep first 10% then drop the rest — assertion: drop == len(store) - keep.
             total = len(vs)
-            keep = [f"file_{i:06d}.dat" for i in range(0, total // 10)]
+            keep = [f"file_{i:06d}.dat" for i in range(total // 10)]
             dropped = vs.retain(keep)
             assert dropped == total - len(keep), f"{dropped} != {total} - {len(keep)}"
 

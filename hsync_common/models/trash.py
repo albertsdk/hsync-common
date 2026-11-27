@@ -49,8 +49,6 @@ from hsync_common.hashing import is_lower_sha256_hex
 from hsync_common.state_paths import state_path
 
 __all__ = [
-    "TREE_TRASH_MAX_BYTES",
-    "TREE_TRASH_MAX_FILES",
     "TRASH_ENTRY_FILENAME",
     "TRASH_ORIGINS",
     "TRASH_ORIGIN_SYNC",
@@ -60,6 +58,8 @@ __all__ = [
     "TRASH_RESTORE_STATUSES",
     "TRASH_SWEEP_INTERVAL_SECONDS",
     "TRASH_UNRECOVERABLE_RESTORE",
+    "TREE_TRASH_MAX_BYTES",
+    "TREE_TRASH_MAX_FILES",
     "TrashEntry",
     "TrashSweepEntry",
     "TrashSweepPlan",
