@@ -9,13 +9,17 @@ The deterministic election ([ADR-0002](0002-lan-master-election.md)) converges
 every peer on the same master from the same candidate view, and the periodic
 staleness sweep bounds how long a hard-crashed master is kept (see
 `lan-protocol.md`). One gap remained: when a serving master **loses** the
-election (a `force_master` peer becomes `server_ready`, or the incumbent
-restarts and re-joins), the client stopped its HTTP/WSS servers but **left its
-incumbency advertised**: the local `server_ready` flag stayed set and the mDNS
-TXT record still carried `server_ready=true`. The node therefore remained an
-"incumbent" in its own view and in every peer's view even though it was no
-longer serving — a *zombie incumbent* that can stall or skew subsequent
-elections and, during a network partition, prolong a split-brain.
+election, the client stopped its HTTP/WSS servers but **left its incumbency
+advertised**: the local `server_ready` flag stayed set and the mDNS TXT record
+still carried `server_ready=true`. The node therefore remained an "incumbent"
+in its own view and in every peer's view even though it was no longer serving —
+a *zombie incumbent* that can stall or skew subsequent elections.
+
+A live master only loses the election when another peer has also become
+`server_ready` — which, because exactly one node serves per healthy partition,
+happens on **network-partition heal**: the two sides elected different masters,
+and when they converge the deterministic election picks one (a `force_master`
+peer wins at parity), so the other yields.
 
 ## Decision
 
