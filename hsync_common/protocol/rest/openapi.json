@@ -398,7 +398,7 @@
   },
   "info": {
     "title": "HSYNC - HTTP Sync file server",
-    "version": "1.2.0-alpha.1"
+    "version": "1.2.0-beta.1"
   },
   "openapi": "3.1.0",
   "paths": {
